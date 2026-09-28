@@ -1,0 +1,51 @@
+{
+  "model": "NCP-CfC v5.1",
+  "input_dim": 37,
+  "output_dim": 9,
+  "n_inter": 48,
+  "n_command": 24,
+  "n_motor": 8,
+  "total_params": 20729,
+  "fp32_bytes": 82916,
+  "fp16_bytes": 41458,
+  "int8_bytes": 20729,
+  "ncp_sparsity": 0.6403882503509521,
+  "layers": [
+    {
+      "name": "encoder",
+      "type": "Dense",
+      "in": 36,
+      "out": 48
+    },
+    {
+      "name": "inter_cfc",
+      "type": "CfCCell",
+      "hidden": 48
+    },
+    {
+      "name": "inter_to_cmd",
+      "type": "MaskedDense",
+      "in": 48,
+      "out": 24,
+      "active_connections": 581
+    },
+    {
+      "name": "cmd_cfc",
+      "type": "CfCCell",
+      "hidden": 24
+    },
+    {
+      "name": "cmd_to_motor",
+      "type": "MaskedDense",
+      "in": 24,
+      "out": 8,
+      "active_connections": 98
+    },
+    {
+      "name": "output",
+      "type": "Dense",
+      "in": 8,
+      "out": 9
+    }
+  ]
+}

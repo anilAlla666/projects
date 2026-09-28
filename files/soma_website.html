@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOMA — The Universal Motor Runtime for Robotics</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #09090b;
+    --surface: #111113;
+    --surface-2: #18181b;
+    --border: #27272a;
+    --text: #fafafa;
+    --text-muted: #a1a1aa;
+    --accent: #22c55e;
+    --accent-dim: rgba(34, 197, 94, 0.12);
+    --accent-glow: rgba(34, 197, 94, 0.25);
+    --orange: #f97316;
+    --red: #ef4444;
+    --blue: #3b82f6;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(34, 197, 94, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34, 197, 94, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Navigation */
+  nav {
+    padding: 24px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 80px;
+  }
+
+  nav .container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .logo {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 4px;
+    color: var(--accent);
+  }
+
+  .logo-sub {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 300;
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* Hero */
+  .hero {
+    padding: 40px 0 100px;
+    text-align: left;
+  }
+
+  .hero-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .hero-tag::before {
+    content: '';
+    width: 40px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: clamp(42px, 6vw, 72px);
+    line-height: 1.1;
+    font-weight: 400;
+    margin-bottom: 32px;
+    letter-spacing: -1px;
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .hero-sub {
+    font-size: 20px;
+    color: var(--text-muted);
+    max-width: 640px;
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  /* Stats bar */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 80px 0;
+  }
+
+  .stat {
+    background: var(--surface);
+    padding: 32px 24px;
+    text-align: center;
+  }
+
+  .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
+
+  /* Sections */
+  section {
+    margin-bottom: 100px;
+  }
+
+  h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 36px;
+    font-weight: 400;
+    margin-bottom: 24px;
+    letter-spacing: -0.5px;
+  }
+
+  h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 20px;
+  }
+
+  p {
+    color: var(--text-muted);
+    font-size: 17px;
+    margin-bottom: 20px;
+    font-weight: 300;
+  }
+
+  p strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* Architecture diagram */
+  .arch-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 40px;
+    margin: 40px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    line-height: 2.2;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .arch-block::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+  }
+
+  .arch-line {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .arch-label {
+    color: var(--text-muted);
+    min-width: 200px;
+  }
+
+  .arch-value {
+    color: var(--accent);
+  }
+
+  .arch-arrow {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 4px 0;
+    font-size: 16px;
+  }
+
+  /* Comparison table */
+  .comparison {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 40px 0;
+    font-size: 15px;
+  }
+
+  .comparison th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-align: left;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+  }
+
+  .comparison td {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    font-weight: 300;
+  }
+
+  .comparison tr:last-child td {
+    border-bottom: none;
+  }
+
+  .comparison .soma-row td {
+    color: var(--text);
+    background: var(--accent-dim);
+    font-weight: 500;
+  }
+
+  .comparison .soma-row td:first-child {
+    color: var(--accent);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+  }
+
+  /* Feature grid */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 40px 0;
+  }
+
+  .feature {
+    background: var(--surface);
+    padding: 32px 24px;
+  }
+
+  .feature-icon {
+    font-size: 24px;
+    margin-bottom: 16px;
+  }
+
+  .feature-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+  }
+
+  .feature-desc {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  /* Timeline / Roadmap */
+  .roadmap {
+    position: relative;
+    padding-left: 40px;
+    margin: 40px 0;
+  }
+
+  .roadmap::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    bottom: 8px;
+    width: 1px;
+    background: var(--border);
+  }
+
+  .roadmap-item {
+    position: relative;
+    margin-bottom: 48px;
+  }
+
+  .roadmap-item::before {
+    content: '';
+    position: absolute;
+    left: -36px;
+    top: 8px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    background: var(--bg);
+  }
+
+  .roadmap-item.done::before {
+    background: var(--accent);
+  }
+
+  .roadmap-item.current::before {
+    box-shadow: 0 0 12px var(--accent-glow);
+    background: var(--accent);
+  }
+
+  .roadmap-phase {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .roadmap-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .roadmap-desc {
+    font-size: 14px;
+    color: var(--text-muted);
+    font-weight: 300;
+  }
+
+  /* CTA */
+  .cta-section {
+    text-align: center;
+    padding: 80px 0;
+    border-top: 1px solid var(--border);
+    margin-top: 100px;
+  }
+
+  .cta-section h2 {
+    margin-bottom: 16px;
+  }
+
+  .cta-section p {
+    max-width: 500px;
+    margin: 0 auto 40px;
+  }
+
+  .cta-email {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    color: var(--accent);
+    text-decoration: none;
+    padding: 16px 40px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    display: inline-block;
+    transition: all 0.3s;
+  }
+
+  .cta-email:hover {
+    background: var(--accent-dim);
+    box-shadow: 0 0 30px var(--accent-glow);
+  }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 80px 0;
+  }
+
+  /* Inline code */
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    background: var(--surface-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--accent);
+  }
+
+  /* Blockquote */
+  blockquote {
+    border-left: 2px solid var(--accent);
+    padding-left: 24px;
+    margin: 32px 0;
+    font-family: 'Instrument Serif', serif;
+    font-size: 22px;
+    font-style: italic;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .feature-grid { grid-template-columns: 1fr; }
+    .comparison { font-size: 13px; }
+    .comparison th, .comparison td { padding: 12px; }
+  }
+
+  /* Fade in animation */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero, section, .stats-bar, .cta-section {
+    animation: fadeUp 0.8s ease-out both;
+  }
+
+  section:nth-child(2) { animation-delay: 0.1s; }
+  section:nth-child(3) { animation-delay: 0.2s; }
+  section:nth-child(4) { animation-delay: 0.3s; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="container">
+    <div>
+      <div class="logo">SOMA</div>
+      <div class="logo-sub">Neural Dynamics</div>
+    </div>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- HERO -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="hero">
+  <div class="hero-tag">Introducing SOMA</div>
+  <h1>One neural network.<br>Every motor behavior.<br><em>Any robot.</em></h1>
+  <p class="hero-sub">
+    SOMA is a universal motor runtime that replaces hand-coded C++ control stacks, model predictive controllers, and task-specific reinforcement learning policies with a single 244KB neural network running at 10kHz on a CPU.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- STATS -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="stats-bar">
+  <div class="stat">
+    <div class="stat-value">244KB</div>
+    <div class="stat-label">Deployment Size</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">10kHz</div>
+    <div class="stat-label">On CPU</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">21</div>
+    <div class="stat-label">Capabilities</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value">91 min</div>
+    <div class="stat-label">Training Time</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- THE PROBLEM -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<section>
+  <h3>The Problem</h3>
+  <h2>Robot motor control is stuck in the 1990s</h2>
+
+  <p>
+    Every production robot today ships with a <strong>hand-coded control stack</strong>. Separate C++ modules for walking, turning, balancing, recovering from falls — each one painstakingly tuned by control engineers over months. A typical quadruped carries <strong>50,000–100,000 lines of C++</strong> just to walk and not fall over.
+  </p>
+  <p>
+    Adding a new behavior — stair climbing, rough terrain, carrying a payload — means months of engineering. Each new behavior can break existing ones. Each new robot morphology means starting over.
+  </p>
+  <p>
+    Model Predictive Control (MPC) improved things, but it solves a fresh optimization problem every control cycle. That's <strong>O(N³) per timestep</strong>. On a humanoid with 40+ degrees of freedom, MPC barely runs at 30–50Hz. Real-time? Barely. Certifiable? Never.
+  </p>
+  <p>
+    Recent RL-trained neural policies look promising in demos but ship as black boxes with no safety guarantees, no timing determinism, and no path to certification. Every new robot still needs its own policy trained from scratch.
+  </p>
+
+  <blockquote>
+    The robotics industry doesn't have a hardware problem. It has a motor software problem. SOMA solves it.
+  </blockquote>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- WHAT SOMA IS -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<section>
+  <h3>What We're Building</h3>
+  <h2>A spinal cord for any robot</h2>
+
+  <p>
+    Your brain doesn't compute individual muscle torques when you walk. Your spinal cord handles that — taking high-level intent ("walk forward") and converting it into coordinated motor signals, automatically adjusting for terrain, perturbation, and balance. Thousands of capabilities, one system, no conscious computation required.
+  </p>
+  <p>
+    <strong>SOMA is that layer for robots.</strong> A high-level planner — any planner — sends a target command. SOMA converts it into safe, coordinated motor torques in a single constant-time forward pass. No iterative solving. No scenario-dependent computation. No separate modules per behavior.
+  </p>
+
+  <div class="arch-block">
+    <div class="arch-line">
+      <span class="arch-label">Any High-Level Planner</span>
+      <span class="arch-value">target command (velocity, pose, force)</span>
+    </div>
+    <div class="arch-arrow">↓</div>
+    <div class="arch-line">
+      <span class="arch-label">CfC Neural Controller</span>
+      <span class="arch-value">continuous-time recurrent network, 178K MACs</span>
+    </div>
+    <div class="arch-arrow">↓</div>
+    <div class="arch-line">
+      <span class="arch-label">PD Compliance Layer</span>
+      <span class="arch-value">joint-level position/velocity tracking</span>
+    </div>
+    <div class="arch-arrow">↓</div>
+    <div class="arch-line">
+      <span class="arch-label">CBF Safety Filter</span>
+      <span class="arch-value">hard constraint enforcement, 84kHz throughput</span>
+    </div>
+    <div class="arch-arrow">↓</div>
+    <div class="arch-line">
+      <span class="arch-label">Motors</span>
+      <span class="arch-value">safe torques, guaranteed timing, every cycle</span>
+    </div>
+  </div>
+
+  <p>
+    The core architecture is a <strong>Closed-form Continuous-time (CfC) neural network</strong> — a recurrent network with continuous-time dynamics governed by learnable time constants. Unlike standard neural networks that operate in discrete timesteps, CfC networks have an explicit <code>dt</code> parameter that makes the same trained weights produce correct behavior at any control frequency: 200Hz, 1kHz, 10kHz — with zero retraining.
+  </p>
+  <p>
+    This isn't a theoretical property. It's a mathematical consequence of the architecture: <code>σ = sigmoid(τ_a · dt + τ_b)</code>. The time constants <code>τ_a</code> and <code>τ_b</code> encode the dynamics. Change <code>dt</code>, and the network automatically adjusts its integration. No other neural architecture used in robotics can do this.
+  </p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- WHERE WE ARE -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<section>
+  <h3>Where We Are Today</h3>
+  <h2>21 capabilities. One network. 91 minutes.</h2>
+
+  <p>
+    SOMA v14 trains a single 244KB neural network across <strong>21 distinct motor capabilities</strong> on the Unitree Go1 quadruped — the full behavioral repertoire a production robot needs from its motor control layer:
+  </p>
+
+  <div class="feature-grid">
+    <div class="feature">
+      <div class="feature-icon">🏃</div>
+      <div class="feature-title">Omnidirectional Locomotion</div>
+      <div class="feature-desc">Forward, backward, lateral, diagonal, yaw turning, speed tracking, start/stop transitions — all from velocity commands</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🏔️</div>
+      <div class="feature-title">Rough Terrain</div>
+      <div class="feature-desc">Full omnidirectional movement on uneven, rocky terrain with automatic gait adaptation</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">💪</div>
+      <div class="feature-title">Push Recovery</div>
+      <div class="feature-desc">Lateral and longitudinal perturbation rejection — up to 3 m/s velocity kicks while maintaining gait</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🤸</div>
+      <div class="feature-title">Fall Recovery</div>
+      <div class="feature-desc">Self-righting from any orientation — back, side, face-down — without scripted recovery sequences</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🤾</div>
+      <div class="feature-title">Inverted Balance</div>
+      <div class="feature-desc">Handstand (front legs) and footstand (rear legs) — sustained static balance in inverted configurations</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-title">Deterministic Timing</div>
+      <div class="feature-desc">WCET = BCET. Worst case equals best case execution time. Every control cycle takes exactly the same time.</div>
+    </div>
+  </div>
+
+  <p>
+    Total training time: <strong>91 minutes on a single A100 GPU</strong>. 850 million environment steps across 5 simulation environments. The trained network deploys as a 244KB INT8 binary that runs at 10kHz on a commodity CPU — no GPU required at deployment.
+  </p>
+  <p>
+    For comparison: training a comparable MLP-based policy on the same environments, using Google DeepMind's MuJoCo Playground framework, takes roughly the same wall time — but produces a policy that lacks frequency invariance, has no continuous-time dynamics, and requires separate handling for each control frequency.
+  </p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- VS COMPETITION -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<section>
+  <h3>How This Compares</h3>
+  <h2>A different kind of motor control</h2>
+
+  <table class="comparison">
+    <tr>
+      <th>Property</th>
+      <th>Hand-Coded C++</th>
+      <th>MPC</th>
+      <th>RL Policy (MLP)</th>
+      <th>SOMA</th>
+    </tr>
+    <tr>
+      <td>Deployment size</td>
+      <td>50–100K lines</td>
+      <td>Solver + model</td>
+      <td>~2MB FP32</td>
+      <td class="soma-row"><strong>244KB INT8</strong></td>
+    </tr>
+    <tr>
+      <td>Inference time</td>
+      <td>Variable</td>
+      <td>O(N³) per step</td>
+      <td>~100μs</td>
+      <td class="soma-row"><strong>~65μs constant</strong></td>
+    </tr>
+    <tr>
+      <td>Control frequency</td>
+      <td>500Hz typical</td>
+      <td>30–200Hz</td>
+      <td>Fixed at training freq</td>
+      <td class="soma-row"><strong>Any freq, same weights</strong></td>
+    </tr>
+    <tr>
+      <td>New robot</td>
+      <td>Rewrite from scratch</td>
+      <td>New model + tuning</td>
+      <td>Retrain from scratch</td>
+      <td class="soma-row"><strong>New URDF, retrain 91 min</strong></td>
+    </tr>
+    <tr>
+      <td>New behavior</td>
+      <td>Months of engineering</td>
+      <td>New cost function</td>
+      <td>New reward, retrain</td>
+      <td class="soma-row"><strong>Add curriculum phase</strong></td>
+    </tr>
+    <tr>
+      <td>Safety certification</td>
+      <td>Possible but brittle</td>
+      <td>Not practical</td>
+      <td>Not possible (black box)</td>
+      <td class="soma-row"><strong>CBF hard guarantees</strong></td>
+    </tr>
+    <tr>
+      <td>GPU required</td>
+      <td>No</td>
+      <td>Sometimes</td>
+      <td>Often</td>
+      <td class="soma-row"><strong>Never</strong></td>
+    </tr>
+    <tr>
+      <td>Timing determinism</td>
+      <td>No</td>
+      <td>No (iterative)</td>
+      <td>Approximate</td>
+      <td class="soma-row"><strong>WCET = BCET</strong></td>
+    </tr>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- THE MOAT -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<section>
+  <h3>Why This Is Hard to Copy</h3>
+  <h2>Three architectural moats</h2>
+
+  <p>
+    <strong>Constant-time inference.</strong> The CfC forward pass is 178,000 multiply-accumulate operations. Fixed. Every cycle. Standing still or mid-backflip — same compute, same latency. MPC's cost scales with planning horizon and contact complexity. Standard MLPs don't have continuous-time dynamics. You can't retrofit this property onto an existing architecture; it has to be designed in from the beginning.
+  </p>
+  <p>
+    <strong>Frequency invariance.</strong> Train once, deploy at any control rate. The CfC's time constants (<code>τ_a</code>, <code>τ_b</code>) encode how fast the hidden state should evolve relative to real time. At 200Hz, <code>dt=0.005</code>. At 10kHz, <code>dt=0.0001</code>. The network compensates automatically. A standard MLP policy trained at 50Hz will fail at 200Hz. SOMA's doesn't. This matters for deployment because different robots, different actuators, different real-time OS configurations all want different control frequencies.
+  </p>
+  <p>
+    <strong>Certifiable safety.</strong> A Control Barrier Function (CBF) sits between the neural controller and the motors. It enforces hard constraints — joint limits, velocity bounds, torque rate limits, orientation bounds — analytically, in closed form, every cycle. The CBF doesn't "try" to be safe. It makes constraint violation mathematically impossible. This is the only path to ISO 13849 and EU AI Act compliance for neural robot controllers. We've demonstrated 84kHz throughput with zero reward degradation on the safety filter — faster than the control loop, so it adds zero latency.
+  </p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- LANDSCAPE -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<section>
+  <h3>Market Context</h3>
+  <h2>Replacing code, not robots</h2>
+
+  <p>
+    <strong>Figure AI</strong> built System 0 — a neural network replacing 109,000 lines of C++ on their humanoid. Impressive. But it's proprietary to one robot, requires massive compute, and can't be sold to other manufacturers. Figure is Apple. We are ARM.
+  </p>
+  <p>
+    <strong>Boston Dynamics</strong> has spent three decades on hand-tuned control. Their Atlas backflip is a masterpiece of engineering — and took years of specialized work by the best roboticists in the world. SOMA aims to make that level of capability achievable in hours, on any platform, by anyone with a URDF.
+  </p>
+  <p>
+    <strong>Unitree</strong> ships the most affordable quadrupeds and humanoids on the market. Their RL training pipeline is open source. But their policies are standard MLPs — no frequency invariance, no continuous-time dynamics, no safety certification path. If Unitree wanted to certify their locomotion for industrial deployment, they'd need to rebuild from scratch.
+  </p>
+  <p>
+    <strong>Skild AI</strong> raised $1.5B to build a foundation model for robot intelligence — the brain. SOMA is the spinal cord. We're complementary. Skild tells the robot what to do. SOMA makes the muscles do it safely and on time.
+  </p>
+
+  <blockquote>
+    Every robot manufacturer is building their own motor control stack from scratch. We want to be the last motor stack anyone needs to build.
+  </blockquote>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- ROADMAP -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<section>
+  <h3>Roadmap</h3>
+  <h2>Where we're going</h2>
+
+  <div class="roadmap">
+    <div class="roadmap-item done">
+      <div class="roadmap-phase">Completed</div>
+      <div class="roadmap-title">v14 — 21 capabilities, single CfC, Go1 quadruped</div>
+      <div class="roadmap-desc">Omnidirectional locomotion, rough terrain, fall recovery, push recovery, inverted balance. 91 min training. 244KB deployment.</div>
+    </div>
+
+    <div class="roadmap-item current">
+      <div class="roadmap-phase">In Progress</div>
+      <div class="roadmap-title">v14.1 — Unified checkpoint + expanded capabilities</div>
+      <div class="roadmap-desc">Single checkpoint for all capabilities. Adding backflip, stair climbing, height modulation, gait variation. Target: 35+ capabilities.</div>
+    </div>
+
+    <div class="roadmap-item">
+      <div class="roadmap-phase">Next</div>
+      <div class="roadmap-title">v15 — Multi-morphology: Go1 + G1 humanoid</div>
+      <div class="roadmap-desc">Same CfC architecture, different URDF, shared weights. Proving zero-shot morphology transfer from quadruped to biped.</div>
+    </div>
+
+    <div class="roadmap-item">
+      <div class="roadmap-phase">Planned</div>
+      <div class="roadmap-title">v16 — Manipulation + loco-manipulation</div>
+      <div class="roadmap-desc">Mixture-of-Experts CfC for combined locomotion and dexterous manipulation. Walk while grasping, reach while balancing.</div>
+    </div>
+
+    <div class="roadmap-item">
+      <div class="roadmap-phase">Planned</div>
+      <div class="roadmap-title">Runtime SDK — URDF in, certified binary out</div>
+      <div class="roadmap-desc">Production deployment pipeline: upload URDF → auto-train → INT8 C binary with CBF safety → runs on any embedded CPU at 10kHz.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- TECHNICAL DETAILS -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<section>
+  <h3>Under the Hood</h3>
+  <h2>For the technically curious</h2>
+
+  <p>
+    The CfC architecture uses a backbone network to compute two candidate hidden states and a time-dependent interpolation gate:
+  </p>
+
+  <div class="arch-block">
+    <div style="color: var(--text-muted);">
+      xh = concat(observation, h_prev)<br>
+      backbone = tanh(Dense(256)(xh))<br>
+      ff₁ = tanh(Dense(128)(backbone))&nbsp;&nbsp;&nbsp;<span style="color: var(--accent);">← candidate 1</span><br>
+      ff₂ = tanh(Dense(128)(backbone))&nbsp;&nbsp;&nbsp;<span style="color: var(--accent);">← candidate 2</span><br>
+      τ_a = Dense(128)(backbone)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--accent);">← learned time constant</span><br>
+      τ_b = Dense(128)(backbone)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--accent);">← learned phase offset</span><br>
+      σ = sigmoid(τ_a · dt + τ_b)&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: var(--accent);">← continuous-time gate</span><br>
+      h_new = (1 − σ) · ff₁ + σ · ff₂<br>
+      action = Dense(12)(h_new)
+    </div>
+  </div>
+
+  <p>
+    The gating mechanism <code>σ = sigmoid(τ_a · dt + τ_b)</code> is what gives CfC its defining properties. <code>τ_a</code> acts as an inverse time constant — it controls how quickly each hidden dimension evolves. <code>τ_b</code> acts as a phase offset. Together they make the hidden state dynamics a function of real time, not discrete steps. This is why the same weights work at any control frequency.
+  </p>
+  <p>
+    Training uses Brax's native PPO implementation with asymmetric actor-critic: the policy observes noisy state (48 dimensions — what real sensors would provide), while the value function observes privileged state (123 dimensions — including terrain maps, contact forces, and other information unavailable at deployment). This asymmetry dramatically improves sample efficiency without compromising the deployment policy.
+  </p>
+  <p>
+    The entire v14 training curriculum runs sequentially across 5 simulation environments with weight continuation between phases: flat locomotion (200M steps) → rough terrain (200M) → fall recovery (50M) → handstand (100M) → footstand (100M) → consolidation (100M). Total: 850M steps, 91 minutes on one A100.
+  </p>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- CTA -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<div class="cta-section">
+  <h2>Built by Neural Dynamics</h2>
+  <p>
+    We're building the motor runtime the robotics industry has been waiting for. If you're manufacturing robots and spending months on motor control — let's talk.
+  </p>
+  <a class="cta-email" href="mailto:anil@neuraldynamics.ai">anil@neuraldynamics.ai</a>
+</div>
+
+</div>
+
+</body>
+</html>
