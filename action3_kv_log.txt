@@ -1,0 +1,34 @@
+[load] mistralai/Mistral-7B-v0.1
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   3%|▎         | 10/291 [00:00<00:03, 93.55it/s]Loading weights:   8%|▊         | 23/291 [00:00<00:02, 112.71it/s]Loading weights:  14%|█▎        | 40/291 [00:00<00:02, 125.18it/s]Loading weights:  20%|█▉        | 58/291 [00:00<00:01, 127.86it/s]Loading weights:  26%|██▌       | 76/291 [00:00<00:01, 127.36it/s]Loading weights:  32%|███▏      | 94/291 [00:00<00:01, 136.39it/s]Loading weights:  38%|███▊      | 112/291 [00:00<00:01, 123.98it/s]Loading weights:  45%|████▌     | 131/291 [00:01<00:01, 135.08it/s]Loading weights:  52%|█████▏    | 150/291 [00:01<00:00, 146.35it/s]Loading weights:  57%|█████▋    | 166/291 [00:01<00:01, 106.71it/s]Loading weights:  62%|██████▏   | 179/291 [00:01<00:01, 93.57it/s] Loading weights:  65%|██████▌   | 190/291 [00:01<00:01, 85.85it/s]Loading weights:  69%|██████▊   | 200/291 [00:01<00:01, 74.66it/s]Loading weights:  73%|███████▎  | 211/291 [00:02<00:01, 61.41it/s]Loading weights:  76%|███████▌  | 220/291 [00:02<00:01, 64.84it/s]Loading weights:  79%|███████▊  | 229/291 [00:02<00:01, 57.26it/s]Loading weights:  82%|████████▏ | 238/291 [00:02<00:00, 61.55it/s]Loading weights:  85%|████████▍ | 247/291 [00:02<00:00, 64.99it/s]Loading weights:  88%|████████▊ | 256/291 [00:02<00:00, 62.89it/s]Loading weights:  91%|█████████ | 265/291 [00:03<00:00, 53.79it/s]Loading weights:  94%|█████████▍| 274/291 [00:03<00:00, 56.38it/s]Loading weights:  98%|█████████▊| 284/291 [00:03<00:00, 63.43it/s]Loading weights: 100%|██████████| 291/291 [00:03<00:00, 85.72it/s]
+
+[calib] 10 prompts (prefill + 200 decode each)
+[calib]   prompt 1/10 done; layer 0: 212 captures
+[calib]   prompt 2/10 done; layer 0: 424 captures
+[calib]   prompt 3/10 done; layer 0: 634 captures
+[calib]   prompt 4/10 done; layer 0: 845 captures
+[calib]   prompt 5/10 done; layer 0: 1055 captures
+[calib]   prompt 6/10 done; layer 0: 1264 captures
+[calib]   prompt 7/10 done; layer 0: 1478 captures
+[calib]   prompt 8/10 done; layer 0: 1690 captures
+[calib]   prompt 9/10 done; layer 0: 1904 captures
+[calib]   prompt 10/10 done; layer 0: 2118 captures
+[calib] total per layer: 2118
+[calib] qK[0]=(1024, 512), qV[0]=(1024, 512)
+
+[baseline] HELD-OUT prompt: 'Explain the differences between TCP and UDP networking protocols'
+[baseline] '.\n\nTCP is a connection-oriented protocol. It is a reliable protocol. It provides a reliable connection between the sender and the receiver. It provides a reliable connection between the sender and the'
+
+  (K_rank, V_rank)      top1  mean_kl   p99_kl  [0..50) [100..150)
+  ----------------------------------------------------------------------
+  (192, 240)          0.8400   0.5256   5.3287   0.6600     0.9000
+  (256, 320)          0.9100   0.3623   4.3575   0.6800     1.0000
+  (384, 480)          0.9500   0.1821   2.7301   0.8000     1.0000
+  (512, 512)          0.9500   0.1797   2.6460   0.8000     1.0000
+
+=== ACTION 3 verdict ===
+  Min rank passing >95% top1: K=384, V=480
+  Compression ratio: 2.37x KV bandwidth reduction
+
+[save] /home/ubuntu/op31-prod-fix/action3_kv_projection_results.json
