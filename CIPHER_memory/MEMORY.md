@@ -1,0 +1,3 @@
+- [CIPHER v2 session complete record](project_cipher_v2_session.md) — 8-phase build on H100, all 12 ops wired, Koopman mechanism proven 20/20 but kernel can't beat cuBLAS yet
+- [MFU baseline is hardware-limited](feedback_mfu_baseline.md) — H100 sustains ~700 TFLOPS, 989 is boost spec not target
+- [CIPHER v2 next session pickup](cipher_v2_continuation.md) — exactly where to resume, pending decisions, current state
