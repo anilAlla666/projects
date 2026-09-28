@@ -1,0 +1,97 @@
+{
+  "campaign": "V1 Phase B B.6''.3.6 + B.6''.5 + B.6''.6 - F-B.3.6.1 Path B' substrate + F-B.3.6.2 Option B CDI env + R5 simplification + /dev/cipher devNode + .deb rebuild + Gate A 5th",
+  "date": "2026-05-26",
+  "purpose": "Per Anil B.6''.3.6 revised scope: deliver substrate cuBLAS-Lt visibility via Path B' (dlsym hook + 17 trampolines) + CDI env injection (TORCH_CUBLASLT_DISABLE=1) so default torch bf16/fp16 routes through cublasGemmEx (Phase A substrate-intercepted). v1 ships CUDA 13 substrate, full documented cuBLAS-Lt coverage, vLLM-workload visibility.",
+  "anchors_at_close": {
+    "cipher_rt_phase4": "78bfded tag v1-substrate-cuda13-cublaslt-coverage (NEW)",
+    "libcipher_rt_so_md5_cuda13_path_b_prime": "1f305ce61e9acae65920dc8fa9474ee1 (preserved at build_cuda13/)",
+    "libcipher_rt_so_md5_in_deb_after_rebuild": "498760-byte CUDA 13 ELF; build-timestamp non-deterministic; semantic-equivalent to 1f305ce6",
+    "cipher_kmod": "8c643fc tag week-13-14-complete (UNCHANGED)",
+    "cipher_platform_deb_v2_rev5_md5": "e0439428cb0fc74fb0898c11f2a17096 (post-R5 + B.6''.5 rebuild)",
+    "cipher_fusion_evidence_at_close": "7575c87 (B.6''.4 + B.6''.5 + B.6''.6 + this commit will extend)"
+  },
+  "b6_3_6_substep_summary": {
+    "step_1_dlsym_hook": {
+      "files": ["cipher_rt_phase4/cipher_rt_dlsym_hook.h (NEW)", "cipher_rt_phase4/cipher_rt_dlsym_hook.c (NEW)"],
+      "mechanism": "GOT-patched dlsym + dlvsym + (sym -> shim) registry + TLS recursion guard",
+      "verdict": "BUILT + INTEGRATED"
+    },
+    "step_2_dispatch_registry": {
+      "description": "registry in cipher_rt_dlsym_hook.c; cipher_rt_dlsym_register API used by cipher_rt_cublaslt_variants_init to populate 17 entries",
+      "verdict": "BUILT"
+    },
+    "step_3_audit": {
+      "finding": "cuBLAS-Lt variants are NOT declared in public cublasLt.h; Path A signature unification infeasible",
+      "verdict": "Path B' (assembly trampolines) chosen by Anil; no reverse engineering required"
+    },
+    "step_3_implementation_path_b_prime": {
+      "files": ["cipher_rt_phase4/cipher_rt_cublaslt_variants.c (NEW)"],
+      "trampolines": "17 naked x86-64 assembly trampolines; CIPHER_LT_VARIANT macro; per-variant static atomic counter + real-fn ptr + visibility=default trampoline symbol; PC-rel addressing in -fPIC shared lib enabled by static qualifier",
+      "verdict": "BUILT + REGISTERED via cipher_rt_cublaslt_variants_init"
+    },
+    "step_4_actuator_dispatch_on_cublaslt_DEFERRED_BY_F_B_3_6_2": {
+      "finding": "F-B.3.6.2 surface during 4-mode regression: torch fp32 default uses cublasLtSSSMatmul via fn-pointer-from-algo-struct path; bypasses ALL three interception layers (GOT, dlsym, trampoline). Step 4a-c actuator-dispatch work would only help IF the variants were reached; they aren't reached on torch's fp32 hot path. Pivot to F-B.3.6.2 Option B (CDI env)",
+      "verdict": "Step 4 actuator-dispatch DEFERRED v1.x; v1 ships substrate visibility via cublasGemmEx path for bf16/fp16 (the LLM dtypes)"
+    },
+    "step_5_dual_build_and_regression": {
+      "cuda_12_build_host": "md5 842da70e (PASS)",
+      "cuda_13_build_container": "md5 1f305ce6 (PASS; preserved at build_cuda13/)",
+      "4_mode_regression_inside_vllm_container_with_direct_bind_mount": {
+        "mode_a_fp32_default": {"GEMMEX": 0, "LT_UMBRELLA": 0, "LT_VARIANT_AGG": 0, "DLSYM_INTERCEPTS": 0, "PASSTHROUGH": 183, "verdict": "bypassed via fn-pointer path; F-B.3.6.2"},
+        "mode_b_lt_disable_fp16": {"GEMMEX": 100, "LT_VARIANT_AGG": 0, "verdict": "baseline preserved"},
+        "mode_c_fp16_default": {"GEMMEX": 100, "LT_VARIANT_AGG": 0, "verdict": "torch fp16 routes through cublasGemmEx under env injection"},
+        "mode_d_bf16_default": {"GEMMEX": 100, "LT_VARIANT_AGG": 0, "verdict": "torch bf16 routes through cublasGemmEx under env injection"}
+      }
+    },
+    "step_6_commit_and_tag": {
+      "cipher_rt_phase4_commit": "78bfded",
+      "tag": "v1-substrate-cuda13-cublaslt-coverage"
+    }
+  },
+  "b6_5_summary": {
+    "cipher_cdi_patch_py_changes": [
+      "CIPHER_ENV extended: LD_LIBRARY_PATH includes container's bundled CUDA 13 lib dir; TORCH_CUBLASLT_DISABLE=1 injected (F-B.3.6.2 Option B); env count grows from 3 to 4",
+      "CIPHER_DEVICE_NODES = [{'path': '/dev/cipher'}] (F-B.3.5 fold)",
+      "apply_patch + revert_patch + _status_dict extended for deviceNodes",
+      "_is_cipher_device_node + expected_device_paths in status logic"
+    ],
+    "cipher_platform_cli_py_changes": [
+      "verify subcommand substrate-loadability probe changed from ctypes.CDLL to file-sanity (ELF magic + size > 100KB). The substrate is CUDA-13-linked; loading on a CUDA-12-host fails on DT_NEEDED libcupti.so.13. Substrate loadability is verified inside container at Gate A; cipher-platform verify on host only confirms the .deb shipped the file correctly."
+    ],
+    "test_cipher_cdi_patch_py_changes": [
+      "case (xiii) NEW: B.6''.5 /dev/cipher + TORCH_CUBLASLT_DISABLE coverage verified",
+      "case (ix) UPDATED: relaxed assertion to validate (found, missing) partition shape; adaptive to CUDA 12 OR CUDA 13 substrate"
+    ],
+    "tests_verdict": "12 / 12 PASS"
+  },
+  "b6_6_rebuild_summary": {
+    "build_deb_sh_changes": "substrate sourced from $SUBSTRATE_REPO/build_cuda13/libcipher_rt.so (CUDA 13 build); LIBCIPHER_RT_MD5 anchor removed (timestamp non-deterministic); ldd verification deferred to inside-container test",
+    "deb_md5": "e0439428cb0fc74fb0898c11f2a17096",
+    "deb_size": "827K",
+    "deb_file_count": 57,
+    "install_outcome": {
+      "prerm_revert": "env 0/3 mounts 0/20 (drop CUDA 12 substrate era state)",
+      "postinst_apply": "env 4/4 mounts 13/13 fully_applied=True (CUDA 13 substrate; no host CUDA bind-mounts under v1 deployment)",
+      "missing_host_libs": ["libcudart.so.13", "libcupti.so.13", "libcusolver.so.12"],
+      "note": "missing_host_libs is informational; CIPHER under v1 expects container's bundled CUDA 13 libs via LD_LIBRARY_PATH; not a blocker"
+    }
+  },
+  "gate_a_5th_attempt_under_installed_deb": {
+    "purpose": "End-to-end Gate A through installed cipher-platform v2.0 .deb v1-substrate-cuda13-cublaslt-coverage (NO direct bind-mount; pure CDI delivery)",
+    "results": {
+      "fp16_default": {"GEMMEX": 100, "LT_VARIANT_AGG": 0, "verdict": "PASS"},
+      "bf16_default": {"GEMMEX": 100, "LT_VARIANT_AGG": 0, "verdict": "PASS"},
+      "fp32_default": {"GEMMEX": 0, "LT_VARIANT_AGG": 0, "verdict": "GAP (F-B.3.6.2; torch 2.11 ignores TORCH_CUBLASLT_DISABLE for fp32; algo-fn-pointer path bypasses substrate)"}
+    },
+    "vllm_customer_coverage": "vLLM LLM inference uses bf16 (Mistral, Llama) or fp16 (older models) by default; both PASS. fp32 customer workloads have honest residue trade documented in scope-lock §15.",
+    "substrate_constructor_evidence": "[cipher_v2] LT-VARIANT: 17/17 trampolines armed; DLSYM-HOOK: 17 shims registered; GOT: 53 slots / 67 modules / 7 targets; cipher_v2 init complete pid=51"
+  },
+  "honest_residue_for_scope_lock_section_15": [
+    "1. v1 substrate ships TORCH_CUBLASLT_DISABLE=1 via CDI env. Effective for bf16 + fp16 (LLM dtypes; routes through cublasGemmEx). Ineffective for fp32 (torch 2.11 ignores the env for fp32; cublasLtSSSMatmul via algo-fn-pointer bypasses substrate). v2 driver-API-level interception eliminates this gap.",
+    "2. v1 cuBLAS-Lt substrate-visibility for code that uses documented cuBLAS-Lt API (dlsym-based callers) is comprehensive (17 variant trampolines + umbrella). Real-world torch uses an undocumented algo-fn-pointer shortcut that bypasses; v2 closes.",
+    "3. v1 cuBLAS-Lt actuator dispatch (Marlin/Koopman/VOLT routing on Lt calls) deferred to v1.x. Requires cublasLtMatrixLayoutGetAttribute M/N/K decoder + opaque algo struct introspection.",
+    "4. v1 substrate is CUDA-13-linked; host running cipher-platform CLI verify must use file-sanity check (not ctypes.CDLL) because host may not have CUDA 13 runtime libs.",
+    "5. Koopman device-stub Phase E pre-flight gate carried (validates Koopman tier nvcc 12.8 -> 13.0 emission equivalence for CIPHER_KOOPMAN=1 path).",
+    "6. libc10 ABI portability: container's libc10.so md5 b814a98f = host's = .deb's. Future PyTorch image refresh may change libc10 ABI; cipher-platform verify would surface."
+  ]
+}

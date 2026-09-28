@@ -1,0 +1,23 @@
+{
+  "probe_suite": "d9fp8_probe.cu (correctness) + d9fp8_timing.cu (decomp+bf16) + d9fp8_scalemodes.cu (scale-mode matrix), cu13 cuBLASLt, H100 sm_90",
+  "scale_mode_support": {
+    "SCALAR_32F (per-tensor)": "SUPPORTED (f16/bf16/f32, fast_accum 0/1)",
+    "VEC16_UE4M3": "NOT_SUPPORTED", "VEC32_UE8M0 (MXFP8)": "NOT_SUPPORTED",
+    "OUTER_VEC_32F (per-row/col rowwise)": "NOT_SUPPORTED", "VEC128_32F": "NOT_SUPPORTED",
+    "conclusion": "ONLY per-tensor SCALAR fused FP8 exists on this cu13 cuBLASLt; per-channel/per-token (rowwise) has NO fused path"
+  },
+  "raw_fp8_gemm_vs_bf16_fullclock": {"q/o":"1.72x","kv":"1.68x","gate/up":"1.69x","down":"2.01x", "note":"FP8 tensorcores deliver ~1.7-2.0x; FAST_ACCUM on"},
+  "per_channel_per_token_epilogue_path": {
+    "correctness":"FEASIBLE (fro_rel 0.036 = E4M3 floor, KL~1e-4, convention CPU-locked)",
+    "end_to_end_vs_bf16": {"q/o":"0.85x LOSS","kv":"0.50x LOSS","gate/up":"1.02x","down":"1.19x"},
+    "binding_constraint":"non-fused FP32 HBM round-trip epilogue costs back 30-40% (no fused rowwise on cuBLASLt); + per-GEMM act-quant. FAILS the >=85%/beat-CIPHER-off MFU gate on attention + marginal on FFN"
+  },
+  "per_tensor_scalar_path_FUSED": {
+    "speed":"cuBLASLt-native fused scalar FP8 -> fp16/bf16 directly, NO epilogue; ~1.6-2.0x bf16 minus a cheap per-tensor act-quant",
+    "quality_recorded_drop_downproj":"+0.2534% PPL (d9_pertensor_downproj_result.json) -> WITHIN the 0.3% bar",
+    "quality_recorded_all_fp8":"+0.478% (fails 0.3%, needs amendment)",
+    "lineage":"= may13 cipher_fp8_compute scheme (per-tensor scalar)"
+  },
+  "conflict_with_directive": "user Decision-2 directed per-channel/per-token; evidence shows that scheme has no fused path here (fails MFU), while per-tensor scalar is fused AND per-tensor drop_downproj clears the 0.3% bar. Surfacing per advisor discipline (do not silently switch).",
+  "gpu":"H100 80GB, 1980MHz max, sm_90, cu13 (driver 580.105.08)"
+}

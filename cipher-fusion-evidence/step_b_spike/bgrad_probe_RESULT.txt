@@ -1,0 +1,11 @@
+cuBLASLt BGRAD probe result (cu12.8, /usr/include/cublasLt.h, libcublasLt.so.12.8.4.1):
+- Header semantics (DECISIVE): BGRADA bias size = ROWS of D (len M), "reduction happens over
+  the GEMM's k dimension"; BGRADB bias size = COLS of D (len N), reduction over k.
+  => BGRAD reduces over the CONTRACTION dim K, producing INPUT-operand reductions
+     (sum_k A[m,k], sum_k B[k,n]) -- NOT the output row-sum sum_n C[m,n] the checksum needs.
+- Empirical: BGRADA AlgoGetHeuristic -> status 7 (INVALID_VALUE), BGRADB -> status 15
+  (NOT_SUPPORTED) for ALL tested shapes (tiny + down_proj M=1/2048 + v_proj M=2048),
+  while plain DEFAULT-epilogue matmul on the same shapes SUCCEEDS.
+VERDICT: cuBLASLt exposes NO output-(over-N)-reduction epilogue. The zero-substitution-gap
+  cuBLAS path for the ABFT output checksum does NOT exist. Fused output row-sum requires a
+  custom kernel (substitution gap returns) -> fall back to hand-GEMV (M=1) + epilogue-delta.

@@ -1,0 +1,22 @@
+Package: cipher-platform
+Version: 2.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: dkms, libc6, libstdc++6, libgcc-s1, python3 (>= 3.10), python3-yaml, nvidia-container-toolkit (>= 1.17)
+Recommends: linux-headers-generic, vllm
+Conflicts: cipher-platform (<< 2.0)
+Replaces: cipher-platform (<< 2.0)
+Maintainer: CIPHER Platform <anil.0666369@gmail.com>
+Description: CIPHER GPU efficiency platform - runtime, substrate, kmod, container injection
+ V1 Phase B deployment artifact for neocloud GPU node operators. Bundles the
+ CUDA injection runtime (libcipher_rt), the Phase 3 substrate (libcipher_v2),
+ the pinned ABI-stable c10 core (libc10), the cipher_vllm plugin chain
+ (KV-dedup + KV-offload + KV-bridge + model fingerprint) as a Python
+ dist-info package, and the cipher_kmod kernel module shipped as DKMS source
+ (rebuilds against running kernel). Postinst patches the host's CDI spec at
+ /var/run/cdi/nvidia.yaml so that vanilla `docker run --gpus all` invocations
+ transparently load the CIPHER substrate via nvidia-container-toolkit;
+ end-user vLLM workloads are not modified. Operator-facing tooling:
+ cipher-platform CLI (status/verify/refresh/version/logs), runbook, standalone
+ health-check, systemd path-watcher for auto re-patch on driver upgrades.

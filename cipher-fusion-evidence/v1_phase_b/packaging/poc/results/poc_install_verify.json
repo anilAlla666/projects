@@ -1,0 +1,117 @@
+{
+  "campaign": "V1 Phase B.1 R-B.1 entry-point registration POC",
+  "date": "2026-05-26",
+  "anchors_at_b1_entry": {
+    "cipher_rt_phase4": "8613812e tag v1-substrate-driver-worker-init",
+    "libcipher_rt_so_md5": "1d91e7da",
+    "cipher_kmod": "8c643fc tag week-13-14-complete",
+    "cipher-fusion-evidence": "e33d62d (Phase B scope-lock commit)",
+    "cipher_vllm_plugin_md5": "b89a9b6e (reinstalled in vllm_env per Anil Item 5)",
+    "cipher-platform_deb_installed": "v1.0"
+  },
+  "poc_artifact": {
+    "path": "v1_phase_b/packaging/poc/cipher-rb1-poc_0.0.1_amd64.deb",
+    "size_bytes": 1720,
+    "package_name": "cipher-rb1-poc",
+    "package_version": "0.0.1",
+    "depends": "python3 (>= 3.10), python3 (<< 3.11)"
+  },
+  "seven_step_results": [
+    {
+      "step": 1,
+      "description": "dpkg -L cipher-rb1-poc pre-install (expect non-zero)",
+      "result": "PASS",
+      "exit_code": 1,
+      "evidence": "package 'cipher-rb1-poc' is not installed"
+    },
+    {
+      "step": 2,
+      "description": "apt install ./cipher-rb1-poc_0.0.1_amd64.deb (expect 0)",
+      "result": "PASS",
+      "exit_code": 0,
+      "evidence": "package installed cleanly"
+    },
+    {
+      "step": 3,
+      "description": "dpkg -L cipher-rb1-poc (expect dist-info files listed)",
+      "result": "PASS",
+      "exit_code": 0,
+      "evidence_files": [
+        "/usr/lib/python3/dist-packages/cipher_rb1_poc.py",
+        "/usr/lib/python3/dist-packages/cipher_rb1_poc-0.0.1.dist-info/entry_points.txt",
+        "/usr/lib/python3/dist-packages/cipher_rb1_poc-0.0.1.dist-info/METADATA",
+        "/usr/lib/python3/dist-packages/cipher_rb1_poc-0.0.1.dist-info/RECORD",
+        "/usr/lib/python3/dist-packages/cipher_rb1_poc-0.0.1.dist-info/WHEEL",
+        "/usr/lib/python3/dist-packages/cipher_rb1_poc-0.0.1.dist-info/INSTALLER"
+      ]
+    },
+    {
+      "step": 4,
+      "description": "vllm_env python importlib.metadata.entry_points (expect cipher_rb1_poc:register)",
+      "result": "FAIL",
+      "exit_code": 0,
+      "expected": "[('cipher_rb1_poc', 'cipher_rb1_poc:register')]",
+      "actual": "[]",
+      "mechanism_finding": "vllm_env virtualenv sys.path does NOT include /usr/lib/python3/dist-packages/; system Python's sys.path DOES. importlib.metadata only discovers entry points in dirs on sys.path."
+    },
+    {
+      "step": 5,
+      "description": "apt remove cipher-rb1-poc (expect 0)",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "step": 6,
+      "description": "vllm_env python importlib.metadata.entry_points post-uninstall (expect [])",
+      "result": "PASS (trivially: step 4 was already [] pre-uninstall)",
+      "exit_code": 0,
+      "actual": "[]"
+    },
+    {
+      "step": 7,
+      "description": "dpkg -L cipher-rb1-poc post-uninstall (expect non-zero)",
+      "result": "PASS",
+      "exit_code": 1,
+      "evidence": "package 'cipher-rb1-poc' is not installed"
+    }
+  ],
+  "diagnostic_evidence": {
+    "vllm_env_sys_path": [
+      "(empty current-dir)",
+      "/usr/lib/python310.zip",
+      "/usr/lib/python3.10",
+      "/usr/lib/python3.10/lib-dynload",
+      "/home/ubuntu/vllm_env/lib/python3.10/site-packages",
+      "/home/ubuntu/vllm_env/lib/python3.10/site-packages/nvidia_cutlass_dsl/python_packages"
+    ],
+    "system_python_sys_path": [
+      "(empty current-dir)",
+      "/usr/lib/python310.zip",
+      "/usr/lib/python3.10",
+      "/usr/lib/python3.10/lib-dynload",
+      "/home/ubuntu/.local/lib/python3.10/site-packages",
+      "/home/ubuntu/cipher_vllm_plugin",
+      "/home/ubuntu/.local/lib/python3.10/site-packages/nvidia_cutlass_dsl/python_packages",
+      "/usr/local/lib/python3.10/dist-packages",
+      "/usr/lib/python3/dist-packages"
+    ],
+    "system_python_post_install_entry_points_lookup": "[('cipher_rb1_poc', 'cipher_rb1_poc:register')]",
+    "verdict": "Standard dist-info entry-point registration mechanism WORKS for system Python (Q6 (a) mechanism is sound); FAILS for virtualenv-isolated Python because virtualenvs do not include /usr/lib/python3/dist-packages/ in their sys.path. Goal 5 deployment target needs adjudication: does the customer run vLLM under system Python or under a virtualenv?"
+  },
+  "branch_verdict": "Branch C per V1_PHASE_B_SCOPE_LOCK.md §8: POC reveals minor mechanism wrinkle (virtualenv sys.path scope). Standard dist-info works for system Python (Q6 (a) mechanism sound); virtualenv-isolated Python needs additional path manipulation. Scope-lock amendment surface to Anil with five options below before B.2.",
+  "five_options_surfaced_for_anil": {
+    "option_1_system_python_only": "v2.0 .deb targets /usr/lib/python3/dist-packages/ (system Python only). Customers running vLLM under system Python (no virtualenv) get plugin discovery automatically. Customers using virtualenv (recommended ML practice) need to install plugin into their virtualenv separately. Goal 5 contract narrows: 'system Python deployment' becomes a documented v1 constraint.",
+    "option_2_dual_path": "v2.0 .deb installs into BOTH /usr/lib/python3/dist-packages/ (system Python) AND a documented virtualenv path (e.g., /usr/local/share/cipher/plugin/) with a .pth file mechanism customer activates in their virtualenv. Adds a Step 3 to the customer recipe (one .pth file copy).",
+    "option_3_post_install_detect_venvs": "v2.0 .deb post-install hook detects active/named virtualenvs (e.g., common vllm_env at /home/*/vllm_env, /opt/*/vllm-*) and installs plugin into each. Heuristic; fragile across customer environments.",
+    "option_4_documented_virtualenv_setup": "v2.0 .deb ships a single virtualenv-activation script (e.g., /usr/lib/cipher/activate-in-venv.sh) that the customer runs once per virtualenv to register plugin. Adds a one-time setup step per virtualenv to the customer recipe.",
+    "option_5_pth_file_in_system_path": "v2.0 .deb installs a .pth file in /usr/lib/python3/dist-packages/ that, when sourced (which happens via sitecustomize.py for system Python), adds /usr/lib/cipher/python/ to sys.path. Combined with plugin files at /usr/lib/cipher/python/, system Python works. Does NOT help virtualenvs (they have their own site.py initialization)."
+  },
+  "honest_residue": [
+    "1. The R-B.1 POC validated the Q6 (a) standard dist-info mechanism is SOUND. The unexpected wrinkle is that /usr/lib/python3/dist-packages/ is system-Python-specific.",
+    "2. Goal 5 deployment target adjudication needed: production neoclouds may run vLLM under system Python OR under virtualenv. Need to verify which is the realistic v1 deployment target before B.2 commits to a mechanism.",
+    "3. cipher_vllm_kv plugin at md5 b89a9b6e currently lives only at /home/ubuntu/cipher_vllm_plugin/ which is added to system Python sys.path (per verification above) when pip install -e was run there. This is why cipher_vllm_kv works today: the pip install -e adds an editable-install path entry. Under vllm_env, pip install -e adds it to vllm_env's site-packages instead. The current packaging investigation surfaces the same scope question for v2.0 .deb.",
+    "4. The 5 options above are not exhaustive; Anil may identify a 6th. NO AUTO SCOPE-DEGRADE: surfacing for adjudication, not picking unilaterally.",
+    "5. The cleanup after diagnostic re-install (apt remove cipher-rb1-poc) succeeded; system state is clean post-POC."
+  ],
+  "next_steps_blocked_on_anil": "B.2 production scaffolding does NOT start until Anil reviews this evidence + picks among the 5 options above OR identifies a 6th. Scope-lock §10 may need an amendment for Q4 (plugin file path) or new Q7 (virtualenv-vs-system-python deployment target)."
+}

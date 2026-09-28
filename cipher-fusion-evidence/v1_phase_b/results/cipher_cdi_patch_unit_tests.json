@@ -1,0 +1,96 @@
+{
+  "campaign": "V1 Phase B B.2'' substep 3 cipher_cdi_patch.py unit tests",
+  "date": "2026-05-26",
+  "purpose": "Per V1 Phase B scope-lock addendum B.1'' discipline note (b): cipher_cdi_patch.py is load-bearing for Goal 5 contract preservation; 6 unit test cases must PASS before .deb build.",
+  "anchors_at_test": {
+    "cipher_rt_phase4": "8613812e tag v1-substrate-driver-worker-init",
+    "libcipher_rt_so_md5": "1d91e7da",
+    "cipher_kmod": "8c643fc tag week-13-14-complete",
+    "cipher_vllm_plugin_md5": "b89a9b6e",
+    "cipher_cdi_patch_py_md5": "1531378e5e2b0ab3ac7c26d3c6c23ce9",
+    "cipher_cdi_patch_sh_md5": "187884285d4adcd05a62cba360e36a62",
+    "test_driver_md5": "5536efe5deb32f636bd4984ade78831e"
+  },
+  "test_design": {
+    "fixtures": "Temp files generated per test; no writes to real /var/run/cdi/.",
+    "harness": "python3 stdlib only (subprocess + tempfile + json + yaml); no pytest.",
+    "invocation": "python3 v1_phase_b/packaging/tests/test_cipher_cdi_patch.py"
+  },
+  "cases": [
+    {
+      "id": "(i)",
+      "name": "clean apply on factory-default nvidia.yaml",
+      "purpose": "happy path; CIPHER mounts + env appended; non-CIPHER entries preserved",
+      "verdict": "PASS",
+      "details": "3 env entries (CIPHER_CDI_MARKER, CUDA_INJECTION64_PATH, LD_LIBRARY_PATH) + 12 mount entries (3 substrate libs + 5 plugin files + 4 dist-info) added; NVIDIA's libcuda.so.1 mount preserved; NVIDIA_CTK_LIBCUDA_DIR + NVIDIA_VISIBLE_DEVICES env preserved"
+    },
+    {
+      "id": "(ii)",
+      "name": "idempotent re-apply",
+      "purpose": "running apply twice produces identical state; no duplicates",
+      "verdict": "PASS",
+      "details": "env count + mount count identical between first and second apply; status dict identical"
+    },
+    {
+      "id": "(iii)",
+      "name": "revert after apply",
+      "purpose": "revert removes all CIPHER entries; non-CIPHER preserved; revert-twice no-op",
+      "verdict": "PASS",
+      "details": "all 3 CIPHER env entries removed; all 12 CIPHER mounts removed; NVIDIA's libcuda + env preserved; second revert is a no-op"
+    },
+    {
+      "id": "(iv)",
+      "name": "apply with unrelated additions (sibling observability agent)",
+      "purpose": "fragment-aware: apply must not corrupt or remove non-CIPHER additions from third parties",
+      "verdict": "PASS",
+      "details": "fixture has SOMEOBS_AGENT_VERSION env + /opt/someobs/agent.so mount; after apply both preserved + CIPHER added; after revert both preserved + only CIPHER removed"
+    },
+    {
+      "id": "(v)",
+      "name": "missing nvidia.yaml",
+      "purpose": "operator-readable error; exit 1; no silent no-op",
+      "verdict": "PASS",
+      "details": "stderr names file as 'not found'; mentions nvidia-ctk regenerate; exit code 1"
+    },
+    {
+      "id": "(vi)",
+      "name": "malformed nvidia.yaml",
+      "purpose": "operator-readable error; exit 2; no silent corruption (file unchanged)",
+      "verdict": "PASS",
+      "details": "stderr mentions 'malformed' / 'yaml'; exit code 2; original file content unchanged"
+    },
+    {
+      "id": "(vii)",
+      "name": "no-write-when-unchanged (watcher loop guard)",
+      "purpose": "added at substep 4: cipher-platform-watch.path fires on PathChanged; if apply rewrites file with identical content, IN_MODIFY fires regardless of equality, triggering watcher infinite loop. Guard: skip _atomic_write when no changes needed.",
+      "verdict": "PASS",
+      "details": "first apply changes mtime; second apply leaves mtime unchanged (st_mtime_ns identical); same property for revert-twice"
+    },
+    {
+      "id": "(viii)",
+      "name": "libcupti.so.12 host discovery + revert",
+      "purpose": "added at B.2''-R1 (F-B.3.1 remediation): cipher_cdi_patch bind-mounts host libcupti.so.12 at fixed container path /usr/lib/cipher/libcupti.so.12; sub-case (a) host present -> mount added, fully_applied=True with 14 expected mounts; sub-case (b) host absent -> mount skipped + stderr warning + fully_applied=True with 13 expected mounts (libcupti dropped from required set).",
+      "verdict": "PASS",
+      "details": "(a) synthetic host libcupti at /tmp test path -> mount added at containerPath=/usr/lib/cipher/libcupti.so.12, hostPath=synthetic; revert removes by containerPath match. (b) CIPHER_TEST_LIBCUPTI_PATH=\"\" override -> _find_host_libcupti returns None; mount skipped; stderr contains WARNING + libcupti.so.12; fully_applied=True with libcupti dropped from required set."
+    }
+  ],
+  "summary": {
+    "total_cases": 8,
+    "passed": 8,
+    "failed": 0,
+    "verdict": "ALL PASS - cipher_cdi_patch.py with R1 libcupti remediation; watcher loop guard preserved; multi-ABI py310+py312 plugin chain ships in same .deb"
+  },
+  "additional_sanity_check": {
+    "description": "Apply on a copy of real /var/run/cdi/nvidia.yaml (nvidia-container-toolkit 1.18.1-0lambda0.22.04.1 generated, multi-device structure with 3 devices + top-level containerEdits with 18 mounts + 2 env)",
+    "result": "fully_applied=True; env 3/3; mounts 12/12; all 3 CIPHER env + 12 CIPHER mounts added to top-level containerEdits; NVIDIA's 18 mounts + 2 env preserved",
+    "verdict": "PASS - real-spec mechanism layer verified"
+  },
+  "honest_residue": [
+    "1. Unit tests run against synthetic factory + unrelated-additions YAML fixtures. Real /var/run/cdi/nvidia.yaml structure verified via additional sanity check at end (apply only, no full revert test on real file to avoid side-effects on running pod).",
+    "2. Tests do NOT exercise the actual container-runtime CDI consumption (i.e., docker run --gpus all with CIPHER mounts honored by nvidia-container-toolkit and substrate firing in container). That verification is B.3'' Gate A/B/C scope.",
+    "3. cipher_cdi_patch.py uses yaml.safe_dump with default_flow_style=False + sort_keys=False; YAML formatting may differ slightly from nvidia-ctk's emitter (cosmetic only; semantically equivalent; nvidia-ctk re-reads its own spec without trouble).",
+    "4. Atomic write uses tempfile.mkstemp + os.replace; tempfile is created in the same directory as the target (avoids cross-filesystem rename failures).",
+    "5. PYTHONPATH override risk for non-standard customer container Python layouts is noted in cipher_cdi_patch.py via CIPHER plugin paths matching standard Ubuntu /usr/lib/python3/dist-packages; runbook §3 will cover non-standard cases (B.2'' substep 6 scope).",
+    "6. LD_LIBRARY_PATH=/usr/lib/cipher env set unconditionally (CDI does not support shell-style append); for vanilla vllm/vllm-openai:0.21.0 (no pre-set LD_LIBRARY_PATH) this works correctly; for customer containers that DO set LD_LIBRARY_PATH the CIPHER value overrides; documented as known edge case for B.3'' verification."
+  ]
+}

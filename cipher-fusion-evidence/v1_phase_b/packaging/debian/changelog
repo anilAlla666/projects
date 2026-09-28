@@ -1,0 +1,98 @@
+cipher-platform (2.0) jammy; urgency=medium
+
+  * K.1.5 Step 2 Sub-step 0 rev8 (2026-05-27): cipher_vllm_kv.py
+    _ensure_bridge_init applies max(compute_va_gib, _VA_POOL_HARDCODED
+    _FALLBACK_GIB=80) as VA pool floor. Closes pre-existing
+    TinyLlama-AWQ slab_create "no VA run of N pages" failure surfaced
+    by W.6 sub-A engagement verification. Root cause: per-model
+    compute_va_gib() formula systematically underestimates KV pool
+    size for quantized workloads (vLLM allocates num_gpu_blocks
+    based on gpu_memory_utilization * HBM - weights; when weights
+    are small INT4, the saved memory becomes more KV blocks beyond
+    the formula's max_batch * per-seq-tokens estimate). For
+    TinyLlama-AWQ util=0.3 the formula returned 13 GiB; vLLM
+    actually allocated 22+ GiB across 22 layers. Fix is additive:
+    cuMemAddressReserve is VA-only (no physical pin), so the
+    generous 80 GiB floor has zero physical cost. Memory #16
+    backfill discipline; not a substrate rebuild. Customer can
+    still override via CIPHER_KV_VA_POOL_GIB.
+
+ -- CIPHER Platform <anil.0666369@gmail.com>  Wed, 27 May 2026 12:00:00 +0000
+
+cipher-platform (2.0) jammy; urgency=medium
+
+  * W.6 sub-A rev7 (2026-05-27): six actuator auto-engagement defaults
+    added to CDI env list per Memory #25 product-engagement-gate close
+    on the engagement-side gap surfaced by the 2026-05-27 GATE-DEBT
+    AUDIT (cipher-fusion-evidence tag phase-b-gate-debt-audit).
+    Added: CIPHER_MARLIN=on / CIPHER_KOOPMAN=1 / CIPHER_KVDEDUP=1 /
+    CIPHER_REMEMBER=1 / CIPHER_AUDIT=1 / CIPHER_SENSE=on. All six are
+    safe-to-auto-engage on the Memory #25 reference workload set
+    (Llama-3-8B bf16 default + Mistral-7B-Instruct bf16 default +
+    TinyLlama-AWQ INT4 default) per dtype gate / correctness gate /
+    observability-only properties of each actuator. Per Anil
+    adjudication 2026-05-27: CIPHER_VOLT INTENTIONALLY ABSENT (W.1
+    classifier-driven engagement lands later per Memory #29) because
+    auto-engaging regresses 7B+ bf16 decode by ~14% per Memory
+    cipher-t43-envelope. CIPHER_RECEIPT / CIPHER_FAIRNESS /
+    CIPHER_CARBON ABSENT (deferred to v1.x when operator-facing
+    Grafana dashboard / API surface ships). Customer override path
+    preserved: per-container `-e CIPHER_X=0` overrides CDI hook env
+    per Docker semantics.
+
+ -- CIPHER Platform <anil.0666369@gmail.com>  Wed, 27 May 2026 11:30:00 +0000
+
+cipher-platform (2.0) jammy; urgency=medium
+
+  * B.6''.9.3 rev6 (Path β.3, 2026-05-26): CIPHER_REGISTER_MODEL=0 added
+    to CDI env list. F-VLLM-PLUGIN-CRASH (vLLM v0.21.0 EngineCore segfault)
+    root-caused at B.6''.9.1 to the cipher_vllm_kv plugin's NR 27
+    CIPHER_REGISTER_MODEL ioctl downstream path; ASan rebuild (B.6''.9.3)
+    ran clean, narrowing the bug to a kmod/mmap-region interaction outside
+    userspace ASan coverage. Audit (B.6''.9.3) confirms NR 27 model_uuid
+    has ZERO v1 consumers: SC6 weight-sharing (Track 2 76.0% baseline) uses
+    NRs 21-24 ARENA path only, substrate libcipher_rt and cipher_kv_bridge
+    have no NR 27 references, cipher_model_uuid() Python accessor has no
+    readers anywhere. Gating off has no v1 customer-observable impact;
+    Track 2 weight-sharing + Memory #9 driver-API moat unchanged.
+    v1.x picks up KASAN root-cause + re-enable.
+
+ -- CIPHER Platform <anil.0666369@gmail.com>  Tue, 26 May 2026 18:00:00 +0000
+
+cipher-platform (2.0) jammy; urgency=medium
+
+  * V1 Phase B close: corrected customer model (neocloud ops team is
+    CIPHER's customer; end-user remains under Goal 5 contract verbatim).
+  * Bump substrate libcipher_rt.so to Phase A close anchor (md5 1d91e7da
+    from cipher_rt_phase4 8613812e tag v1-substrate-driver-worker-init).
+  * Bump libcipher_v2.so to Track 2 close anchor (md5 cc0479b8).
+  * Bump cipher_kmod DKMS source 0.4.8 -> 0.6.5 (week-13-14-complete:
+    multi-tenant resolver + AUDIT chain + RING_WRITE + G3/G4/G5/L2 + COMMIT).
+  * NEW: cipher_vllm plugin chain shipped at /usr/lib/python3/dist-packages
+    (cipher_vllm_kv + cipher_vllm_kvdedup + cipher_kv_offload +
+    cipher_kv_bridge + cipher_model_fingerprint + dist-info entry-points).
+  * NEW: M1 CDI + P1 in-place patch mechanism via
+    /usr/lib/cipher/cipher_cdi_patch.sh. Postinst patches
+    /var/run/cdi/nvidia.yaml so end-user docker run --gpus all transparently
+    loads CIPHER substrate.
+  * NEW: cipher-platform-watch.{path,service} systemd units auto re-patch
+    CDI spec on nvidia-ctk regeneration (convenience layer; manual
+    `sudo cipher-platform refresh` is the documented fallback).
+  * NEW: /usr/bin/cipher-platform operator CLI
+    (status / verify / refresh / version / logs).
+  * NEW: /usr/lib/cipher/runbook.md operator runbook (5 sections).
+  * NEW: /usr/lib/cipher/health-check.sh standalone health validator.
+  * Depends: + python3 (>= 3.10), + python3-yaml,
+    + nvidia-container-toolkit (>= 1.17).
+  * cipher-run wrapper retained for backward-compat (non-container
+    bare-metal deployments).
+
+ -- CIPHER Platform <anil.0666369@gmail.com>  Tue, 26 May 2026 11:30:00 +0000
+
+cipher-platform (1.0) jammy; urgency=medium
+
+  * CP 2.5 close (2026-05-16): initial release. cipher-run wrapper +
+    CUDA_INJECTION64_PATH deployment + DKMS cipher_kmod 0.4.8 +
+    libcipher_rt.so + libc10.so + libcipher_v2.so at /usr/lib/cipher/.
+
+ -- CIPHER Platform <anil.0666369@gmail.com>  Sat, 16 May 2026 15:02:00 +0000

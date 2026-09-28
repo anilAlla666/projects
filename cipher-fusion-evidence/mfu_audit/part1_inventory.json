@@ -1,0 +1,770 @@
+{
+ "hunts": [
+  {
+   "hunt": "op-registry",
+   "inventory": {
+    "items": [
+     {
+      "name": "COUNT-VERDICT: 21 vs 33",
+      "kind": "count-verdict",
+      "detail": "NEITHER 21 NOR 33 counts anything in the deployed cipher_rt_phase4 source; both are Tree-A (cipher-may13-evidence) taxonomy numbers. 33 = canonical op list = 12 core + 21 overlay (PHASE_4_OP_WORKLOAD_MATRIX.md:10 'The 33 ops canonical list = 12 core Stage 0/1/2 + 21 overlay (numbered 13-31 + STRAGGLER + NCCL P2P)'; reconciliation table OP_INTENT_VS_IMPLEMENTATION.md:11-19 \u2014 user-brief '34 names' collapses to 33 via COMMIT\u2261ORCHESTRATE + SAMPLE\u2261GENERATE aliases). 21 = the OVERLAY SUBSET of that same list (audit_section_1b.md:4 'canonical op numbers 13-33'; OP_INTENT_VS_IMPLEMENTATION.md:5 overlay headers 'verified to exist for 21/21' \u2014 in Tree A, not in this source tree). SOURCE-SUPPORTED COUNTS (this enumeration, granularity = linked module per Makefile:55-107): total N=53 distinct mechanisms; observation-only M=27 (cannot lift MFU by construction); actuators K=9, of which MFU/compute-targeted J=3 (Marlin, FP8, Koopman \u2014 all three env-gated default-OFF, so the default matmul actuator chain length is 0 of capacity 16); infra=17. Registry capacities in source: matmul 16 (cipher_rt_matmul_dispatch.c:15, 4 registrants), classify 16 (cipher_rt_classify_substrate.h:90, 1 registrant), attn 16 (cipher_rt_attn_dispatch.h:125, 2 registrants), OpClass table 16 slots / 7 defined classes / 1 routed (cipher_rt_dispatch.cpp:29-46, include/may13/cipher_classify.hpp:45-54), may13 recipe registry 256 cap / 32 day-one entries (include/may13/cipher_recipes.h:162, src/may13/cipher_recipes.cpp:346-357). Overlay presence in deployed source: 13 of 21 overlay ops linked as may13 modules (Makefile:88-98) + VOLT native (cipher_rt_volt.c:2) + SHIELD folded into FAIRNESS (cipher_rt_fairness.c:2 'FAIRNESS + SHIELD, libcipher_rt side') + PREDICT aspect via l2_persist/cipher_persist_* symbols \u21d2 ~16 of 21 have any presence; SUSTAIN/THERMOSTAT/HIBERNATE/STRAGGLER/NCCL_P2P have ZERO symbols in libcipher_rt.so (nm -D negative). Core-12: ARBITRATE retired from link (Makefile:52-53). Why the two numbers arose: 33 from the canonical plan/audit matrix; 21 from the overlay-only audit slice and the op31-prod 'Stage 1 \u2014 21 ops' phrasing (quoted at OP_INTENT_VS_IMPLEMENTATION.md:27). Prior verdicted live counts agree with source, not with 21/33: 'exactly 6 of 33 fire on the deployed hot path' VERIFIED (CIPHER_REENGINEERING_VERIFICATION_PHASE_B.md:16,130), '~20-op substrate' (WEEK_4_STEP_7_CLOSEOUT.md:250), V0 scorecard live per-op table = 25 rows (V0_PRODUCT_SCORECARD.md:27-51; MEMORY.md calls it '24-row' \u2014 off by one vs the file on disk). nm -D libcipher_rt.so: 532 cipher symbols total; anchor md5 2edba0d2136f8ede4713d90a8f7cd55f confirmed unchanged.",
+      "file_line": "/home/ubuntu/PHASE_4_OP_WORKLOAD_MATRIX.md:10; /home/ubuntu/cipher-fusion-evidence/OP_INTENT_VS_IMPLEMENTATION.md:11-19; /home/ubuntu/cipher_rt_phase4/Makefile:55-107",
+      "prior_source": "/home/ubuntu/cipher-fusion-evidence/CIPHER_REENGINEERING_VERIFICATION_PHASE_B.md:16,130; /home/ubuntu/cipher-fusion-evidence/WEEK_4_STEP_7_CLOSEOUT.md:250",
+      "prior_result": "6-of-33-fire verified; v1 surface planned 30-of-33 (CIPHER_REENGINEERING_PLAN.md:1627 'All 30 v1 ops firing'); honest v1 framing '18 as-is + 2 ports + 4-op v1.5 = 24 ops; 9 hard-deferred' (OP_INTENT_VS_IMPLEMENTATION.md:584)"
+     },
+     {
+      "name": "F1 cuLaunchKernel intercept (CUPTI/injection)",
+      "kind": "infra",
+      "detail": "Hot-path launch intercept; fans out to partition-router, SM-packer, workload classifier, classify-route/observer, SENSE (env-gated), sense-transition.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_cupti.c:173-264,343",
+      "engaged_in_production": "ACTIVE (61278 launches observed in scorecard run)"
+     },
+     {
+      "name": "may13 cudart launch intercept + graph_inspect",
+      "kind": "infra",
+      "detail": "cudaLaunchKernel-side intercept; calls flow_recorder/patterns/substitute (stubbed) and dlsym-resolves optional observers (predict/weight_share/weight_compress/fp8_compute = absent from .so \u21d2 inert; fairness_shm = present); bridges to may13 cipher_dispatch spine.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13_intercept/cipher_intercept_cudart.cpp:2903-2917,1023-1035,1554-1573; Makefile:105-106"
+     },
+     {
+      "name": "cuBLAS GemmEx + cublasLt shims",
+      "kind": "infra",
+      "detail": "GEMM interception family feeding the matmul actuator chain; D.10 lets Lt typed-variant shims reuse the same chain; TLS shape/ptr accessors exported.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_cublas_shim.c; cipher_rt_cublaslt_variants.c; cipher_rt_cublaslt_layout.c; cipher_rt_matmul_dispatch.c:85-110",
+      "engaged_in_production": "ACTIVE (GemmEx=4950, Lt=0 in scorecard run)"
+     },
+     {
+      "name": "Symbol interposition: dlsym hook + GOT patch + cuInit hook",
+      "kind": "infra",
+      "detail": "LD_PRELOAD/injection plumbing; init order in constructor.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_inject.c:90-101; cipher_rt_dlsym_hook.c; cipher_rt_got_patch.c; cipher_rt_cuinit_hook.c:2-7"
+     },
+     {
+      "name": "Machete GOT intercept (W.2)",
+      "kind": "infra",
+      "detail": "GOT-patch of vLLM machete::mm_dispatch \u2014 the bf16\u2192Machete substitution entry used by the Marlin actuator.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_machete_intercept.c:2-7; cipher_inject.c:64"
+     },
+     {
+      "name": "Matmul actuator registry",
+      "kind": "infra",
+      "detail": "Capacity 16, priority insertion-sorted chain; registrants found in source = 4: marlin(prio 10), fp8(prio 20), koopman(prio 0), audit(prio 0); ALL env-gated \u21d2 default config registers 0.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_matmul_dispatch.c:15,52-110; registrants cipher_rt_marlin_actuator.c:359, cipher_rt_fp8_actuator.c:150, cipher_rt_koopman_engine.cpp:291, cipher_rt_audit.c:190"
+     },
+     {
+      "name": "Classifier (classify) registry + route",
+      "kind": "infra",
+      "detail": "Capacity 16 (CIPHER_RT_CLASSIFY_MAX_ACTUATORS); exactly 1 auto-registrant 'may13_default' wrapping cipher::classify_launch.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_classify_substrate.h:90; cipher_rt_classify_substrate.cpp:75-85,137-171"
+     },
+     {
+      "name": "Attention actuator registry + dispatch",
+      "kind": "infra",
+      "detail": "Capacity 16; ships PASSTHROUGH-only ('T4.6.1 ships PASSTHROUGH only', :12); 2 registrants: audit observer + env-gated test actuator; redirected counter exists, =0 live.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_attn_dispatch.h:125; cipher_rt_attn_dispatch.cpp:12,320-372"
+     },
+     {
+      "name": "16-slot OpClass dispatch table",
+      "kind": "infra",
+      "detail": "Static 16-entry table indexed by OpClass; only slot 0 (GEMM)\u2192ROUTE_MARLIN, slots 1-15 PASS_THROUGH; 7 classes defined + UNCLASSIFIED=0xFF bucketed at 15.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_dispatch.cpp:20-46; include/may13/cipher_classify.hpp:45-54; cipher_rt_classify_observer.c:75-84"
+     },
+     {
+      "name": "may13 recipe/substitution registry",
+      "kind": "infra",
+      "detail": "Capacity 256 (CIPHER_REGISTRY_MAX_ENTRIES); cipher_registry_init seeds 32 day-one narrow-domain Koopman entries ('32 day-one entries' per layer3 init comment).",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/include/may13/cipher_recipes.h:162; src/may13/cipher_recipes.cpp:346-357; src/may13/cipher_dispatch.cpp:128"
+     },
+     {
+      "name": "COMMIT primitive",
+      "kind": "infra",
+      "detail": "W7-9 per-tenant seqlock snapshot publish on the dispatch return path.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_commit.c:2-7",
+      "engaged_in_production": "ACTIVE (5654 publishes in scorecard run)"
+     },
+     {
+      "name": "RING_WRITE producer substrate",
+      "kind": "infra",
+      "detail": "Per-tenant SPMC ring; classify-observer and Koopman REMEMBER events are producers.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_ring_write.c:2-7; cipher_rt_classify_observer.c:86-107",
+      "engaged_in_production": "dormant in scorecard run (written=0, gated on koopman)"
+     },
+     {
+      "name": "Stream resolver + tenant registration",
+      "kind": "infra",
+      "detail": "Stream\u2192tenant resolution and kmod tenant register/query (anti-spoof, NR1).",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_stream_resolver.c; cipher_tenant.c; cipher_rt_tenant.cpp"
+     },
+     {
+      "name": "Counter dump (V1 A.1)",
+      "kind": "infra",
+      "detail": "Env-gated JSON snapshot of exactly 10 substrate counters (cublas_shim 1 + matmul 3 + koopman 6) via atexit+SIGUSR1 \u2014 NOT a full op registry; the 'every exported counter' table lives in the V0 scorecard, not here.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_counter_dump.c:44-56,88-116"
+     },
+     {
+      "name": "Koopman math engine family (ADAPT support)",
+      "kind": "infra",
+      "detail": "EDMD/EDMD-live solve, LNN/CfC, liquid_state, block_sub + chebyshev CUDA kernels; engine substrate behind the Koopman actuator (refuted as a speedup 2026-06-04).",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/Makefile:99-103; src/may13/cipher_edmd.cpp, cipher_lnn.cpp, cipher_block_sub_kernel.cu",
+      "prior_source": "MEMORY.md cipher-koopman-rank-frontier",
+      "prior_result": "shipped rank-64 kernel 20-25x SLOWER, never fires; r=64 13-40x too small"
+     },
+     {
+      "name": "Structural lookup + kernel table (may13)",
+      "kind": "infra",
+      "detail": "Pure lookup infrastructure for ORACLE/recipes (cipher_struct_lookup_*, cipher_kernel_table_report exported).",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_structural_lookup.cpp; Makefile:90"
+     },
+     {
+      "name": "FLOW_RECORDER / FLOW_PATTERNS / FLOW_SUBSTITUTE",
+      "kind": "infra",
+      "detail": "Exported symbols exist but are inert truthful-zero STUBS ('B.6''.9.8.2: inert stubs for 6 helpers', Makefile:436) \u2014 a report counting these as ops would overcount.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13_intercept/cipher_intercept_stubs.cpp:38-50; Makefile:436",
+      "engaged_in_production": "stub (truthful zero)"
+     },
+     {
+      "name": "Workload classifier (K.1)",
+      "kind": "observation",
+      "detail": "Classifies workload into A1_AGENTIC_MULTI_TENANT/A2_CONTINUOUS_BATCHED/A3_SINGLE_TENANT_STREAM/A4_BATCH_INFERENCE (h:38-45) and emits a 15-flag actuator-engage vector (volt/marlin/koopman/kv_dedup/weight_arena/sm_packer/per_tenant_routing/pool/flash_attn/nccl_tuner/persistent_kernel/speculative_decode/graph_engine/flop_telemetry/audit_chain, h:57-71). Gates actuators; cannot lift MFU itself.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/include/cipher_workload_detect.h:38-71; cipher_cupti.c:180",
+      "engaged_in_production": "ACTIVE (class=A4 conf=720 in scorecard run)"
+     },
+     {
+      "name": "CLASSIFY \u2014 7-class geometry kernel classifier",
+      "kind": "observation",
+      "detail": "Pure-geometry OpClass fingerprint (GEMM/ATTENTION/CONVOLUTION/ELEMENTWISE/REDUCTION/MEMCPY_TRANSPOSE/ITERATIVE_CUSTOM) + 512-slot fn-pointer cache; THE source-true 'op class' count is 7, not 21 or 33.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/include/may13/cipher_classify.hpp:10-17,45-54",
+      "engaged_in_production": "ACTIVE via may13_default registrant"
+     },
+     {
+      "name": "Classify observer",
+      "kind": "observation",
+      "detail": "Per-launch atomic counters bucketed per OpClass (16 buckets), TLS substitute-hint publish (GEMM+PERMIT only), kmod push ioctl CIPHER_PUSH_CLASSIFY_STATS.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_classify_observer.c:30-44,75-155,215",
+      "engaged_in_production": "ACTIVE (61278 observed)"
+     },
+     {
+      "name": "ORACLE bridge (PERMIT/DENY policy)",
+      "kind": "observation",
+      "detail": "C bridge over may13 cipher_oracle; warmup-phase DENY, flips to PERMIT at 64-decision checkpoint on inference workloads; policy gate, executes nothing.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_oracle_bridge.cpp:2-14; cipher_rt_classify_observer.c:109-153"
+     },
+     {
+      "name": "SM_PACKER",
+      "kind": "observation",
+      "detail": "'Detection-only build' \u2014 per-stream small-launch streak counters; no persistent kernel to actuate.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_sm_packer.c:2-7; cipher_cupti.c:174",
+      "engaged_in_production": "OBSERVING (small=8210/61278)"
+     },
+     {
+      "name": "PARTITION_ROUTER",
+      "kind": "observation",
+      "detail": "Named 'actuator' in header but in v1 observes stream handles only (green-ctx split never engaged single-tenant).",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_partition_router.c:2; cipher_cupti.c:136,173",
+      "engaged_in_production": "OBSERVING (green-ctx init=0 in scorecard run)"
+     },
+     {
+      "name": "POOL (W.4a)",
+      "kind": "observation",
+      "detail": "'DECISION-ONLY: no operand transport, no coalescing' \u2014 cross-tenant eligibility/correctness decisions.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_pool.c:2-3"
+     },
+     {
+      "name": "Co-residence client (W.6 sub-C)",
+      "kind": "observation",
+      "detail": "Throttled kmod cohort QUERY (~1 ioctl/s, NR31); feeds co_resident_count/multi_tenant_detected.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_coresidence.c:2-7; include/cipher_workload_detect.h:103-110",
+      "engaged_in_production": "ACTIVE (distinct-fp rejected=282)"
+     },
+     {
+      "name": "TC probe",
+      "kind": "observation",
+      "detail": "Pure-function GEMM tensor-core saturability classifier (H100 decision table).",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_tc_probe.c:2-7"
+     },
+     {
+      "name": "Geometry capture",
+      "kind": "observation",
+      "detail": "TEST-ONLY launch-geometry capture, default-OFF (CIPHER_GEOM_CAPTURE), byte-identical when unset.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_geom_capture.c:2-5",
+      "engaged_in_production": "default-off"
+     },
+     {
+      "name": "AUDIT (Op 9)",
+      "kind": "observation",
+      "detail": "HMAC-SHA256 tamper-evident chain; registers priority-0 in BOTH matmul and attn registries but is records-only \u2014 always returns PASSTHROUGH (:114,:129), so despite living in actuator registries it cannot change execution.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_audit.c:99-136,190-191",
+      "engaged_in_production": "env-gated; dormant in scorecard run (count=0)"
+     },
+     {
+      "name": "SENSE (Op 13)",
+      "kind": "observation",
+      "detail": "Session classification HUMAN/AGENT/BATCH; the ONLY may13 overlay observer wired into the F1 hot path, env-gated CIPHER_SENSE default OFF.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_sense.cpp:155-172; cipher_cupti.c:214-253; Makefile:89",
+      "engaged_in_production": "wired, env-gated default-off"
+     },
+     {
+      "name": "Sense-transition FSM",
+      "kind": "observation",
+      "detail": "Per-tenant session-class state machine above SENSE; detects tool-idle transitions, queues DSM PROPOSE candidates.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_sense_transition.c:2-7; cipher_cupti.c:264",
+      "engaged_in_production": "dormant in scorecard run (transitions=0)"
+     },
+     {
+      "name": "REMEMBER consumer (W14)",
+      "kind": "observation",
+      "detail": "Drains RING_WRITE slot 2 into CfC LNN forward; read-only weights; env-gated CIPHER_REMEMBER.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_remember_consumer.cpp:2-7; cipher_inject.c:73",
+      "engaged_in_production": "env-gated default-off"
+     },
+     {
+      "name": "FlashAttn 6-pattern intercept (W.5)",
+      "kind": "observation",
+      "detail": "GOT-patch of vLLM attention entries; v1 counts only (passthrough trampolines).",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_attn_6pattern.c:2-4; cipher_inject.c:65",
+      "engaged_in_production": "INTERCEPT-ONLY (704 calls, redirected=0 in scorecard run)"
+     },
+     {
+      "name": "TELEMETRY (may13 core)",
+      "kind": "observation",
+      "detail": "may13 telemetry sampler; init only via may13 cipher_init() which has NO caller in cipher_rt_phase4 (C-API/report only).",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_runtime.cpp:66; Makefile:91",
+      "engaged_in_production": "linked, not wired"
+     },
+     {
+      "name": "GUARD (Op 16)",
+      "kind": "observation",
+      "detail": "KV-cache privacy/leak detection (cipher_guard_leak_count exported). Linked but no hot-path caller in this tree.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_guard.cpp; Makefile:96",
+      "engaged_in_production": "linked, not wired"
+     },
+     {
+      "name": "RECEIPT (Op 18)",
+      "kind": "observation",
+      "detail": "Per-session signed proof of compute. Linked, no hot-path caller.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_receipt.cpp; Makefile:94",
+      "engaged_in_production": "linked, not wired"
+     },
+     {
+      "name": "CONTINUITY (Op 19)",
+      "kind": "observation",
+      "detail": "Incremental KV state checkpoint observer. Linked, no hot-path caller.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_continuity.cpp; Makefile:92",
+      "engaged_in_production": "linked, not wired"
+     },
+     {
+      "name": "DETERMINISM (Op 21)",
+      "kind": "observation",
+      "detail": "Reproducible dispatch-sequence FNV fingerprint (default OFF, CIPHER_DETERMINISM=on). Linked, no hot-path caller.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_determinism.cpp; Makefile:97",
+      "prior_source": "/home/ubuntu/cipher-fusion-evidence/CIPHER_LOGIC_AUDIT_WAVE_1_CLASSIFIER.md:1490"
+     },
+     {
+      "name": "PULSE (Op 22)",
+      "kind": "observation",
+      "detail": "Hardware-fault early warning observer. Linked, no hot-path caller.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_pulse.cpp; Makefile:93",
+      "engaged_in_production": "linked, not wired"
+     },
+     {
+      "name": "CARBON (Op 23)",
+      "kind": "observation",
+      "detail": "Per-session carbon estimate. Linked, no hot-path caller.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_carbon.cpp; Makefile:95",
+      "engaged_in_production": "linked, not wired"
+     },
+     {
+      "name": "TOPOLOGY (Op 25)",
+      "kind": "observation",
+      "detail": "NVLink/PCIe peer adjacency observer. Linked, no hot-path caller.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_topology.cpp; Makefile:97",
+      "engaged_in_production": "linked, not wired"
+     },
+     {
+      "name": "LOOP (Op 26)",
+      "kind": "observation",
+      "detail": "Agentic runaway detection. Linked, no hot-path caller.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_loop.cpp; Makefile:92",
+      "engaged_in_production": "linked, not wired"
+     },
+     {
+      "name": "PIPELINE (Op 27)",
+      "kind": "observation",
+      "detail": "Multi-agent session correlation. Linked, no hot-path caller.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_pipeline.cpp; Makefile:93",
+      "engaged_in_production": "linked, not wired"
+     },
+     {
+      "name": "TRACE (Op 28)",
+      "kind": "observation",
+      "detail": "Bounded kernel-trace exporter. Linked, no hot-path caller.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_trace.cpp; Makefile:94",
+      "engaged_in_production": "linked, not wired"
+     },
+     {
+      "name": "COMPLY (Op 29)",
+      "kind": "observation",
+      "detail": "Compliance artifact bundler. Linked, no hot-path caller.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_comply.cpp; Makefile:98",
+      "engaged_in_production": "linked, not wired"
+     },
+     {
+      "name": "MARLIN/Machete GEMM substitution (SUBSTITUTE)",
+      "kind": "actuator",
+      "detail": "MFU/compute-targeted: substitutes decode GEMMs (gate M<=64, K%128, N%64) bf16\u2192Machete / int4 Marlin; priority 10 in matmul chain; env CIPHER_MARLIN.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_marlin_actuator.c:333,339-366; cipher_rt_marlin_engine.cpp",
+      "engaged_in_production": "env-gated; ACTIVE-SUBSTITUTING in scorecard run (3600/4950 substituted)",
+      "prior_source": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/V0_PRODUCT_SCORECARD.md:30",
+      "prior_result": "substituted=3600 live"
+     },
+     {
+      "name": "FP8 GEMM substitution (D.9)",
+      "kind": "actuator",
+      "detail": "Compute-throughput+power-targeted: large-M complement of Marlin (n>64) bf16\u2192E4M3 cublasGemmEx; priority 20; env CIPHER_FP8. Prior MFU sweep: FP8 is THROUGHPUT(1.05-1.19x)+POWER(1.36x tok/W), NOT an MFU lever.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_actuator.c:1-8,127-150",
+      "engaged_in_production": "env-gated; handled=1125 in scorecard run",
+      "prior_source": "MEMORY.md cipher-mfu-batch-sweep-settles-g3",
+      "prior_result": "perf-only, +0.72% PPL fails quality bar"
+     },
+     {
+      "name": "KOOPMAN EDMD surrogate substitution (W.3/ADAPT)",
+      "kind": "actuator",
+      "detail": "Compute-targeted in intent: replaces GEMM with rank-r EDMD surrogate; priority field 0; env CIPHER_KOOPMAN=1. Never substitutes at prod rank (handled=0 live); the 7.43x claim was refuted 2026-06-04 (kernel 20-25x slower, OOD gate never fires).",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_koopman_engine.cpp:264-292",
+      "engaged_in_production": "env-gated; ENGAGED-NO-SUB (handled=0)",
+      "prior_source": "MEMORY.md cipher-koopman-rank-frontier; V0_PRODUCT_SCORECARD.md:32",
+      "prior_result": "REFUTED as speedup; NO on every axis"
+     },
+     {
+      "name": "VOLT DVFS (Op 30)",
+      "kind": "actuator",
+      "detail": "Power-targeted (tok/W), NOT MFU: NVML clock-lock actuator with signal-safe restore; classifier-gated (volt_engage).",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_volt.c:2-7; cipher_inject.c:60",
+      "engaged_in_production": "ACTIVE in decode regime (1.53x tok/W committed); classifier-gated OFF for A4 batch"
+     },
+     {
+      "name": "Green Context SM partition (CP 5.4, ex-ARBITRATE)",
+      "kind": "actuator",
+      "detail": "Isolation/density-targeted: per-process green context with real SM partition driven by kmod CP5.4 group ledger; the separate ARBITRATE module was RETIRED from the link (Makefile:52 'cipher_rt_arbitrate.o retired').",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_green_ctx.c:2-6; Makefile:52-53; cipher_inject.c:54",
+      "engaged_in_production": "init wired; split not engaged single-tenant (green-ctx init=0 in scorecard run)"
+     },
+     {
+      "name": "Weight pager (tiered residence)",
+      "kind": "actuator",
+      "detail": "Bytes/density-targeted: distinct-model weight evict/restore over cuMemMap; per-region mutex, cuCtxSynchronize before unmap.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_pager.c:2-7",
+      "engaged_in_production": "ACTIVE in engine runs (4 models resident, scorecard L38)"
+     },
+     {
+      "name": "FAIRNESS + SHIELD enforcement (Op 24/14)",
+      "kind": "actuator",
+      "detail": "Safety/fairness-targeted: timing-only yield enforcement, kmod ledger NR32 RW mmap (rt side) + may13 fairness_shm should_yield/record_gemm dlsym-wired from the cudart GEMM path; SHIELD exists ONLY as this fold-in, no standalone module.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fairness.c:2-7; src/may13_intercept/cipher_intercept_cudart.cpp:1023-1035; Makefile:95-96"
+     },
+     {
+      "name": "L2_PERSIST (PREDICT aspect, Op 17)",
+      "kind": "actuator",
+      "detail": "Bytes/cache-targeted: L2 persistence carve-out apply/unpin (cipher_l2_persist_apply[_for_tenant] exported); PREDICT exists only as this aspect + cipher_persist_* fast-path symbols; no standalone PREDICT module.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_l2_persist.cu; Makefile:99; nm: cipher_l2_persist_apply, cipher_persist_observe",
+      "engaged_in_production": "linked, dormant"
+     },
+     {
+      "name": "Attention test actuator",
+      "kind": "actuator",
+      "detail": "Smoke-only (CIPHER_ATTN_TEST env); proves the attn registry path; no performance target.",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_attn_test_actuator.c:74,81-98",
+      "engaged_in_production": "test-only, default-off"
+     }
+    ],
+    "open_questions": [
+     "MEMORY.md says '24-row per-op telemetry table' but the on-disk V0_PRODUCT_SCORECARD.md table has 25 rows (lines 27-51, 'Workload Classifier' through 'KV-dedup/persistent-kernel/spec-decode'); not determined whether memory counted differently (e.g., excluding the NF4 row which has 'no .so counter') or whether a v1 24-row copy was superseded by the v2-full-telemetry tag.",
+     "The W7-8 plan scheduled porting all 21 overlay ops' _report() paths (CIPHER_REENGINEERING_PLAN.md:919-921, WEEK_7_STEP_2_COMMIT_PRIMITIVE.md:212), but the Makefile links only 13 overlay modules and only SENSE+FAIRNESS_SHM are reachable from a hot path \u2014 whether the port was formally descoped (vs silently dropped) is not recorded in the files read here.",
+     "Koopman registers with priority field 0 (cipher_rt_koopman_engine.cpp:266, comment claims 'substrate ignores; ordering by registration') while the matmul registry DOES insertion-sort by priority (cipher_rt_matmul_dispatch.c:70-73) \u2014 if Koopman+Marlin were both env-enabled, Koopman (0) would run BEFORE Marlin (10); harmless today (koopman never HANDLEs at prod rank) but a latent ordering surprise.",
+     "cipher_kv_bridge.so (separate Python module, not in libcipher_rt.so OBJS) may call additional may13 surfaces; this audit scoped the registry count to libcipher_rt.so only."
+    ],
+    "summary": "Settled from source: neither 21 nor 33 counts anything in the deployed substrate. Both numbers are the Tree-A may13 canonical taxonomy \u2014 33 = 12 core + 21 overlay ops (PHASE_4_OP_WORKLOAD_MATRIX.md:10; OP_INTENT_VS_IMPLEMENTATION.md:11-19 reconciles 34\u219233 via aliases), and 21 is just the overlay subset of that same list (audit_section_1b.md:4). The cipher_rt_phase4 source (anchor libcipher_rt.so md5 2edba0d2 verified, 532 exported cipher symbols) supports instead: a 7-class OpClass classifier (cipher_classify.hpp:45-54), a 16-slot dispatch table with exactly 1 routed class GEMM\u2192MARLIN (cipher_rt_dispatch.cpp:29-46), three 16-capacity actuator registries holding 4 (matmul: marlin/fp8/koopman/audit \u2014 all env-gated default-OFF) + 1 (classify) + 2 (attn, passthrough-only) registrants, and a 256-capacity recipe registry seeded with 32 Koopman entries. Module enumeration of the link list (Makefile:55-107) gives N=53 distinct mechanisms: M=27 observation-only (12 of them may13 overlay observers that are linked but wired to NO hot path; only SENSE env-gated and FAIRNESS_SHM dlsym are reachable), K=9 actuators of which J=3 are MFU/compute-targeted (Marlin live-substituting; FP8 actually throughput/power per the MFU sweep; Koopman never fires and is refuted), the rest infra. Overlay coverage is 13-of-21 linked + VOLT native + SHIELD folded into rt_fairness + PREDICT-as-l2_persist \u2248 16 of 21 with any presence; SUSTAIN/THERMOSTAT/HIBERNATE/STRAGGLER/NCCL_P2P have zero symbols; core-op ARBITRATE was retired from the link (Makefile:52-53). Prior live verdicts agree with source: 'exactly 6 of 33 fire' (verified, CIPHER_REENGINEERING_VERIFICATION_PHASE_B.md:16,130), '~20-op substrate' (WEEK_4_STEP_7_CLOSEOUT.md:250), and the V0 scorecard live table has 25 rows (MEMORY.md's '24-row' is off by one vs the file).",
+    "topic": "Op/actuator registry count \u2014 settle \"21 vs 33 ops\" from cipher_rt_phase4 source"
+   },
+   "verdict": {
+    "confirmed": true,
+    "reason": "Every file:line citation opened and confirmed (right mechanism, right count, verbatim where claimed). Count-verdict holds: 33 = 12 core + 21 overlay per PHASE_4_OP_WORKLOAD_MATRIX.md:10; 21 = the overlay subset per audit_section_1b.md:1-4; OP_INTENT_VS_IMPLEMENTATION.md:11-19 reconciles 34\u219233 via COMMIT\u2261ORCHESTRATE and SAMPLE\u2261GENERATE aliases; prior-source lines pinned exactly (PHASE_B:16,130 '33 canonical ops / exactly 6 of 33'; WEEK_4_STEP_7_CLOSEOUT:250 '30-of-33-ops surface \u2026 ~20-op substrate'). Deployed-substrate recounts all independently reproduced: anchor libcipher_rt.so md5 2edba0d2136f8ede4713d90a8f7cd55f confirmed; 532 cipher dynamic symbols (nm -D, case-insensitive) reproduced; no 21- or 33-op enumeration anywhere in cipher_rt_phase4 source (grep clean) \u2014 supports 'neither number counts anything in the deployed substrate'; 7-class OpClass enum at include/may13/cipher_classify.hpp:45-54; 16-slot dispatch table at cipher_rt_dispatch.cpp:29-46 with exactly 1 routed class (GEMM\u2192ROUTE_MARLIN, 15 PASS_THROUGH); matmul registry capacity 16 (matmul_dispatch.c:15) with exactly 4 register call sites at the exact claimed lines (marlin_actuator.c:359, fp8_actuator.c:150, koopman_engine.cpp:291, audit.c:190), all env-gated default-OFF (CIPHER_MARLIN/CIPHER_FP8/CIPHER_KOOPMAN/CIPHER_AUDIT verified via getenv); classify registry capacity 16 (substrate.h:90) with exactly 1 auto-registrant (substrate.cpp:81); attn registry capacity 16 (attn_dispatch.h:125) with exactly 2 registrants (audit.c:191, attn_test_actuator.c:98), both returning CIPHER_RT_ATTN_PASSTHROUGH (passthrough-only confirmed in code, not just the :12 comment); may13 recipe registry CIPHER_REGISTRY_MAX_ENTRIES=256 at recipes.h:162, seeded with 32 entries (recipes.cpp:346-360, dispatch.cpp:128). All three 'engaged' annotations match V0_PRODUCT_SCORECARD.md verbatim (61278 launches :29/:45, GemmEx=4950/Lt=0 :34, COMMIT 5654 publishes :46). Infra citations all correct: CUPTI callback cipher_cupti.c:74 with hot path 173-264 and init at :343; may13 cudart intercept lines 2903-2917/1023-1035/1554-1573 with Makefile:105-106 objects and build rule :429 mapping cipher_rt_intercept_cudart.o to src/may13_intercept/cipher_intercept_cudart.cpp; inject.c:64 (machete) and :90-101 (variants/dlsym-hook/GOT-patch/may13-intercept inits) exact; dlsym_hook/got_patch/cuinit_hook/machete file headers match claimed mechanisms. No material claim fails; only minor notes listed as corrections.",
+    "corrections": [
+     "Summary text was truncated mid-sentence at 'and a 25' \u2014 source supports completing it as the 256-entry may13 recipe registry (CIPHER_REGISTRY_MAX_ENTRIES=256 at include/may13/cipher_recipes.h:162) seeded with 32 narrow-domain Koopman entries (src/may13/cipher_recipes.cpp:346-360); any other completion of '25\u2026' would be unsupported.",
+     "Overlay numbering varies between the cited docs: PHASE_4_OP_WORKLOAD_MATRIX.md:10 numbers overlay as '13-31 + STRAGGLER + NCCL P2P' while audit_section_1b.md:4 says '13-33' (NCCL_P2P at #33) \u2014 both total 21 and OP_INTENT_VS_IMPLEMENTATION.md:17 documents the variance, but a citation of the finding should not imply the two lists use identical numbering.",
+     "'532 exported cipher symbols' reproduces only as the case-insensitive dynamic-symbol count (nm -D | grep -ci cipher = 532); the case-sensitive 'cipher*' counts are 504 (T-type) / 516 (all types). The number is real but the counting convention should be stated.",
+     "cipher_cupti.c:173-264 is the observe/classify/sense hot-path block INSIDE the CUPTI launch callback; the callback function itself (cipher_v2_cupti_cb) begins at line 74 \u2014 the cited range supports the mechanism but is not the full intercept entry point.",
+     "F1 engaged annotation '61278 launches observed' is the per-launch classify-observer/SM-packer count (V0_PRODUCT_SCORECARD.md:29 and :45, scorecard located at /home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/V0_PRODUCT_SCORECARD.md, not at the cipher-fusion-evidence root).",
+     "Stale prior-doc line noted (not an error in this finding): CIPHER_REENGINEERING_VERIFICATION_PHASE_B.md cites Marlin registration at cipher_rt_marlin_actuator.c:198 (older file state); the finding's :359 matches current source.",
+     "Registrant counts (4 matmul / 1 classify / 2 attn) are register-call-site counts; at runtime the matmul registrants only actually occupy slots when their env gates are ON (default-OFF), and the attn audit registrant is additionally gated by CIPHER_AUDIT \u2014 the finding's 'all env-gated default-OFF' covers this for matmul; the same applies to both attn registrants."
+    ]
+   }
+  },
+  {
+   "hunt": "e3-fusion",
+   "inventory": {
+    "items": [
+     {
+      "name": "ledger-claim (alleged 'E.3 NON-GEMM FUSION ~13% e2e MFU lift / ceiling 65-72%')",
+      "kind": "ledger-claim",
+      "detail": "NOT FOUND AS ALLEGED. No goal-ledger names an 'E.3 NON-GEMM FUSION (RMSNorm+SiLU)' item, and no document claims '~13% e2e MFU lift / ceiling 65-72%' for it. Exhaustive grep for 'E.3' across /home/ubuntu/cipher-fusion-evidence/*.md, /home/ubuntu/*.md, /home/ubuntu/cipher-may13-evidence/*.md finds only unrelated E.3s (e.g. V1_PHASE_B_B6_9_8_5b_4_FRAMING_Y_DIAGNOSTIC.md:522 'E.3 AWQ INT4 coverage' Goal-2 scope option; V1_CAPABILITY_AUDIT_AND_PRODUCT_ARCHITECTURE.md:626 'E.3 Companion: revise cipher-fusion-campaign Goal 2/3 framings'; CIPHER_DEEP_INSPECTION_REPORT.md:543 'E.3 \u2014 do_exit reaper'). The REAL lever-ledger entry for RMSNorm+SiLU fusion is 'L6' in the D9 efficiency-lever ledger: /home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_PERSISTENT_KERNEL_MEMO.md:83-85 \u2014 verbatim: 'L6 tactic-pin + RMSNorm/SiLU fusion + PDL. Most FLOP/J cuBLASLt algo per shape (intercept built; algo-pin table net-new) + fuse memory-bound epilogues into the GEMM + PDL overlap (both net-new, not on disk). Mem #24: intercept + NVRTC \u2713. est. +3-8. Confidence: low-med.' \u2014 est +3-8 pts, NOT ~13%. The '~13%' most plausibly traces to two may13/Apr-28 artifacts: (a) /home/ubuntu/cipher-may13-evidence/PROFILE_AND_GATE.md:68 verbatim '| Fused RMSNorm + SiLU\u00b7Mul | part of Elem | ~12 % (RMSNorm + SiLU)| ~13 % |' \u2014 that is the ATTACKABLE SHARE of per-decode-step GPU time at B=64, not an MFU lift; and (b) /home/ubuntu/cipher-may13-evidence/SESSION_SUMMARY_APR28_PHASE2.md:194 verbatim '| RMSNorm fused | 15.5\u00d7 | -13.8 % (5.3\u00d7 rmsnorm-equiv) | ~30 % delivered |' \u2014 a measured -13.8% per-iter time at B=8 graph-mode ablation (tok/s, not MFU, Python-patched). The 'ceiling 65-72%' band matches a family of separate MEASURED ceilings, none tied to fusion as the lever: D9_S1_BASELINE_REPORT.md:124 'GEMM ceiling = 65% MFU, real and power-bound (700 W throttles clock to ~66% of max)'; D9_S1B_VALIDATION_REPORT.md:24-26 vLLM prefill 63.2-65.3% 'at the bf16 GEMM-proxy ceiling (65%)'; V0_PRODUCT_SCORECARD.md:64 'bf16 and FP8 hit the SAME ~68% end-to-end MFU ceiling (the forward is non-GEMM-bound)'; MFU_BATCHING_VS_SUBSTITUTION_REPORT.md:17 'plateaus at ~72.5%'; D9_FP8_ACTUATOR_BUILD_REPORT.md:107 'Amdahl ceiling ~74% ... the 31% non-GEMM is unaffected by ANY GEMM kernel'. A different '72%' appears at cipher-may13-evidence/CLAUDE.md:211 'At BATCH=8, 1.388\u00d7 = 72 % of theoretical ceiling (1.92\u00d7...)' \u2014 fraction of Amdahl speedup, not MFU. Verdict: the alleged ledger entry appears to be a conflation; report both the absence and the nearest real numbers.",
+      "file_line": "D9_PERSISTENT_KERNEL_MEMO.md:83-85; PROFILE_AND_GATE.md:68; SESSION_SUMMARY_APR28_PHASE2.md:194; D9_S1_BASELINE_REPORT.md:124; V0_PRODUCT_SCORECARD.md:64; MFU_BATCHING_VS_SUBSTITUTION_REPORT.md:17; D9_FP8_ACTUATOR_BUILD_REPORT.md:107"
+     },
+     {
+      "name": "implementation-status in cipher_rt_phase4 substrate",
+      "kind": "implementation-status",
+      "detail": "NOT IMPLEMENTED in substrate source as a firing fused kernel. (1) The fused RMSNorm/SiLU kernels (cipher_fusion_kernels.cpp, NVRTC) exist ONLY in the may13 POC tree: /home/ubuntu/cipher-may13-evidence/src/cipher_fusion_kernels.cpp + include/cipher_fusion_kernels.h (and a /workspace copy). find over /home/ubuntu/cipher_rt_phase4 returns NO cipher_fusion_kernels file; the Makefile OBJS list (/home/ubuntu/cipher_rt_phase4/Makefile:87-107) contains no fusion object \u2014 corroborated by MFU_MECHANISM_DOSSIER_2026-05-30.md:58 'FILE-EXISTS-UNWIRED ... no cipher_fusion*.o in OBJS'. (2) What IS in the substrate is detection/scaffolding only: kernel-NAME recognition at src/may13/cipher_kernel_table.cpp:77-84 (strstr 'rms_norm'/'RMSNorm'/'rmsnorm' \u2192 CIPHER_KT_RMSNORM; 'SiLUFunctor'/'Silu'/'silu'/'swish' \u2192 CIPHER_KT_SILU); Chebyshev recipe-table entries at src/may13/cipher_recipes.cpp:477-482 ('rmsnorm-dim4096', 'silu-x-fused-8k' \u2014 these strings ARE in the anchor .so); the Stage-3 flow-substitute call site at src/may13_intercept/cipher_intercept_cudart.cpp:2914-2927 ('Stage 3 \u2014 flow-substitute decision (gated by CIPHER_FLOW_SUBSTITUTE)'); and the interface header include/may13/cipher_flow_substitute.h:6 (promises 'cipher_fused_rmsnorm(X, W, Y, rows, hidden_dim, eps, stream)'). (3) DECISIVE: the linked implementation of cipher_flow_substitute_consider is a STUB that always returns 0 \u2014 src/may13_intercept/cipher_intercept_stubs.cpp:48-53 ('int cipher_flow_substitute_consider(...) { return 0; }'), built as cipher_rt_intercept_stubs.o (Makefile:107, rule at :439). The real cipher_flow_substitute.cpp exists only in cipher-may13-evidence/src/. (4) ANCHOR binary verified: md5 2edba0d2136f8ede4713d90a8f7cd55f /home/ubuntu/cipher_rt_phase4/libcipher_rt.so; nm shows cipher_flow_substitute_consider (T, the stub) and NO cipher_fused_* symbol; strings show only observation counters (s_count_RMSNORM, s_count_SILU, K1-DIAG 'rms=%lu silu_gelu=%lu') and recipe names. (5) The dispatch-side non-GEMM substitution path explicitly declines: src/may13/cipher_dispatch.cpp:341-348 (case 2 Chebyshev) \u2014 'Classify and bill only.' then 'return false \u2014 real kernel runs.'",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13_intercept/cipher_intercept_stubs.cpp:48-53; cipher_intercept_cudart.cpp:2914-2927; src/may13/cipher_kernel_table.cpp:77-84; src/may13/cipher_recipes.cpp:477-482; src/may13/cipher_dispatch.cpp:341-348; Makefile:87-107,439; include/may13/cipher_flow_substitute.h:6",
+      "engaged_in_production": "no \u2014 substitution entry point is a compiled-in stub returning 0; fused kernels not present in the anchor .so (nm/strings verified, md5 2edba0d2 unchanged)"
+     },
+     {
+      "name": "prior-measurement (where the fusion numbers actually come from)",
+      "kind": "prior-measurement",
+      "detail": "All measured fusion results are from the Apr-28/may13 POC via PYTHON MONKEYPATCH (MistralRMSNorm.forward / MistralMLP.forward \u2192 cipher_fused_rmsnorm / cipher_fused_silu_mul, per STAGE13_2X_ACHIEVED.md:42-44), never via the substrate. None is an 'e2e MFU' number \u2014 all are tok/s / tok/W / time-share. (a) Graph-mode ablation B=8 (cipher-may13-evidence/CLAUDE.md:203-207, SESSION_SUMMARY_APR28_PHASE2.md:180-185): RMSNorm-only 1.138\u00d7, SiLU_mul-only 1.009\u00d7, ALL-ON (incl. INT4) 1.388\u00d7; RMSNorm-fused e2e \u0394 = -13.8% at B=8 (SESSION_SUMMARY_APR28_PHASE2.md:194) \u2014 the closest real '~13%', a per-iter-time reduction, '~30% delivered' vs 15.5\u00d7 microbench. (b) B=1 Mistral-7B full-stack (BUILD_STATE.md:551-556): FUSED row eager 50.06\u219267.24 tok/s (1.34\u00d7), graph 110.15\u2192127.24 (1.155\u00d7). (c) STAGE13_FP8_REPORT.md:104-111: B=8 fused RMSNorm+SiLU\u00b7Mul + FP8 = 1.07\u00d7 tps / +24% tok/W vs fp16 eager baseline; STAGE13_2X_ACHIEVED.md:101 credits fusion '+8% on top of FP8' (HBM intermediate-activation reads). (d) CONTRADICTION (report vs data): MFU_MECHANISM_DOSSIER_2026-05-30.md:58,79 cites 'RoPE+RMSNorm+SiLU combined 1.074\u00d7 tps / 1.043\u00d7 tok/W (rope_p7_results.json)' \u2014 but the JSON itself (/home/ubuntu/cipher-may13-evidence/rope_p7_results.json) shows 'graph + fusion (RMSN+SiLU)' = 109.98 tps vs 'baseline (graph)' = 110.01 tps = 1.000\u00d7 (zero lift); the whole 1.074\u00d7 is the fused-RoPE config (118.11 tps). I.e. in graph mode the RMSNorm+SiLU fusion contributed ~nothing in that run. (e) PROFILE_AND_GATE.md:62-77: the '~12%/~13%' is the bucket SHARE attackable, with the explicit model 'fusion cuts ~50% of RMSNorm+SiLU time' feeding a 2.0\u00d7 tok/W (not MFU) analytic ceiling. (f) On the product (vLLM): D9_S1B_VALIDATION_REPORT.md:24-27 MEASURED vLLM prefill 63.2-65.3% MFU already at the 65% GEMM-proxy ceiling \u2014 verbatim: 'vLLM already fuses the epilogue + graphs, so the HF-eager 50.9% (31% epilogue drag) was artifactually low, and L6 fusion has ~zero headroom on vLLM.'",
+      "prior_result": "RMSNorm-only 1.138\u00d7 / e2e -13.8% @B=8 graph ablation (Python-patched, Apr-28 POC); RMSNorm+SiLU alone in rope_p7 graph run = 1.000\u00d7 (no lift); never an MFU number",
+      "prior_source": "/home/ubuntu/cipher-may13-evidence/SESSION_SUMMARY_APR28_PHASE2.md:182,194; CLAUDE.md:203-207; BUILD_STATE.md:551-556; STAGE13_FP8_REPORT.md:104-111; rope_p7_results.json; /home/ubuntu/MFU_MECHANISM_DOSSIER_2026-05-30.md:58,79"
+     },
+     {
+      "name": "engagement-status (did the fused kernel ever fire through CIPHER on a real workload?)",
+      "kind": "engagement-status",
+      "detail": "NEVER ENGAGED through the CIPHER substrate. (1) Driver-level attempt (may13 Stage 2/3): /home/ubuntu/cipher-may13-evidence/CIPHER_FLOW_STAGE2_STAGE3.md:5 \u2014 'with CIPHER_FLOW_SUBSTITUTE=on, user-visible behavior is currently identical to baseline ... real_substituted = 0 until data-pointer extraction (X, W, Y) is wired'; the run report (same file, ~line 61) shows 'windows_opened=1978 completed=1978 aborted=0 real_substituted=0 stub_count=1978' \u2014 detection fired 1978\u00d7, substitution 0\u00d7. (2) Current substrate: the shipped libcipher_rt.so (anchor 2edba0d2) links the always-return-0 stub (cipher_intercept_stubs.cpp:48-53), so engagement is structurally impossible; there is no exported fused-kernel counter at all. (3) The V0 full-stack instrumented pass confirms by omission: the 24-row per-op telemetry table in /home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/V0_PRODUCT_SCORECARD.md:22-47 reads every exported .so counter and contains NO fused-RMSNorm/SiLU row (rows exist for Marlin substituted=3600, FP8 handled=1125, Koopman handled=0, attn intercept-only 704 \u2014 nothing for fusion). (4) The only configuration where fused RMSNorm+SiLU ever ran on a real model was the application-level monkeypatch (STAGE13_2X_ACHIEVED.md:42-44), which V1 Tier-B explicitly rejects for production: PRODUCT_INTEGRATION.md:35 \u2014 'STAGE13 monkeypatch 2\u00d7 tok/W (fused RMSNorm+SiLU RAN there) | application-level forward-replacement = Mem #24-rejected for production + carried a quality divergence'.",
+      "file_line": "/home/ubuntu/cipher-may13-evidence/CIPHER_FLOW_STAGE2_STAGE3.md:5,61; /home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/V0_PRODUCT_SCORECARD.md:22-47; PRODUCT_INTEGRATION.md:35",
+      "engaged_in_production": "no \u2014 real_substituted=0 (1978/1978 stubbed) in the only driver-level live run; no fused-kernel counter exists in the anchor .so; only-ever-fired form was the Mem#24-rejected Python monkeypatch"
+     },
+     {
+      "name": "wall-mechanism (verbatim, V1 Tier-B + upstream sources)",
+      "kind": "wall-mechanism",
+      "detail": "V1 Tier-B gate row, verbatim from /home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/PRODUCT_INTEGRATION.md:29: '| Non-GEMM **driver-level** substitution (RMSNorm/SiLU fused kernels exist) | matcher detects RMSNorm seqs but `real_substituted=0` \u2014 X/W/Y device pointers are in opaque ATen arg structs, not `args[i]` | reverse-engineer ATen kernel arg layout per build | `CIPHER_FLOW_STAGE2_STAGE3.md:5,61` |'. Upstream mechanism, verbatim from /home/ubuntu/cipher-may13-evidence/CIPHER_FLOW_STAGE2_STAGE3.md:5: 'That approach didn't fire \u2014 ATen embeds tensor pointers inside opaque struct arguments (`TensorIterator`, `ReduceOp`, lambda capture frames), not as direct kernel parameters. ... Detection is robust; pointer extraction remains open.' Same wall acknowledged IN THE SUBSTRATE SOURCE, verbatim from /home/ubuntu/cipher_rt_phase4/src/may13/cipher_dispatch.cpp:341-348: '// Classify and bill only. Actual Chebyshev substitution happens at // the Python wrapper level (cipher_wrapper.py) where tensor shapes // and pointers are known. cuLaunchKernel params layout is opaque // (kernel-specific ABI) \u2014 we cannot safely extract tensor pointers // from it at the C intercept level.' Second, prior wall (no single target to replace), verbatim from /home/ubuntu/cipher-may13-evidence/CIPHER_DRIVER_FUSION_DISCOVERY.md:87: '| **Single-kernel RMSNorm/SiLU/RoPE substitution** | \u2717 doesn't exist | PyTorch decomposes them \u2014 there's no monolithic kernel to replace. |'. Third, product-headroom wall on vLLM, verbatim from /home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_S1B_VALIDATION_REPORT.md:24-27: 'vLLM prefill MFU 63.2-65.3% ... This is at the bf16 GEMM-proxy ceiling (65%) \u2014 vLLM already fuses the epilogue + graphs, so the HF-eager 50.9% (31% epilogue drag) was artifactually low, and L6 fusion has ~zero headroom on vLLM.' Net: three independent walls \u2014 (i) opaque ATen arg structs block driver-level pointer extraction, (ii) eager PyTorch decomposes the ops so no monolithic kernel exists to swap, (iii) on the actual product (vLLM) the epilogue is already fused so the headroom is ~zero.",
+      "file_line": "PRODUCT_INTEGRATION.md:29,35; CIPHER_FLOW_STAGE2_STAGE3.md:5,61; cipher_dispatch.cpp:341-348; CIPHER_DRIVER_FUSION_DISCOVERY.md:87; D9_S1B_VALIDATION_REPORT.md:24-27"
+     }
+    ],
+    "open_questions": [
+     "Where did the 'E.3' label and the exact '~13% e2e MFU lift / ceiling 65-72%' framing originate? Not found verbatim in any searched corpus (/home/ubuntu/cipher-fusion-evidence, /home/ubuntu/*.md, /home/ubuntu/cipher-may13-evidence, /home/ubuntu/cipher-phase4-evidence, /home/ubuntu/cipher_v2_build). Most plausible conflation: PROFILE_AND_GATE.md:68 '~13% attackable share' + SESSION_SUMMARY_APR28_PHASE2.md:194 '-13.8% e2e at B=8' (tok/s, not MFU) + the measured MFU-ceiling family 65%/68%/72.5% (D9_S1, V0 scorecard, MFU batch sweep). If the ledger lives elsewhere (e.g. a session prompt or an unexported doc), it was not on this disk.",
+     "MFU_MECHANISM_DOSSIER_2026-05-30.md:58,79 attributes '1.074x tps' to 'RoPE+RMSNorm+SiLU combined', but rope_p7_results.json shows the RMSN+SiLU fusion config alone at 1.000x (109.98 vs 110.01 tps) with the entire lift from fused RoPE \u2014 the dossier's attribution overstates the RMSNorm+SiLU contribution in graph mode; flagged report-vs-data.",
+     "/workspace contains a parallel copy of the may13 tree (cipher_fusion_kernels.cpp, rope_p7_results.json) \u2014 outside the declared audit scope, noted for provenance only."
+    ],
+    "summary": "E.3 NON-GEMM FUSION (RMSNorm+SiLU) audit verdict: the alleged goal-ledger entry does not exist as stated. No document names 'E.3 NON-GEMM FUSION' and none claims '~13% e2e MFU lift / ceiling 65-72%'. The real lever-ledger entry is 'L6 tactic-pin + RMSNorm/SiLU fusion + PDL, est. +3-8 pts, confidence low-med, net-new not on disk' (D9_PERSISTENT_KERNEL_MEMO.md:83-85). The '~13%' traces to may13 POC artifacts that are NOT MFU: a ~13% attackable time-share at B=64 (PROFILE_AND_GATE.md:68) and a -13.8% per-iter time from RMSNorm fusion at B=8 graph ablation, Python-monkeypatched (SESSION_SUMMARY_APR28_PHASE2.md:194); the '65-72%' matches the separate measured MFU-ceiling family (65% GEMM power-cap proxy D9_S1:124, ~68% e2e scorecard V0:64, ~72.5% batch-sweep plateau) none of which is a fusion deliverable. Implementation: NOT in the substrate \u2014 cipher_fusion_kernels.cpp exists only in cipher-may13-evidence/src/, no fusion object in cipher_rt_phase4/Makefile OBJS (:87-107), the anchor libcipher_rt.so (md5 2edba0d2 verified) exports no cipher_fused_* symbol, and the linked cipher_flow_substitute_consider is a stub returning 0 (cipher_intercept_stubs.cpp:48-53); only name-detection (cipher_kernel_table.cpp:77-84) and declining recipe scaffolding (cipher_dispatch.cpp:341-348) exist. Engagement: never fired through CIPHER \u2014 driver-level run logged real_substituted=0/stub_count=1978 (CIPHER_FLOW_STAGE2_STAGE3.md:5,61); the V0 24-row telemetry has no fusion counter; the only live form was the Mem#24-rejected Python monkeypatch (STAGE13). Walls (verbatim quoted in items): opaque ATen arg structs block X/W/Y pointer extraction at the C intercept (PRODUCT_INTEGRATION.md:29); PyTorch eager decomposes the ops so no monolithic kernel exists to replace (CIPHER_DRIVER_FUSION_DISCOVERY.md:87); and on the product, 'L6 fusion has ~zero headroom on vLLM' because vLLM already fuses the epilogue (D9_S1B_VALIDATION_REPORT.md:27). Bonus contradiction found: the dossier's 1.074x 'RoPE+RMSNorm+SiLU' attribution is RoPE-only per rope_p7_results.json (RMSN+SiLU alone = 1.000x in graph mode).",
+    "topic": "E.3 NON-GEMM FUSION (RMSNorm+SiLU) \u2014 goal-ledger claim vs substrate implementation vs measured/engaged reality"
+   },
+   "verdict": {
+    "confirmed": true,
+    "reason": "Every file:line citation was opened and verified, counts were recounted, and the substrate state was independently re-checked. (1) The negative claim holds: no document in cipher-fusion-evidence, cipher-may13-evidence, or /home/ubuntu/*.md names a goal-ledger entry 'E.3 NON-GEMM FUSION' or claims '~13% e2e MFU lift / ceiling 65-72%' \u2014 the '~13%/65-72%' pairing exists only in the audit's own PREREG.md; other 'E.3' hits are unrelated (SC6 tests, Makefile items, AWQ-INT4 scope). The real ledger entry is verbatim at D9_PERSISTENT_KERNEL_MEMO.md:83-85 ('L6 tactic-pin + RMSNorm/SiLU fusion + PDL... both net-new, not on disk... est. +3-8. Confidence: low-med'). (2) The ~13% provenance verified: PROFILE_AND_GATE.md:68 = ~13% B=64 attackable time-share (not MFU); SESSION_SUMMARY_APR28_PHASE2.md:194 = -13.8% per-iter at B=8 graph ablation (Python-driven POC, dossier:58 confirms 'Python-patched'). (3) The 65-72% ceiling family verified: D9_S1_BASELINE_REPORT.md:124 (65% GEMM power-bound), V0_PRODUCT_SCORECARD.md:64 (~68% e2e non-GEMM-bound), MFU_BATCHING_VS_SUBSTITUTION_REPORT.md:17 (~72.5% plateau) \u2014 none a fusion delta. (4) Implementation status independently confirmed: anchor md5 2edba0d2136f8ede4713d90a8f7cd55f matches; exported cipher_flow_substitute_consider disassembles to 'xor eax,eax; ret' (returns 0); nm/strings show no fused rmsnorm/silu kernels and no fusion counter; Makefile links the stub object with the 'inert stubs... NOT ported... fall through' comment; all six cited source locations match (stub 48-53, call site 2914-2927, kernel table 77-84, recipes 477-482, dispatch 341-348 'Python wrapper level' wall, header :6 declaring never-built cipher_fused_rmsnorm). (5) Engagement recounted verbatim: windows_opened=1978 completed=1978 aborted=0 real_substituted=0 stub_count=1978 (CIPHER_FLOW_STAGE2_STAGE3.md:61 region; line 5 'identical to baseline'); only-ever-fired form = Mem#24-rejected STAGE13 Python monkeypatch (PRODUCT_INTEGRATION.md:35). (6) Wall mechanisms verbatim-correct: opaque ATen arg structs (PRODUCT_INTEGRATION.md:29), PyTorch eager decomposition / no monolithic kernel (CIPHER_DRIVER_FUSION_DISCOVERY.md:87), vLLM already fuses the epilogue so L6 fusion has ~zero headroom (D9_S1B_VALIDATION_REPORT.md:24-27). No material claim failed; only minor precision notes below.",
+    "corrections": [
+     "Precision note on the -13.8% (SESSION_SUMMARY_APR28_PHASE2.md:194): the document's '-13.8%' is the 1.138x speedup re-expressed as savings/post-fusion time (1133/8227 us); strictly recounted against baseline the RMSNorm-only per-iter reduction is -12.1% (9360->8227 us, 1133/9360). The audit quotes the doc's verbatim number correctly, but a strict recount gives -12.1% of baseline.",
+     "Wording precision on the negative claim: the lowercase descriptive phrase 'non-GEMM fusion' DOES appear in three V0 docs (V0_G_O3_FP8_MFU.md:94, V0_FUSION_LEVER_SIZING.md:4,94, V0_FUSED_MEGAKERNEL_GRAPH_INVENTORY.md:135) \u2014 never as a named ledger entry and never with ~13% MFU lift or 65-72% ceiling. The audit's claim ('no document names E.3 NON-GEMM FUSION') is true as stated but should not be read as 'the phrase appears nowhere'.",
+     "Makefile line-number drift (immaterial): the stub compile rule with the 'inert stubs / NOT ported / fall through' comment sits at ~436-440 (cited as 439 \u2014 within range); cipher_rt_intercept_stubs.o is the last OBJS entry at line 107 (cited 87-107 \u2014 correct).",
+     "Additional corroborating source the audit did not list: V0_FUSION_LEVER_SIZING.md (v1_soak) isolates the non-GEMM fusion half of the old combined 1.38x and sizes it at ~10% on the non-GEMM slice ('may not clear the integration cost') \u2014 consistent with, and further supporting, the verdict that no ~13% e2e MFU fusion lift exists.",
+     "Supporting detail: rope_p7_results.json shows 'graph + fusion (RMSN+SiLU)' at 109.98 tps vs baseline 110.01 tps (~0.0% gain under graph capture) \u2014 the strongest direct evidence that the POC fusion number does not survive graph mode, reinforcing the audit's PLAN/projection-not-measurement conclusion."
+    ]
+   }
+  },
+  {
+   "hunt": "fp8",
+   "inventory": {
+    "items": [
+     {
+      "name": "cipher_rt_fp8_actuator.c \u2014 D.9 FP8 actuator (interception + gating + counters)",
+      "kind": "implementation",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_actuator.c:3-11,25,54-123,125-129,160-165",
+      "detail": "SECOND actuator on the Phase-4.5 matmul substrate, priority 20 after Marlin's 10 (:127 'after Marlin (10): Marlin gets M<=64, FP8 gets the large-M complement'). Gate = complement of Marlin: engages cublasGemmEx calls with call->n > 64 (FP8_MAX_M_GATE=64, :25, :75-78 'engage LARGE batch (n > 64); leave decode (n <= 64) to Marlin / cuBLAS'); ALL linears engaged 'q,k,v,o,gate,up,down,lm_head \u2014 NO layer dropped (Anil 2026-05-30: no scope-down)' (:7-9). dtype must be fp16/bf16 and identical for A/B/C (:62-67); shape constraint K%16==0, m>=64, k>=64 (:80). Weight prequant is one-time after FP8_STABILITY=2 observations (:26, :88-99), then the substitution = cipher_rt_fp8_engine_matmul(call->A, call->B, call->C, ...) returning CIPHER_RT_MATMUL_HANDLED with status CUBLAS_STATUS_SUCCESS (:106-122). Exported counters (verified present in anchor nm -D, md5 2edba0d2136f8ede4713d90a8f7cd55f): cipher_rt_fp8_is_active, cipher_rt_fp8_calls_total (eligible), cipher_rt_fp8_calls_handled (substituted), cipher_rt_fp8_calls_skipped, cipher_rt_fp8_weights_quantized, cipher_rt_fp8_max_n (:160-165), plus a 16-slot engaged-shape log (:37-52). Interception chain: GOT/LD_PRELOAD cublasGemmEx shim (cipher_rt_cublas_shim.c:5, :113-115 resolves real cublasGemmEx in libcublas.so.13/.12, :137 cipher_rt_cublasGemmEx_impl) -> cipher_rt_matmul_dispatch(&call, g_real_gemmEx) (cipher_rt_cublas_shim.c:231) -> priority-ordered actuator registry (cipher_rt_matmul_dispatch.h:10-27, cipher_rt_matmul_dispatch.c:88-133). NOTE: the cublasLtMatmul intercept is 'passthrough+telemetry; v1 scope' only (cipher_rt_cublas_shim.c:259-265) \u2014 FP8 never substitutes on the cuBLASLt entry point."
+     },
+     {
+      "name": "cipher_rt_fp8_engine.cpp \u2014 cuBLASLt per-tensor scalar E4M3 engine",
+      "kind": "implementation",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_engine.cpp:3-16,40-73,115,134-144,150-152,180-212,262-275,281-340",
+      "detail": "What it substitutes: per-tensor scalar FP8 E4M3 GEMM via cublasLtMatmul \u2014 ':5-8 Per-tensor scalar FP8 E4M3 (the ONLY fused path on this cu13 cuBLASLt \u2014 rowwise NOT_SUPPORTED, measured 2026-05-30). Static per-tensor weight prequant (one-time, cached by w_ptr) + inline per-tensor activation quant + cuBLASLt FP8 scalar GEMM (FAST_ACCUM) -> fp16/bf16 output DIRECTLY (no epilogue)'. Matmul desc: TRANSA=T/TRANSB=N, FAST_ACCUM=1, COMPUTE_32F, A/B scale pointers set per call, 32MB workspace, heuristic algo cached per (m,n,k,dtype) shape (:298-316, :334-338, :115). Quant kernels (absmax reduce + clamp-to-\u00b1448 quantize, fp16+bf16 variants) are NVRTC-compiled at runtime and launched via driver cuLaunchKernel, explicitly NOT static .cu, to avoid SIGFPE through CIPHER's own __cudaRegisterFunction intercept at LD_PRELOAD time (:10-15, :40-73, :180-212). All cuBLASLt/driver/NVRTC symbols resolved by dlsym from libcublasLt.so.13/.12, libcuda.so.1, libnvrtc.so.13/.12 (:146-152). Opt-in single-entry shared-activation-quant cache for q/k/v and gate/up reuse, env CIPHER_FP8_SHARE_ACT (:134-144, :175, :321-330); NVRTC include override env CIPHER_FP8_CUDA_INC (:186-188)."
+     },
+     {
+      "name": "Arming mechanism \u2014 env CIPHER_FP8, init chain, deployed .deb config",
+      "kind": "arming-mechanism",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_actuator.c:131-158; /home/ubuntu/cipher_rt_phase4/cipher_inject.c:63; /home/ubuntu/cipher_v2_build/pkgroot/etc/cipher/platform.json:8",
+      "detail": "Default-OFF. cipher_rt_fp8_init() reads env CIPHER_FP8 (values 'on'/'1'/'ON') and CIPHER_FP8_VERBOSE (cipher_rt_fp8_actuator.c:133-139); when unset it logs 'FP8: actuator DISABLED (CIPHER_FP8 not set) \u2014 OFF == byte-identical' (:142) and registers nothing. When set it inits the engine then registers the actuator via cipher_rt_matmul_register_actuator(&g_fp8_actuator) (:145-154). Wired into the one-shot init chain at cipher_inject.c:63: '(void)cipher_rt_fp8_init(); /* D.9 FP8 actuator (env-gated CIPHER_FP8; priority 20, after Marlin) */'. Production packaging: the V.2 .deb compute regime arms it as platform.json:8 \"compute\": {\"handler\":\"v0_phaseA_maxmfu.py\", ... \"inject\":{\"CUDA_INJECTION64_PATH\":\"__SO__\",\"CIPHER_FP8\":\"1\"}} \u2014 i.e. the robust arming path is CUDA_INJECTION64_PATH injection + CIPHER_FP8=1, NOT LD_PRELOAD."
+     },
+     {
+      "name": "Goal ledger \u2014 FP8 named a lever for Goal-3 \u226585% MFU",
+      "kind": "goal-ledger",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_PERSISTENT_KERNEL_MEMO.md:1-6; P3_SMPACKER_SCOPE_MEMO.md:107-110; D10_ACTUATOR_GOAL_MAP.md:23,33-34; /home/ubuntu/MFU_MECHANISM_DOSSIER_2026-05-30.md:107",
+      "detail": "Verbatim. D9_PERSISTENT_KERNEL_MEMO.md:1-6: '# D.9 \u2014 Deliver Goal-3 \u226585% MFU in v1 (compute-bound prefill) \u2014 design memo ... Collapses the post-seed Phase-6 depth-win program into v1: build the four named Phase-6 levers (FP8, L2-budget, TMA/cluster attention, partition-aware Marlin) + the within-cap clock/tactic/fusion levers on the deployed substrate and measure to \u226585% sustained MFU on the compute-bound regime.' P3_SMPACKER_SCOPE_MEMO.md:107-110: '...composed with W.4 batching + the D.9 FP8 lever. The deferred 85% MFU is measured there (with the NCCL/AllReduce multi-GPU portion that cannot appear single-GPU, PLAN.md:1721).' D10_ACTUATOR_GOAL_MAP.md:23: '| 3 MFU \u226585% | Marlin (compute-reduction) or persistent-kernel (D.9) | ...'. MFU_MECHANISM_DOSSIER_2026-05-30.md:107: 'Marlin INT4 (decode M\u226464) and FP8 (large-M forward, 64-68% MFU) \u2014 both wired, env-gated, measured. These are the only two MFU actuators that actually engage in the current runtime.' COUNTER-LEDGER (the retraction): CIPHER_PLAN_EXECUTIVE_SUMMARY.md:137 names the 85% path WITHOUT FP8 \u2014 'The 85% MFU gate is a post-CP-5.5 depth-win program target that requires partition-aware Marlin..., L2 budget enforcement..., and TMA thread-block-cluster kernel work'; :161 'Any universal 85% MFU framing was retracted'; CIPHER_REENGINEERING_PLAN.md:1019 '85% MFU on declared compute-bound WLs is the post-CP-5.5 depth-win-program goal, not a v1 deliverable'."
+     },
+     {
+      "name": "Prior result 1 \u2014 D9 FP8 actuator build (2026-05-29/30): fired on torch eager, MFU 64-68%, quality FAIL",
+      "kind": "prior-result",
+      "prior_source": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_FP8_ACTUATOR_BUILD_REPORT.md:17,20,28,76,111-112,138-139,189-193; /home/ubuntu/MFU_MECHANISM_DOSSIER_2026-05-30.md:54,94",
+      "prior_result": "MFU 64.3% (per-call) / 68.2% (share-act) vs 989 TFLOPS; 1.32x faster than bf16 at fixed 700W; PPL +0.567% FAIL, MMLU -1.6pp FAIL (per-tensor all-layers)",
+      "engaged_in_production": "ENGAGED on torch eager forward (engagement Guard 1 PASS, 'engaged-count >> 0 in the quality run's PPL windows' :76); NOT on vLLM \u2014 ':189-192 the 85% MFU vs 989 target is unreachable by any FP8 GEMM scheme \u2014 the 31% non-GEMM (unfused RMSNorm/SiLU) caps the forward at ~74% (Amdahl)... The 85% target is a native-fused-FP8 (vLLM-prefill) number; vLLM prefill itself can't be CIPHER-FP8'd (prior nvjet-bypass finding).'",
+      "detail": "Path = CIPHER actuator on torch eager HF forward (not vLLM). Dossier row (MFU_MECHANISM_DOSSIER:54): 'FP8 (tonight, Path A) | (a) BUILT+WIRED cipher_inject.c:63 env CIPHER_FP8; priority 20 | 64.3-68.2% MFU vs 989, 1.32x@700W, +0.567% PPL FAIL'. Per-channel reference scheme (Path B, torch._scaled_mm, not the shipped actuator) recorded +0.37% PPL / -0.4pp MMLU passing the amended gate (:153-154,:180-181) but requires CUTLASS rowwise = v1.5. Amdahl: ':111-112 [the 31% non-GEMM caps the forward at ~]85%, regardless of the GEMM scheme or the quant.'"
+     },
+     {
+      "name": "Prior result 2 \u2014 V0_PRODUCT_SCORECARD (2026-06-03): FP8 fired live, handled=1125 of 4725 routed GEMMs, torch eager under CUDA_INJECTION64_PATH",
+      "kind": "prior-result",
+      "prior_source": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/V0_PRODUCT_SCORECARD.md:5,13,23,28,31,64,66,76,78",
+      "prior_result": "FP8 counter row (:31): 'total=1350, handled=1125, weights_q=225, max_n=402 ... ACTIVE-SUBSTITUTING'; (:23) 'Marlin 3600 + FP8 1125 = 4725 of the 4725 routed GEMMs'; substrate (:28) 4950 intercepted / 4725 routed / 225 passthrough. G3 row (:13): 69.7% bf16 / 67.5% FP8 MFU @batch=12, FP8 1.05x iso-clock / 1.23x iso-power / -24% power, +0.72% PPL fails 0.37%, 'NOT 85%'",
+      "engaged_in_production": "ENGAGED (handled=1125 > 0) but on torch EAGER under CUDA_INJECTION64_PATH only (:5 'The FP8 phase runs under CUDA_INJECTION64_PATH (the D.9 robust injection); the earlier LD_PRELOAD-after-bf16 path faulted cudaErrorInvalidDeviceFunction'). NOT in the captured engine graph (:23 'In the engine's captured graph-decode (Phase B) these run OFF for capture-safety (NVRTC/cudaMalloc are capture-illegal, g1.3-class)'). NOT vLLM.",
+      "detail": "MFU framing in the same doc (:64): 'bf16 and FP8 hit the SAME ~68% end-to-end MFU ceiling (the forward is non-GEMM-bound...). FP8's win is NOT a higher MFU% \u2014 it is throughput at iso-power.' (:66) raw FP8 GEMM '1.80x bf16 = ~85% of FP8-peak' is explicitly labeled 'hardware-utilization numbers, not the delivered/quality-passing MFU' (the forbidden-vLLM-analog trap). G3 verdict (:76): 'MULTI-GPU DEFERRED ... 85% = multi-GPU/NCCL-overlap, 8+-GPU-gated; FP8 quality +0.72% PPL > 0.37% (per-channel CUTLASS = v1.5)'."
+     },
+     {
+      "name": "Prior result 3 \u2014 V.1 Tier A PRODUCT_INTEGRATION (2026-06-03): FP8 = the compute-regime lane, eager, handled=11475",
+      "kind": "prior-result",
+      "prior_source": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/PRODUCT_INTEGRATION.md:3,11,13,31-32,39",
+      "prior_result": "(:11) 'compute/prefill | FP8 E4M3 substitution at cublasGemmEx (n>64) | MFU 65.3% @ batch=8, FP8 substituted (handled=11475) | eager (not graph)'",
+      "engaged_in_production": "ENGAGED in the product router's compute regime, eager-only torch path. Header (:3) explicitly lists what is NOT delivered: '...85% MFU, or sub-0.37% FP8 quality \u2014 each is gated for an earned reason (Tier B roadmap below), NOT wired here.'",
+      "detail": "Tier B gates verbatim (:31-32): 'Compute actuators (Marlin/FP8/Koopman) inside the engine graph | their NVRTC/cudaMalloc/cudaHostAlloc/cusolver are capture-illegal in torch.cuda.graph'; 'FP8 quality (+0.72% PPL > 0.37% bound) | per-tensor scalar scheme (the only fused cuBLASLt path on cu13) breaks the bound | custom CUTLASS rowwise (per-channel-W + per-token-A) fused kernel = v1.5'."
+     },
+     {
+      "name": "Prior result 4 \u2014 MFU batch-sweep (2026-06-04): FP8 1.05x M1 -> 1.19x M64, MFU vs own 2x peak DROPS to 29.6-43.2%",
+      "kind": "prior-result",
+      "prior_source": "/home/ubuntu/MFU_BATCHING_VS_SUBSTITUTION_REPORT.md:4,24-35,54-55,133,136-141,144-156,177-182,192-193,203-205",
+      "prior_result": "Table (:136-141): M=1 1.053x tok/s (reproduces prior G-O3 batch-1), M=32 1.192x, M=64 1.193x; power -12..23% = ~1.36x tok/W; FP8 MFU vs FP8 2x-peak 29.6% (M=1) -> 43.2% (M=64) vs bf16 56.1-72.5% vs bf16 peak; the 'FP8 vs bf16 peak' column 85.9-86.5% called out as the trap (:156 'not a utilization gain, it is the 1.19x throughput re-expressed in the wrong denominator')",
+      "engaged_in_production": "ENGAGED, torch eager via CUDA_INJECTION64_PATH on the 2edba0d2 anchor (:4); engagement verified ':133 FP8 substitution verified (handled>0, wq=224 = all [32 layers x 7 GEMMs])', lm_head last-token correctly declined by n>64 gate (:192-193). NOT vLLM. LD_PRELOAD documented broken: ':54-55 FP8 ON = CUDA_INJECTION64_PATH=$SO CIPHER_FP8=1 (LD_PRELOAD crashes model load in this stack \u2014 the documented fragility; injection is the robust path).'",
+      "detail": "Q2 verdict verbatim (:24-25): 'Does FP8 kernel substitution move MFU, or only power/MBU? Only throughput and power \u2014 not MFU.' Quality caveat (:177-179): 'No output-quality (PPL) check this run, and the FP8 win is NOT deployable as-is... on record at +0.72% PPL on wikitext-2 \u2014 which fails the 0.37% bar (per-tensor all-layers; the share-act variant is numerically broken, KL 2.06).' 85% (:35): '85% single-GPU MFU is unreachable at this boundary'; (:182) 'The 85% MFU target is a kernel-fusion (attention/norm fusion) / multi-GPU number, not reachable at the [cublasGemmEx boundary]'."
+     },
+     {
+      "name": "Prior result 5 \u2014 STAGE13 / may13 codebase FP8 (pre-actuator) + the 91.7-98.3% reachability number",
+      "kind": "prior-result",
+      "prior_source": "/home/ubuntu/MFU_MECHANISM_DOSSIER_2026-05-30.md:94,136-137; /home/ubuntu/cipher-may13-evidence/STAGE13_FP8_REPORT.md; D9_PERSISTENT_KERNEL_MEMO.md:18-25; V0_PRODUCT_SCORECARD.md:83",
+      "prior_result": "+24% tok/W at B=8 (STAGE13_FP8_REPORT.md:111 per dossier); vLLM sustained GEMM 1.83x; 'vLLM full-coverage 91.7-98.3% MFU (reachability) but PPL +0.37% FAIL' (dossier :94)",
+      "engaged_in_production": "The 91.7-98.3% is REACHABILITY (vLLM-exec native FP8), explicitly NOT CIPHER engagement: V0_PRODUCT_SCORECARD.md:83 'the FP8 88-98% was vLLM-exec reachability, NOT cited as CIPHER's \u2014 CIPHER's compute-bound number is the 1.05x iso-clock / ~68% MFU / +0.72% PPL'. Also the may13 FP8 stack lives in a DIFFERENT codebase: D9_PERSISTENT_KERNEL_MEMO.md:18-22 'the 33-op MFU op-chain + the FP8 substitution stack live in cipher-may13-evidence ... the deployed cipher_rt_phase4 ... never ran the may13 MFU op-chain / FP8 path'.",
+      "detail": "Distinguish three FP8 artifacts: (1) may13 cipher_fp8_fused_quant.cu stack (different codebase, dossier :136-137 / plan CIPHER_REENGINEERING_PLAN.md:195), (2) vLLM-native FP8 reachability numbers (not CIPHER), (3) the shipped D.9 actuator in cipher_rt_phase4 (the only one in the anchor .so)."
+     },
+     {
+      "name": "Production block A \u2014 vLLM path: nvjet bypass + torch symbol-address caching (GOT-patch saw 0 GEMMs)",
+      "kind": "production-block",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_DELIVERY_WORKAROUNDS.md:2-15; D9_TRAINING_INTERCEPT_PROBE_REPORT.md:6,31,40-41; D9_FP8_ACTUATOR_BUILD_REPORT.md:191-192",
+      "detail": "Verbatim (D9_DELIVERY_WORKAROUNDS.md:2-6): 'The driver-boundary intercept is dead (vLLM's GEMMs go via libcublas-internal nvjet, and torch caches the public cuBLAS symbol addresses at its own init before CIPHER's GOT-patch arms \u2014 the D.10 wall; CIPHER saw 0 GEMMs). The GEMM travels Python (vLLM linear) -> torch (ATen) -> libcublas (nvjet).' Layer map (:14): 'public cuBLAS cublasGemmEx/cublasLtMatmul (CIPHER's current GOT-patch) | NO \u2014 bypassed (nvjet + torch address-caching)'. The wall is vLLM-specific, not torch-wide (D9_TRAINING_INTERCEPT_PROBE_REPORT.md:31,40-41: 'HF nn.Linear (at::addmm) routes through the PUBLIC cublasGemmEx'). Recommended workaround was a framework-layer vLLM plugin monkeypatch of UnquantizedLinearMethod.apply (D9_DELIVERY_WORKAROUNDS.md:17-25, caught 128 prefill GEMMs) \u2014 never shipped as the FP8 production path. CONTRADICTION TO REPORT: the later R.A work shows vLLM 0.20.2 EAGER decode DOES emit public cublasGemmEx and an LD_PRELOAD interposition shim catches it (R_A_REAL_VLLM_2026-06-08.md:39 'vLLM's fp16 linear path is cublasGemmEx (not cublasLt)') \u2014 i.e. the D9-era block is specific to the GOT-patch-arming-after-torch-init mechanism and that vLLM/torch stack, not a universal physical wall; no FP8-substitution-in-vLLM run exists either way."
+     },
+     {
+      "name": "Production block B \u2014 LD_PRELOAD-after-bf16 deterministic fault; robust path = CUDA_INJECTION64_PATH",
+      "kind": "production-block",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/V0_PRODUCT_SCORECARD.md:78; /home/ubuntu/MFU_BATCHING_VS_SUBSTITUTION_REPORT.md:54-55",
+      "detail": "Verbatim (V0_PRODUCT_SCORECARD.md:78): 'FP8 injection under LD_PRELOAD | OPEN (operational) | FP8 actuator faults cudaErrorInvalidDeviceFunction under LD_PRELOAD when sequenced after a fresh-process bf16 run (deterministic, not transient). Robust path = CUDA_INJECTION64_PATH (D.9; verified this session, handled>0). The orchestrator uses it for the FP8 phase'. Corroborated by MFU_BATCHING_VS_SUBSTITUTION_REPORT.md:54-55: '(LD_PRELOAD crashes model load in this stack \u2014 the documented fragility; injection is the robust path)'."
+     },
+     {
+      "name": "Production block C \u2014 capture-illegal in torch.cuda.graph (engine/captured decode runs FP8 OFF)",
+      "kind": "production-block",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/V0_PRODUCT_SCORECARD.md:23; PRODUCT_INTEGRATION.md:31",
+      "detail": "Verbatim (V0_PRODUCT_SCORECARD.md:23): 'In the engine's captured graph-decode (Phase B) these run OFF for capture-safety (NVRTC/cudaMalloc are capture-illegal, g1.3-class) \u2014 the PARTIAL compute-stack composition (gap-map).' PRODUCT_INTEGRATION.md:31: 'Compute actuators (Marlin/FP8/Koopman) inside the engine graph | their NVRTC/cudaMalloc/cudaHostAlloc/cusolver are capture-illegal in torch.cuda.graph | offline weight-prequant before capture, or a capture-legal kernel path'. Source corroboration: the engine quantizes lazily with cudaMalloc + NVRTC at first eligible call (cipher_rt_fp8_engine.cpp:216-228 ensure_cuda, :262-275 quantize_weight cudaMalloc, :180-212 NVRTC compile) \u2014 inherently capture-illegal as built. NOTE: the phrase 'torch path memo pending' from the task prompt was NOT FOUND verbatim anywhere (grep 'memo pending' hits only V1_CAPABILITY_AUDIT_AND_PRODUCT_ARCHITECTURE.md:717, an unrelated commit note); the documented blocks are the three above (nvjet/GOT bypass, LD_PRELOAD fault, capture-illegal) plus the Lt-path gap: cublasLtMatmul intercept is 'passthrough+telemetry; v1 scope' (cipher_rt_cublas_shim.c:259) so torch fp32/tf32 Lt-routed matmuls get no FP8 substitution."
+     },
+     {
+      "name": "MFU verdict \u2014 FP8 has NEVER lifted MFU through CIPHER; it is a throughput/power lever and the 85% goal was reframed away from it",
+      "kind": "mfu-verdict",
+      "file_line": "/home/ubuntu/MFU_BATCHING_VS_SUBSTITUTION_REPORT.md:24-35,147,156,203-205; V0_PRODUCT_SCORECARD.md:13,64,66,76; D9_FP8_ACTUATOR_BUILD_REPORT.md:28,111-112,189-193; CIPHER_PLAN_EXECUTIVE_SUMMARY.md:137,161",
+      "detail": "No measurement on record shows FP8-through-CIPHER raising MFU. (1) Throughput/power: real and reproduced \u2014 1.05x M=1 to 1.19x M=64 tok/s, -12..23% power, ~1.36x tok/W, 1.23-1.24x iso-power (batch-sweep :144-146; scorecard :13). (2) MFU: against FP8's own 2x peak (the honest denominator) utilization DROPS to 29.6-43.2% vs bf16's 56-72.5% (batch-sweep :147); end-to-end both dtypes hit the same ~68% ceiling because the forward is non-GEMM-bound (scorecard :64); the 85.9-86.5% and '~85% of FP8-peak' figures are explicitly labeled wrong-denominator / silicon-utilization-not-delivered-MFU (batch-sweep :156; scorecard :66). (3) Quality: shipped per-tensor all-layers actuator +0.72% PPL fails the 0.37% bar (scorecard :13; per-channel CUTLASS rowwise deferred to v1.5, PRODUCT_INTEGRATION.md:32); the original D9 all-layers run was +0.567% PPL / -1.6pp MMLU FAIL (D9 build report :138-139). (4) The 85% goal itself: D9 build report :189-193 \u2014 unreachable by ANY FP8 GEMM scheme on the unfused forward (31% non-GEMM Amdahl ~74% ceiling), the 85% number is native-fused-FP8 vLLM-prefill which CIPHER couldn't intercept (nvjet); subsequently retracted/reframed as post-CP-5.5 multi-GPU/fusion (exec summary :137,:161; scorecard G3 'MULTI-GPU DEFERRED' :76). Cross-check vs source: implementation (per-tensor scalar, per-call activation requant, cuBLASLt FAST_ACCUM, n>64 gate) matches the reports exactly; the per-call requant tax the reports blame (batch-sweep :28) is visible at cipher_rt_fp8_engine.cpp:319-333 (activation absmax+quant launched on every handled call unless CIPHER_FP8_SHARE_ACT, whose variant is on record as numerically broken, KL 2.06, batch-sweep :179)."
+     }
+    ],
+    "open_questions": [
+     "FP8 substitution inside vLLM was never run end-to-end: the 2026-05-29 D9 block (nvjet bypass + torch address caching, GOT-patch saw 0 GEMMs) vs the 2026-06-08 R.A finding that vLLM 0.20.2 eager fp16 linears DO call public cublasGemmEx and an LD_PRELOAD shim intercepts them (R_A_REAL_VLLM_2026-06-08.md:39) \u2014 these are different interception mechanisms/stacks; whether the shipped FP8 actuator would fire and survive in vLLM eager via LD_PRELOAD-style interposition is untested.",
+     "The phrase 'torch path memo pending' (suggested in the task) does not exist in any audited file; if it comes from another ledger, its source is unlocated.",
+     "Per-channel CUTLASS rowwise FP8 (the quality-passing scheme, +0.37% PPL recorded via torch._scaled_mm reference) remains unbuilt (v1.5 Tier B) \u2014 so no quality-passing FP8 config has ever been wired into the anchor .so.",
+     "The 'FP8 1125' (scorecard Phase D) vs 'handled=11475' (PRODUCT_INTEGRATION compute regime) counts are from different runs/workloads; both are eager-only \u2014 no engaged-count exists for any captured-graph or vLLM run (by design, 0 there)."
+    ],
+    "summary": "FP8 substitution in CIPHER is the D.9 actuator pair: cipher_rt_fp8_actuator.c registers at priority 20 on the matmul-dispatch substrate fed by the cublasGemmEx shim (Lt path is telemetry-only), gates large-batch GEMMs (call->n>64, fp16/bf16, K%16==0), all linears, default-OFF behind env CIPHER_FP8 (deployed .deb arms it via CUDA_INJECTION64_PATH + CIPHER_FP8=1), exporting cipher_rt_fp8_calls_total/handled/skipped/weights_quantized/max_n (all present in the 2edba0d2 anchor). cipher_rt_fp8_engine.cpp does per-tensor scalar E4M3 (the only fused cu13 cuBLASLt path; rowwise NOT_SUPPORTED): one-time weight prequant + per-call NVRTC-kernel activation quant + cublasLtMatmul FAST_ACCUM to fp16/bf16. Goal ledger: D9_PERSISTENT_KERNEL_MEMO names FP8 first of the 'four named Phase-6 levers' to 'measure to \u226585% sustained MFU', and P3_SMPACKER_SCOPE_MEMO defers the 85% measurement 'composed with W.4 batching + the D.9 FP8 lever'; the exec summary later retracted universal 85% and re-scoped the gate to Marlin/L2/TMA post-CP-5.5. Engagement: every fired run is torch EAGER via CUDA_INJECTION64_PATH (D9 build 64-68% MFU +0.567% PPL FAIL; V0 scorecard handled=1125/4725 routed, 67.5% FP8 vs 69.7% bf16 @batch=12; Tier A handled=11475, 65.3% @batch=8; batch-sweep handled>0 wq=224, 1.05x M1 -> 1.19x M64). Production blocks (verbatim, cited): vLLM nvjet bypass + torch symbol caching ('CIPHER saw 0 GEMMs'; 'vLLM prefill itself can't be CIPHER-FP8'd'), LD_PRELOAD-after-bf16 deterministic cudaErrorInvalidDeviceFunction fault, and capture-illegal NVRTC/cudaMalloc in torch.cuda.graph; 'torch path memo pending' was not found verbatim. MFU verdict: FP8 has never lifted MFU through CIPHER \u2014 it buys throughput (1.05-1.19x) and power (~1.36x tok/W, 1.23-1.24x iso-power) while MFU against FP8's own 2x peak drops to 29.6-43.2% (vs bf16 56-72.5%), E2E both hit the same ~68% non-GEMM-bound ceiling, quality fails the 0.37% bar (+0.72% PPL), and 85% was adjudicated unreachable at the cublasGemmEx boundary (Amdahl ~74% unfused ceiling; 85% = fusion/multi-GPU, deferred).\"",
+    "topic": "FP8 SUBSTITUTION \u2014 the load-bearing lever for the 85% MFU goal (source/report audit)"
+   },
+   "verdict": {
+    "confirmed": true,
+    "reason": "All material claims verified against source files and reports. (1) Implementation: /home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_actuator.c matches every claimed line \u2014 D.9 header (:3-11), FP8_MAX_M_GATE=64 (:25), maybe_handle_fp8 with call->n>64 / fp16-bf16-only / (k&15)!=0 K%16 gate (:54-123), priority-20 actuator struct (:125-129), env CIPHER_FP8 init (:131-158), counter exports (:160-165). cipher_rt_fp8_engine.cpp matches \u2014 per-tensor scalar E4M3 'the ONLY fused path on this cu13 cuBLASLt \u2014 rowwise NOT_SUPPORTED' (:3-16), NVRTC quant kernels (:40-73), one-time weight prequant (:262-275), cublasLtMatmul FAST_ACCUM to fp16/bf16 (:281-340). (2) Arming: cipher_inject.c:63 calls cipher_rt_fp8_init in the init chain; platform.json:8 compute regime injects CUDA_INJECTION64_PATH+CIPHER_FP8=1. (3) Goal ledger: D9_PERSISTENT_KERNEL_MEMO.md:1-6 names FP8 first of the four Phase-6 levers for Goal-3 >=85% MFU; P3 memo :109; D10 map :23,:33-34; dossier :107 \u2014 all present. (4) All 5 prior results verified including verbatim quotes (D9 build report :76 engaged-count >> 0, :189-192 Amdahl ~74% ceiling + native-fused-FP8 vLLM framing; V0 scorecard :5 CUDA_INJECTION64_PATH provenance, :23 capture-safety, :31 handled=1125, :83 reachability disclaimer; PRODUCT_INTEGRATION :3 NOT-delivered header exact, :11 handled=11475 eager; batch-sweep :54-55 LD_PRELOAD fragility exact, :133/:192-193 wq=224, :136-141 29.6-43.2% vs own 2x peak). Counts recounted: Marlin 3600 + FP8 1125 = 4725 routed (scorecard :23,:28,:31 consistent); wq=224 = 32 layers x 7 GEMMs. (5) Production blocks A/B/C all supported at the cited lines (nvjet bypass + torch symbol caching 'CIPHER saw 0 GEMMs' at D9_DELIVERY_WORKAROUNDS :2-15; probe report :6,:31,:40-41; LD_PRELOAD deterministic fault V0:78; capture-illegal V0:23 + PRODUCT_INTEGRATION:31). (6) Summary counters all present in the 2edba0d2 anchor: nm -D on /home/ubuntu/cipher_rt_phase4/libcipher_rt.so (md5 2edba0d2136f8ede4713d90a8f7cd55f, identical copy in /home/ubuntu/cipher_v2_build/pkgroot/usr/lib/cipher/) exports cipher_rt_fp8_calls_total/handled/skipped/weights_quantized/max_n. The substrate feed is verified: cipher_rt_cublas_shim.c:231 routes cublasGemmEx through cipher_rt_matmul_dispatch. STAGE13_FP8_REPORT.md exists in /home/ubuntu/cipher-may13-evidence/ (May 13), confirming the codebase split. No material claim failed; corrections below are minor precision issues.",
+    "corrections": [
+     "Summary claim 'Lt path is telemetry-only' needs qualification: true for the umbrella cublasLtMatmul intercept (cipher_rt_cublas_shim.c:259 'passthrough+telemetry; v1 scope') and the default variant trampolines, but cipher_rt_cublaslt_variants.c:100-146 contains a D.10 CIPHER_LT_ROUTE-gated full shim for the HSH (fp16 hot-path) variant that decodes descriptors and calls cipher_rt_matmul_try_actuators \u2014 i.e. a gated Lt->actuator-chain route EXISTS in the anchor. It is default-OFF and NOT armed in the deployed platform.json:8 (which sets only CUDA_INJECTION64_PATH+CIPHER_FP8), so 'telemetry-only' holds for the default/deployed configuration but not unconditionally.",
+     "Prior result 5 line citation slightly off: the quoted codebase-split text cited as D9_PERSISTENT_KERNEL_MEMO.md:18-22 actually spans lines 20-24 ('Codebase-split premise' starts at :20; 'never ran the may13 MFU op-chain / FP8 path' is at :24). The item's broader range :18-25 does cover it; content is verbatim-accurate.",
+     "Goal-ledger citation D10_ACTUATOR_GOAL_MAP.md:23 is indirect: line 23 names 'Marlin (compute-reduction) or persistent-kernel (D.9)' as the Goal-3 levers \u2014 'FP8' is not verbatim there (D.9 at that date refers to the persistent-kernel/depth-win program, which the same-day D9_PERSISTENT_KERNEL_MEMO defines as containing FP8 first of four levers). FP8 IS named verbatim for the MFU goal at D9_PERSISTENT_KERNEL_MEMO.md:4, P3_SMPACKER_SCOPE_MEMO.md:109, and MFU_MECHANISM_DOSSIER:107, so the ledger item stands on its other three citations.",
+     "P3_SMPACKER_SCOPE_MEMO citation :107-110: the load-bearing sentence ('composed with W.4 batching + the D.9 FP8 lever. The deferred 85% MFU is measured there') is at line 109 \u2014 within the cited range, just noting the precise line.",
+     "Gate description omits one condition: besides n>64, fp16/bf16, and K%16==0, the actuator also requires m>=64 and k>=64 (FP8_MIN_DIM, cipher_rt_fp8_actuator.c:80). Omission, not contradiction.",
+     "Note (not an error): the system-installed /usr/lib/cipher/libcipher_rt.so is md5 1f305ce6 (the V.1 anchor); the 2edba0d2 anchor against which the counter symbols were verified is /home/ubuntu/cipher_rt_phase4/libcipher_rt.so and the byte-identical /home/ubuntu/cipher_v2_build/pkgroot/usr/lib/cipher/libcipher_rt.so inside the .deb pkgroot \u2014 consistent with the claim as written ('present in the 2edba0d2 anchor', 'deployed .deb arms it'), but anyone checking the live installed path will see a different md5."
+    ]
+   }
+  },
+  {
+   "hunt": "marlin-koopman",
+   "inventory": {
+    "topic": "READ-ONLY audit: TOPIC A Marlin/quant substitution (E.2) + TOPIC B Koopman LM-head (Goal 4) \u2014 implementation, prior results, production engagement, MFU relevance",
+    "summary": "TOPIC A: Marlin is an INT4 (group-128) weight-quantized GEMM substitution actuator on the cublasGemmEx dispatch substrate, gated to decode-shaped GEMMs (batch M<=64, N>=1024, K>=1024, K%128==0, N%64==0), armed by env CIPHER_MARLIN + classifier marlin_engage + TLS dispatch hint, with lazy quantize after 4 observations. It substitutes fp16 GEMMs directly and bf16 GEMMs via a cast-to-fp16 surrogate into the NVRTC-compiled IST-DASLab Marlin kernel (10 entry points, grid=SM count, 96KB dyn smem). Prior results located: V0 scorecard 'Marlin 3600 + FP8 1125 = 4725 of the 4725 routed GEMMs' (bf16_observed=4950, substituted=3600, weights_q=225) in a FORCE-ARMED eager Phase D pass; NF4 co-fire ~5.6GB/7B (single-model LIVE reading 5.5GB) is a separate transformers/bitsandbytes path with no .so counter. Marlin is a BYTES/token (bandwidth-reduction) lever per the MFU dossier's own words; no report claims an MFU% lift from Marlin (its committed number is 1.38x tok/s at B=8 from may13). Marlin was NOT engaged in the V1 production router (agent=engine+DVFS+NF4, compute=FP8; CIPHER_MARLIN never set to 1, explicitly 0 in the OFF-proof and V2 deb gates; classifier policy for A4_BATCH_INFERENCE gates marlin_engage=0; capture-illegal inside the engine graph). One report-vs-source naming discrepancy: scorecard says 'bf16->Machete' but the source substitutes into the Marlin INT4 NVRTC kernel; the Machete intercept is count-and-forward passthrough whose g_machete_substituted counter is never incremented. TOPIC B: Koopman is a rank-r EDMD surrogate actuator (shipped kernel hard-coded FP16_R=64) replacing FP16 GEMMs for registry-calibrated shapes, behind an OOD gate beta=0.05 (default) computed by cipher_koopman_fp16_ood_max_residual. Reports confirm: live OOD residual 0.91-0.97 >> 0.05 so it never fires; shipped .cu kernel measured 0.04x/0.05x = 25x/20x SLOWER than the cuBLAS GEMM it replaces; '7.43x LM-head' and 'rank ~1773' both phantoms (no provenance, do not reproduce); activation effective rank 844-2630 of 4096 makes r=64 ~13-40x too small; output-residual accuracy floor ~0.25 (never <0.08) flat r=16..r=64. Verdict: built-but-(correctly)-never-fires, and it could not lift MFU even if it worked \u2014 it is a FLOP-REDUCTION lever (replaces K*N FLOPs/row with r*(K+N)+r^2), i.e., a metric mismatch with MFU: at ranks where any speedup survives quality is destroyed, at quality-surviving rank (~2048) the FLOP ceiling is only 1.8x, and the low-rank surrogate is a skinny memory-bound op that would LOWER silicon FLOP utilization; the realized kernel is a 20-25x slowdown besides.",
+    "items": [
+     {
+      "name": "A-impl: Marlin actuator \u2014 what it substitutes",
+      "kind": "implementation",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_marlin_actuator.c:3-19,106-134,260-263,311-315",
+      "detail": "Header verbatim: 'cipher_rt_marlin_actuator.c -- T4.5.2 Marlin actuator on the substrate. Registers a maybe_handle() callback with cipher_rt_matmul_dispatch.' It intercepts PyTorch nn.Linear cublasGemmEx calls (comment :109-134 maps cuBLAS (m,n,k) -> Marlin: weight=call->A, activation=call->B, marlin_M=call->n=batch, marlin_N=call->m=out_features, marlin_K=call->k=in_features) and dispatches cipher_rt_marlin_engine_dispatch(...) (:312-315) replacing the fp16 GEMM with an INT4-weight Marlin GEMM. bf16 GEMMs (:189-253) are substituted via cast bf16->fp16 surrogate + RTN INT4 quantize then dispatch_bf16 (comment :84-86: 'cast bf16->fp16 activation, dispatch existing Marlin fp16 INT4 path, cast fp16->bf16 output')."
+     },
+     {
+      "name": "A-impl: Marlin engine + kernel provenance (INT4, group-128, NVRTC)",
+      "kind": "implementation",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_marlin_engine.cpp:3-17,249-260,282,428-443; /home/ubuntu/cipher_rt_phase4/cipher_rt_marlin_kernel_src.cpp:1-7",
+      "detail": "Engine header verbatim: 'T4.5.2 Marlin INT4 GEMM engine... NVRTC compile of cipher_rt_marlin_kernel_src_str -> 10 kernel [entry points]... Marlin XOR-swizzled repack (host-side...)... Marlin GEMM dispatch (grid=SM_count, block=256, dyn_shared=96K)... Original Marlin: IST-DASLab (Apache-2.0).' Kernel source string carries 'Copyright (C) Marlin.2024 Elias Frantar' (kernel_src.cpp:7). Quant group size hard-coded 128: '#define CIPHER_QGROUP 128' (engine.cpp:282; also :244 'group_blocks -1 or 8 (group_size=128)', :806/:896/:1081 G==128 checks). 10 entry points marlin_M1..M4 (engine.cpp:250-259, m_blocks 1-4 x 16 = M<=64). 96KB dyn smem set per fn (engine.cpp:~429 'MAX_DYN_SHARED_SIZE = 96K'). Capture-safe cast alloc behind env CIPHER_MARLIN_CAPTURE_SAFE default-OFF (engine.cpp:268, ~400-407). Separate file cipher_rt_machete_intercept.c is a GOT-patch COUNT-AND-FORWARD trampoline on vLLM's machete::mm_dispatch (:5-7) \u2014 it increments g_machete_intercepts + g_machete_passthrough and tail-jumps to the original (:50-56, asm :69-77); g_machete_substituted (:42 'dispatched to Marlin (W.2.x)') is declared and read (:142) but NEVER incremented anywhere (grep over all .c/.cpp confirms only :42 and :142)."
+     },
+     {
+      "name": "A-impl: Marlin counters (source + exported in anchor .so)",
+      "kind": "implementation",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_marlin_actuator.c:74-104,371-385",
+      "detail": "Source counters: g_calls_total (:76 'eligible by env+dtype'), g_calls_handled (:77 'dispatched to Marlin'), g_calls_skipped (:78), g_calls_skipped_by_classifier (:79-82), g_calls_bf16_observed (:83-87), g_calls_bf16_substituted (:88-91, increments when dispatch_bf16 succeeds, :250), g_skipped_by_correctness + g_actuator_disabled_correctness (:92-104, '>50% blocked -> self-disables'; populated by FUTURE vLLM integration 'v1.x' \u2014 i.e., correctness blocking is not live in-band). Exported accessors :371-385. nm -D on the ANCHOR /home/ubuntu/cipher_rt_phase4/libcipher_rt.so confirms cipher_rt_marlin_calls_total/_handled/_bf16_observed/_bf16_substituted/_calls_skipped_by_classifier, cipher_rt_marlin_engine_dispatch, cipher_rt_marlin_engine_bind_model, cipher_rt_in_marlin_quant all present (binary matches source)."
+     },
+     {
+      "name": "A-impl: Marlin arming/gating chain",
+      "kind": "implementation",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_marlin_actuator.c:69-72,142-180,265-303,331-345",
+      "detail": "Arming: (1) env CIPHER_MARLIN must be 'on'/'1'/'ON' at init (:339-345); default OFF with log 'MARLIN: actuator DISABLED (CIPHER_MARLIN not set)' (:349). (2) classifier gate AFTER env gate: if workload_class != UNKNOWN and !p->marlin_engage -> passthrough (:152-158); marlin_engage is set per-class as int4_weights_detected || bf16_weights_detected (/home/ubuntu/cipher_rt_phase4/src/cipher_workload_detect.cpp:855,872,888,900; default all-zero :833). (3) TLS substitute_hint binding when dispatch is_live (:160-180). (4) geometry gates: MARLIN_MAX_M_GATE 64 (:71, checked :265-268 on call->n=batch), N>=1024 && K>=1024 deadlock guard (:269-276, 'Marlin's grid is 132 blocks (full SM count)... fewer tiles than blocks -> kernel's cross-block locking deadlocks'), K%128==0 && N%64==0 (:277-280). (5) lazy quantize: STABILITY_THRESHOLD 4 observations (:72), then inline quantize+repack stalling 'this CALL ~30-100ms' (:14-19, :286-303). Registered priority 10, name 'MARLIN_INT4' (:331-335)."
+     },
+     {
+      "name": "A-prior: V0 scorecard 'Marlin 3600 routed' \u2014 exact values + caveat",
+      "kind": "prior-result",
+      "prior_source": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/V0_PRODUCT_SCORECARD.md:23,28,30,21",
+      "prior_result": "Line 23 verbatim: 'Phase D is EAGER (no torch.cuda.graph), so compute actuators substitute freely \u2014 Marlin 3600 + FP8 1125 = 4725 of the 4725 routed GEMMs.' Line 28: '4950 intercepted, 4725 routed, 225 passthrough'. Line 30 (Marlin row): 'bf16_observed=4950, **substituted=3600**, weights_q=225 | substituted decode GEMMs (M\u226464) bf16\u2192Machete | **ACTIVE-SUBSTITUTING** | w2-marlin-bf16-machete-full-close'.",
+      "detail": "CAVEAT in the same report, line 21 verbatim: 'this is a FORCE-ARMED instrumentation pass, NOT the classifier's production policy... The classifier's ACTUAL policy for this A4_BATCH_INFERENCE workload... would gate Marlin/Koopman/VOLT OFF: marlin_engage=0... FP8/Marlin ignored it and fired on their M/n gate.' REPORT-vs-SOURCE naming discrepancy: scorecard row says 'bf16\u2192Machete', but the counter cited (cipher_rt_marlin_calls_bf16_substituted) increments only on cipher_rt_marlin_engine_dispatch_bf16 success (actuator.c:250-251), i.e., the Marlin INT4 NVRTC kernel \u2014 NOT vLLM's Machete; the Machete intercept in source is passthrough-only (cipher_rt_machete_intercept.c:50-56) and its substituted counter is never incremented. Both reported per instructions."
+     },
+     {
+      "name": "A-prior: NF4 5.5GB/7B co-fire \u2014 values + sources",
+      "kind": "prior-result",
+      "prior_source": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/V0_G1_2x_BNB_NF4_DENSITY.md:4,43,54,57; V0_PRODUCT_SCORECARD.md:12,37; /home/ubuntu/v0_phaseC_nf4_cofire.py:57",
+      "prior_result": "V0_G1_2x_BNB_NF4_DENSITY.md:43 verbatim: 'nf4[0] Qwen2-7B: LIVE=5.5GB (+5.5/model) | nvml=5.8GB'; :54: 'Per-model LIVE footprint: **7-8B nf4 ~5.6GB** (weights + captured graph + StaticCache)'; :57: 'DENSITY NUMBER: ~13 7B-class nf4 models fit/75GB (5.6GB each) vs fp16 ~5 (inc-3)... -- ~2.5x.' Scorecard:12: 'NF4 **~2.5\u00d7 density / ~5.6GB-per-7B** (g1.2x); LIVE co-fire KL=0 this run'; :37: '3 models packed 7.3GB (~5.6GB/7B), 48/48 KL=0 each... ACTIVE-COMPOSING | a182daa'.",
+      "detail": "Memory's '5.5GB/7B' is the single-model Qwen2-7B LIVE reading (line 43); the reports' headline figure is ~5.6GB/7B. NF4 is NOT a .so/Marlin mechanism: scorecard:37 says '(transformers/bnb \u2014 no .so counter)' \u2014 it is bitsandbytes 4-bit packing driven by v0_phaseC_nf4_cofire.py (its :57 print: 'per-model 7B-class ~5.6GB (g1.2x a182daa) | all KL=0'). So the E.2 quant-substitution .so actuator (Marlin) and the NF4 density lever are two distinct quant paths."
+     },
+     {
+      "name": "A-verdict: Marlin is a BYTES/token lever; no report claims an MFU% effect",
+      "kind": "mfu-relevance-verdict",
+      "file_line": "/home/ubuntu/MFU_MECHANISM_DOSSIER_2026-05-30.md:53,60,107; /home/ubuntu/cipher-may13-evidence/CLAUDE.md:142; /home/ubuntu/cipher-may13-evidence/BUILD_STATE.md:520",
+      "detail": "Explicit bandwidth framing \u2014 MFU_MECHANISM_DOSSIER_2026-05-30.md:60 verbatim: '(Marlin INT4 is bandwidth-reduction, a different mechanism)'. Its committed measured value is a tok/s number, not an MFU%: dossier:53 cites '1.38\u00d7 B=8 / 1.38-1.55\u00d7 decode M\u226432 vs cuBLAS (may13 BUILD_STATE.md)'; the underlying figure is cipher-may13-evidence/CLAUDE.md:142 'batch=8: 852.0 \u2192 1177.5 tok/s (**1.38\u00d7** \u2014 Marlin sweet spot)'. Mechanism: INT4 group-128 weights cut weight-bytes/token ~4x vs fp16 in the memory-bound M<=64 decode regime (BUILD_STATE.md:520: vLLM AWQ-marlin 'gets to 80%+ HBM bandwidth at INT4'). Terminological tension to note: dossier:107 calls Marlin+FP8 'the only two MFU actuators that actually engage', but the only MFU% numbers anywhere attach to FP8/bf16 (64-68%) and batching; MFU_BATCHING_VS_SUBSTITUTION_REPORT.md contains ZERO Marlin mentions (grep -n -i marlin returns nothing). No located report claims Marlin lifts MFU%."
+     },
+     {
+      "name": "A-engaged: Marlin NOT in the V1 production config",
+      "kind": "engaged-status",
+      "engaged_in_production": "NO \u2014 V1 Tier-A router never arms Marlin; only NF4/DVFS/engine (agent) and FP8 (compute) are armed",
+      "file_line": "/home/ubuntu/cipher_product.py:6-7,17-22,55; /home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/PRODUCT_INTEGRATION.md:3,9-10,31; /home/ubuntu/cipher_v2_build/pkgroot/usr/lib/python3/dist-packages/cipher_platform/gates.py:29",
+      "detail": "cipher_product.py HANDLERS (:17-22): agent -> cipher_inc4.py env {K=4, CIPHER_VOLT=1, CIPHER_RT_DISABLE_AUTO_INIT=1}; compute -> v0_phaseA_maxmfu.py env {CUDA_INJECTION64_PATH, CIPHER_FP8=1}; density -> v0_phaseC_nf4_cofire.py env {CIPHER_VOLT=1}. CIPHER_MARLIN appears only in the OFF-byte-identical proof set to '0' (:55). PRODUCT_INTEGRATION.md:31 verbatim (Tier B table): 'Compute actuators (Marlin/FP8/Koopman) **inside the engine graph** | their NVRTC/cudaMalloc/cudaHostAlloc/cusolver are capture-illegal in torch.cuda.graph | offline weight-prequant before capture, or a capture-legal kernel path | edc0b8b (g1.3)'. Scorecard:21: classifier policy for A4_BATCH_INFERENCE = marlin_engage=0. V2 deb likewise: gates.py:29 sets CIPHER_MARLIN:'0' in its gate env; no V2 handler sets it to 1 (grep). So Marlin fired ONLY in the V0 Phase-D force-armed EAGER instrumentation pass, never in the shipped agent/production path. NF4, by contrast, IS engaged (cipher_product.py:21 density handler; PRODUCT_INTEGRATION.md:9-10 'engine \u2295 DVFS \u2295 NF4 ... YES')."
+     },
+     {
+      "name": "B-impl: Koopman engine \u2014 actuator, registry, counters",
+      "kind": "implementation",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_koopman_engine.cpp:3-28,72-79,85-111,217-226,264-268,274-284",
+      "detail": "Header verbatim: 'W14 Step 2 B.2 Koopman engine... Registers a maybe_handle() callback that checks FP16 dtype + .cu shape-registry membership, then dispatches cipher_koopman_fp16_launch_shape() instead of cublasGemmEx for calibrated narrow-domain shapes.' FP16-only (:169-175, 'the .cu kernel is FP16-in/FP16-out'); bf16 is OBSERVATION-ONLY (:101-107,134-168, substitution 'defers per Anil empirical-first adjudication'; comment :139 cites 'rank ~1773 conflict per advisor'). Registry gate = cipher_koopman_fp16_launch_shape returns -1 if (K_dim,N_dim) not registered (:217-226). Counters: g_calls_total/handled/skipped/ood/substituted, g_remember_emits, g_skip_dtype/dim/nullptr, g_skip_by_classifier, bf16_observed/max_m/k/n (:85-111); exported accessors :311-362 and confirmed present in anchor .so via nm -D (cipher_rt_koopman_calls_handled, cipher_koopman_fp16_launch_shape, cipher_koopman_fp16_ood_max_residual, cipher_koopman_fp16_decode, cipher_koopman_wmma_decode, cipher_koopman_fp16_set_ptrs...). Armed by env CIPHER_KOOPMAN=1 (:274-284, default off: '[CIPHER KOOPMAN] env-gated off') + classifier koopman_engage = long_context_detected (src/cipher_workload_detect.cpp:856,873,889)."
+     },
+     {
+      "name": "B-impl: OOD gate (beta=0.05) \u2014 exact source location",
+      "kind": "implementation",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_koopman_engine.cpp:111,195-215",
+      "detail": "g_ood_threshold init -1.0f (:111). Lazy env read CIPHER_KOOPMAN_OOD_THRESHOLD (:197-206) with default verbatim ':203 g_ood_threshold = 0.05f; /* default 5% OOD tolerance */'. Gate applied :207-215: resid = cipher_koopman_fp16_ood_max_residual(call->B, M, K_dim, N_dim); 'residual_ratio ||x - V_x V_x^T x|| / ||x||; skip substitution if > threshold' (:195-196); resid > threshold -> g_calls_ood++ and PASSTHROUGH (:211-214). This matches KOOPMAN_FIRING_DIAGNOSTIC.md:118 which cites 'koopman_engine.cpp:207\u2013214' as rung 4 of the gate ladder."
+     },
+     {
+      "name": "B-impl: rank config \u2014 shipped kernel hard-coded r=64",
+      "kind": "implementation",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/src/may13/cipher_block_sub_kernel.cu:171,487-488; /home/ubuntu/cipher-may13-evidence/cipher_wrapper.py",
+      "detail": "Verbatim cipher_block_sub_kernel.cu:171: '#define FP16_R  64' (compile-time, uniform; used throughout :199-219,:260-282 shared-memory alpha[FP16_R] loops and :487-488/:500-501 register_shape copies make_fp16_copy(vt, FP16_R*K_dim)/make_fp16_copy(w, FP16_R*N_dim)). KOOPMAN_FIRING_DIAGNOSTIC.md:16-18 confirms the drift finding verbatim: 'The binary is **FP16_R=64** (cipher_block_sub_kernel.cu:171); the working **r=16** MLP-block path (cipher_wrapper.py set_ptrs \u2192 register_shape) feeds 16-row factors into a 64-row copy \u2192 **over-reads 4\u00d7** (:487\u2013488)' and ':440 find_shape is M-agnostic' (M-hash bug gone). Same file exists at /home/ubuntu/cipher-may13-evidence/src/cipher_block_sub_kernel.cu; object linked into anchor as may13_cipher_block_sub_kernel.o (Makefile:102 region; kernel symbols visible in nm -D)."
+     },
+     {
+      "name": "B-prior: 06-04 frontier report (rank wall, 20-25x slower, phantoms retracted)",
+      "kind": "prior-result",
+      "prior_source": "/home/ubuntu/KOOPMAN_RANK_MEASUREMENT_REPORT.md:13-35,98-99,105,130-135,142-145",
+      "prior_result": "Verbatim :13-15: 'a **rank-r EDMD surrogate** (shipped KR_RANK=64)... fires only when the runtime residual passes an **OOD gate (\u03b2=0.05)**'. :17-21: 'lm_head **844 @90% / 2630 @99%** energy (of 4096)... r=64 is **~13\u201340\u00d7 too small**'; 'At r=64 the surrogate fails its own 5% OOD gate by ~20\u00d7 \u2014 held-out residual 0.43 (lm_head, offline) and **0.96 live**'. :23: '\u0394PPL **+2,560%** (held-out), **+32,000%** (cross-corpus), top-1 0.33... r\u22482048... where the FLOP ceiling is only **1.8\u00d7**'. :28-29: 'The actual shipped .cu surrogate kernel runs at 0.04\u00d7 \u2014 i.e. 25\u00d7 *slower* than the cuBLAS GEMM it replaces (q_proj 0.05\u00d7 / 20\u00d7 slower).' :31-32: '**Both legendary numbers are phantoms.** \"LM-head 7.43\u00d7\" has no located provenance (mechanism dossier 2026-05-30: \"NOT FOUND\")... \"rank ~1773\" (a code-comment advisor [citation])'. :35: 'shipped r=64 it is both inaccurate and 20\u201325\u00d7 slower, and it correctly never fires.' Table :98: lm_head live OOD '**0.96 / 0.97**' vs gate, '**0.04\u00d7 = 25\u00d7 slower** (56.7\u00d7)'; :99 q_proj '0.91/0.91', '0.05\u00d7 = 20\u00d7 slower (32.0\u00d7)'. :144-145: 'The actuator correctly ships default-OFF and, by its OOD gate, correctly never fires.'",
+      "detail": "Report dated 2026-06-04, READ-ONLY, anchor md5 2edba0d2 unchanged (:3). Drives the DEPLOYED .so's real kernels via direct C-API (:4-6). Contradicts the earlier V0_PRODUCT_SCORECARD.md:14 G4 row which still says 'LMhead **7.43\u00d7** shipped (Goal-4 own path)' \u2014 that scorecard claim is SUPERSEDED/refuted by this report (both recorded per evidence-over-memory rule)."
+     },
+     {
+      "name": "B-prior: 06-05 KOOPMAN_FIRING_DIAGNOSTIC.md (working-config retest, gate ladder)",
+      "kind": "prior-result",
+      "prior_source": "/home/ubuntu/KOOPMAN_FIRING_DIAGNOSTIC.md:9-34,55-67,114-130",
+      "prior_result": "Verdict :11: '**Not dead, not reproduced.**' (b) config drift :16-18 (FP16_R=64 vs working r=16, over-reads 4x). (c) :20-23: 'output residual **floors at ~0.25 (range 0.20\u20130.73), never <0.08, and is flat from r=16 to r=64, in-sample \u2248 held-out**' \u2014 accuracy floor, not rank wall. (a) :25-28: narrow premise real (effrank 3.5-7.5 vs 25-68) but '\"fires\" \u2260 \"correct\"... On *diverse* inputs the OOD gate correctly rejects (max-residual 0.96).' Live :30-31: 'all three arms tok/s \u2248 8.8 (flat), handled=0' \u2014 stopped at registry rung, 'a test-design artifact, not a wall'. :33-34: headline '9.3% / 81.9 vs 74.9 tok/s / fit_error<0.08' numbers 'not locatable in the repo (like the prior 7.43\u00d7 phantom) and do not reproduce live'. Gate ladder table :114-119 cites exact source rungs: dtype koopman_engine.cpp:102-105[-ish], classifier ~:120, registry block_sub_kernel.cu:440 (skipped=524), OOD koopman_engine.cpp:207-214 ('forcing \u03b2=0.99 had zero effect' this run; offline max-gate 0.96), surrogate kernel block_sub_kernel.cu:668 ('0.04\u00d7 = 25\u00d7 slower'). :129-130: Amdahl \u2014 single 4096->4096 op on 12/32 layers caps at 0.96%, whole MLP block caps ~11%.",
+      "detail": "Note the ladder's line refs are approximately right against today's source: the dtype check is at koopman_engine.cpp:169-175 in the current tree (the :102-105 cited is the bf16-observation comment block region), classifier gate at :126-132, OOD gate at :207-214 exactly as cited."
+     },
+     {
+      "name": "B-engaged: Koopman built-but-never-fires; not in production config",
+      "kind": "engaged-status",
+      "engaged_in_production": "NO \u2014 default-OFF (CIPHER_KOOPMAN!=1 no-op), not armed by the V1 router, classifier gates koopman_engage=0 for A4, engine-graph-incompatible; even force-armed it handled 0 calls",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_koopman_engine.cpp:274-284; /home/ubuntu/cipher_product.py:17-22,55; V0_PRODUCT_SCORECARD.md:14,21,32,48; PRODUCT_INTEGRATION.md:31",
+      "detail": "Source: env-gated no-op unless CIPHER_KOOPMAN=1 (:274-284). V1 router never sets it (cipher_product.py handlers :17-22; explicit '0' in OFF-proof :55). V0 scorecard:32 verbatim (force-armed Phase D): 'Koopman (W.3/Goal-4, EDMD) | cipher_rt_koopman_calls_handled | engaged | bf16_observed=450, **handled=0** (prod-rank)... **ENGAGED-NO-SUB**'; :48 RING/REMEMBER 'written=0... (0 \u2014 koopman handled=0)'. Scorecard:14: 'does NOT compose into engine graph (calibration cudaHostAlloc capture-illegal; handled=0 in-engine)'. Live diagnostic: handled=0, OOD 0.96>>0.05 (KOOPMAN_FIRING_DIAGNOSTIC.md:30,118). So: BUILT (in anchor .so, symbols verified), wired to the dispatch substrate, and (correctly) never substitutes on real workloads."
+     },
+     {
+      "name": "B-verdict: Koopman could NOT lift MFU even if it fired \u2014 metric mismatch",
+      "kind": "mfu-relevance-verdict",
+      "file_line": "/home/ubuntu/KOOPMAN_RANK_MEASUREMENT_REPORT.md:23-29,105; /home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/V0_PRODUCT_SCORECARD.md:61-62 (MFU-lever framing)",
+      "detail": "Mechanism mismatch: the surrogate replaces a GEMM Y=XW (K*N FLOPs/row) with a rank-r map costing r*(K+N)+r^2 FLOPs/row \u2014 it is a FLOP-REDUCTION/throughput lever, not a utilization lever. MFU measures delivered FLOPs vs peak; (1) the low-rank ops are skinny GEMV-like memory-bound kernels, so silicon FLOP utilization would DROP, not rise (the rank report's realized-vs-ceiling gap makes this concrete: theoretical FLOP-ratio 56.7x, cuBLAS two-GEMM best-case only 3.6-11.7x, shipped kernel 0.04x \u2014 :27-29, :105 'the FLOP ceiling is not just unrealized, it is inverted'); (2) even tok/s-style 'effective MFU' (dense-FLOPs/wall-clock) cannot rise because at ranks where a speedup survives quality is unusable and at quality-surviving rank r~2048 the ceiling is only 1.8x (:23-26 verbatim: 'even a tensor-core-optimized kernel could not rescue the approach'); (3) it never fires anyway (OOD 0.96>>0.05). The scorecard's own G3 conclusion (batching is the MFU lever; the forward is non-GEMM-bound at ~68%) is orthogonal to and unaided by Koopman. Verdict: built-but-(correctly)-never-fires; NO credible path from this mechanism to an MFU lift \u2014 Goal-4's 'MFU' framing was a metric mismatch from the start."
+     }
+    ],
+    "open_questions": [
+     "V0_PRODUCT_SCORECARD.md:14 still carries 'LMhead 7.43\u00d7 shipped' for G4; it was retracted as a phantom on 2026-06-04 (KOOPMAN_RANK_MEASUREMENT_REPORT.md:31-35) but the scorecard file itself was never annotated \u2014 should the historical scorecard get a supersession note, or stay frozen as a point-in-time artifact?",
+     "Scorecard line 30 'bf16\u2192Machete' wording vs source: substitution actually lands in the Marlin INT4 NVRTC kernel (Machete intercept is passthrough-only and g_machete_substituted is never incremented). Is 'Machete' in the W.2 tag purely the detection trigger (machete-present => int4_weights_detected => marlin_engage), or is there a missing W.2.x substitution step that was never wired?",
+     "NF4 figure: memory says 5.5GB/7B, reports headline ~5.6GB/7B (5.5GB is the single Qwen2-7B LIVE reading at V0_G1_2x_BNB_NF4_DENSITY.md:43) \u2014 trivial, but the memory index could be aligned to ~5.6.",
+     "Marlin's in-band correctness gate (g_skipped_by_correctness, actuator.c:92-104) is documented as 'populated by future integration... v1.x' \u2014 i.e., the only live safety is the env kill-switch; if Marlin is ever promoted out of force-armed instrumentation, this gap becomes material."
+    ]
+   },
+   "verdict": {
+    "confirmed": true,
+    "reason": "Every cited file:line was opened and supports its claim; all counts recounted independently. Marlin: gates (M<=64, N>=1024, K>=1024, K%128==0, N%64==0), env CIPHER_MARLIN + classifier marlin_engage + TLS hint arming chain, STABILITY_THRESHOLD=4, bf16 cast-to-fp16 surrogate path, 10 NVRTC entry points (recounted in g_marlin_fns lines 250-259), group-128 (CIPHER_QGROUP), grid=SM count (MultiProcessorCount, default 132), 96KB dyn smem, IST-DASLab provenance \u2014 all verbatim in source. Counters 74-104/371-385 exist AND are exported in the anchor .so (nm -D; md5 recomputed 2edba0d2136f8ede4713d90a8f7cd55f = anchor unchanged, READ-ONLY preserved). V0 scorecard lines 21/23/28/30 exact: 3600+1125=4725 routed of 4950 intercepted (225 passthrough), bf16_observed=4950/substituted=3600/weights_q=225, FORCE-ARMED-eager caveat with marlin_engage=0 verbatim. NF4 5.5GB single-model LIVE (line 43) / ~5.6GB-per-7B (lines 4,54,57) / 'no .so counter' (scorecard 37) / cofire.py:57 all exact. MFU verdict supported: dossier line 60 calls Marlin 'bandwidth-reduction, a different mechanism'; only tok/s multipliers (1.38x) and HBM-bandwidth framing appear (CLAUDE.md:142, BUILD_STATE.md:520) \u2014 no MFU% attributed to Marlin in any cited report. Engaged-status verified adversarially: grep of the entire cipher_platform tree + cipher_product.py shows CIPHER_MARLIN only ever set to '0' (OFF-proof lines); HANDLERS (17-22) arm only VOLT/FP8/auto-init-disable; PRODUCT_INTEGRATION.md 3/9-10/31 place Marlin in Tier B (capture-illegal). Koopman: engine actuator/registry/counters at cited lines; OOD default 0.05f at line 203 (decl 111); FP16_R=64 at block_sub_kernel.cu:171 with 64-row register_shape copies at 487-488; cipher_wrapper.py loads r=16 matrices (lines 50-53, 85) into the r=64 kernel \u2014 rank-mismatch supported. KOOPMAN_RANK_MEASUREMENT_REPORT.md 13-35/98-99/105/130-135/142-145 verbatim: rank wall 844-2630 vs r=64 (13-40x too small), realized 0.04x/0.05x = 25x/20x slower, live OOD resid 0.91-0.97 >> 0.05 (never fires), phantoms 7.43x and ~1773 both retracted. No material claim fails; four non-material nuances listed.",
+    "corrections": [
+     "MINOR (summary wording): 'lazy quantize after 4 observations' applies to the fp16 path only (STABILITY_THRESHOLD gate, actuator lines 286-290). The bf16 path quantizes on the FIRST eligible call with no observation threshold (lines 210-228; header comment lines 182-188 'quantize on first call') \u2014 and bf16 is the path that actually fired in the Phase D scorecard run (bf16_observed=4950).",
+     "MINOR (scorecard labeling, not a claim failure): V0_PRODUCT_SCORECARD.md:30 labels the row 'int4/Machete bf16' / 'bf16\u2192Machete' and tag w2-marlin-bf16-machete-full-close, but the string 'machete' appears nowhere in cipher_rt_marlin_actuator.c or cipher_rt_marlin_engine.cpp; the counter symbol cipher_rt_marlin_calls_bf16_substituted ties the 3600 substitutions to the Marlin (IST-DASLab) engine path. The inventory's 'IST-DASLab Marlin' attribution is the code-true one.",
+     "MINOR (verdict nuance): MFU_MECHANISM_DOSSIER_2026-05-30.md:107 does rhetorically call Marlin one of 'the only two MFU actuators that actually engage', but attaches no MFU% to Marlin (the FP8 entry carries the 64-68% MFU figures; Marlin's cited numbers are 1.38x tok/s and HBM-bandwidth framing, and line 60 explicitly classifies it as bandwidth-reduction). The 'no report claims an MFU% effect' verdict holds with this wording caveat.",
+     "MINOR (source-comment inconsistency found during recount, does not affect any claimed item): actuator lines 83-84 say g_calls_bf16_observed counts 'geometry-passing' bf16 GEMMs, but the code increments it at line 198 BEFORE the geometry gate at lines 200-208 \u2014 consistent with the scorecard's bf16_observed=4950 exceeding substituted=3600.",
+     "PRECISION (cipher_wrapper.py cited without line numbers): the load-bearing lines are 50-53 (V 4096x16, K_op 16x16, W 16x4096 = r=16 calibration matrices) and 85 (cipher_koopman_fp16_set_ptrs), feeding the kernel hard-coded FP16_R=64 at block_sub_kernel.cu:171."
+    ]
+   }
+  },
+  {
+   "hunt": "neutrality-baseline",
+   "inventory": {
+    "items": [
+     {
+      "name": "w6-neutrality-rows",
+      "kind": "verbatim-evidence",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md:170-186",
+      "detail": "Cache-OFF (clean MFU) vanilla-vs-CIPHER single-instance table, verbatim rows. WEEK_6_OPTION_1_REDO.md:172: '| 1 | 163.29 | 163.61 | +0.19% | YES | 0.2488 | 0.2493 | +0.21% | YES | 0.3765 | 0.3731 | \u22120.91% | YES |'. :176: '| 64 | 4156.1 | 4155.2 | \u22120.02% | no | 6.2916 | 6.2917 | +0.00% | no | 6.3811 | 6.3741 | \u22120.11% | no |'. Prefill MFU rows :182: '| 1 | 59.57 | 59.09 | \u22120.81% | YES (Cohen's d = \u22121.52) |' and :186: '| 64 | 62.06 | 62.05 | \u22120.01% | n.s. (CI [\u22120.62, +0.58]) |'. Section source cited at :168 = '/tmp/bench_v2/results/comparison_cache_off/comparison_table.md'; durable preserved copies: /home/ubuntu/cipher-fusion-evidence/week6/bench_v2/results/comparison_cache_off/comparison_table.md:17-18,21,29 (163.290/163.607 +0.19%; 1114.040/1113.616 -0.04%; 4156.133/4155.237 -0.02%; prefill_mfu_pct 59.5719/59.0903 -0.81% d=-1.52 CI[-0.9105,-0.1345] YES) and per-arm JSONs /home/ubuntu/cipher-fusion-evidence/week6/bench_v2/results/20260523_mistral7b_{vanilla,cipher}_agentic_fixed1024_nocache/result.json (report cites the /tmp twins at :64,:98,:278-283). Headline verdict :14: 'CIPHER substrate is essentially NEUTRAL vs. vanilla at this configuration. Aggregate throughput deltas are \u2264 0.31% ... Power runs 0.25%\u20130.78% higher ... \u22120.25% to \u22120.59% regression in tok/W at B \u2208 {1, 8, 32}.'",
+      "prior_result": "CIPHER engaged ~ neutral MFU/TPS single-instance: TPS \u0394 -0.04%..+0.19% cache-OFF (\u22640.31% cache-ON), decode-MFU \u0394 \u22640.79%, prefill-MFU \u0394 -0.81% (B=1, only significant row) to -0.01% (B=64)",
+      "prior_source": "WEEK_6_OPTION_1_REDO.md (2026-05-23), vLLM 0.21.0 cudagraph"
+     },
+     {
+      "name": "w6-cipher-arm-substrate-loaded-and-what-fired",
+      "kind": "engagement-confirmation",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md:36-37,144-150,164,220-223,229,246",
+      "detail": "CIPHER arm env (W6:36): 'CIPHER_KV_ALLOC=1, CIPHER_KVDEDUP=1, CUDA_INJECTION64_PATH=\u2026libcipher_rt.so'; vanilla arm (:35) 'CIPHER_KV_ALLOC=0, CIPHER_KVDEDUP=0, CIPHER_OFFLOAD=0'. Anchor at run (:37): libcipher_rt.so md5 259ac994aead2da8289fc84d6116fbe9 (week-5-complete) \u2014 NOT the current Jun-01 anchor 2edba0d2136f8ede4713d90a8f7cd55f (md5sum verified on /home/ubuntu/cipher_rt_phase4/libcipher_rt.so). Harness gating verified in source: week6/bench_v2/bench_llm.py:776-796 ('--cipher' sets KV_ALLOC=1/KVDEDUP=1 + CUDA_INJECTION64_PATH=/home/ubuntu/cipher_rt_phase4/libcipher_rt.so; note :791 default branch with NEITHER flag = cipher_state='default(on)'); CIPHER-arm result.json args confirm cipher=true, enforce_eager=false. ACTIVE-substrate evidence in W6 is INDIRECT \u2014 no [cipher_v2] counter dump or stderr is preserved in W6 artifacts (grep cipher_v2 in WEEK_6_OPTION_1_REDO.md + week6/bench_v2/ = 0 hits). What the report says was firing: :144-150 HBM +12 to +67 MiB = 'page-tracking metadata footprint of the cipher_kv_bridge VMM allocator (slab descriptors, page-mapping tables for the 80 GiB VA pool)' (significant at B=1..32); :164 power +0.78% at B=1 'above' the +0.53% drift floor \u2014 'The CIPHER substrate adds a small real overhead'; :229 attributes it to 'CIPHER's KV-page tracking, kvdedup hash bookkeeping, and runtime symbol interception (CUDA_INJECTION64_PATH=libcipher_rt.so)... about 2\u20133 W'. What was NOT engaged (:220-223): kvdedup 'overhead is paid; the lift never arrives' (needs \u22652 processes); VOLT 'not engaged by default \u2014 would require CIPHER_VOLT=1'; SM partitioning 'not engaged at single-tenant'; Marlin INT4 n/a for BF16. :246: overhead 'lives in the CPU-side scheduling + runtime injection ... not in the model compute kernels'.",
+      "engaged_in_production": "KV allocator (cipher_kv_bridge VMM, buffer ownership) + kvdedup bookkeeping + injection symbol interception = overhead-only at single tenant; VOLT/SM-partition/Marlin OFF"
+     },
+     {
+      "name": "contamination-throughput",
+      "kind": "verbatim-evidence",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/snapshot/CIPHER_RESULTS_SNAPSHOT_2026-06-10.md:105-112,121-124",
+      "detail": "Verbatim (snapshot \u00a7Session integrity, item 1): 'Substrate auto-load caught and neutralized (material). First-pass vLLM runs were contaminated: the cipher_vllm_kv / cipher_vllm_kvdedup plugins auto-load via vllm.general_plugins entry points (easy-install.pth \u2192 /home/ubuntu/cipher_vllm_plugin) and pull the cipher_v2 substrate into the engine \u2014 detected mid-session via [cipher_v2] stderr lines and the scratch shim never seeing a GEMM. Every vLLM measurement was re-taken with VLLM_PLUGINS=\"\" ... Proof: 3545 cipher_v2 lines in a pre-guard run (positive control) vs 0 in all 14 measured runs (NO_SUBSTRATE_PROOF.txt). This also resolved an apparent ~1.9\u00d7 eager-decode regression: decontaminated clean returned 629.2 tok/s \u2014 the prior value to the decimal.' Raw numbers: contaminated a2_ra/clean_bench3.txt: 'BENCH {\"model\": \"mistralai/Mistral-7B-v0.1\", \"eager\": true, \"batch\": 8, \"out\": 64, \"decode_tok_s\": 335.4, \"sm_clock_min_med_max\": [1830, 1830, 1830]}' \u2014 note clock pinned 1830, so the slowdown is NOT the separate clock-loss event (snapshot:118, contaminated B=1 at ~1005 MHz). Decontaminated a2_ra/clean_bench4.txt: identical config, 'decode_tok_s\": 629.2'. 629.2/335.4 = 1.876\u00d7. Superseded contaminated range (snapshot:122-123): 'clean benches 332.9\u2013341.2'; '~335' = that band. easy-install.pth verified live: /home/ubuntu/.local/lib/python3.10/site-packages/easy-install.pth contains the single line '/home/ubuntu/cipher_vllm_plugin'. Guard precedent: rc_pergpu/rc_monitor.py:158 'e[\"VLLM_PLUGINS\"] = \"\"  # no third-party (incl. cipher) vLLM plugins'.",
+      "prior_result": "Substrate auto-loaded into vLLM 0.20.2 eager B=8 decode: 335.4 tok/s vs 629.2 clean = ~1.9x slower, at pinned 1830 MHz",
+      "prior_source": "snapshot/CIPHER_RESULTS_SNAPSHOT_2026-06-10.md + snapshot/a2_ra/clean_bench{3,4}.txt + snapshot/NO_SUBSTRATE_PROOF.txt(4)"
+     },
+     {
+      "name": "default-engagement-plugins",
+      "kind": "source-audit",
+      "file_line": "/home/ubuntu/cipher_vllm_plugin/setup.py:25-30; cipher_vllm_kv.py:51-52,898-916,663-722; cipher_kv_offload.py:40-41; cipher_vllm_kvdedup.py:57-58",
+      "detail": "setup.py:25-30 registers two vllm.general_plugins entry points: 'cipher_vllm_kv = cipher_vllm_kv:register' (CP 5.1 '+ chained CP 5.2') and 'cipher_vllm_kvdedup = cipher_vllm_kvdedup:register'; comment :19-20 'vLLM's load_general_plugins() discovers this group and runs each register() in every process, including the EngineCore subprocess.' Defaults: CIPHER_KV_ALLOC default 1 = ON (cipher_vllm_kv.py:51-52 \u2014 monkey-patches GPUModelRunner._allocate_kv_cache_tensors to source KV from cipher_kv_bridge.vmm_zeros, docstring :8-12); CIPHER_KV_OFFLOAD default 1 = ON (cipher_kv_offload.py:40-41 \u2014 preempt snapshot/restore, bytes lever); CIPHER_KVDEDUP default 0 = opt-in (cipher_vllm_kvdedup.py:57-58 \u2014 explicit dedup_now() flush, cross-tenant page sharing); CIPHER_REGISTER_MODEL default 1 (cipher_vllm_kv.py:33). All are KV/bytes levers (capacity/ownership), not MFU levers. CRITICAL UNGATED PATH: register() (cipher_vllm_kv.py:898-916) calls _install_cipher_rt_got_patches() at :910 BEFORE the 'if not _enabled():' gate at :913 \u2014 so the FULL cipher_v2 substrate is loaded regardless of CIPHER_KV_ALLOC. _install_cipher_rt_got_patches (:663-722) force-dlopens libcublas/libcudnn then ctypes.CDLL('/home/ubuntu/cipher_rt_phase4/libcipher_rt.so', RTLD_GLOBAL) and calls rt.InitializeInjection2() ('W14-followup Step 0 ... so the substrate sees cublasGemmEx in the EngineCore subprocess', :898-902; motivated by a '2026-05-24 ... null-measurement', :671 \u2014 i.e., POST-dates the W6 redo of 05-23). Only VLLM_PLUGINS=\"\" prevents the load.",
+      "engaged_in_production": "By default when the plugin package is installed: substrate dlopen + InitializeInjection2 GOT patches (unconditional), KV buffer ownership (ON), KV offload (ON), model-register ioctl (ON); kvdedup alias OFF (opt-in)"
+     },
+     {
+      "name": "default-engagement-what-fires-at-runtime",
+      "kind": "verbatim-evidence",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/snapshot/a2_ra/clean_bench3.err:3-29,58,3697",
+      "detail": "Pre-guard positive control (3545 [cipher_v2] lines in one B=8/64-tok eager bench; line counts by prefix: CLASSIFY 1173, CLASSIFY-POOL 1172, CLASSIFY-CORES 1172). Init lines :3-12: '[cipher_v2] GREEN/CP54: ALLOCATE ok \u2014 qos=1 sm_count=0 -> grp_mask=0x0000 grp_count=0'; 'SMP: sm_packer initialized (threshold=4096 threads, 32 stream slots)'; 'PR: partition router initialized (cache=256 slots, tenant_handle=0x00000000)'; 'CUPTI subscribed: kernel launch callbacks active (flush every 256 launches); cuStreamCreate hooks armed'; 'WORKLOAD-CLASSIFIER: init complete (init class=UNKNOWN/VOLT-only)'; 'VOLT: kmod ioctl path available (CIPHER_SET_CLOCK_MHZ)'. Actuators announce OFF: :15 'MARLIN: actuator DISABLED (CIPHER_MARLIN not set)'; :16 'FP8: actuator DISABLED (CIPHER_FP8 not set) \u2014 OFF == byte-identical'; :23 'LT-VARIANT: 17/17 armed (1 routed full-shim, route=OFF)'; :25 'GOT: patch applied -- 87 slot(s) across 361 module(s); 7 target(s) registered' + dlsym GOT patches in libcublasLt.so.13/libcublas.so.13/libcudnn.so.9 (:27-29). Steady-state firehose sample :58: '[cipher_v2] CLASSIFY: workload=UNKNOWN confidence=200 obs=40 [int4=0 bf16=0 ... marlin_engage=0] [volt_engage=0 ... gemm_total=0 max_n=0] ... [fn_cache hits=0 via_reg=0 via_cu_kernel=4 nomatch=40 fail=0 ...] [reg_map calls=0 inserts=0 dups=0 full_skips=0]'. Exit :3697: '[cipher_v2] MATMUL: exit totals \u2014 calls=0 handled=0 passthrough=0 (actuators=0)' \u2014 i.e., ZERO GEMMs were intercepted or substituted; the entire 1.9\u00d7 cost is observation machinery (CUPTI per-launch callbacks + classifier polling + 3.5k stderr writes), not compute substitution. Strings tied to anchor binary and source: 'MATMUL: exit totals' fmt in cipher_rt_phase4/cipher_rt_matmul_dispatch.c:36; 'CUPTI subscribed' in cipher_cupti.c:414; '[cipher_v2] ' prefix in cipher_v2_internal.h:30; all present in strings(libcipher_rt.so md5 2edba0d2).",
+      "engaged_in_production": "Observation plane only: CUPTI launch callbacks, workload classifier + pool/cores polling, GOT dlsym hooks, SM-packer/partition-router init, VOLT probe; all substitution actuators (MATMUL/Marlin/FP8/LT-route) at 0/OFF"
+     },
+     {
+      "name": "tension-explanation",
+      "kind": "reconciliation",
+      "file_line": "WEEK_6_OPTION_1_REDO.md:33,36-37 vs snapshot/CIPHER_RESULTS_SNAPSHOT_2026-06-10.md:33-34,66,105-112",
+      "detail": "The two results measured DIFFERENT things; no contradiction once configs are laid side-by-side. W6 (neutral): vLLM 0.21.0 'V1 engine, CUDA graphs PIECEWISE+FULL, FlashAttention v3' (W6:33), BF16, 1024-tok prompt/256 out, B=1..64, substrate loaded via CUDA_INJECTION64_PATH + KV plugins (W6:36), anchor build 259ac994 week-5-complete (W6:37); deltas \u22640.31% TPS. Snapshot contamination (1.9\u00d7 slower): vLLM 0.20.2 'eager (enforce_eager=True)' (snapshot:33), fp16, B=8/64-out short-context decode (clean_bench3.txt), substrate pulled in by plugin register() \u2192 InitializeInjection2 (cipher_vllm_kv.py:910,663-722), current anchor 2edba0d2. Documented reconciling facts: (a) snapshot:66 itself files W6 as 'vLLM 0.21.0 cudagraph' grade-B prior, distinct from its own eager runs; snapshot:34 'cudagraph is 2.05\u00d7 eager on this workload'; (b) the contaminated run's own counters show calls=0 handled=0 passthrough=0 (clean_bench3.err:3697) \u2014 the cost is per-launch observation overhead, and eager short-decode is launch-bound (R.A memo: eager-host tax +51%), maximally exposed to per-launch CPU work, whereas under cudagraph capture+replay the substrate's CUPTI launch callbacks/GOT interception are not on the per-step replay path and W6's much larger work-per-step further amortizes it (this mechanistic split is INFERENCE consistent with both reports \u2014 never directly profiled); (c) different substrate builds (259ac994 vs 2edba0d2) and load mechanisms, so W6 neutrality does not certify today's binary in eager passthrough. SOURCE-VS-REPORT TENSION worth flagging: current cipher_vllm_kv.py register() loads the substrate BEFORE the CIPHER_KV_ALLOC gate (:910 vs :913, added as 'W14-followup Step 0' referencing 2026-05-24, i.e., AFTER the W6 redo of 2026-05-23) \u2014 under today's plugin, W6's vanilla arm env (CIPHER_KV_ALLOC=0, W6:35) would NOT keep libcipher_rt out of the engine; only VLLM_PLUGINS=\"\" does. W6's vanilla/CIPHER split is therefore only as clean as the 05-23-era plugin, which is not preserved for audit.",
+      "engaged_in_production": "Net: 'CIPHER ~neutral single-instance' is a cudagraph-vLLM-0.21/old-anchor result with bytes-lever plugins; with the current substrate auto-loaded into an eager vLLM host, default passthrough observation costs ~47% of throughput (335.4 vs 629.2) even with zero actuators engaged"
+     }
+    ],
+    "open_questions": [
+     "The exact mechanistic split of the ~1.9x eager slowdown (CUPTI per-launch callbacks vs classifier/pool polling vs 3.5k stderr writes vs GOT dlsym hook overhead) was never profiled \u2014 only the aggregate 335.4-vs-629.2 delta and the calls=0/handled=0/passthrough=0 exit totals exist.",
+     "Whether the W6 vanilla arm was truly substrate-free: the unconditional _install_cipher_rt_got_patches() in register() post-dates W6 (W14-followup, references 2026-05-24), but the 2026-05-23-era plugin source is not preserved, so the historical gating cannot be re-audited.",
+     "Whether the W6-era anchor (md5 259ac994, week-5-complete) would show the same eager passthrough cost as the current anchor (2edba0d2) \u2014 W6 never ran an eager arm, and no eager A/B exists for the old binary.",
+     "bench_llm.py:791 'default(on)' branch and :786 'if CUDA_INJECTION64_PATH not in os.environ' mean an inherited injection path or a flagless invocation silently runs CIPHER-on; W6 runs recorded cipher=true/no_cipher=false in args JSON, but the vanilla arm's actual inherited environment is not recorded in artifacts."
+    ],
+    "summary": "Both prior results verified verbatim against preserved artifacts, and they are measuring different things. (1) W6 neutrality (WEEK_6_OPTION_1_REDO.md:172-186, durable copy in cipher-fusion-evidence/week6/bench_v2/results/comparison_cache_off/comparison_table.md): vanilla-vs-CIPHER single-instance on vLLM 0.21.0 WITH CUDA GRAPHS, TPS delta +0.19% (B=1) to -0.02% (B=64), prefill MFU -0.81% (B=1, only significant row) to -0.01% (B=64); CIPHER arm had CIPHER_KV_ALLOC=1/KVDEDUP=1/CUDA_INJECTION64_PATH=libcipher_rt.so (anchor 259ac994, week-5 build) \u2014 substrate-active evidence is indirect (HBM +12-67 MiB VMM page-tracking metadata, power +0.25-0.78% above drift floor); no [cipher_v2] counter dump exists in W6 artifacts; VOLT/SM-partition/Marlin explicitly NOT engaged. (2) Snapshot contamination (CIPHER_RESULTS_SNAPSHOT_2026-06-10.md:105-112): plugins auto-load via vllm.general_plugins (easy-install.pth -> /home/ubuntu/cipher_vllm_plugin) and pull the cipher_v2 substrate into vLLM 0.20.2 EAGER decode: 335.4 tok/s contaminated (clean_bench3.txt, clock pinned 1830) vs 629.2 decontaminated (clean_bench4.txt) = 1.876x, with 3545 [cipher_v2] stderr lines and exit totals 'MATMUL: calls=0 handled=0 passthrough=0 (actuators=0)' \u2014 pure observation-plane overhead (CUPTI launch callbacks, classifier polling, GOT hooks), zero substitution. (3) Default engagement: KV_ALLOC and KV_OFFLOAD default ON (bytes levers), KVDEDUP opt-in; and register() loads libcipher_rt + InitializeInjection2 UNCONDITIONALLY before the env gate (cipher_vllm_kv.py:910 vs :913) \u2014 only VLLM_PLUGINS=\"\" blocks it. Tension resolves as: neutral-under-cudagraph-0.21/old-anchor vs ~47% throughput loss under eager-0.20.2/current-anchor passthrough; plus a real source-vs-report tension \u2014 today's plugin would defeat W6's vanilla-arm env gating.",
+    "topic": "PRIOR 'CIPHER ~neutral single-instance' EVIDENCE + what the production substrate engages by default"
+   },
+   "verdict": {
+    "confirmed": false,
+    "reason": "5 of 6 items verify verbatim (all numbers, counts, source-line gates, and the 47% arithmetic recounted/re-read and confirmed), but items 5 and 6 contain a material mischaracterization contradicted by their own cited file: /home/ubuntu/cipher-fusion-evidence/snapshot/a2_ra/clean_bench3.err:850 shows '[cipher_v2] VOLT: classifier ENGAGED at 1600 MHz (class=4 bw_bound=1 large_prefill=0)' \u2014 VOLT is a clock actuator that auto-arms with no env (line 13) and DID engage, so 'Observation plane only ... VOLT probe' (item 5) and 'even with zero actuators engaged' (item 6) are false as stated. The engagement had no realized effect only because the NVML clock path returned NOT_SUPPORTED (rc=4, line 11) and the fallback kmod ioctl path is MIG-watch-only (snapshot integrity note 6: touches no clocks); clean_bench3.txt confirms SM clock pinned 1830/1830/1830 throughout, so the ~47% (1-335.4/629.2=46.7%) attribution to default passthrough observation overhead still stands once corrected. For an inventory whose topic is 'what the production substrate engages by default,' claiming observation-only when a clock actuator classifier-engages by default is a material claim failure even though the bottom-line throughput reconciliation is sound.",
+    "corrections": [
+     "MATERIAL (items 5,6): clean_bench3.err:850 '[cipher_v2] VOLT: classifier ENGAGED at 1600 MHz' \u2014 replace 'observation plane only / VOLT probe / zero actuators engaged' with 'zero SUBSTITUTION actuators fired (line 3697 MATMUL exit calls=0 handled=0 actuators=0; marlin_bf16_sub=0, mach_sub=0, FP8/Marlin disabled, LT route=OFF), but VOLT auto-armed (no env, line 13) and classifier-ENGAGED a 1600 MHz clock-set attempt at line 850; no realized clock change (NVML rc=4 NOT_SUPPORTED line 11; kmod ioctl path MIG-watch-only; clean_bench3.txt sm_clock min/med/max 1830/1830/1830), so the ~47% remains attributable to passthrough observation overhead'",
+     "Item 2 / summary wording: 'power +0.25-0.78% above drift floor' overstates \u2014 W6:164 and W6:236-237 say only B\u2208{1,8,32} are above the +0.53% drift floor; B=16's +0.25% is AT the floor and B=64 (-0.17%) is within it. State as 'deltas +0.25 to +0.78%, above drift floor at B\u2208{1,8,32}'",
+     "Item 6 / summary qualifier: the ~47% figure (335.4 vs 629.2, recomputed 46.7%) is one B=8/out=64 eager Mistral-7B decode bench pair (contaminated clean_bench3 vs decontaminated clean_bench4, same config, both clock-pinned 1830); superseded contaminated runs spanned 332.9-341.2 (snapshot:123), consistent, but the claim should be scoped to this config, not stated as a general throughput cost",
+     "Item 1 / summary scope: in the cache-OFF table B=32 TPS -0.23% is ALSO flagged significant (W6:175 and the durable comparison_table.md), and tok/W B=1 -0.91% is significant; 'only significant row' is correct only for the prefill-MFU sub-table (W6:182-186) \u2014 keep it scoped to prefill MFU to avoid over-extension to TPS",
+     "Item 2 minor: HBM '+12-67 MiB' applies to B<=32 only; the B=64 row is -84 MiB with a degenerate zero-variance bootstrap CI (W6:148,152) \u2014 cite as 'B<=32: +12 to +67 MiB, B=64 row degenerate'",
+     "Item 3 minor citation precision: NO_SUBSTRATE_PROOF.txt section (4) audits 16 stderr files (including the 2 R.C monitor files) while snapshot:110 says '0 in all 14 measured runs' \u2014 both are 0-count and consistent, but a verbatim citation should not conflate the 14-run and 16-file denominators",
+     "Confirmed positively (no correction needed, recounted): 3545 [cipher_v2] lines in clean_bench3.err (exact match to proof file and snapshot), 0 in clean_bench4.err; plugin defaults CIPHER_KV_ALLOC=1 (cipher_vllm_kv.py:51-52), CIPHER_KV_OFFLOAD=1 (cipher_kv_offload.py:40-41), CIPHER_KVDEDUP=0 opt-in (cipher_vllm_kvdedup.py:57-58), CIPHER_REGISTER_MODEL=1 (cipher_vllm_kv.py:137), GOT-patch install unconditional before the _enabled() gate (register() at 898-916 calling 663-722); week6/ contains zero cipher_v2 strings (counter-dump absence verified); durable comparison_table.md matches W6:170-186 row-for-row"
+    ]
+   }
+  }
+ ]
+}

@@ -1,0 +1,30 @@
+build OK
+[cipher_v2] MARLIN: engine init OK (NVRTC + cuda + cudart resolved; cubin compile deferred to first eligible call)
+[cipher_v2] MARLIN: NVRTC compile starting (kernel src 33804 bytes, sm_90)...
+[cipher_v2] MARLIN: cubin ready (10/10 entry points in 0.12 s)
+[cipher_v2] MARLIN: GPU quant kernels compiled in 0.02 s
+[1] engine_init rc=0
+[2] quantize_repack(W,K=4096,N=4096) rc=0
+[3] lookup rc=1  B=0x79a9e8c00000 S=0x79a9e3e04000  K=4096 N=4096 G=128
+[4] dispatch(M=1,N=4096,K=4096,G=128) rc=0
+
+--- first 10 outputs (engine | cuBLAS-FP16 | INT4-floor) ---
+  [0]     -0.28613 |     -0.26123 |     -0.28507
+  [1]      0.17395 |      0.17224 |      0.17244
+  [2]      0.32544 |      0.33350 |      0.32564
+  [3]      0.11920 |      0.19641 |      0.11906
+  [4]      0.06885 |      0.13660 |      0.06695
+  [5]      0.07581 |      0.06125 |      0.06081
+  [6]     -0.08173 |     -0.08167 |     -0.08142
+  [7]     -0.47827 |     -0.43921 |     -0.47772
+  [8]     -0.09509 |     -0.10706 |     -0.09488
+  [9]     -0.02446 |     -0.01973 |     -0.02441
+
+--- F1 single-GEMM verdict ---
+  nan=0  inf=0
+  max_abs_error      = 0.348633
+  rel_err vs cuBLAS  = 0.140021   (INT4 noise floor ~0.14)
+  rel_err vs INT4sim = 0.011276   (0 = matches expected quant output)
+  cosine vs cuBLAS   = 0.990536
+
+RESULT: SINGLE-GEMM OK (rel_err within ~2x INT4 floor) -> bug is elsewhere; go to Step 2

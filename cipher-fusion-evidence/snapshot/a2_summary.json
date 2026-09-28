@@ -1,0 +1,219 @@
+{
+ "ra_overhead": {
+  "config": "Mistral-7B fp16 eager vLLM 0.20.2, B=8, OUT=64, best-of-2, clock locked (achieved 1830 pinned), VLLM_PLUGINS=''",
+  "clean_tok_s": 629.2,
+  "n45_tok_s": 602.3,
+  "n8_tok_s": 549.8,
+  "marginal_n45_pct": 4.28,
+  "marginal_n8_pct": 12.62,
+  "prior": {
+   "clean": 629.2,
+   "n45": 609.5,
+   "n8": 553.9,
+   "marginal_n45_pct": 3.1,
+   "marginal_n8_pct": 12.0,
+   "source": "R_A_REAL_VLLM_2026-06-08.md / ra_realvllm/tokps_result.json"
+  },
+  "zero_fp": {
+   "n45": {
+    "N": 45,
+    "inject_gemm": -1,
+    "steps": 198,
+    "check_steps": 5,
+    "gemms_checked": 640,
+    "detections": 0,
+    "injected_flips": 0,
+    "max_clean_residual": 0,
+    "max_detect_residual": 0,
+    "gemms_total": 25540,
+    "max_m": 32000,
+    "max_n": 16384,
+    "smalln_gemms": 25154
+   },
+   "n8": {
+    "N": 8,
+    "inject_gemm": -1,
+    "steps": 198,
+    "check_steps": 25,
+    "gemms_checked": 3200,
+    "detections": 0,
+    "injected_flips": 0,
+    "max_clean_residual": 0,
+    "max_detect_residual": 0,
+    "gemms_total": 25540,
+    "max_m": 32000,
+    "max_n": 16384,
+    "smalln_gemms": 25154
+   }
+  }
+ },
+ "ra_rb_latency": {
+  "config": "B=1 OUT=256 greedy, inject gemm-ordinal 3 (layer-0 down_proj) bit-14, RV_ONSET=20",
+  "n8": {
+   "first_detection_step": 24,
+   "onset": 20,
+   "latency_steps": 4,
+   "detection_before_batch_serve": true,
+   "residual_at_detect": 6.16797,
+   "counts": {
+    "N": 8,
+    "inject_gemm": 3,
+    "onset": 20,
+    "watch": 3,
+    "steps": 259,
+    "check_steps": 33,
+    "gemms_checked": 4224,
+    "detections": 30,
+    "injected_flips": 239,
+    "max_clean_residual": 0,
+    "max_detect_residual": 389,
+    "gemms_total": 33409,
+    "pid": 3359870,
+    "gpu": 0
+   }
+  },
+  "n45": {
+   "first_detection_step": 45,
+   "onset": 20,
+   "latency_steps": 25,
+   "detection_before_batch_serve": true,
+   "residual_at_detect": 88.3125,
+   "counts": {
+    "N": 45,
+    "inject_gemm": 3,
+    "onset": 20,
+    "watch": 3,
+    "steps": 259,
+    "check_steps": 6,
+    "gemms_checked": 768,
+    "detections": 5,
+    "injected_flips": 239,
+    "max_clean_residual": 0,
+    "max_detect_residual": 334.75,
+    "gemms_total": 33409,
+    "pid": 3360133,
+    "gpu": 0
+   }
+  },
+  "prior_latency": {
+   "N8": 4,
+   "N45": 25,
+   "source": "R_AB_GOODPUT_RECOVERY_2026-06-09.md / wi1 lat table"
+  }
+ },
+ "rb_quarantine": {
+  "clean_zero_false": {
+   "N": 8,
+   "inject_gemm": -1,
+   "onset": 0,
+   "watch": 3,
+   "steps": 259,
+   "check_steps": 33,
+   "gemms_checked": 4224,
+   "detections": 0,
+   "injected_flips": 0,
+   "max_clean_residual": 0,
+   "max_detect_residual": 0,
+   "gemms_total": 33409,
+   "pid": 3360390,
+   "gpu": 0
+  },
+  "transient_between_checks_missed": {
+   "N": 8,
+   "inject_gemm": 3,
+   "onset": 0,
+   "watch": 3,
+   "steps": 259,
+   "check_steps": 33,
+   "gemms_checked": 4224,
+   "detections": 0,
+   "injected_flips": 1,
+   "max_clean_residual": 0,
+   "max_detect_residual": 0,
+   "gemms_total": 33409,
+   "pid": 3360650,
+   "gpu": 0
+  },
+  "transient_on_check_caught": {
+   "N": 8,
+   "inject_gemm": 3,
+   "onset": 0,
+   "watch": 3,
+   "steps": 259,
+   "check_steps": 33,
+   "gemms_checked": 4224,
+   "detections": 1,
+   "injected_flips": 1,
+   "max_clean_residual": 0,
+   "max_detect_residual": 79.375,
+   "gemms_total": 33409,
+   "pid": 3360851,
+   "gpu": 0
+  }
+ },
+ "rc_verdicts": {
+  "inject": {
+   "verdict": "DEGRADED",
+   "severity": "critical",
+   "fault_onset": {
+    "decode_step_detected": 64,
+    "decode_step_confirmed": 72,
+    "wall_clock_utc": "2026-06-10T05:55:58Z",
+    "mono_ns": 2387918872711832,
+    "covered_op": "linear_gemm:ordinal3:k14336"
+   }
+  },
+  "inject_descriptor": {
+   "tgid": 3361722,
+   "cmdline": "VLLM::EngineCore",
+   "fingerprint": null,
+   "descriptor_source": "nvml_compute_procs",
+   "seen_by_nvml": true,
+   "in_w6_cohort": false
+  },
+  "inject_persistence": [
+   {
+    "pid": 3361722,
+    "max_residual": 322.75,
+    "n_detections": 9,
+    "persistence": 9,
+    "n_clean_checks_before_onset": 8
+   }
+  ],
+  "inject_ecc_xid": {
+   "ecc_delta": {
+    "vol_uncorr_delta": 0,
+    "vol_corr_delta": 0,
+    "agg_uncorr_delta": 0,
+    "agg_corr_delta": 0
+   },
+   "xids": {
+    "events": []
+   }
+  },
+  "clean": {
+   "verdict": "HEALTHY",
+   "counts": {
+    "N": 8,
+    "inject_gemm": -1,
+    "onset": 0,
+    "watch": 3,
+    "steps": 133,
+    "check_steps": 17,
+    "gemms_checked": 2176,
+    "detections": 0,
+    "injected_flips": 0,
+    "max_clean_residual": 0,
+    "max_detect_residual": 0,
+    "gemms_total": 17155,
+    "pid": 3361948,
+    "gpu": 0
+   }
+  },
+  "kmod_decoupled_note": "W6-cohort clause NOT exercised (no /dev/cipher in snapshot); descriptor = SDC-pid==NVML-pid only; full triple cited from R_C_PERGPU_FLEET_2026-06-09.md",
+  "prior": {
+   "onset_det_conf": "step64det/72conf",
+   "source": "R_C_PERGPU_FLEET_2026-06-09.md"
+  }
+ }
+}

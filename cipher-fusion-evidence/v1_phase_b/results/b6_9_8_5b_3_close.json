@@ -1,0 +1,91 @@
+{
+  "campaign": "V1 Phase B B.6''.9.8.5b.3 - empirical validation of Path 2 audit claim (Marlin + Koopman + SC6 under PyTorch graph capture)",
+  "date": "2026-05-27",
+  "purpose": "Validate empirical premise of B.6''.9.8.5b.2 audit Path 2 close. Scope-lock §15 item 15 claims Marlin + Koopman engage via cuBLAS GOT under graph capture. Path 2 was architectural reasoning; this substep is measurement.",
+  "anchors_at_entry": {
+    "cipher_rt_phase4": "959a6f5 tag v1-substrate-may13-port-pytorch-capture-substitution UNCHANGED",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca UNCHANGED on pod",
+    "build_cuda13_may13_md5": "9c54d44d UNCHANGED (measurement-only substep)"
+  },
+  "section_a_check1_marlin_findings": {
+    "workload": "TinyLlama-1.1B-Chat-v1.0-AWQ (INT4 AWQ-quantized, gemm version) on vLLM v0.21.0",
+    "first_run_eager_diagnostic": {
+      "log_line": "[cipher_v2] MARLIN: actuator DISABLED (CIPHER_MARLIN not set)",
+      "interpretation_1": "CIPHER Marlin actuator is env-gated OFF by default (CIPHER_MARLIN=1 required). Counter stays 0 unless enabled."
+    },
+    "critical_architectural_finding": {
+      "log_line_from_vllm": "INFO 05-27 04:20:47 [awq_marlin.py:420] Using MacheteLinearKernel for AWQMarlinLinearMethod",
+      "interpretation": "vLLM uses its OWN MacheteLinearKernel (vLLM-internal Marlin variant) for AWQ INT4 matmul. Machete is called via cuLaunchKernel DIRECTLY — bypasses cublasGemmEx entirely. CIPHER Marlin actuator (which sits at the cipher_rt_matmul_dispatch substrate hooked from cipher_rt_cublasGemmEx_impl) NEVER sees these calls because they don't go through cuBLAS at all.",
+      "implication": "Path 2 audit's claim that 'Marlin engages via cuBLAS GOT under graph capture' is structurally TRUE but vacuously so — CIPHER Marlin DOES route through cuBLAS GOT WHEN cuBLAS is called, but on standard vLLM AWQ workloads cuBLAS is not on the INT4 matmul path. So CIPHER Marlin engagement on vLLM = 0 regardless of graph vs eager mode.",
+      "alternative_workloads_that_would_trigger_CIPHER_Marlin": [
+        "INT4 matmul routed through cublasGemmEx with CUDA_R_8I dtypes (not standard vLLM pattern; would need custom workload)",
+        "fp16/bf16 cublasGemmEx call where weight has been observed stable + meets Marlin gates (M<=64, N/K>=1024) — but Marlin substitution would require INT4 weight quantization which doesn't apply to fp16 weights",
+        "Net: NO standard vLLM workload triggers CIPHER Marlin actuator engagement"
+      ]
+    },
+    "secondary_finding_va_pool_crash": {
+      "log_line": "RuntimeError: cipher_kv_bridge: slab_create failed (VA pool exhausted?)",
+      "interpretation": "AWQ model + gpu_memory_utilization=0.5 + cipher_kv_bridge VA pool sizing caused crash during model load. NOT a regression introduced by .8.5b.3; an edge case for AWQ models. Surfaced as honest observation; not the main finding."
+    },
+    "verdict": "REFUTED (in practical engagement sense) — Path 2 architectural claim about Marlin engagement on vLLM is structurally correct (wiring) but practically zero (no vLLM workload triggers it). Goal 2 (Marlin/VOLT) v1 customer benefit on vLLM via CIPHER substrate = 0.",
+    "memory_11_honest_residue": "Goal 2 'Marlin/VOLT actuator engagement on vLLM' is ARCHITECTURALLY WIRED but PRACTICALLY UNTRIGGERED on standard vLLM workloads. v1 ship of Goal 2 needs honest framing: customer using vLLM gets vLLM's own Marlin (Machete), not CIPHER's overlay. CIPHER's Marlin actuator value is for custom workloads that route INT4 through cublasGemmEx OR for non-vLLM frameworks."
+  },
+  "section_b_check2_koopman_findings": {
+    "workload": "Mistral-7B-v0.1 fp16 vLLM v0.21.0, CIPHER_KOOPMAN=1",
+    "eager_mode_results": {
+      "post_warmup_capture": {"koopman_total": 129, "koopman_handled": 0, "koopman_skipped": 129, "matmul_total": 129, "matmul_handled": 0, "smp_total_launches": 1314},
+      "post_inference_replay": {"koopman_total": 8385, "koopman_handled": 0, "koopman_skipped": 8385, "matmul_total": 8385, "matmul_handled": 0, "smp_total_launches": 36514, "graph_launch_calls": 0},
+      "deterministic_output": true
+    },
+    "graph_mode_results": {
+      "post_warmup_capture": {"koopman_total": 27265, "koopman_handled": 0, "koopman_skipped": 27265, "matmul_total": 27265, "matmul_handled": 0, "smp_total_launches": 101809, "graph_launch_calls": 0},
+      "post_inference_replay": {"koopman_total": 27329, "koopman_handled": 0, "koopman_skipped": 27329, "matmul_total": 27329, "matmul_handled": 0, "smp_total_launches": 104313, "graph_launch_calls": 128},
+      "replay_delta": {"koopman_total_delta": 64, "graph_launch_delta": 128, "interpretation": "+64 koopman observations during replay (some matmuls fire even during graph replay via the ~4% H2 launch leakage); +128 cuGraphLaunch calls (B.6''.9.8.4 shim engaging correctly)"},
+      "deterministic_output": true
+    },
+    "verdict_engagement": "PARTIALLY VALIDATED — Koopman observer DOES engage at cuBLAS layer in BOTH eager and graph modes (totals=8385 eager / 27329 graph; observer fires per cublasGemmEx call). This confirms Path 2 audit's architectural claim about observer engagement.",
+    "verdict_substitution": "ZERO SUBSTITUTION in either mode — koopman_handled=0 in BOTH eager (0/8385) and graph (0/27329). Root cause: cipher_koopman_fp16_launch_shape returns -1 if shape not registered in .cu shape registry. Registry seeding requires cipher_edmd_live_collect background randomized-SVD pipeline to accumulate TARGET_ROWS snapshots; sustained workload + calibration time needed.",
+    "beta_residual_gate_under_replay_assessment": "NOT EXERCISED in this test — the audit's theoretical concern (cipher_rt_koopman_engine.cpp:147 'cipher_koopman_fp16_ood_max_residual' β check captured at capture time, applied at replay regardless of new input distribution) requires Koopman to actually HANDLE a call (registry hit) before β check fires. Since handled=0 due to empty registry, β-gate-under-replay is theoretical only on this workload.",
+    "memory_13_korean_v1_actuator_status": "Koopman is wired + observing but NOT substituting in v1 without registry calibration. The 'in-dist 90% top-1 r=64' performance claim (Memory #13) requires the registry to be populated for the target shapes — which requires either pre-seeded registry data OR live calibration during inference. Live calibration during normal vLLM workload was not observed to fire in this test (8385 cuBLAS calls eager; 27329 graph; zero registry hits).",
+    "memory_11_honest_residue": "Goal 4 'Koopman O(1) substitution' v1 customer benefit on vLLM = 0 substitution in this workload. The substrate is wired correctly but downstream calibration loop is not converging within 8K-27K matmul observations. Goal 4 ship needs either (a) pre-seeded calibration data per supported model, (b) longer calibration warm-up before claimed engagement, or (c) honest framing that v1 Koopman is observation-only and substitution requires opt-in calibration step."
+  },
+  "section_c_check3_sc6_findings": {
+    "workload_audit_first": "/home/ubuntu/cipher-fusion-evidence/phase_c/sc6_producer.py + sc6_consumer.py",
+    "critical_discovery": "SC6 harness uses HuggingFace transformers (AutoModelForCausalLM.from_pretrained) — NOT vLLM. Verified via grep: sc6_producer.py:27 'from transformers import AutoModelForCausalLM, AutoTokenizer'.",
+    "implication": "SC6 is a kmod ARENA weight-sharing test (NRs 21-24) using transformers forward pass; vLLM CUDAGraph capture is not in the test code path. The 'graph mode' question doesn't apply to SC6.",
+    "memory_28_76pct_anchor_status": "Already validated at B.6''.9.8.3 under may13-port substrate (build_cuda13_may13/d752b1f at that time; CURRENT build 9c54d44d EXACT-match preserved through .8.4/.8.5/.8.5b/.8.5b.2; eager 12/12 counter parity verified at each step). The 76.0% anchor is a transformers-based ARENA test, orthogonal to vLLM capture mode.",
+    "verdict": "N/A (NOT APPLICABLE) — SC6 doesn't use vLLM. The audit-claim 'SC6 reproduces under graph mode' was inapplicable; SC6 always ran transformers without graph capture. Memory #28 76.0% anchor remains valid (last verified B.6''.9.8.3) without graph-mode re-test.",
+    "honest_note": "User spec for Check 3 assumed SC6 ran vLLM. Audit-first discipline (Memory #12 verify-on-disk) caught the misassumption before measurement burned cycles. Surfacing to refine future scope-lock framing."
+  },
+  "section_d_per_check_verdict_summary": {
+    "check_1_marlin_under_graph_capture": "REFUTED in practical engagement (Path 2 architectural claim TRUE but vacuous; CIPHER Marlin NEVER engages on standard vLLM AWQ because vLLM uses its own Machete)",
+    "check_2_koopman_under_graph_capture": "PARTIALLY VALIDATED (observer engages cuBLAS layer in both modes; substitution=0 due to uncalibrated registry; β-gate-under-replay theoretical-only on this workload)",
+    "check_3_sc6_under_graph_capture": "NOT APPLICABLE (SC6 uses transformers; vLLM graph mode doesn't apply; Memory #28 76.0% anchor still valid)"
+  },
+  "section_e_recommendation": {
+    "summary": "Path 2 audit's empirical premise is OVERSTATED. Wiring is in place; practical engagement on real vLLM workloads is essentially 0 for both Goal 2 (Marlin) and Goal 4 (Koopman substitution) without additional work (workload customization for Marlin / registry calibration for Koopman).",
+    "scope_lock_15_item_15_update_proposed": "Item 15 should be REVISED: change 'engage via cuBLAS GOT path under both eager and graph capture' to 'observer engagement at cuBLAS layer verified in both modes; SUBSTITUTION engagement is zero on standard vLLM workloads without further wiring (Marlin: vLLM uses Machete bypass; Koopman: requires .cu shape registry calibration). v1 Goal 2/4 substrate scaffolding ships; engagement is downstream actuator/calibration work.'",
+    "scope_lock_new_item_17_proposed": "Add new residue item 17: Goals 2 + 4 v1 ship framing — actuator substrate WIRED + OBSERVED on vLLM cuBLAS path; substitution engagement is downstream (Marlin needs custom INT4-through-cublasGemmEx workloads OR non-vLLM frameworks; Koopman needs registry calibration). Customer running standard vLLM today gets observer instrumentation (counters + telemetry) but no kernel substitution.",
+    "proceed_to_8_6_yes_or_no": "YES proceed — .8.6 FlashAttention launch-side intercept addresses Goal 3 (SM observability / MFU) gap which IS empirically present (B.6''.9.4 attn_calls=0 finding). Goal 3 customer benefit is observability, not substitution; .8.6 directly delivers it. Goals 2 + 4 honest residue gets recorded in scope-lock §15 update before .8.6.",
+    "no_hard_stop_warranted": "Per discipline (g) and (h) — findings are honest residue, not correctness regressions. Outputs deterministic in all measured modes (rep0==rep1 in both eager + graph). No customer-observable correctness break. Just honest framing of v1 Goal 2/4 engagement level."
+  },
+  "section_f_scope_lock_updates_proposed": {
+    "item_15_revision": "Reframe from 'engage via cuBLAS GOT' to 'observer-engage via cuBLAS GOT; substitution requires downstream actuator wiring (Marlin: custom workload; Koopman: registry calibration); CIPHER Marlin does NOT engage on standard vLLM AWQ which uses its own Machete kernel via cuLaunchKernel'",
+    "item_17_NEW": "Goals 2 + 4 v1 ship framing: actuator substrate ships WIRED + OBSERVING on cuBLAS layer; substitution ENGAGEMENT is essentially zero on standard vLLM workloads without additional setup. Customer running vLLM today gets counter telemetry (Marlin observe + Koopman observe + cuBLAS shim) but no kernel substitution from CIPHER. Goal 2/4 substitution paths require: (a) Marlin — workload customization to route INT4 through cublasGemmEx, OR non-vLLM framework with raw cuBLAS dispatch; (b) Koopman — shape registry calibration (sustained workload + cipher_edmd_live_collect SVD pipeline)."
+  },
+  "compliance_with_disciplines": {
+    "memory_11_no_scope_degrade_in_both_directions": "PRESERVED — surfacing honestly that Path 2 audit overstated practical engagement; this is NOT a scope-down of Goals 2/4 (the wiring still ships) but is honest reframing of what the wiring delivers in v1 today",
+    "memory_20_abi_additive": "PRESERVED — zero substrate touches; measurement only",
+    "memory_12_md5_provenance": "PRESERVED — accessor names verified via nm; ARM-specific path discovery (sc6_producer.py:27) caught misassumption before burning cycles",
+    "memory_9_framework_agnostic": "STRENGTHENED — finding that vLLM bypasses cuBLAS for AWQ INT4 reinforces need for non-cuBLAS-only substrate layer (which .8.6 FlashAttention will start to address)",
+    "memory_28_sc6_anchor": "PRESERVED — last verified at B.6''.9.8.3 EXACT match (76.0%); transformers-based; graph mode N/A"
+  },
+  "anchors_at_close": {
+    "cipher_rt_phase4": "959a6f5 UNCHANGED (measurement-only)",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca UNCHANGED",
+    "build_cuda13_may13_md5": "9c54d44d UNCHANGED"
+  },
+  "next": "HOLD for Anil pick: (1) accept Path 2 reframe + proceed to .8.6 FlashAttention (recommended; .8.6 addresses Goal 3 which has empirical engagement gap to close); (2) defer .8.6 and address Goal 2/4 engagement gap first (custom Marlin workload setup OR Koopman registry pre-calibration — both are larger scope additions); (3) accept current state as honest ship and defer Goal 2/4 substitution to v1.x roadmap."
+}

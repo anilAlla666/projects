@@ -1,0 +1,19 @@
+{
+ "baseline_mfu": 0.2464,
+ "gemm_share": 0.455,
+ "tax_realistic_batch": 0.031,
+ "fp8_training_gemm_speedup_range": "1.3-1.5x (NeMo-measured training range)",
+ "projected_e2e_mfu_gross": {
+  "fp8_1.3x": 0.275,
+  "fp8_1.4x": 0.283,
+  "fp8_1.5x": 0.29
+ },
+ "projected_e2e_mfu_net_of_tax": {
+  "fp8_1.3x_net_tax": 0.267,
+  "fp8_1.4x_net_tax": 0.274,
+  "fp8_1.5x_net_tax": 0.281
+ },
+ "evidenced_target_frontier": "~40-54% BF16 (Megatron 47%, MosaicML >50%, SemiAnalysis 54%) \u2014 but those are OPTIMIZED FULL-PRETRAIN stacks (fused optimizer, fused norms, FSDP, large batch), NOT HF-eager LoRA finetune",
+ "verdict": "GEMM-SHARE-LIMITED. FP8 projects +3-4 pts (0.246->~0.28), far short of the 40-54% frontier. The dominant cost is the 49% POINTWISE (fp32-LoRA casts + HF-eager unfused elementwise + AdamW), which the GEMM-intercept substrate does NOT address. The 24.6% baseline is below frontier because of the unfused HF-eager/LoRA-fp32 harness, NOT GEMM inefficiency (GEMM-time MFU ~0.246/0.455=0.54). Reaching frontier needs a fused training stack (out of substrate scope), not FP8.",
+ "decision": "PROCEED to measure the real FP8 lift (it is real + positive, the co-measurement is the deliverable) BUT pre-register it as a modest GEMM-share-capped lift, NOT a frontier-clearing result. Surface the GEMM-share ceiling to Anil."
+}

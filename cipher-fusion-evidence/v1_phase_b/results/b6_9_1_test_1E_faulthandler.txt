@@ -1,0 +1,147 @@
+FAULTHANDLER ENABLED
+VLLM IMPORTED
+LOADING LLM enforce_eager=True
+[cipher_v2] GREEN/CP54: ALLOCATE ok — qos=1 sm_count=0 -> grp_mask=0x0000 grp_count=0
+[cipher_v2] SMP: sm_packer initialized (threshold=4096 threads, 32 stream slots)
+[cipher_v2] PR: cipher_rt_pr_init entered
+[cipher_v2] PR: partition router initialized (cache=256 slots, tenant_handle=0x00000000)
+[cipher_v2] CUPTI subscribed: kernel launch callbacks active (flush every 256 launches); cuStreamCreate hooks armed
+[cipher_v2] MATMUL: substrate initialized (max 16 actuators; first registration awaited)
+[cipher_v2] MARLIN: actuator DISABLED (CIPHER_MARLIN not set)
+[CIPHER KOOPMAN] env-gated off (CIPHER_KOOPMAN!=1)
+[cipher-attn] substrate active (torch verified 2.11.0+cu130); symbol resolution is lazy per-call
+[cipher-attn-test] disabled (CIPHER_ATTN_TEST unset)
+[cipher-audit] disabled (CIPHER_AUDIT unset)
+[CIPHER REMEMBER] env-gated off (CIPHER_REMEMBER!=1)
+[cipher_v2] LT-VARIANT: 17/17 cuBLAS-Lt variant trampolines armed
+[cipher_v2] DLSYM-HOOK: registered (real dlsym=0x76e26c5a6740 dlvsym=0x76e26c5a6840; 17 shims in registry)
+[cipher_v2] GOT: patch applied -- 83 slot(s) across 287 module(s); 7 target(s) registered
+[cipher_v2] auto-init: V1 Phase A constructor complete pid=1
+[cipher_v2] CLASSIFY: actuator 'may13_default' registered at priority 0 (slot 0/1)
+[cipher_v2] DISPATCH: substrate registered, LIVE=1 (1 = classifier-driven routing engaged by default; set CIPHER_DISPATCH_LIVE=0 to disable)
+[cipher-vllm-kv] InitializeInjection2 returned 1 (vLLM V1 worker GOT patches installed pid=1)
+[cipher-vllm-kv] hook installed on GPUModelRunner._allocate_kv_cache_tensors (Option A)
+[cipher-vllm-kv] Step 4 per-token AUDIT hook installed on execute_model
+[cipher-offload] hooks installed: GPUModelRunner.initialize_kv_cache, Scheduler._preempt_request, Scheduler.schedule (CP 5.2 Option A)
+[cipher-vllm-kvdedup] disabled via CIPHER_KVDEDUP (default off) — kvdedup wrapper not installed; CP 5.1 / CP 5.2 unaffected
+INFO 05-26 16:17:45 [utils.py:240] non-default args: {'max_model_len': 2048, 'gpu_memory_utilization': 0.5, 'disable_log_stats': True, 'enforce_eager': True, 'model': '/home/ubuntu/models/TinyLlama-1.1B'}
+WARNING 05-26 16:17:45 [envs.py:1866] Unknown vLLM environment variable detected: VLLM_BUILD_COMMIT
+WARNING 05-26 16:17:45 [envs.py:1866] Unknown vLLM environment variable detected: VLLM_BUILD_PIPELINE
+WARNING 05-26 16:17:45 [envs.py:1866] Unknown vLLM environment variable detected: VLLM_BUILD_URL
+WARNING 05-26 16:17:45 [envs.py:1866] Unknown vLLM environment variable detected: VLLM_IMAGE_TAG
+INFO 05-26 16:17:52 [model.py:568] Resolved architecture: LlamaForCausalLM
+INFO 05-26 16:17:52 [model.py:1697] Using max model len 2048
+INFO 05-26 16:17:52 [scheduler.py:239] Chunked prefill is enabled with max_num_batched_tokens=16384.
+INFO 05-26 16:17:52 [vllm.py:886] Asynchronous scheduling is enabled.
+WARNING 05-26 16:17:52 [vllm.py:942] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 05-26 16:17:52 [vllm.py:960] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 05-26 16:17:52 [kernel.py:212] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native'])
+INFO 05-26 16:17:52 [vllm.py:1135] Cudagraph is disabled under eager mode
+INFO 05-26 16:17:52 [compilation.py:303] Enabled custom fusions: norm_quant, act_quant
+(EngineCore pid=168) INFO 05-26 16:17:53 [core.py:109] Initializing a V1 LLM engine (v0.21.0) with config: model='/home/ubuntu/models/TinyLlama-1.1B', speculative_config=None, tokenizer='/home/ubuntu/models/TinyLlama-1.1B', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=2048, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=/home/ubuntu/models/TinyLlama-1.1B, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': [], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.NONE: 0>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'fuse_act_padding': False}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native']), enable_flashinfer_autotune=False, moe_backend='auto')
+(EngineCore pid=168) INFO 05-26 16:17:53 [parallel_state.py:1410] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://172.17.0.2:48313 backend=nccl
+(EngineCore pid=168) INFO 05-26 16:17:53 [parallel_state.py:1723] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+(EngineCore pid=168) INFO 05-26 16:17:54 [topk_topp_sampler.py:45] Using FlashInfer for top-p & top-k sampling.
+[cipher_v2] GREEN: CP 5.4 qos=shared — tenant owns no SM groups; no green context created (runs on primary context; pool binding lands in Step 1.3b')
+[CIPHER L3.8] Structural lookup initialized. 42 rules. Name cache pre-warmed.
+[CIPHER ORACLE] Initialized.
+  N_max:          4
+  EMA κ:          0.999
+  Divergence:     2.0σ
+  Warmup steps:   500
+  Min confidence: 60%
+(EngineCore pid=168) INFO 05-26 16:17:54 [gpu_model_runner.py:4857] Starting to load model /home/ubuntu/models/TinyLlama-1.1B...
+(EngineCore pid=168) INFO 05-26 16:17:54 [cuda.py:372] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+(EngineCore pid=168) INFO 05-26 16:17:54 [flash_attn.py:641] Using FlashAttention version 3
+(EngineCore pid=168) INFO 05-26 16:17:54 [weight_utils.py:938] Filesystem type for checkpoints: EXT4. Checkpoint size: 2.05 GiB. Available RAM: 214.55 GiB.
+(EngineCore pid=168) INFO 05-26 16:17:54 [weight_utils.py:961] Auto-prefetch is disabled because the filesystem (EXT4) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+(EngineCore pid=168) Loading safetensors checkpoint shards:   0% Completed | 0/1 [00:00<?, ?it/s]
+(EngineCore pid=168) Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  3.03it/s]
+(EngineCore pid=168) Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  3.03it/s]
+(EngineCore pid=168) 
+(EngineCore pid=168) INFO 05-26 16:17:55 [default_loader.py:397] Loading weights took 0.36 seconds
+(EngineCore pid=168) INFO 05-26 16:17:55 [gpu_model_runner.py:4959] Model loading took 2.05 GiB memory and 0.542110 seconds
+[cipher_v2] CUBLAS-SHIM: real cublasGemmEx=0x76e234ce16d0 getStream=0x76e234d6e140 ltMatmul=0x76e23ef924d0 resolved
+(EngineCore pid=168) INFO 05-26 16:18:02 [gpu_worker.py:462] Available KV cache memory: 36.58 GiB
+(EngineCore pid=168) INFO 05-26 16:18:02 [kv_cache_utils.py:1710] GPU KV cache size: 1,743,456 tokens
+(EngineCore pid=168) INFO 05-26 16:18:02 [kv_cache_utils.py:1711] Maximum concurrency for 2,048 tokens per request: 851.30x
+(EngineCore pid=168) [transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+(EngineCore pid=168) [cipher-vllm-kv] REGISTER_MODEL OK: arch=3 uuid=4b97c8ea13de88947a3e486b073fa1b9 path='/home/ubuntu/models/TinyLlama-1.1B'
+(EngineCore pid=168) [cipher-vllm-kv] REGISTER_STREAMS no named streams enumerated; default tenant=0 fallback
+[cipher_v2] GOT: patch applied -- 13 slot(s) across 304 module(s); 7 target(s) registered
+[cipher_v2] cuinit-hook: setup complete pid=168 (force-dlopen + InitializeInjection2 + GOT-patch refresh + real_cuInit resolved)
+[cipher-kvalloc] init: pool=51.0 GiB page=2048 KiB n_pages=26112 (verified 13.0 / driver 580.105.08 / H100)
+(EngineCore pid=168) [cipher-vllm-kv] VMM allocator init: VA pool 51 GiB via compute_va_gib(hf_config) (tenant=0)
+(EngineCore pid=168) [cipher-vllm-kv] KV buffers owned by CIPHER VMM: 22 tensor(s), slabs_created=22, pages_mapped=18744, resident=36.61 GiB
+(EngineCore pid=168) [cipher-offload] bound 22 KV layer tensor(s) shape=(2, 108966, 16, 4, 64) dtype=torch.bfloat16 block_dim=1 num_blocks=108966
+(EngineCore pid=168) INFO 05-26 16:18:03 [kernel_warmup.py:44] Skipping FlashInfer autotune because it is disabled.
+(EngineCore pid=168) INFO 05-26 16:18:03 [jit_monitor.py:54] Kernel JIT monitor activated — Triton JIT compilations during inference will be logged as warnings.
+(EngineCore pid=168) INFO 05-26 16:18:03 [core.py:306] init engine (profile, create kv cache, warmup model) took 8.39 s
+!!!!!!! Segfault encountered !!!!!!!
+  File "<unknown>", line 0, in PyObject_Vectorcall
+  File "<unknown>", line 0, in _PyEval_EvalFrameDefault
+  File "<unknown>", line 0, in _PyObject_FastCallDictTstate
+  File "<unknown>", line 0, in _PyObject_Call
+  File "<unknown>", line 0, in _PyEval_EvalFrameDefault
+  File "<unknown>", line 0, in _PyObject_FastCallDictTstate
+  File "<unknown>", line 0, in _PyObject_MakeTpCall
+  File "<unknown>", line 0, in _PyEval_EvalFrameDefault
+  File "<unknown>", line 0, in _PyObject_FastCallDictTstate
+  File "<unknown>", line 0, in _PyObject_MakeTpCall
+  File "<unknown>", line 0, in _PyEval_EvalFrameDefault
+  File "<unknown>", line 0, in _PyEval_EvalFrameDefault
+  File "<unknown>", line 0, in _PyEval_EvalFrameDefault
+  File "<unknown>", line 0, in _PyObject_FastCallDictTstate
+  File "<unknown>", line 0, in _PyObject_MakeTpCall
+  File "<unknown>", line 0, in _PyEval_EvalFrameDefault
+  File "<unknown>", line 0, in _PyObject_FastCallDictTstate
+  File "<unknown>", line 0, in _PyObject_MakeTpCall
+  File "<unknown>", line 0, in _PyEval_EvalFrameDefault
+  File "<unknown>", line 0, in _PyObject_FastCallDictTstate
+  File "<unknown>", line 0, in _PyObject_MakeTpCall
+  File "<unknown>", line 0, in _PyEval_EvalFrameDefault
+  File "<unknown>", line 0, in PyEval_EvalCode
+  File "<unknown>", line 0, in _PyRun_SimpleFileObject
+  File "<unknown>", line 0, in _PyRun_AnyFileObject
+  File "<unknown>", line 0, in Py_RunMain
+  File "<unknown>", line 0, in Py_BytesMain
+  File "<unknown>", line 0, in _start
+  File "<unknown>", line 0, in 0xffffffffffffffff
+
+Traceback (most recent call last):
+  File "/tmp/cipher_crash_trace.py", line 27, in <module>
+    main()
+  File "/tmp/cipher_crash_trace.py", line 18, in main
+    llm = LLM(
+          ^^^^
+  File "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/llm.py", line 381, in __init__
+    self.llm_engine = LLMEngine.from_engine_args(
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/llm_engine.py", line 170, in from_engine_args
+    return cls(
+           ^^^^
+  File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/llm_engine.py", line 104, in __init__
+    self.engine_core = EngineCoreClient.make_client(
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core_client.py", line 101, in make_client
+    return SyncMPClient(vllm_config, executor_class, log_stats)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core_client.py", line 723, in __init__
+    super().__init__(
+  File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/core_client.py", line 535, in __init__
+    with launch_core_engines(
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/contextlib.py", line 144, in __exit__
+    next(self.gen)
+  File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/utils.py", line 1128, in launch_core_engines
+    wait_for_engine_startup(
+  File "/usr/local/lib/python3.12/dist-packages/vllm/v1/engine/utils.py", line 1187, in wait_for_engine_startup
+    raise RuntimeError(
+RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {}
+[cipher_v2] MATMUL: exit totals — calls=0 handled=0 passthrough=0 (actuators=0)
+[cipher_v2] DIAG-T4.2.4d: total_launches=0 streams_observed=0 ctx_swaps_to_green=0
+[cipher_v2] DIAG-T4.2.4d: on_our_green=0 on_other_green=0 on_primary=0 on_null_stream=0
+[cipher-attn] exit totals - tramp_calls=0 tramp_fake=0 observed=0 handled=0 passthrough=0 redirected=0 (flash=0 eff=0 cudnn=0)

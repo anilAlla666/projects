@@ -1,0 +1,56 @@
+=== NO-SUBSTRATE PROOF (regenerated after verification panel, 2026-06-10) ===
+
+(1) Link-time: ldd shows libc only for both shims; ZERO cipher-related entries in link deps.
+    det_shim: 	linux-vdso.so.1 (0x00007ffe0efcd000)
+    det_shim: 	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x0000751536800000)
+    det_shim: 	/lib64/ld-linux-x86-64.so.2 (0x0000751536bf4000)
+    ab_shim:  	linux-vdso.so.1 (0x00007ffe2edb9000)
+    ab_shim:  	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007bf80c800000)
+    ab_shim:  	/lib64/ld-linux-x86-64.so.2 (0x00007bf80cbe0000)
+    NOTE (scoped claim): the BINARIES do contain compiled-in literal strings: ab_shim has '/dev/cipher'
+    (the env-gated heartbeat path, default OFF, never enabled — gate: ab_shim.c:181 'if(HEARTBEAT)')
+    and both shims carry their compiled-in default counts paths. The no-substrate claim is about
+    LINKING and RUNTIME, not about string constants.
+
+(2) Provenance: freshly compiled in snapshot/ from copied sources; binaries are BYTE-IDENTICAL (md5)
+    to the validated fork-1 builds (deterministic gcc build-id):
+    069d8a7b912d65dc1bcf8bd22131e725  a2_ra/det_shim.so
+    069d8a7b912d65dc1bcf8bd22131e725  ../ra_realvllm/detector_shim.so
+    2c8ddcfa2a0448d9d2d34d559fee4d93  a2_rb/ab_shim.so
+    2c8ddcfa2a0448d9d2d34d559fee4d93  a2_rc/ab_shim.so
+    2c8ddcfa2a0448d9d2d34d559fee4d93  ../rc_ab/ab_shim.so
+
+(3) /dev/cipher never opened: det_shim.c has 0 occurrences of /dev/cipher; ab_shim heartbeat gated
+    (RV_HEARTBEAT never set in any invocation — invocations are recorded in the session transcript;
+    no runner script sets it); a2_rc/rc_monitor.py cohort_query() returns None before any open()
+    (max_cohort 0 in both verdicts confirms at runtime).
+
+(4) Runtime contamination check — '[cipher_v2]' substrate banner lines in stderr of the vLLM-loading
+    process of EVERY measured run (16 files: for R.C the vLLM DRIVER stderr is audited, not the monitor):
+    a1_decode_B1.err: 0
+    a1_decode_B64.err: 0
+    a1_prefill.err: 0
+    a1_train_B1.err: 0
+    a2_ra/clean_bench4.err: 0
+    a2_ra/n45_bench.err: 0
+    a2_ra/n8_bench.err: 0
+    a2_rb/persist_N8.err: 0
+    a2_rb/persist_N45.err: 0
+    a2_rb/clean_N8.err: 0
+    a2_rb/tr_between.err: 0
+    a2_rb/tr_oncheck.err: 0
+    a2_rc/inject_driver_p0.err: 0
+    a2_rc/clean_driver_p0.err: 0
+    a2_rc/inject_mon.err: 0
+    a2_rc/clean_mon.err: 0
+    POSITIVE CONTROL: pre-guard contaminated run a2_ra/clean_bench3.err: 3545 cipher_v2 lines.
+
+(5) /proc maps+fd sampling loops during the N=45/N=8 shim benches produced empty files (0 hits).
+    An empty file is weak evidence on its own (no positive control inside the loop); the binding
+    no-load evidence is (1)+(4) above.
+
+(6) Counts-file mechanism (RV_OUT name collision): the driver reads RV_OUT as token count while
+    det_shim reads RV_OUT as counts path; a2_ra runs executed with cwd=a2_ra and RV_OUT=64, so the
+    shim wrote ./64 (= snapshot/a2_ra/64), renamed to n{45,8}_counts.json. The identical counters in
+    fork-1's ra_realvllm/{48,64} files are the prior runs' own artifacts (deterministic workload =>
+    identical counter values), not cross-writes — fork-1 md5 manifest is diff-clean entry==exit.

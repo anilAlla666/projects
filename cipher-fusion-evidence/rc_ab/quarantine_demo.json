@@ -1,0 +1,70 @@
+{
+  "rows": [
+    {
+      "config": "WITHOUT-CIPHER (persistent fault, no detector)",
+      "has_detector": false,
+      "truly_corrupt": true,
+      "corruption_starts_token": 17,
+      "detected_at_token": null,
+      "decision": "SERVE",
+      "ships_silent_garbage": true,
+      "outcome": "SHIPS SILENT GARBAGE"
+    },
+    {
+      "config": "WITH-CIPHER N=8 (persistent fault)",
+      "has_detector": true,
+      "truly_corrupt": true,
+      "corruption_starts_token": 17,
+      "detected_at_token": 21,
+      "decision": "QUARANTINE",
+      "ships_silent_garbage": false,
+      "outcome": "quarantined (corrupt response withheld)"
+    },
+    {
+      "config": "WITH-CIPHER N=45 (persistent fault)",
+      "has_detector": true,
+      "truly_corrupt": true,
+      "corruption_starts_token": 17,
+      "detected_at_token": 42,
+      "decision": "QUARANTINE",
+      "ships_silent_garbage": false,
+      "outcome": "quarantined (corrupt response withheld)"
+    },
+    {
+      "config": "CLEAN + detector (no fault)",
+      "has_detector": true,
+      "truly_corrupt": false,
+      "corruption_starts_token": null,
+      "detected_at_token": null,
+      "decision": "SERVE",
+      "ships_silent_garbage": false,
+      "outcome": "served (genuinely clean)"
+    },
+    {
+      "config": "TRANSIENT on-check + detector",
+      "has_detector": true,
+      "truly_corrupt": true,
+      "corruption_starts_token": 21,
+      "detected_at_token": 21,
+      "decision": "QUARANTINE",
+      "ships_silent_garbage": false,
+      "outcome": "quarantined (corrupt response withheld)"
+    },
+    {
+      "config": "TRANSIENT between-check + detector",
+      "has_detector": true,
+      "truly_corrupt": true,
+      "corruption_starts_token": 19,
+      "detected_at_token": null,
+      "decision": "SERVE",
+      "ships_silent_garbage": true,
+      "outcome": "SHIPS SILENT GARBAGE"
+    }
+  ],
+  "quarantine_latency_steps": {
+    "persistent_N8": 4,
+    "persistent_N45": 25
+  },
+  "false_quarantine": false,
+  "wall": "Detect+flag at cuBLAS boundary is substrate-legal (scratch serve-gate refuses to serve a flagged BATCH response before it leaves the box). Scrubbing an already-streamed token / vLLM's in-flight response buffer needs vLLM cooperation = WALL-WITH-MECHANISM."
+}

@@ -1,0 +1,72 @@
+{
+  "parent_pid": 2035835,
+  "n_workers": 1,
+  "decode_worker": {
+    "pid": 2035928,
+    "is_parent": false,
+    "n_snapshots": 4,
+    "deltas": {
+      "cipher_rt_cublas_shim_calls": 11658,
+      "cipher_rt_matmul_calls_total": 11658,
+      "cipher_rt_matmul_calls_handled": 0,
+      "cipher_rt_matmul_calls_passthrough": 11658,
+      "cipher_rt_koopman_calls_total": 0,
+      "cipher_rt_koopman_calls_handled": 0,
+      "cipher_rt_koopman_calls_skipped": 0
+    },
+    "absolutes": {
+      "cipher_rt_cublas_shim_calls": 11658,
+      "cipher_rt_matmul_calls_total": 11658,
+      "cipher_rt_matmul_calls_handled": 0,
+      "cipher_rt_matmul_calls_passthrough": 11658,
+      "cipher_rt_koopman_calls_total": 0,
+      "cipher_rt_koopman_calls_handled": 0,
+      "cipher_rt_koopman_calls_skipped": 0
+    },
+    "first_tag": "install",
+    "last_tag": "atexit",
+    "duration_s": 11.126304149627686
+  },
+  "all_workers": [
+    {
+      "pid": 2035928,
+      "is_parent": false,
+      "n_snapshots": 4,
+      "deltas": {
+        "cipher_rt_cublas_shim_calls": 11658,
+        "cipher_rt_matmul_calls_total": 11658,
+        "cipher_rt_matmul_calls_handled": 0,
+        "cipher_rt_matmul_calls_passthrough": 11658,
+        "cipher_rt_koopman_calls_total": 0,
+        "cipher_rt_koopman_calls_handled": 0,
+        "cipher_rt_koopman_calls_skipped": 0
+      },
+      "absolutes": {
+        "cipher_rt_cublas_shim_calls": 11658,
+        "cipher_rt_matmul_calls_total": 11658,
+        "cipher_rt_matmul_calls_handled": 0,
+        "cipher_rt_matmul_calls_passthrough": 11658,
+        "cipher_rt_koopman_calls_total": 0,
+        "cipher_rt_koopman_calls_handled": 0,
+        "cipher_rt_koopman_calls_skipped": 0
+      },
+      "first_tag": "install",
+      "last_tag": "atexit",
+      "duration_s": 11.126304149627686
+    }
+  ],
+  "step_0_5_outcome": "a",
+  "layer_drop": "between matmul-dispatch and koopman g_calls_total increment (inside maybe_handle_koopman's pre-counter early-exits)",
+  "step_1_meaningful": false,
+  "rationale": "matmul-dispatch saw all calls (m_total=shim) but the Koopman actuator's maybe_handle returned PASSTHROUGH before its g_calls_total increment. The early-exits at cipher_rt_koopman_engine.cpp:98-111 are: g_enabled check, FP16-only dtype check (Atype/Btype/Ctype == CUDA_R_16F), degenerate-dim check, null-ptr check. Root cause is classifier eligibility (most likely the FP16-only dtype check filtering BF16 tensors \u2014 TinyLlama in vLLM defaults to bfloat16). Step 1 \u03b2-sweep is NOT meaningful on the substrate as-is; sweep classifier-eligibility (dtype gate) instead.",
+  "env": {
+    "LD_PRELOAD": "/home/ubuntu/cipher_rt_phase4/libcipher_rt.so",
+    "CUDA_INJECTION64_PATH": "",
+    "CIPHER_KOOPMAN": "1",
+    "CIPHER_KOOPMAN_OOD_THRESHOLD": "0.99"
+  },
+  "model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+  "n_tokens_requested": 128,
+  "decode_wall_s": 1.3689978449838236,
+  "decode_output_first_80": " and kind queen. She had a daughter named Lily, who was a beautiful and kind-hea"
+}

@@ -1,0 +1,819 @@
+"""CIPHER CP 5.1 — vLLM KV-cache buffer-ownership plugin (Option A).
+
+Registered under the ``vllm.general_plugins`` entry-point group, so vLLM's
+``load_general_plugins()`` runs ``register()`` in every process — including the
+EngineCore subprocess, which is where ``GPUModelRunner._allocate_kv_cache_tensors``
+actually executes.
+
+What it does: monkey-patches ``GPUModelRunner._allocate_kv_cache_tensors`` so the
+raw int8 KV-cache buffers are sourced from CIPHER's CUDA-VMM allocator
+(``cipher_kv_bridge.vmm_zeros``) instead of ``torch.zeros``. CIPHER then owns and
+page-tags the KV memory. vLLM's downstream ``_reshape_kv_cache_tensors`` is pure
+``.view()``/``as_strided`` and is unaffected.
+
+Coverage-immune: CIPHER *is* the buffer, so every attention kernel — eager,
+compiled, or cudagraph-replayed — reads/writes CIPHER memory. See
+``CP_5_1_STEP_2_VLLM_KV_PATH.md`` §(c) Option A.
+
+W7-9 Step 1 G10 (2026-05-23): also issues CIPHER_REGISTER_MODEL (ioctl NR 27,
+kmod 0.5.5+) on first hook invocation per engine, registering the model's
+``hf_config_hash`` and receiving a stable 128-bit ``model_uuid``. The uuid is
+cached at module scope; downstream actuators (Marlin in W10-12, KV-dedup in
+W10-12, Koopman in W13-14) will consume the uuid. Backward-compat: if the kmod
+predates 0.5.5 and returns ``-ENOSYS``, the uuid stays at MODEL_UNKNOWN (all
+zeros) and downstream model-keyed actuators treat MODEL_UNKNOWN as pass-through.
+
+Env gates:
+  CIPHER_KV_ALLOC       1|0   (default 1)  — master opt-out
+  CIPHER_KV_VA_POOL_GIB int   (default 80) — VA pool reservation (VA only,
+                                             no physical until first vmm_zeros)
+  CIPHER_TENANT_NUM     int   (default 0)  — tenant id stamped into page tags
+  CIPHER_RT_DIR         path  (default /home/ubuntu/cipher_rt_phase4) — holds
+                                             cipher_kv_bridge*.so
+  CIPHER_REGISTER_MODEL 1|0   (default 1)  — opt-out for the G10 ioctl call
+"""
+import ctypes
+import errno
+import fcntl
+import hashlib
+import json
+import os
+import sys
+import time
+
+_PREFIX = "[cipher-vllm-kv]"
+
+
+def _log(msg):
+    print(f"{_PREFIX} {msg}", file=sys.stderr, flush=True)
+
+
+def _enabled():
+    return os.environ.get("CIPHER_KV_ALLOC", "1") not in ("0", "off", "no", "")
+
+
+# cipher_kv_bridge.so lives in the cipher_rt_phase4 tree; put it on sys.path
+# at import time so the lazy import below resolves.
+_RT_DIR = os.environ.get("CIPHER_RT_DIR", "/home/ubuntu/cipher_rt_phase4")
+if _RT_DIR not in sys.path:
+    sys.path.insert(0, _RT_DIR)
+
+_TENANT = int(os.environ.get("CIPHER_TENANT_NUM", "0"))
+_bridge_ready = False
+
+# ---- W7-9 Step 1 G10: CIPHER_REGISTER_MODEL ioctl ABI mirror ----------------
+# Matches cipher_kmod/cipher_ioctl.h byte-for-byte. PATH_MAX=4096.
+_PATH_MAX = 4096
+_MAGIC = ord('C')
+_NONE, _WRITE, _READ = 0, 1, 2
+
+def _IOC(direction, nr, size):
+    return (direction << 30) | (size << 16) | (_MAGIC << 8) | nr
+
+# enum cipher_model_arch from cipher_ioctl.h
+_MODEL_ARCH_MISTRAL  = 1
+_MODEL_ARCH_QWEN     = 2
+_MODEL_ARCH_LLAMA    = 3
+_MODEL_ARCH_GPT_NEOX = 4
+_MODEL_ARCH_OTHER    = 255
+
+_MODEL_TYPE_TO_ARCH = {
+    "mistral": _MODEL_ARCH_MISTRAL,
+    "qwen2":   _MODEL_ARCH_QWEN,
+    "qwen":    _MODEL_ARCH_QWEN,
+    "llama":   _MODEL_ARCH_LLAMA,
+    "gpt_neox": _MODEL_ARCH_GPT_NEOX,
+    "gpt-neox": _MODEL_ARCH_GPT_NEOX,
+}
+
+
+class CipherRegisterModel(ctypes.Structure):
+    _fields_ = [
+        ("model_path",      ctypes.c_char  * _PATH_MAX),  # 4096
+        ("hf_config_hash",  ctypes.c_uint8 * 32),         # 32
+        ("model_arch",      ctypes.c_uint32),             # 4
+        ("model_uuid",      ctypes.c_uint8 * 16),         # 16
+        ("flags",           ctypes.c_uint32),             # 4
+        ("reserved",        ctypes.c_uint8 * 12),         # 12
+    ]
+
+
+_REGISTER_MODEL_IOCTL = _IOC(_READ | _WRITE, 27, ctypes.sizeof(CipherRegisterModel))
+
+_MODEL_UUID_UNKNOWN = bytes(16)   # sentinel — downstream actuators pass through
+_MODEL_UUID = _MODEL_UUID_UNKNOWN  # cached after first successful register_model()
+_MODEL_REGISTERED = False
+
+
+def _model_arch_from_hf_config(hf_config):
+    mt = getattr(hf_config, "model_type", "") or ""
+    return _MODEL_TYPE_TO_ARCH.get(str(mt).lower(), _MODEL_ARCH_OTHER)
+
+
+def _canonical_hf_config_hash(hf_config):
+    """sha256 over a deterministic JSON of hf_config's dimensional fields.
+
+    We hash only the architecture-determining fields so unrelated tweaks
+    (e.g., torch_dtype string casing) don't shift the uuid. This is the
+    stable identity used by downstream model-keyed actuators."""
+    keys = (
+        "model_type", "hidden_size", "num_hidden_layers",
+        "num_attention_heads", "num_key_value_heads", "head_dim",
+        "intermediate_size", "vocab_size", "max_position_embeddings",
+        "tie_word_embeddings", "torch_dtype",
+    )
+    fingerprint = {k: getattr(hf_config, k, None) for k in keys}
+    fingerprint = {k: (str(v) if v is not None else None) for k, v in fingerprint.items()}
+    payload = json.dumps(fingerprint, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(payload).digest()  # 32 bytes
+
+
+def _register_model_with_kmod(model_path, hf_config):
+    """Issue CIPHER_REGISTER_MODEL on a fresh /dev/cipher fd. Returns
+    16-byte uuid on success, or _MODEL_UUID_UNKNOWN on any failure (logs the
+    reason). Idempotent on the kmod side: same hf_config_hash always returns
+    the same uuid. Round-trip cost ~0.5 µs per the W7-9 Step 1 smoke."""
+    global _MODEL_UUID, _MODEL_REGISTERED
+    if os.environ.get("CIPHER_REGISTER_MODEL", "1") in ("0", "off", "no", ""):
+        _log("REGISTER_MODEL gate off — uuid stays MODEL_UNKNOWN")
+        return _MODEL_UUID_UNKNOWN
+
+    req = CipherRegisterModel()
+    path_bytes = (model_path or "").encode("utf-8", errors="replace")
+    path_bytes = path_bytes[: _PATH_MAX - 1]
+    ctypes.memmove(req.model_path, path_bytes, len(path_bytes))
+    digest = _canonical_hf_config_hash(hf_config)
+    ctypes.memmove(req.hf_config_hash, digest, 32)
+    req.model_arch = _model_arch_from_hf_config(hf_config)
+    req.flags = 0
+
+    try:
+        fd = os.open("/dev/cipher", os.O_RDWR)
+    except OSError as e:
+        _log(f"REGISTER_MODEL: open /dev/cipher failed ({e}); uuid stays MODEL_UNKNOWN")
+        return _MODEL_UUID_UNKNOWN
+    try:
+        try:
+            fcntl.ioctl(fd, _REGISTER_MODEL_IOCTL, req, True)
+        except OSError as e:
+            if e.errno == errno.ENOSYS:
+                _log("REGISTER_MODEL: kmod predates 0.5.5 (-ENOSYS); "
+                     "uuid stays MODEL_UNKNOWN; downstream actuators pass through")
+            else:
+                _log(f"REGISTER_MODEL: ioctl failed ({e}); uuid stays MODEL_UNKNOWN")
+            return _MODEL_UUID_UNKNOWN
+    finally:
+        os.close(fd)
+
+    uuid_bytes = bytes(req.model_uuid)
+    if uuid_bytes == _MODEL_UUID_UNKNOWN:
+        _log("REGISTER_MODEL: kmod returned all-zero uuid (unexpected); "
+             "treating as MODEL_UNKNOWN")
+        return _MODEL_UUID_UNKNOWN
+    _MODEL_UUID = uuid_bytes
+    _MODEL_REGISTERED = True
+    _log(f"REGISTER_MODEL OK: arch={req.model_arch} uuid={uuid_bytes.hex()} "
+         f"path={path_bytes.decode('utf-8', errors='replace')!r}")
+    return uuid_bytes
+
+
+def cipher_model_uuid():
+    """Public accessor — returns the 16-byte model_uuid (sentinel-zero if
+    REGISTER_MODEL has not landed yet on this process)."""
+    return _MODEL_UUID
+
+
+_GIB = 1 << 30
+_VA_POOL_HARDCODED_FALLBACK_GIB = 80
+
+
+def _model_param_count(hf_config):
+    """Approximate total parameter count from hf_config — rough but
+    sufficient for VA sizing where 20% slack is built in via headroom.
+    Matches the v1.2.3 §7 W6 G5 path-a estimator. Defensive on missing
+    fields; returns 0 if any of the required dimensions is absent so
+    callers fall back to the hardcoded default."""
+    try:
+        hidden = int(hf_config.hidden_size)
+        n_layer = int(hf_config.num_hidden_layers)
+        inter = int(getattr(hf_config, "intermediate_size", 4 * hidden))
+        vocab = int(getattr(hf_config, "vocab_size", 32000))
+    except (AttributeError, TypeError, ValueError):
+        return 0
+    # Transformer block: attn (4 * hidden^2) + mlp (3 * hidden * intermediate)
+    # plus embedding (vocab * hidden) and LN params (small; ignore).
+    per_block = 4 * hidden * hidden + 3 * hidden * inter
+    total = vocab * hidden + n_layer * per_block + vocab * hidden  # tied lm_head
+    return total
+
+
+def compute_va_gib(hf_config, max_model_len=2048, dtype_bytes=2,
+                   max_batch=1, quantization="none"):
+    """Per-model VA sizing per WEEK_6_G5_PATH_A_VERIFICATION.md §6.
+
+    Returns an integer GiB count to reserve for cipher_kv_bridge.init().
+    Defensive on missing hf_config fields (Phi-2, TinyLlama, older Llama
+    variants don't all expose head_dim or num_key_value_heads as direct
+    fields; falls back to standard MHA derivation per advisor 2026-05-23).
+
+    Args:
+      hf_config: HuggingFace AutoConfig instance for this model.
+      max_model_len: maximum context length (typically scheduler limit).
+      dtype_bytes: 2 for fp16/bf16, 4 for fp32; default 2.
+      max_batch: max concurrent requests this VA pool should hold KV for.
+      quantization: "none" (fp16 weights) or any quantized scheme name.
+
+    Falls back to _VA_POOL_HARDCODED_FALLBACK_GIB (80) if hf_config
+    doesn't expose enough fields to size confidently.
+    """
+    try:
+        n_layer = int(hf_config.num_hidden_layers)
+        hidden = int(hf_config.hidden_size)
+    except (AttributeError, TypeError, ValueError) as e:
+        _log(f"compute_va_gib: missing core hf_config field ({e}); "
+             f"falling back to {_VA_POOL_HARDCODED_FALLBACK_GIB} GiB")
+        return _VA_POOL_HARDCODED_FALLBACK_GIB
+
+    # head_dim: prefer direct field; else derive from hidden_size / n_heads.
+    n_attn_heads = int(getattr(hf_config, "num_attention_heads", 0))
+    head_dim = getattr(hf_config, "head_dim", None)
+    if not head_dim and n_attn_heads > 0:
+        head_dim = hidden // n_attn_heads
+    if not head_dim:
+        _log(f"compute_va_gib: cannot derive head_dim; fallback")
+        return _VA_POOL_HARDCODED_FALLBACK_GIB
+    head_dim = int(head_dim)
+
+    # num_key_value_heads: GQA-aware (modern). Fallback to n_attn_heads (MHA).
+    n_kv_heads = int(getattr(hf_config, "num_key_value_heads", n_attn_heads))
+    if n_kv_heads <= 0:
+        n_kv_heads = n_attn_heads
+    if n_kv_heads <= 0:
+        return _VA_POOL_HARDCODED_FALLBACK_GIB
+
+    # KV cache: 2 (K + V) × n_layers × n_kv_heads × head_dim × max_len × dtype × batch
+    kv_b = 2 * n_layer * n_kv_heads * head_dim * max_model_len * dtype_bytes * max_batch
+
+    # Weights: fp16 = 2 B/param; INT4 ≈ 0.5 B/param + per-group scales (g=128)
+    p = _model_param_count(hf_config)
+    if p == 0:
+        return _VA_POOL_HARDCODED_FALLBACK_GIB
+    if quantization == "none":
+        wt_b = p * 2
+    else:
+        wt_b = p * 0.5 + (p / 128) * 2
+
+    # Headroom: max(0.5 GiB, 10% of KV+weights)
+    headroom_b = max(0.5 * _GIB, 0.1 * (kv_b + wt_b))
+
+    total_b = kv_b + wt_b + headroom_b
+    gib = int((total_b + _GIB - 1) // _GIB)
+    return max(gib, 1)
+
+
+def _ensure_bridge_init(hf_config=None, max_model_len=2048, dtype_bytes=2,
+                       max_batch=1, quantization="none"):
+    """Reserve the CIPHER VMM VA pool. VA-reservation only — no physical GPU
+    memory is mapped until the first vmm_zeros, so this is safe to run after
+    vLLM's memory profiler (which has already sized num_gpu_blocks by now).
+
+    W10-12 Step 3 G5: VA size is now per-model computed from hf_config when
+    available; env override CIPHER_KV_VA_POOL_GIB still wins for ops who
+    pin a specific value. Falls back to the legacy 80 GiB if hf_config is
+    None or the per-model formula bails."""
+    global _bridge_ready
+    if _bridge_ready:
+        return
+    import cipher_kv_bridge  # noqa: E402
+    env_override = os.environ.get("CIPHER_KV_VA_POOL_GIB")
+    if env_override is not None:
+        va_gib = int(env_override)
+        va_src = "env CIPHER_KV_VA_POOL_GIB"
+    elif hf_config is not None:
+        va_gib = compute_va_gib(hf_config, max_model_len, dtype_bytes,
+                                max_batch, quantization)
+        va_src = "compute_va_gib(hf_config)"
+    else:
+        va_gib = _VA_POOL_HARDCODED_FALLBACK_GIB
+        va_src = "fallback (no hf_config)"
+    if not cipher_kv_bridge.init(va_gib * (1 << 30)):
+        raise RuntimeError("cipher_kv_bridge.init failed")
+    _log(f"VMM allocator init: VA pool {va_gib} GiB via {va_src} (tenant={_TENANT})")
+    _bridge_ready = True
+
+
+def _cipher_allocate_kv_cache_tensors(self, kv_cache_config):
+    """Drop-in replacement for GPUModelRunner._allocate_kv_cache_tensors.
+
+    Faithful to vLLM 0.20.2's original (gpu_model_runner.py:6522) — same buffer
+    sizing, same shared_by aliasing, same layer-name assertion — except the raw
+    int8 buffer comes from cipher_kv_bridge.vmm_zeros instead of torch.zeros.
+    """
+    import cipher_kv_bridge
+
+    # W7-9 Step 1 G10: register the model's identity with the kmod before
+    # the first vmm_zeros. Idempotent on the kmod side (same hf_config_hash
+    # → same uuid). Result cached at module scope for downstream actuators.
+    if not _MODEL_REGISTERED:
+        try:
+            model_config = getattr(self, "model_config", None)
+            hf_config = getattr(model_config, "hf_config", None) if model_config else None
+            model_path = getattr(model_config, "model", None) if model_config else None
+            if hf_config is not None:
+                _register_model_with_kmod(model_path, hf_config)
+            else:
+                _log("REGISTER_MODEL skipped: self.model_config.hf_config missing; "
+                     "uuid stays MODEL_UNKNOWN")
+        except Exception as e:  # pragma: no cover — defensive
+            _log(f"REGISTER_MODEL skipped via exception ({e}); uuid stays MODEL_UNKNOWN")
+
+    # W7-9 Step 5 — register the worker's named CUDA streams with the kmod
+    # so cipher_rt_phase4 can resolve (tgid, stream) -> tenant_id in the
+    # cuBLAS dispatch hot path.
+    try:
+        _register_streams_with_kmod()
+    except Exception as e:  # pragma: no cover
+        _log(f"REGISTER_STREAMS skipped via exception ({e}); tenant=0 fallback")
+
+    # W10-12 Step 3 G5: per-model VA sizing via compute_va_gib(hf_config).
+    # Pull max_model_len + dtype + max_batch + quantization from model_config
+    # / scheduler_config; defensive on missing attrs.
+    _hf = None
+    _max_len = 2048
+    _dtype_bytes = 2
+    _max_batch = 1
+    _quant = "none"
+    try:
+        mc = getattr(self, "model_config", None)
+        if mc is not None:
+            _hf = getattr(mc, "hf_config", None)
+            _max_len = int(getattr(mc, "max_model_len", _max_len) or _max_len)
+            # dtype: prefer model_config.dtype (torch dtype); fall back to 2.
+            _dt = getattr(mc, "dtype", None)
+            if _dt is not None and hasattr(_dt, "itemsize"):
+                _dtype_bytes = int(_dt.itemsize)
+            _quant = str(getattr(mc, "quantization", None) or "none")
+        sc = getattr(self, "scheduler_config", None)
+        if sc is not None:
+            _max_batch = int(getattr(sc, "max_num_seqs",
+                                     getattr(sc, "max_num_batched_tokens", 1)) or 1)
+    except Exception as e:  # pragma: no cover
+        _log(f"compute_va_gib config extraction failed ({e}); using defaults")
+    _ensure_bridge_init(hf_config=_hf, max_model_len=_max_len,
+                       dtype_bytes=_dtype_bytes, max_batch=_max_batch,
+                       quantization=_quant)
+
+    # vmm_zeros allocates on cuda:0. CP 5.1 baseline is single-GPU; fail loud
+    # rather than silently place KV on the wrong device under TP.
+    dev_index = getattr(self.device, "index", 0) or 0
+    assert dev_index == 0, (
+        f"{_PREFIX} CIPHER KV hook supports cuda:0 only; got {self.device}. "
+        "Multi-GPU TP needs a device arg threaded through vmm_zeros (Step 3+).")
+
+    kv_cache_raw_tensors = {}
+    for idx, kv_cache_tensor in enumerate(kv_cache_config.kv_cache_tensors):
+        nbytes = int(kv_cache_tensor.size)
+        # role=2: vLLM buffers are per-layer, K/V interleaved by stride — there
+        # is no single K-or-V role (known-unknown #1, page-tag granularity).
+        tensor = cipher_kv_bridge.vmm_zeros(
+            [nbytes], 1, "int8", _TENANT, 0, idx & 0xFFFF, 2)
+        for layer_name in kv_cache_tensor.shared_by:
+            kv_cache_raw_tensors[layer_name] = tensor
+
+    layer_names = set()
+    for group in kv_cache_config.kv_cache_groups:
+        for layer_name in group.layer_names:
+            if layer_name in self.runner_only_attn_layers:
+                continue
+            layer_names.add(layer_name)
+    assert layer_names == set(kv_cache_raw_tensors.keys()), (
+        f"{_PREFIX} some layers are not correctly initialized")
+
+    st = cipher_kv_bridge.get_stats()
+    _log(f"KV buffers owned by CIPHER VMM: {len(kv_cache_config.kv_cache_tensors)} "
+         f"tensor(s), slabs_created={st['slabs_created']}, "
+         f"pages_mapped={st['pages_mapped']}, "
+         f"resident={st['pages_resident'] * st['page_size'] / (1 << 30):.2f} GiB")
+    return kv_cache_raw_tensors
+
+
+_STREAMS_REGISTERED = False
+_CIPHER_STREAM_MAX = 16
+_REGISTER_STREAMS_IOCTL = _IOC(_WRITE, 29,
+    ctypes.sizeof(ctypes.c_uint32) * 2 +
+    ctypes.sizeof(ctypes.c_uint64) * _CIPHER_STREAM_MAX)
+
+
+class CipherRegisterStreams(ctypes.Structure):
+    _fields_ = [
+        ("tenant_id",      ctypes.c_uint32),
+        ("num_streams",    ctypes.c_uint32),
+        ("stream_handles", ctypes.c_uint64 * _CIPHER_STREAM_MAX),
+    ]
+
+
+def _register_streams_with_kmod():
+    """W7-9 Step 5 — enumerate owned named CUDA streams and submit them to
+    the kmod via CIPHER_REGISTER_STREAMS (NR 29). Each stream gets a
+    (current_tgid, handle) -> tenant_id mapping in the kmod view-slot table,
+    which cipher_rt_phase4 reads lock-free in the cuBLAS hot path to resolve
+    the current-launch tenant_id.
+
+    Idempotent: re-registering the same (tgid, handle, tenant_id) tuple is
+    a no-op generation bump. Silent no-op on missing /dev/cipher or kmod
+    predates 0.6.5 (-ENOSYS). Env-gate: CIPHER_REGISTER_STREAMS=0 disables."""
+    global _STREAMS_REGISTERED
+    if _STREAMS_REGISTERED:
+        return
+    if os.environ.get("CIPHER_REGISTER_STREAMS", "1") in ("0", "off", "no", ""):
+        _log("REGISTER_STREAMS gate off")
+        _STREAMS_REGISTERED = True
+        return
+    try:
+        import torch
+    except Exception:
+        return
+    if not torch.cuda.is_available():
+        return
+    handles = []
+    try:
+        # Capture default stream + a few named streams typical of vLLM workers.
+        default = torch.cuda.current_stream()
+        if default is not None:
+            h = default.cuda_stream
+            if h:
+                handles.append(int(h))
+    except Exception as e:
+        _log(f"REGISTER_STREAMS enumerate failed ({e})")
+    # If no named streams resolved, the registry rejects num_streams=0 with
+    # -EINVAL. The hot-path then falls back to tenant_id=0 (single-tenant);
+    # operationally identical to the Step 4 baseline.
+    if not handles:
+        _log("REGISTER_STREAMS no named streams enumerated; default tenant=0 fallback")
+        _STREAMS_REGISTERED = True
+        return
+    req = CipherRegisterStreams()
+    req.tenant_id   = _TENANT
+    req.num_streams = min(len(handles), _CIPHER_STREAM_MAX)
+    for i, h in enumerate(handles[:req.num_streams]):
+        req.stream_handles[i] = h
+    try:
+        fd = os.open("/dev/cipher", os.O_RDWR)
+    except OSError as e:
+        _log(f"REGISTER_STREAMS open /dev/cipher failed ({e})")
+        _STREAMS_REGISTERED = True
+        return
+    try:
+        try:
+            fcntl.ioctl(fd, _REGISTER_STREAMS_IOCTL, req)
+            _log(f"REGISTER_STREAMS OK: tenant_id={_TENANT} num={req.num_streams}")
+            _apply_l2_persist_for_tenant(handles[:req.num_streams])  # W12 Step 6 D3
+        except OSError as e:
+            _log(f"REGISTER_STREAMS ioctl failed ({e}); fallback tenant=0")
+    finally:
+        os.close(fd)
+    _STREAMS_REGISTERED = True
+
+
+# ---- W12 Step 6 D3 backfill: L2 persistence per-tenant-stream apply ----
+_L2_LIB = None
+_L2_PERSIST_ENABLED = None
+
+
+def _l2_enabled():
+    """CIPHER_L2_PERSIST=1 default (active); set to 0/off/no to disable."""
+    global _L2_PERSIST_ENABLED
+    if _L2_PERSIST_ENABLED is not None:
+        return _L2_PERSIST_ENABLED
+    s = os.environ.get("CIPHER_L2_PERSIST", "1")
+    _L2_PERSIST_ENABLED = s not in ("0", "off", "no", "")
+    return _L2_PERSIST_ENABLED
+
+
+def _l2_lib():
+    """Lazy-resolve libcipher_rt.so for ctypes calls into the L2 primitive.
+    Tries the standard ld.so search (works when CUDA_INJECTION64_PATH has
+    loaded libcipher_rt by soname) then falls back to the absolute path
+    (works under test harness that loads via path).
+    Returns False permanently if the library can't be loaded; subsequent
+    calls are silent no-ops."""
+    global _L2_LIB
+    if _L2_LIB is not None:
+        return _L2_LIB
+    lib = None
+    for candidate in ("libcipher_rt.so",
+                     "/home/ubuntu/cipher_rt_phase4/libcipher_rt.so"):
+        try:
+            lib = ctypes.CDLL(candidate, mode=ctypes.RTLD_GLOBAL)
+            break
+        except OSError:
+            continue
+    if lib is None:
+        _log(f"L2 persist lib not resolvable; L2 wire-up silently disabled")
+        _L2_LIB = False
+        return _L2_LIB
+    try:
+        lib.cipher_l2_persist_get_state.restype = ctypes.c_void_p
+        lib.cipher_l2_persist_apply_for_tenant.argtypes = [
+            ctypes.c_void_p, ctypes.c_uint32, ctypes.c_void_p]
+        lib.cipher_l2_persist_apply_for_tenant.restype = ctypes.c_int
+        _L2_LIB = lib
+    except Exception as e:
+        _log(f"L2 persist symbols not bindable ({e}); L2 wire-up disabled")
+        _L2_LIB = False
+    return _L2_LIB
+
+
+def _apply_l2_persist_for_tenant(handles):
+    """Apply the L2 persistence policy to each registered stream for this
+    tenant. cipher_l2_persist_get_state returns NULL until cipher_runtime
+    init has run; in that case skip silently (policy applies on first
+    weight load via cipher_l2_persist_apply called from cipher_runtime).
+    Per-stream apply lets new tenant streams from W7-9 Step 5 honor the
+    persisting policy alongside the streams registered at init time."""
+    if not _l2_enabled():
+        return
+    lib = _l2_lib()
+    if not lib:
+        return
+    state_ptr = lib.cipher_l2_persist_get_state()
+    if not state_ptr:
+        _log("L2 apply skipped: no L2 state initialized (no tensors registered yet)")
+        return
+    applied = 0
+    for h in handles:
+        try:
+            rc = lib.cipher_l2_persist_apply_for_tenant(
+                ctypes.c_void_p(state_ptr), ctypes.c_uint32(_TENANT),
+                ctypes.c_void_p(int(h)))
+            if rc == 0:
+                applied += 1
+            else:
+                _log(f"L2 apply failed for stream {int(h):#x}: rc={rc}")
+        except Exception as e:  # pragma: no cover
+            _log(f"L2 apply exception ({e}); skipping")
+    _log(f"L2 persist applied for tenant={_TENANT} on N={applied}/{len(handles)} streams")
+
+
+def _register_offload():
+    """Install the CP 5.2 KV offload hooks (snapshot-on-preempt /
+    restore-on-resume) so the whole CIPHER substrate composes under this one
+    vLLM entry point. Independently env-gated by CIPHER_KV_OFFLOAD."""
+    try:
+        import cipher_kv_offload
+        cipher_kv_offload.register()
+    except Exception as e:  # pragma: no cover
+        _log(f"CP 5.2 offload register failed ({e}); offload NOT installed")
+
+
+# ---- W7-9 Step 4: per-token-boundary AUDIT (Option β per scope-lock §6) ----
+#
+# Each call to GPUModelRunner.execute_model is one decode step → one token for
+# the running sequence (B=1) or one token-per-sequence in batch. We emit one
+# CIPHER_AUDIT_RECORD ioctl per call via libcipher_rt's
+# cipher_rt_commit_token_boundary helper. The ioctl latency is ~1.07 µs +
+# HMAC ~0.3 µs (G6 measurement); at typical 80-200 tok/s this is ≤ 0.04% of
+# step latency.
+_TOKEN_HOOK_INSTALLED = False
+_LIBCIPHER_HANDLE = None
+
+
+def _libcipher_handle():
+    """Resolve libcipher_rt.so via ctypes once, cache. Returns the handle or
+    None if libcipher_rt is not loaded into the process (CIPHER injection
+    disabled). Token-boundary AUDIT is then a silent no-op."""
+    global _LIBCIPHER_HANDLE
+    if _LIBCIPHER_HANDLE is not None:
+        return _LIBCIPHER_HANDLE
+    try:
+        h = ctypes.CDLL("libcipher_rt.so", mode=ctypes.RTLD_GLOBAL)
+        h.cipher_rt_commit_token_boundary.argtypes = [
+            ctypes.c_uint32, ctypes.c_uint64]
+        h.cipher_rt_commit_token_boundary.restype = ctypes.c_int
+        _LIBCIPHER_HANDLE = h
+        return h
+    except Exception as e:  # pragma: no cover
+        _log(f"libcipher_rt.so not resolvable for token-boundary AUDIT "
+             f"({e}); AUDIT silently disabled")
+        _LIBCIPHER_HANDLE = False
+        return None
+
+
+_TOKEN_COUNTER = 0
+
+
+def _cipher_execute_model_wrap(self, *args, **kwargs):
+    """Wrap GPUModelRunner.execute_model. One AUDIT record per call."""
+    global _TOKEN_COUNTER
+    out = _cipher_execute_model_wrap._cipher_orig(self, *args, **kwargs)
+    h = _libcipher_handle()
+    if h:
+        try:
+            h.cipher_rt_commit_token_boundary(0, _TOKEN_COUNTER)
+        except Exception:
+            pass
+    _TOKEN_COUNTER += 1
+    return out
+
+
+def _register_token_boundary_audit():
+    """W7-9 Step 4 — install per-token AUDIT hook on
+    GPUModelRunner.execute_model. Env-gated by CIPHER_TOKEN_AUDIT (default 1
+    when KV alloc hook is enabled, else 0)."""
+    global _TOKEN_HOOK_INSTALLED
+    if os.environ.get("CIPHER_TOKEN_AUDIT", "1") in ("0", "off", "no", ""):
+        _log("CIPHER_TOKEN_AUDIT disabled — per-token AUDIT NOT installed")
+        return
+    if _TOKEN_HOOK_INSTALLED:
+        return
+    try:
+        from vllm.v1.worker.gpu_model_runner import GPUModelRunner
+    except Exception as e:  # pragma: no cover
+        _log(f"could not import GPUModelRunner for AUDIT hook ({e})")
+        return
+    current = getattr(GPUModelRunner, "execute_model", None)
+    if current is None:
+        _log("GPUModelRunner.execute_model not present; AUDIT NOT installed")
+        return
+    if getattr(current, "_cipher_audit_hooked", False):
+        return
+    _cipher_execute_model_wrap._cipher_audit_hooked = True
+    _cipher_execute_model_wrap._cipher_orig = current
+    GPUModelRunner.execute_model = _cipher_execute_model_wrap
+    _TOKEN_HOOK_INSTALLED = True
+    _log("Step 4 per-token AUDIT hook installed on execute_model")
+
+
+_GOT_PATCH_INSTALLED = False
+
+def _install_cipher_rt_got_patches():
+    """W14-followup Step 0 — install libcipher_rt.so GOT patches in the current
+    process (typically the vLLM V1 EngineCore worker subprocess).
+
+    vLLM V1 spawns the worker as a fresh process which inherits the parent's
+    LD_PRELOAD'd libcipher_rt.so but never runs InitializeInjection2(). Without
+    this call, the worker's libcublas/SDPA GOT slots are never patched and
+    every decode GEMM runs unintercepted — substrate measures 0 handled even
+    when forced-fire (option-2 prior null-measurement attempt 2026-05-24).
+
+    Ordering: the GOT patcher in libcipher_rt walks dl_iterate_phdr at call
+    time and does NOT re-trigger on later dlopens. So libcublas must already be
+    loaded before InitializeInjection2 runs. We force-dlopen the candidate
+    SONAMEs first to make this independent of vLLM's lazy CUDA-init timing.
+
+    Idempotent: InitializeInjection2 is pthread_once-guarded inside
+    libcipher_rt; calling twice is a no-op. We also guard with a module-level
+    flag because load_general_plugins() can run more than once per process.
+
+    No-op if libcipher_rt.so cannot be loaded (substrate not deployed) — vLLM
+    is not crashed; downstream KV/offload/AUDIT hooks log their own absence.
+    """
+    global _GOT_PATCH_INSTALLED
+    if _GOT_PATCH_INSTALLED:
+        return
+    try:
+        for libcublas in ("libcublas.so.12", "libcublas.so.11", "libcublas.so"):
+            try:
+                ctypes.CDLL(libcublas, mode=ctypes.RTLD_GLOBAL)
+                break
+            except OSError:
+                continue
+        for libcudnn in ("libcudnn.so.9", "libcudnn.so.8", "libcudnn.so"):
+            try:
+                ctypes.CDLL(libcudnn, mode=ctypes.RTLD_GLOBAL)
+                break
+            except OSError:
+                continue
+        rt = None
+        for candidate in ("libcipher_rt.so",
+                          "/home/ubuntu/cipher_rt_phase4/libcipher_rt.so"):
+            try:
+                rt = ctypes.CDLL(candidate, mode=ctypes.RTLD_GLOBAL)
+                break
+            except OSError:
+                continue
+        if rt is None:
+            _log("libcipher_rt.so not resolvable; worker GOT patches NOT installed "
+                 "(substrate will not see worker GEMMs — option-2 Step 0 null path)")
+            return
+        rt.InitializeInjection2.restype = ctypes.c_int
+        rt.InitializeInjection2.argtypes = []
+        rc = rt.InitializeInjection2()
+        _GOT_PATCH_INSTALLED = True
+        _log(f"InitializeInjection2 returned {rc} (vLLM V1 worker GOT patches installed "
+             f"pid={os.getpid()})")
+    except Exception as e:  # pragma: no cover — defensive; never crash vLLM
+        _log(f"InitializeInjection2 path raised ({e}); worker GOT patches NOT installed")
+
+
+def _install_counter_dump_for_verification():
+    """W14-followup Step 0 verification gate scaffolding.
+
+    Env-gated: if CIPHER_VLLM_COUNTER_DUMP_PATH is set, installs a
+    SIGUSR1 handler in this process (typically the worker subprocess) that
+    dumps libcipher_rt counter values to
+        <CIPHER_VLLM_COUNTER_DUMP_PATH>/worker_<pid>.json
+    Also writes the file once on install and once on atexit so the gate has
+    pre/post snapshots without needing precise SIGUSR1 timing.
+
+    Zero production overhead when env var is unset.
+
+    Removed (or env-gated) after Step 0 verification gates close.
+    """
+    dump_path = os.environ.get("CIPHER_VLLM_COUNTER_DUMP_PATH")
+    if not dump_path:
+        return
+    try:
+        import signal
+        import atexit
+        rt = None
+        for candidate in ("libcipher_rt.so",
+                          "/home/ubuntu/cipher_rt_phase4/libcipher_rt.so"):
+            try:
+                rt = ctypes.CDLL(candidate, mode=ctypes.RTLD_GLOBAL)
+                break
+            except OSError:
+                continue
+        if rt is None:
+            _log(f"counter dump: libcipher_rt.so not loadable (tried SONAME + absolute); skipping")
+            return
+        # W14-followup Step 0.5: add matmul-dispatch counters so the dump
+        # captures the layer BETWEEN cublas_shim and koopman engine — needed
+        # to localize which layer drops the call when koopman_calls_total
+        # stays at 0 (Step 0 finding). matmul counters already exist as
+        # exported C symbols in libcipher_rt; this is plugin-dump-only.
+        for fname in ("cipher_rt_cublas_shim_calls",
+                      "cipher_rt_matmul_calls_total",
+                      "cipher_rt_matmul_calls_handled",
+                      "cipher_rt_matmul_calls_passthrough",
+                      "cipher_rt_koopman_calls_total",
+                      "cipher_rt_koopman_calls_handled",
+                      "cipher_rt_koopman_calls_skipped"):
+            fn = getattr(rt, fname, None)
+            if fn is None:
+                continue
+            fn.restype = ctypes.c_uint64
+            fn.argtypes = []
+        os.makedirs(dump_path, exist_ok=True)
+        out_path = os.path.join(dump_path, f"worker_{os.getpid()}.json")
+        def _snapshot(tag):
+            snap = {"tag": tag, "pid": os.getpid(), "time": time.time()}
+            for fname in ("cipher_rt_cublas_shim_calls",
+                          "cipher_rt_matmul_calls_total",
+                          "cipher_rt_matmul_calls_handled",
+                          "cipher_rt_matmul_calls_passthrough",
+                          "cipher_rt_koopman_calls_total",
+                          "cipher_rt_koopman_calls_handled",
+                          "cipher_rt_koopman_calls_skipped"):
+                fn = getattr(rt, fname, None)
+                snap[fname] = int(fn()) if fn else None
+            try:
+                existing = json.load(open(out_path)) if os.path.exists(out_path) else {"snapshots": []}
+            except Exception:
+                existing = {"snapshots": []}
+            existing.setdefault("snapshots", []).append(snap)
+            with open(out_path, "w") as f:
+                json.dump(existing, f)
+        _snapshot("install")
+        signal.signal(signal.SIGUSR1, lambda *a: _snapshot("sigusr1"))
+        atexit.register(lambda: _snapshot("atexit"))
+        _log(f"counter dump installed at {out_path} (SIGUSR1 + atexit + install snapshots)")
+    except Exception as e:  # pragma: no cover — defensive
+        _log(f"counter dump install failed: {e}")
+
+
+def register():
+    """vLLM general-plugin entry point. Installs the CP 5.1 KV buffer hook and
+    the CP 5.2 offload hooks. Also installs the W14-followup Step 0 worker GOT
+    patches (libcipher_rt InitializeInjection2) at the top so the substrate
+    sees cublasGemmEx in the EngineCore subprocess."""
+    # W14-followup Step 0: belt-and-suspenders install of libcipher_rt GOT
+    # patches in this process. vLLM (and torch, and libcublas) are already
+    # imported by the time load_general_plugins() runs register(); we don't
+    # own that ordering. What this DOES guarantee is that — under LD_PRELOAD
+    # without CUDA_INJECTION64_PATH (the Goal 5 deployment mode) — the worker
+    # subprocess gets the GOT patches installed, which the CUDA driver
+    # otherwise auto-invokes only when CUDA_INJECTION64_PATH is set.
+    _install_cipher_rt_got_patches()
+    _install_counter_dump_for_verification()
+    if not _enabled():
+        _log("disabled via CIPHER_KV_ALLOC — vLLM uses its native torch.zeros KV")
+        _register_offload()  # offload is independent of buffer ownership
+        return
+    try:
+        from vllm.v1.worker.gpu_model_runner import GPUModelRunner
+    except Exception as e:  # pragma: no cover
+        _log(f"could not import GPUModelRunner ({e}); hook NOT installed")
+        return
+
+    current = GPUModelRunner._allocate_kv_cache_tensors
+    if getattr(current, "_cipher_hooked", False):
+        _register_offload()
+        _register_token_boundary_audit()
+        return  # idempotent — load_general_plugins may run more than once
+    _cipher_allocate_kv_cache_tensors._cipher_hooked = True
+    _cipher_allocate_kv_cache_tensors._cipher_orig = current
+    GPUModelRunner._allocate_kv_cache_tensors = _cipher_allocate_kv_cache_tensors
+    _log("hook installed on GPUModelRunner._allocate_kv_cache_tensors (Option A)")
+    _register_token_boundary_audit()
+    _register_offload()

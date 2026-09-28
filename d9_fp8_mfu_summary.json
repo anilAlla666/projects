@@ -1,0 +1,15 @@
+{
+  "regime": "Mistral-7B B=64 S=512 forward, sdpa, CUDA_INJECTION64_PATH, 700W (clock floats; -lgc would not hold on this driver)",
+  "fixed_700W": {
+    "bf16":        {"fwd_ms":938.67,"TFLOPS":510,"MFU_vs989":51.6,"clk":1530,"watts":698},
+    "fp8_percall": {"fwd_ms":754.03,"TFLOPS":635,"MFU_vs989":64.2,"clk":1935,"watts":680},
+    "fp8_shared":  {"fwd_ms":710.32,"TFLOPS":674,"MFU_vs989":68.2,"clk":1890,"watts":684},
+    "fp8_shared_vs_bf16_wallclock":"1.32x (mostly DVFS clock headroom at fixed power)"
+  },
+  "clock_normalized_to_1530": {
+    "fp8_percall_vs_bf16":"0.98x (parity/slightly slower - per-call quant cancels GEMM win)",
+    "fp8_shared_vs_bf16":"1.07x (shared quant recovers modest compute win)"
+  },
+  "fp8_gemm_only_microbench":"1.7-2.0x bf16 (d9fp8_timing.cu)",
+  "binding_constraint":"non-GEMM forward overhead + per-call activation quant; torch HF forward NOT GEMM-bound like vLLM prefill"
+}

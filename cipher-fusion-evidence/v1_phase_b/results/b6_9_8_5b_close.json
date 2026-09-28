@@ -1,0 +1,117 @@
+{
+  "campaign": "V1 Phase B B.6''.9.8.5b - PyTorch CUDAGraph capture-time substitution via cuStreamGetCaptureInfo (env-gated, partial close)",
+  "date": "2026-05-27",
+  "purpose": "Close the PyTorch-capture-substitution gap surfaced at B.6''.9.8.5. cuLaunchKernel hook extended with cuStreamGetCaptureInfo detection so capture-time substitution can intercept on the PyTorch path (which bypasses explicit cuGraphAddKernelNode).",
+  "anchors_at_entry": {
+    "cipher_rt_phase4": "a4776f2 tag v1-substrate-may13-port-graph-capture-substitution",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca UNCHANGED on pod",
+    "build_cuda13_may13_md5_prior": "dfbe5d348d31b9ff9dbc65755cd22457"
+  },
+  "section_step1_implementation": {
+    "files_modified": [
+      "src/may13_intercept/cipher_intercept_cudart.cpp — cuStreamGetCaptureInfo resolver + cipher_rt_capture_check_and_substitute helper + insertions at 4 launch shim call sites (cuLaunchKernel, cuLaunchKernel_ptsz, cuLaunchKernelEx, cuLaunchKernelEx_ptsz)"
+    ],
+    "files_unchanged": [
+      "cipher_rt_intercept.h — no API change (counters already exposed at .8.5)",
+      "cipher_inject.c — no init change",
+      "Makefile — no build rule change"
+    ],
+    "new_resolver": "cuStreamGetCaptureInfo_v2 (preferred) with fallback to cuStreamGetCaptureInfo; resolved via dlsym(libcuda.so.1)",
+    "helper_logic": [
+      "Env gate: CIPHER_GRAPH_CAPTURE_DETECT must be set to '1' (or any non-'0') to enable the path",
+      "Fast path early-outs: env off OR no actuator wired OR no capture info resolver → return f unchanged",
+      "Defense-in-depth bail on may13's own tls_shape_valid/tls_launch_valid (limited efficacy; see cross-TU finding)",
+      "cuStreamGetCaptureInfo call → bail unless CU_STREAM_CAPTURE_STATUS_ACTIVE (=1)",
+      "When capturing: increment cipher_rt_graph_add_kernel_calls, invoke cipher_rt_graph_substitute_decide weak hook, if non-null substitute returned then increment cipher_rt_graph_node_substitutions and return substitute"
+    ]
+  },
+  "section_step2_counter_parity_eager_env_off": {
+    "build_cuda13_may13_md5_new": "9c54d44d4dd35def563c8d58a15f798e",
+    "harness": "cipher_graph_audit.py eager (CIPHER_AUDIT_EAGER=1; no CIPHER_GRAPH_CAPTURE_DETECT; no test actuator)",
+    "phase4_counter_table": [
+      {"counter": "cipher_rt_smp_total_launches",     "baseline_b6_9_8_5": 23318, "measured": 23318, "verdict": "EXACT"},
+      {"counter": "cipher_rt_smp_small_launches",     "baseline_b6_9_8_5": 16810, "measured": 16810, "verdict": "EXACT"},
+      {"counter": "cipher_rt_matmul_calls_total",     "baseline_b6_9_8_5": 5607,  "measured": 5607,  "verdict": "EXACT"},
+      {"counter": "cipher_rt_matmul_calls_handled",   "baseline_b6_9_8_5": 0,     "measured": 0,     "verdict": "EXACT"},
+      {"counter": "cipher_rt_matmul_calls_passthrough","baseline_b6_9_8_5":5607, "measured": 5607,  "verdict": "EXACT"},
+      {"counter": "cipher_rt_classify_calls_total",   "baseline_b6_9_8_5": 23318, "measured": 23318, "verdict": "EXACT"},
+      {"counter": "cipher_rt_attn_calls_total",       "baseline_b6_9_8_5": 0,     "measured": 0,     "verdict": "EXACT"},
+      {"counter": "cipher_rt_attn_tramp_calls",       "baseline_b6_9_8_5": 0,     "measured": 0,     "verdict": "EXACT"},
+      {"counter": "cipher_rt_cublas_shim_calls",      "baseline_b6_9_8_5": 5607,  "measured": 5607,  "verdict": "EXACT"},
+      {"counter": "cipher_rt_cublaslt_shim_calls",    "baseline_b6_9_8_5": 0,     "measured": 0,     "verdict": "EXACT"},
+      {"counter": "cipher_rt_cublaslt_variants_aggregate","baseline_b6_9_8_5":0,"measured": 0,     "verdict": "EXACT"},
+      {"counter": "cipher_rt_dlsym_intercepts",       "baseline_b6_9_8_5": 0,     "measured": 0,     "verdict": "EXACT"}
+    ],
+    "verdict": "12/12 EXACT — default (env off) path has zero overhead and zero behavior change vs .8.5"
+  },
+  "section_step3_env_on_path_TEST_AND_FAILURE": {
+    "harness": "cipher_graph_full_probe.py + LD_PRELOAD test actuator (libcipher_test_substitute.so returns NULL always) + CIPHER_GRAPH_CAPTURE_DETECT=1",
+    "first_attempt_no_segv_guard": {
+      "outcome": "SEGFAULT during inference",
+      "stack_trace": "cuStreamGetCaptureInfo_v2 < cuLaunchKernelEx < cublasLtHSHMatmul < cublasGemmEx < cipher_rt_matmul_dispatch < cipher_rt_cublasGemmEx_impl < at::cuda::blas::gemm_internal_cublas_half_helper",
+      "root_cause": "cuStreamGetCaptureInfo SEGVs when invoked from inside cuBLAS-internal cuLaunchKernelEx during cublasLtHSHMatmul fp16 GEMM dispatch. Likely cuBLAS-internal stream state is incompatible with introspection from within the launch hot path."
+    },
+    "second_attempt_with_segv_guard": {
+      "outcome": "STILL SEGFAULTS",
+      "root_cause_deeper": "tls_shape_valid + tls_launch_valid are file-static __thread variables in may13_intercept_cudart.cpp TU. The OUTER cuBLAS shim (cipher_rt_cublas_shim.c) lives in a DIFFERENT translation unit and CANNOT set may13's file-static TLS. The cipher_rt_phase4 canonical cuBLAS shim path therefore doesn't trigger may13's local TLS markers; the SEGV-guard never fires for cipher_rt_phase4-routed cuBLAS calls.",
+      "may13_local_cuBLAS_shim": "would set these TLS markers but was DROPPED from g_patches[] at .8.1 to avoid conflict with cipher_rt_phase4 canonical shim. The TLS markers thus stay 0 for all cuBLAS-internal launches."
+    },
+    "third_attempt_env_gated_default_off": {
+      "outcome": "Eager mode 12/12 EXACT (env off; helper short-circuits before cuStreamGetCaptureInfo)",
+      "env_on_outcome_under_pytorch_workload": "Still SEGFAULTS at the cuBLAS-internal path; gate prevents activation in production until cross-TU fix",
+      "verdict": "INFRASTRUCTURE SHIPPED + ENV-GATED; activation deferred to v1.x for cross-TU TLS coordination"
+    }
+  },
+  "section_step4_mode1_correctness_gate": {
+    "definition": "Default config (env off) MUST produce identical output to .8.5 baseline",
+    "result": "PASS — env-off eager mode reproduces 12/12 phase4 counters EXACT; no regression",
+    "evidence_file": "v1_phase_b/results/b6_9_8_5b_envgate_actuator.txt (also captures env-on SEGV trace)"
+  },
+  "section_v1_x_carry": {
+    "problem": "PyTorch capture-substitution requires safe cuStreamGetCaptureInfo invocation, but cuBLAS-internal launches SEGV the call",
+    "fix_options_for_v1_x": [
+      "Option A — Per-stream capture-state cache: hook cuStreamBeginCapture + cuStreamEndCapture; maintain shadow set of capturing streams; check the set instead of calling cuStreamGetCaptureInfo per launch. Zero per-launch driver call. ~2-3 ED.",
+      "Option B — Cross-TU shared TLS marker: add extern __thread int cipher_in_cublas_inflight to cipher_v2_internal.h; set/reset in cipher_rt_cublas_shim.c around real cuBLAS calls; check from may13 helper. ~0.5 ED. Tight coupling but minimal code.",
+      "Option C — Stream-identity discriminator: cache CUstream pointers known to be cuBLAS-internal at first SEGV-or-bypass detection; bail on those streams. Lazy + fragile."
+    ],
+    "recommendation": "Option A — cleanest, decouples capture detection from per-launch driver introspection, framework-agnostic",
+    "estimated_v1_x_ed_for_close": "2-3 ED (Option A) or 0.5 ED (Option B); Anil pick"
+  },
+  "section_what_did_ship": {
+    "shim_scaffolding": "All 4 launch shims (cuLaunchKernel + Ex + ptsz variants) have the substitution branch wired",
+    "env_gate": "CIPHER_GRAPH_CAPTURE_DETECT=1 opt-in (safe default OFF)",
+    "weak_actuator_hook": "cipher_rt_graph_substitute_decide signature documented (same as .8.5; framework-agnostic)",
+    "counters_already_existed": "cipher_rt_graph_add_kernel_calls + cipher_rt_graph_node_substitutions from .8.5 are the same counters; semantically consistent (graph-add-kernel counter unified across explicit-API and cuLaunchKernel-during-capture paths)",
+    "production_safety": "Default-OFF gate means production deployment of rev7 .deb cannot accidentally hit the SEGV; users opting in accept the v1.x carry"
+  },
+  "section_verdict": {
+    "step_1_implementation": "COMPLETE — 4 launch shims extended; resolver added",
+    "step_2_eager_parity_env_off": "PASS — 12/12 EXACT match .8.5 baseline",
+    "step_3_env_on_engagement": "BLOCKED by cross-TU TLS coordination gap (cuBLAS-internal SEGV); env-gate defaults OFF",
+    "step_4_mode1_correctness": "PASS — env-off path identical to .8.5 baseline",
+    "production_disposition": "Ship env-gated infrastructure; default OFF; safe; v1.x closes the SEGV with cross-TU coordination",
+    "honest_residue_for_scope_lock": [
+      "B.6''.9.8.5b carry: capture-substitution path is wired but env-gated OFF for safety. Production rev7 .deb will not trigger SEGV in default config.",
+      "v1.x carry: implement Option A (per-stream capture-state cache via cuStreamBeginCapture hook) to make env-on path SEGV-safe. 2-3 ED.",
+      "OR v1.x carry: implement Option B (cross-TU shared TLS marker) for faster ~0.5 ED close.",
+      "Marlin/Koopman actuator wiring of cipher_rt_graph_substitute_decide still pending — downstream actuator work, not this scope."
+    ]
+  },
+  "compliance_with_disciplines": {
+    "memory_20_abi_additive": "PRESERVED — 12/12 EXACT match; pure additions",
+    "memory_11_no_scope_degrade": "PRESERVED — SEGV failure surfaced honestly as HARD STOP for env-on; default-off ship preserves capability scaffolding for future activation; not masking",
+    "memory_12_md5_provenance": "PRESERVED — build md5 dfbe5d34 → c3daac35 → 9c54d44d (three iterations: original, post-tls-guard-fail, post-env-gate)",
+    "memory_9_framework_agnostic": "STRENGTHENED — capture-detection mechanism is framework-agnostic by design (any framework using cuStreamBeginCapture benefits when env-on path is unlocked)"
+  },
+  "anchors_at_close": {
+    "cipher_rt_phase4_before": "a4776f2",
+    "cipher_rt_phase4_after": "this commit",
+    "tag_candidate": "v1-substrate-may13-port-pytorch-capture-substitution",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca UNCHANGED",
+    "build_cuda13_may13_md5_new": "9c54d44d4dd35def563c8d58a15f798e",
+    "build_cuda13_rev6_preserved": "1f305ce61e9acae65920dc8fa9474ee1 (rollback anchor)"
+  },
+  "next": "HOLD for Anil go on B.6''.9.8.6 (FlashAttention launch-side intercept). Two v1.x carries documented: (a) capture-substitution Option A or B to unblock env-on path, (b) Marlin/Koopman actuator wiring to cipher_rt_graph_substitute_decide."
+}

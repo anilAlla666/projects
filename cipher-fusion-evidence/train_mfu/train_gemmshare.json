@@ -1,0 +1,115 @@
+{
+ "workload": "LoRA-finetune Mistral-7B B=2xS=2048 fwd+bwd+AdamW, 3 steps profiled, sdpa",
+ "total_kernel_ms": 1395.4,
+ "n_kernels": 80,
+ "buckets_pct": {
+  "GEMM": 45.53,
+  "ATTENTION": 4.11,
+  "POINTWISE": 49.12,
+  "OPTIMIZER": 0.0,
+  "OTHER": 1.24
+ },
+ "top": {
+  "GEMM": [
+   {
+    "k": "nvjet_sm90_hsh_128x256_64x4_2x1_v_bz_coopA_NNN",
+    "pct": 10.26
+   },
+   {
+    "k": "nvjet_sm90_hsh_192x192_64x4_1x1_h_bz_coopB_TNN",
+    "pct": 8.18
+   },
+   {
+    "k": "nvjet_sm90_hsh_128x256_64x4_2x1_v_bz_coopA_TNN",
+    "pct": 7.09
+   },
+   {
+    "k": "sm80_xmma_gemm_f32f32_f32f32_f32_tn_n_tilesize128x32x8_stage3_warpsize2x2x1_ffma",
+    "pct": 4.43
+   },
+   {
+    "k": "nvjet_sm90_hsh_192x192_64x3_1x1_h_bz_coopB_NNN",
+    "pct": 3.71
+   },
+   {
+    "k": "sm80_xmma_gemm_f32f32_f32f32_f32_nt_n_tilesize128x32x8_stage3_warpsize2x2x1_ffma",
+    "pct": 2.48
+   }
+  ],
+  "ATTENTION": [
+   {
+    "k": "cudnn_generated_fort_native_sdpa_sm90_flash_bprop_wgmma_f16_knob_26_64x64x128_1x",
+    "pct": 2.6
+   },
+   {
+    "k": "cudnn_generated_fort_native_sdpa_sm90_flash_fprop_wgmma_f16_knob_7_64x128x128_4x",
+    "pct": 1.0
+   },
+   {
+    "k": "void cudnn::fusion::fmha_reduce_head<false>(void const*, void*, unsigned int, un",
+    "pct": 0.22
+   },
+   {
+    "k": "void at::native::(anonymous namespace)::cunn_SoftMaxBackward<4, float, float, fl",
+    "pct": 0.15
+   },
+   {
+    "k": "void at::native::(anonymous namespace)::cunn_SoftMaxForward<4, float, float, flo",
+    "pct": 0.13
+   }
+  ],
+  "POINTWISE": [
+   {
+    "k": "void at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel_cuda",
+    "pct": 8.52
+   },
+   {
+    "k": "void at::native::vectorized_elementwise_kernel<8, at::native::float16_copy_kerne",
+    "pct": 7.68
+   },
+   {
+    "k": "void at::native::vectorized_elementwise_kernel<4, at::native::AUnaryFunctor<floa",
+    "pct": 6.83
+   },
+   {
+    "k": "void at::native::unrolled_elementwise_kernel<at::native::CUDAFunctor_add<float>,",
+    "pct": 5.16
+   },
+   {
+    "k": "void at::native::vectorized_elementwise_kernel<8, at::native::CUDAFunctor_add<c1",
+    "pct": 3.8
+   },
+   {
+    "k": "void at::native::elementwise_kernel<128, 4, at::native::gpu_kernel_impl_nocast<a",
+    "pct": 3.02
+   }
+  ],
+  "OPTIMIZER": [],
+  "OTHER": [
+   {
+    "k": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::f",
+    "pct": 0.47
+   },
+   {
+    "k": "void at::native::reduce_kernel<512, 1, at::native::ReduceOp<float, at::native::M",
+    "pct": 0.45
+   },
+   {
+    "k": "void cudnn::fusion::compute_dot_do_o_specialized<false, 128>(void const*, void c",
+    "pct": 0.32
+   },
+   {
+    "k": "void at::native::(anonymous namespace)::nll_loss_forward_reduce_cuda_kernel_2d<f",
+    "pct": 0.0
+   },
+   {
+    "k": "void at::native::vectorized_gather_kernel<16, long>(char*, char*, long*, int, lo",
+    "pct": 0.0
+   },
+   {
+    "k": "void at::native::(anonymous namespace)::nll_loss_backward_reduce_cuda_kernel_2d<",
+    "pct": 0.0
+   }
+  ]
+ }
+}

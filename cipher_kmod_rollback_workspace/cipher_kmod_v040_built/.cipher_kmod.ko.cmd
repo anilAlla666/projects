@@ -1,0 +1,1 @@
+savedcmd_/home/ubuntu/cipher_kmod/cipher_kmod.ko := ld -r -m elf_x86_64 -z noexecstack --build-id=sha1  -T scripts/module.lds -o /home/ubuntu/cipher_kmod/cipher_kmod.ko /home/ubuntu/cipher_kmod/cipher_kmod.o /home/ubuntu/cipher_kmod/cipher_kmod.mod.o

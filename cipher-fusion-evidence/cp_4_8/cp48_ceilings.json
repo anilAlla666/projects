@@ -1,0 +1,49 @@
+{
+  "cp": "4.8",
+  "artifact": "pre-registered per-WL tensor_mfu_pct ceilings",
+  "frozen": "2026-05-17",
+  "status": "LOCKED before any measurement (engineering-marvel pre-registration)",
+  "source": "CP_4_8_DESIGN_MEMO.md §2",
+  "constants": {
+    "h100_peak_fp16_tflops": 989.4,
+    "h100_hbm_bw_tb_s": 3.35,
+    "ai_ridge_fp16_flop_per_byte": 295.3,
+    "peak_basis": "dense fp16/bf16 tensor; Hopper has no INT4 tensor path — Marlin dequantizes to fp16"
+  },
+  "gate": "measured tensor_mfu_pct >= 0.80 * ceiling_pct (per WL); all of G1-G4 must pass simultaneously",
+  "wl_count_gated": 21,
+  "deferred": {
+    "WL15": "Mixtral — 90 GB / multi-GPU scale, beyond Phase 4",
+    "WL18": "multi-GPU tensor-parallel — single-GPU pod; TP=1 degenerates to WL01",
+    "WL24": "AWQ INT4 — Phase 5 partition-aware-Marlin scope"
+  },
+  "ceilings": [
+    {"wl": "WL01", "name": "Decode B=1",            "model": "TinyLlama-1.1B", "regime": "memory-bound", "basis": "exact-physics", "ceiling_pct": 0.34, "pass_pct": 0.27, "derivation": "AI=1 FLOP/byte / 295"},
+    {"wl": "WL02", "name": "Decode B=8",            "model": "TinyLlama-1.1B", "regime": "memory-bound", "basis": "exact-physics", "ceiling_pct": 2.7,  "pass_pct": 2.2,  "derivation": "AI~8 (weights reused x8, short ctx)"},
+    {"wl": "WL03", "name": "Prefill B=8x1024",      "model": "Mistral-7B",     "regime": "compute-bound", "basis": "modelled-discount", "ceiling_pct": 80.0, "pass_pct": 64.0, "derivation": "GEMM-dominated, attn/norm discount 0.80"},
+    {"wl": "WL04", "name": "vLLM serving",          "model": "TinyLlama-1.1B", "regime": "memory-bound", "basis": "exact-physics", "ceiling_pct": 2.7,  "pass_pct": 2.2,  "derivation": "continuous batch, effective B~8"},
+    {"wl": "WL05", "name": "Multi-tenant x8 (G2/G3)","model": "TinyLlama-1.1B","regime": "memory-bound", "basis": "exact-physics", "ceiling_pct": 0.34, "pass_pct": 0.27, "derivation": "8 procs B=1, no weight share, device AI=1"},
+    {"wl": "WL06", "name": "Embeddings batch-512",  "model": "MiniLM-L6-v2",   "regime": "compute-bound", "basis": "modelled-discount", "ceiling_pct": 45.0, "pass_pct": 36.0, "derivation": "large batch, tiny model, launch-overhead discount 0.45"},
+    {"wl": "WL07", "name": "LoRA fine-tune",        "model": "TinyLlama-1.1B", "regime": "training", "basis": "modelled-discount", "ceiling_pct": 55.0, "pass_pct": 44.0, "derivation": "6N fwd+bwd+opt, discount 0.55"},
+    {"wl": "WL08", "name": "Diffusion 20-step",     "model": "SDXL",           "regime": "compute-bound", "basis": "modelled-discount", "ceiling_pct": 60.0, "pass_pct": 48.0, "derivation": "conv+attn+groupnorm non-GEMM discount 0.60"},
+    {"wl": "WL09", "name": "Speech",                "model": "whisper-large-v3","regime": "mixed", "basis": "modelled-discount", "ceiling_pct": 25.0, "pass_pct": 20.0, "derivation": "enc compute / dec memory, enc-weighted"},
+    {"wl": "WL10", "name": "Speculative decode",    "model": "TinyLlama-1.1B", "regime": "memory-bound", "basis": "exact-physics", "ceiling_pct": 1.4,  "pass_pct": 1.1,  "derivation": "target+draft decode, AI~4"},
+    {"wl": "WL11", "name": "Agentic multi-turn",    "model": "TinyLlama-1.1B", "regime": "memory-bound", "basis": "exact-physics", "ceiling_pct": 0.34, "pass_pct": 0.27, "derivation": "B=1 decode, AI=1"},
+    {"wl": "WL12", "name": "Batch-64",              "model": "TinyLlama-1.1B", "regime": "compute-bound", "basis": "modelled-discount", "ceiling_pct": 65.0, "pass_pct": 52.0, "derivation": "batch-64 prefill-dominant, discount 0.65"},
+    {"wl": "WL13", "name": "Long-context 32K prefill","model": "Mistral-7B",   "regime": "compute-bound", "basis": "modelled-discount", "ceiling_pct": 80.0, "pass_pct": 64.0, "derivation": "attn O(N^2) compute-heavy, discount 0.80"},
+    {"wl": "WL14", "name": "torch.compile decode",  "model": "TinyLlama-1.1B", "regime": "memory-bound", "basis": "exact-physics", "ceiling_pct": 0.34, "pass_pct": 0.27, "derivation": "B=1 decode, AI=1; compile does not move the roofline"},
+    {"wl": "WL16", "name": "Prefix caching",        "model": "TinyLlama-1.1B", "regime": "memory-bound", "basis": "exact-physics", "ceiling_pct": 2.0,  "pass_pct": 1.6,  "derivation": "shared-prefix batch-8, AI~6"},
+    {"wl": "WL17", "name": "Training full",         "model": "TinyLlama-1.1B", "regime": "training", "basis": "modelled-discount", "ceiling_pct": 55.0, "pass_pct": 44.0, "derivation": "6N fwd+bwd+opt all params, discount 0.55"},
+    {"wl": "WL19", "name": "Vision",                "model": "CLIP-ViT-L/14",  "regime": "compute-bound", "basis": "modelled-discount", "ceiling_pct": 62.0, "pass_pct": 50.0, "derivation": "vision encoder batched patches, discount 0.62"},
+    {"wl": "WL20", "name": "Multimodal",            "model": "LLaVA-1.5-7B",   "regime": "mixed", "basis": "modelled-discount", "ceiling_pct": 8.0,  "pass_pct": 6.4,  "derivation": "vision-enc compute + 20-tok LLM decode (memory)"},
+    {"wl": "WL21", "name": "Code generation",       "model": "TinyLlama-1.1B", "regime": "memory-bound", "basis": "exact-physics", "ceiling_pct": 0.34, "pass_pct": 0.27, "derivation": "B=1 decode 64 tok, AI=1"},
+    {"wl": "WL22", "name": "RAG pipeline",          "model": "MiniLM + TinyLlama","regime": "mixed", "basis": "modelled-discount", "ceiling_pct": 15.0, "pass_pct": 12.0, "derivation": "embed (compute) + gen (memory-bound decode)"},
+    {"wl": "WL23", "name": "Model-switch stress",   "model": "TinyLlama<->Mistral","regime": "not-tensor-compute", "basis": "n/a", "ceiling_pct": null, "pass_pct": null, "derivation": "weight-load-bound; gated on G4 stability only"}
+  ],
+  "honest_notes": [
+    "memory-bound and exact-physics rows: ceiling = AI/295, no modelling uncertainty",
+    "modelled-discount rows: the 0.45-0.80 tensor-eligible-time fraction is a literature/architecture estimate; PMU cross-check (memo §3) bounds the FLOP-count half; the time-fraction half is measurement-validated",
+    "WL23 carries no tensor_mfu ceiling; G1 entry is stability-pass",
+    "estimate-basis FLOP accounting (WL08/09/19/20) has partial PMU cross-check coverage (conv path)"
+  ]
+}

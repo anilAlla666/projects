@@ -1,0 +1,51 @@
+=== CP 5.6 P2 — TF gate + TPW re-measurement ===
+substrate libcipher_rt.so md5=a7ac8e97  (expect a7ac8e97)
+target=/home/ubuntu/models/Mistral-7B-v0.1  VOLT_MHZ=1000
+GPU clocks reset to nominal
+
+--- pass 1: gold capture (clean FP16, no CIPHER) ---
+  GOLD prompt=0 gen_tokens=128 distinct_ratio=0.570
+  GOLD prompt=1 gen_tokens=128 distinct_ratio=0.352
+  GOLD prompt=2 gen_tokens=128 distinct_ratio=0.453
+  GOLD prompt=3 gen_tokens=71 distinct_ratio=0.408
+  GOLD prompt=4 gen_tokens=128 distinct_ratio=0.539
+
+--- arm: vanilla ---
+  RESULT prompt=0 tok_s=48.274 gen_tokens=128 wall=2.651s accept_rate=n/a distinct=0.570
+  RESULT prompt=1 tok_s=48.239 gen_tokens=128 wall=2.654s accept_rate=n/a distinct=0.352
+  RESULT prompt=2 tok_s=48.579 gen_tokens=128 wall=2.635s accept_rate=n/a distinct=0.453
+  RESULT prompt=3 tok_s=48.411 gen_tokens=71 wall=1.467s accept_rate=n/a distinct=0.408
+  RESULT prompt=4 tok_s=48.474 gen_tokens=128 wall=2.641s accept_rate=n/a distinct=0.539
+  TFGATE prompt=0 tf_agreement=1.0000 (128/128)
+  TFGATE prompt=1 tf_agreement=1.0000 (128/128)
+  TFGATE prompt=2 tf_agreement=1.0000 (128/128)
+  TFGATE prompt=3 tf_agreement=1.0000 (71/71)
+  TFGATE prompt=4 tf_agreement=1.0000 (128/128)
+
+--- arm: marlin ---
+  RESULT prompt=0 tok_s=38.948 gen_tokens=128 wall=3.287s accept_rate=n/a distinct=0.391
+  RESULT prompt=1 tok_s=38.865 gen_tokens=128 wall=3.293s accept_rate=n/a distinct=0.453
+  RESULT prompt=2 tok_s=38.856 gen_tokens=128 wall=3.294s accept_rate=n/a distinct=0.453
+  RESULT prompt=3 tok_s=38.789 gen_tokens=128 wall=3.300s accept_rate=n/a distinct=0.250
+  RESULT prompt=4 tok_s=38.882 gen_tokens=128 wall=3.292s accept_rate=n/a distinct=0.461
+  TFGATE prompt=0 tf_agreement=0.9062 (116/128)
+  TFGATE prompt=1 tf_agreement=0.8984 (115/128)
+  TFGATE prompt=2 tf_agreement=1.0000 (128/128)
+  TFGATE prompt=3 tf_agreement=0.9296 (66/71)
+  TFGATE prompt=4 tf_agreement=0.9297 (119/128)
+
+--- arm: allon ---
+  RESULT prompt=0 tok_s=33.548 gen_tokens=128 wall=3.815s accept_rate=0.766 distinct=0.391
+  RESULT prompt=1 tok_s=33.273 gen_tokens=128 wall=3.847s accept_rate=0.575 distinct=0.453
+  RESULT prompt=2 tok_s=23.754 gen_tokens=128 wall=5.389s accept_rate=0.188 distinct=0.453
+  RESULT prompt=3 tok_s=45.191 gen_tokens=128 wall=2.832s accept_rate=0.500 distinct=0.250
+  RESULT prompt=4 tok_s=26.735 gen_tokens=128 wall=4.788s accept_rate=0.255 distinct=0.461
+  TFGATE prompt=0 tf_agreement=0.9062 (116/128)
+  TFGATE prompt=1 tf_agreement=0.8984 (115/128)
+  TFGATE prompt=2 tf_agreement=1.0000 (128/128)
+  TFGATE prompt=3 tf_agreement=0.9296 (66/71)
+  TFGATE prompt=4 tf_agreement=0.9297 (119/128)
+
+=== end pod state ===
+1965 MHz, 94.15 W
+analyze: python3 /home/ubuntu/cipher-fusion-evidence/cp_5_6/p2/analyze_cp56_p2.py

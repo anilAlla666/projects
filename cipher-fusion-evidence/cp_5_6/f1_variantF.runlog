@@ -1,0 +1,75 @@
+CP 5.6 / finding F1 — Variant F: cross-context reproduction
+============================================================
+Harness: f1_variantF_crossctx.cpp   (Mistral-7B L0 q_proj [4096,4096], M=1)
+Builds:  c2c5d313 = libcipher_rt.so.pre_cp5_3_step2   (F1-broken)
+         dc804eb3 = libcipher_rt.so                    (CP 5.3 STEP 2 fix)
+degenerate gate: nan|inf | cos<0.85 | rel>0.35   (correct = rel~0.140 cos~0.9905)
+
+Variant F = the structural element A-E could not express: a real SECOND
+CUDA context. Create an 8-SM green CUcontext via the library's own
+cipher_rt_green_ctx_ensure(); switch the caller onto it via
+cipher_rt_green_ctx_make_current(); run cipher_rt_marlin_engine_dispatch;
+read output buffer C from the green context with NO cross-context sync.
+Per iter: memset(C,0) on green ; dispatch ; cuMemcpyDtoH(C) on green.
+
+----- engine = c2c5d313 -----
+GREEN: green context bound to group 2 with 8 SMs
+[green] ensure rc=0   make_current rc=0   caller 0x..af0 -> 0x..b90  (primary=0x..af0)
+    iter 0    nan=0 inf=0 zeros=0    rel=0.1400 cos=0.9905   ok
+    iter 1..99  nan=0 inf=0 zeros=4096 max_abs=2.8789 rel=1.0000 cos=0.0000  <<< DEGENERATE
+    iter 0 first 10:  engine = 0.00000 (all zeros) | ref = -0.261, 0.172, 0.333, ...
+    control (after primary-context drain): rel=0.1400 cos=0.9905  ok
+    degenerate iters: 99 / 100
+    RESULT: BROKE — cross-context race reproduced
+
+----- engine = dc804eb3 -----
+GREEN: green context bound to group 6 with 8 SMs
+[green] ensure rc=0  sm_count=8   make_current rc=0   caller -> green
+    iter 0    nan=0 inf=0 zeros=0    rel=0.1400 cos=0.9905   ok
+    iter 99   nan=0 inf=0 zeros=0    rel=0.1400 cos=0.9905   ok
+    iter 0 first 10:  engine = -0.286, 0.174, 0.325, ... | ref = -0.261, 0.172, ...
+    control (after primary-context drain): rel=0.1400 cos=0.9905  ok
+    degenerate iters: 0 / 100
+    RESULT: PASS — output stayed correct
+
+============================================================
+VARIANT F VERDICT — F1 ROOT CAUSE CONFIRMED.
+
+c2c5d313: 99/100 iterations degenerate. The degenerate output is exactly
+the memset-0 prefill (zeros=4096) — the green-context cuMemcpyDtoH reads
+buffer C *before* the primary-context GEMM has written it. The GEMM math
+is sound: the post-loop control re-read, taken after explicitly draining
+the PRIMARY context, returns the correct rel=0.140/cos=0.9905. The only
+defect is the missing cross-context ordering.
+
+  Mechanism: c2c5d313 cipher_rt_marlin_engine_dispatch wraps the GEMM
+  launch UNCONDITIONALLY in PrimaryCtxGuard -> cuCtxSetCurrent(primary), so
+  the GEMM and its write to C execute on the PRIMARY context's NULL stream.
+  The caller (and the consuming read) are on the GREEN context. Two
+  contexts, two independent NULL streams, no cross-context event/sync ->
+  the consumer races the producer. In a real decode the consumer is the
+  next decode kernel (attention / residual) reading the logits/activation
+  buffer; it reads zeros/garbage -> NaN-free all-zero logits -> argmax(0)
+  -> the `<unk>` token-0 repetition signature recorded in F1.
+
+dc804eb3: 0/100. CP 5.3 STEP 2 scopes PrimaryCtxGuard out when a green
+context is active (engine.cpp:1005 `if (green_ctx_sm_count()==0)`), so the
+GEMM launches green-bound on the CALLER's context, grid sized to the 8-SM
+partition (engine.cpp:812-813). Producer and consumer share the green NULL
+stream -> ordered -> coherent. The STEP 2 green-context guard-scoping fixes
+F1 as a side-effect.
+
+Provenance (direct, not inferred): `nm -D` shows cipher_rt_green_ctx_sm_count
+is EXPORTED in dc804eb3 but ABSENT from c2c5d313 — c2c5d313's dispatch
+structurally cannot contain the green-skip branch. md5: c2c5d313 =
+c2c5d313e2c24b687ba344cd9fe14a2f, dc804eb3 = dc804eb3b2796652342852f75763d5ed.
+
+Both predicted outcomes met:
+  (a) the bug is the cross-context race  — CONFIRMED
+  (b) dc804eb3 fixes it via green-context guard scoping — CONFIRMED
+
+NEXT: F1 root cause is established. The full-GPU path in any future build
+must not pin the GEMM to a context different from the caller's without a
+cross-context dependency (event wait). dc804eb3 already does this for the
+green-active path; a fix STEP for the full-GPU build, plus the 3.617x tok/W
+re-measurement with a correctness gate, is the remaining CP 5.6 scope.

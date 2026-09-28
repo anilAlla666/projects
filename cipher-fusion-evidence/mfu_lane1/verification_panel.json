@@ -1,0 +1,184 @@
+{
+ "panel": [
+  {
+   "dimension": "DIMENSION 1 \u2014 NUMBERS",
+   "findings": [
+    {
+     "severity": "minor",
+     "claim_checked": "Report 1a table: 'substrate lines 1551' (torch) and 'substrate lines 477' (vLLM); '0 ENGAGED/substitution lines' as zero-actuator proof.",
+     "problem": "(a) Substrate-line counts are per-rep variable, not the single values printed. torch_engaged [cipher-prefix lines = 1554/1536/1566 across r1/r2/r3 (report: 1551); vllm_engaged_r1 = 480 (report: 477). Within range but the report prints them as if fixed. (b) The '0 ENGAGED/substitution' claim is imprecise: torch_engaged_r1.err DOES contain one line 'Substitution ENABLED' (the L3.9 topological-phase enablement message). The substantive claim (no actuator armed/fired) is true and correctly evidenced by the JSON counters (fp8 calls_total/handled/skipped = 0/0/0, MARLIN+FP8 DISABLED, 'first registration awaited'), but the phrasing overstates that no substitution-related line appears at all.",
+     "evidence": "grep -c '[cipher' torch_engaged_r{1,2,3}.err = 1554/1536/1566; vllm_engaged_r1 = 480. grep 'Substitution ENABLED' torch_engaged_r1.err = 1 hit ('[CIPHER L3.9] ... Substitution ENABLED'). torch_engaged_r1.json: cipher_rt_fp8_calls_total/handled/skipped all 0.",
+     "suggested_fix": "Report the per-rep substrate-line counts as a range or median (1536-1566), and reword '0 ENGAGED/substitution' to 'substitution phase-enabled but 0 actuators registered/handled (fp8 counters 0/0/0; MARLIN+FP8 DISABLED)'."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "FLAG 1: '88\u201398 % MFU is vLLM per-tensor derated \u00d70.886.'",
+     "problem": "By strict arithmetic the per-channel-derated band is 0.886\u00d798.3=87.1% to 0.886\u00d791.7=81.2% (i.e. ~81\u201387%), so '88' is ~0.9pp generous as a lower bound \u2014 exactly what the extraction.json verifiers flagged (hunts[1] corrections[5], hunts[2] corrections[0]). The report repeats '88\u201398%' without that note. Also the underlying 1427/1265 TFLOP/s (ratio 0.886) are hard-coded constants in d9_build_mfu.py:18-20 from an un-logged 'PRIOR run' (no raw measurement found). Mitigating: the report attributes '88\u201398%' explicitly to the D.9 record and labels it 'reachability, not delivered', and the contract file (LANE2_KERNEL_CONTRACT.md:49) does carry the \u224887\u2192'~88%' note.",
+     "evidence": "0.886*98.3=87.09; 0.886*91.7=81.25. d9_build_mfu.py:18-20 pt,pc=1427.0,1265.0 (comment: 'measured in a PRIOR run'); grep for 1427/1265 hits only the script+its JSON echo. extraction.json hunts[2] corrections[0]: '~88% ... does NOT recompute as a lower bound ... reframe as modeled ~81-87% band'.",
+     "suggested_fix": "Carry the same '\u224887\u2192~88% (generous)' note already in LANE2_KERNEL_CONTRACT.md:49 into the report's FLAG 1, or restate as '~81\u201387% per-channel-modeled', and note the 0.886 ratio rests on un-logged prior constants."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Report header: 'MFU = analytic FLOPs \u00f7 989.5 TFLOP/s bf16 dense' for the 1a absolute MFU values (torch 0.4858, vLLM 0.6002, train 0.1070).",
+     "problem": "The report body omits that these prefill/train MFU figures are analytic LOWER BOUNDS (attention FLOPs excluded), a caveat that IS present in every underlying JSON ('attention excluded => MFU lower bound'). This does not affect the load-bearing tax deltas (same model both arms), but a reader could mistakenly compare these absolute MFU levels to the 88\u201398% FP8 number (different denominator AND attention-inclusive).",
+     "evidence": "All l1a JSONs: flop_model='2*N_params per prefill token; attention excluded => MFU lower bound'; train='4*N_params per token ... attention excluded'. Report line 6 states only the 989.5 denominator, no lower-bound note.",
+     "suggested_fix": "Add 'attention-excluded analytic lower bound' to the report's MFU definition line, matching the JSONs."
+    }
+   ],
+   "checks_passed": [
+    "1a torch tax: median(0.4859,0.4857,0.4858)=0.485844 vanilla vs median(0.4771,0.4777,0.4799)=0.477657 engaged -> (0.485844-0.477657)/0.485844 = 1.685% -> report '1.69 %' (rounds correctly); matches lane1a_tax.json tax_pct=1.69",
+    "1a vLLM tax: median(0.6009,0.5988,0.6002)=0.600192 vs median(0.5944,0.5966,0.5950)=0.595043 -> 0.858% -> report '0.86 %'; matches lane1a_tax.json tax_pct=0.86",
+    "1a train tax: median(0.1391,0.1414,0.1401)=0.140088 vs median(0.3506,0.3495,0.3543)=0.350551 s/step -> +150.24% time, 2.50x slowdown -> report '+150 % (2.5\u00d7 slowdown)'; matches lane1a_tax.json tax_pct_time=150.24, slowdown_x=2.5",
+    "lane1a_tax.json per-rep arrays match the six torch + six vLLM + six train per-rep JSONs bit-exact",
+    "Train logging-ruled-out: devnull JSON step_time 0.34274 vs engaged-to-file median 0.35055 -> report '0.3427 vs 0.350 identical' is accurate (within noise)",
+    "MFU derivation reproduces bit-exact: torch vanilla_r1 tok/s 33195.24 * 2 * 7241732096 / 989.5e12 = 0.4858839 (= JSON); train vanilla 512/0.140088*4*N/peak = 0.1069928 (= JSON); train engaged = 0.0427568 (= JSON). 989.5 TFLOP/s denominator confirmed across all JSONs",
+    "1b census_torch.json: cublasGemmEx=900, cublasLtMatmul=0, cublasGemmStridedBatchedEx=0 -> report '900 (3 reps\u00d7300), Lt=0' matches",
+    "1b vLLM census.json: cublasGemmEx=1900, Lt=0 -> report '\u22651900 (periodic-flush floor; worker SIGKILLed)' consistent (1900 divisible by the 50-call periodic flush in census_shim.c:33; worker SIGKILLed so destructor cannot run -> floor framing correct)",
+    "1b census_shim.c is genuinely libc-only (dlfcn/stdio/stdlib/string/stdatomic), NO cipher substrate, NO /dev/cipher, NO dlsym hook -> matches report integrity claim",
+    "1c PPL: fp16 5.352496986072249 -> fp8 5.372298774989749 = +0.36995% -> +0.37%; report '5.3525->5.3723' and '+0.37 %' correct; confirmed in real record d9_hf_quality_result.json",
+    "1c contract numbers vs extraction.json + record: 224 = 32x7 linears (lm_head excluded); drop_downproj 192 = 32x6, +0.2465% PPL (in d9_perlayer_backoff_result.json); 0.886 = 1265/1427 (d9_build_mfu.py:18-20). All recompute",
+    "1c WITHIN_BAR:false confirmed in d9_hf_quality_result.json -> report FLAG 2 'fails the locked 0.3 % bar' accurate; MMLU -0.4pp, KL 0.00357 nats, 50x2048=102400 tokens all confirmed in record",
+    "Retracted-number scan: 3.617x, 14x, 2.96x, 7.43x, 0.127%, unscoped 57.3% ALL ABSENT from report; '85 %' appears only as a Lane-2 target/aspiration ('build first >=85% config', 'no single config has shown >=85% at <=0.3%'), never as achieved",
+    "CRITICAL: report NEVER states 88-98% or +0.37% as a delivered/co-measured CIPHER result. 88-98% explicitly labeled 'reachability, not delivered' (line 17-19, attributed to D.9 cudagraph mode); +0.37% carries FLAG 1 'Never co-measured' and 'No single config has shown >=85% at <=0.3%'",
+    "Anchor libcipher_rt.so md5 = 2edba0d2136f8ede4713d90a8f7cd55f -> matches report 'entry == exit' claim (verified live)",
+    "Source-line references verified: d9_build_mfu.py:23 enforce_eager=False (cudagraph, supports the '88-98% was cudagraph' reconciliation); cipher_rt_cublas_shim.c:327 region GOT-patches cublasGemmEx; engagement-state proof (VOLT=off 'staying OFF', FP8/MARLIN 'actuator DISABLED', DISPATCH LIVE=1) present in both torch and vLLM engaged err files",
+    "Segfault disclosure honest: no python traceback/segfault string in stderr, all result JSONs fully written within the timed window before teardown -> 'measurement unaffected' claim holds"
+   ]
+  },
+  {
+   "dimension": "DIMENSION 2 \u2014 ENGAGEMENT STATE",
+   "findings": [
+    {
+     "severity": "note",
+     "claim_checked": "Report (PREREG + 1a table) claims each engaged run shows '0 ENGAGED/substitution' i.e. zero actuator activity.",
+     "problem": "Every engaged .err (all 9 runs) contains the line '[CIPHER L3.9] Topological phase: inference mode ... Phase -> CONVERGENCE. Substitution ENABLED.' A naive grep for 'substitution' returns 1 hit per engaged file. The phrase 'Substitution ENABLED' is a phase-classifier *capability* declaration (the substrate would substitute IF an actuator were armed), NOT an actual GEMM substitution. The authoritative engagement counters in the final CLASSIFY telemetry line confirm zero actual substitution: marlin_bf16_sub=0, mach_sub=0, marlin_engage=0, volt_engage=0, koop_bf16_obs=0 in every engaged run. So the zero-actuator claim HOLDS, but the log wording 'Substitution ENABLED' is a trap a reader could mis-read as an engagement event.",
+     "evidence": "torch_engaged_r1.err:123 '[CIPHER L3.9] ... Substitution ENABLED.'; final classify line: 'marlin_engage=0 ... marlin_bf16_sub=0 mach_sub=0 koop_bf16_obs=0'; strict grep -cE 'ENGAGED shape|handled=[1-9]|MARLIN: ENGAGED' == 0 for all 9 engaged runs; 'Substitution ENABLED' count in torch_vanilla_r1.err = 0 (only appears when substrate loaded).",
+     "suggested_fix": "Add a one-line gloss in the report that 'Substitution ENABLED' is the L3.9 phase-eligibility flag, distinct from actual substitution (which the *_sub=0 telemetry counters prove is zero)."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "Report Integrity section line 110: 'Every number -> a mfu_lane1/ JSON (l1a_tax/lane1a_tax.json, l1b_symbols/census_{torch,vllm}.json, l1c_recipe/extraction.json).'",
+     "problem": "The vLLM GemmEx census number cited in the 1b table (>=1900) is NOT in a file named census_vllm.json. census_vllm.json does not exist. The 1900 lives in l1b_symbols/census.json (the relative-default path; the vLLM census worker wrote '[census] init OUT=./census.json' because RV_OUT was unset in that worker). The only census_vllm* file is census_vllm_perf.json, which is the MFU perf JSON and contains NO GemmEx count. The number is present and verifiable (census.json: cublasGemmEx=1900), just mis-pathed in the citation.",
+     "evidence": "ls l1b_symbols/ shows census.json, census_torch.json, census_vllm_perf.json but NO census_vllm.json; census.json content = {\"cublasGemmEx\":1900,...}; census_vllm.err:8 '[census] init OUT=./census.json'.",
+     "suggested_fix": "Correct the Integrity citation to reference l1b_symbols/census.json (vLLM) and l1b_symbols/census_torch.json (torch), or rename census.json -> census_vllm.json to match."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Report Integrity line 109: 'Census shim ldd = libc only, the one \"cipher\" string is its own output path (no substrate, no /dev/cipher).'",
+     "problem": "strings on census_shim.so returns NO 'cipher' string at all (the output path is supplied at runtime via the RV_OUT env var, not compiled in). The .so is genuinely clean (ldd = libc.so.6 + vdso + loader; DT_NEEDED = libc only; no /dev/cipher in source or binary), so the safety claim is fully correct, but the specific assertion that there is a baked-in 'cipher' output-path string is inaccurate.",
+     "evidence": "strings census_shim.so | grep -i cipher -> (empty); ldd census_shim.so -> libc.so.6, ld-linux only; readelf -d -> NEEDED libc.so.6 only; census_shim.c:28 reads path from getenv(\"RV_OUT\").",
+     "suggested_fix": "Reword to: 'no cipher/substrate string baked in; output path is runtime RV_OUT env'."
+    }
+   ],
+   "checks_passed": [
+    "LOADED proven for all 9 engaged runs from own .err: 'DISPATCH: substrate registered, LIVE=1' count=1 each; cipher_v2 line counts torch 1551/1533/1563, vLLM 477/477/477, train 23766/23739/23775 (all match report's per-row claims exactly).",
+    "ZERO ACTUATORS proven for all 9 engaged runs: 'VOLT: CIPHER_VOLT=off \u2014 staying OFF (classifier override denied)' present (1 each); 'FP8: actuator DISABLED (CIPHER_FP8 not set)' present; 'MARLIN: actuator DISABLED (CIPHER_MARLIN not set)' present; strict grep -cE 'ENGAGED shape|handled=[1-9]|MARLIN: ENGAGED' == 0 for every engaged file.",
+    "Classifier telemetry corroborates zero engagement in every engaged run: marlin_engage=0, volt_engage=0, marlin_bf16_sub=0, mach_sub=0, koop_bf16_obs=0 in the final CLASSIFY line (torch -> A4_BATCH_INFERENCE, train -> B2_FINE_TUNING, both with all engage/sub counters 0).",
+    "No actuator-fired signatures: grep -c 'ENGAGED'==0, case-sensitive volt_engage=[1-9]==0, marlin_engage=[1-9]==0, 'CLOCK LOCK'==0, FP8.*handled==0 across all engaged files (the apparent 500+ 'LOCKED' hits were case-insensitive false matches on 'blocked=0' in CLASSIFY-POOL lines).",
+    "All 9 vanilla runs: grep -c 'cipher_v2|DISPATCH' == 0 (torch x3, vLLM x3, train x3). The lone 'cipher' string in torch/vllm vanilla is a benign file-path in a pynvml FutureWarning, not substrate.",
+    "census_shim.so is ldd-clean: ldd shows only libc.so.6 + linux-vdso + ld-linux; readelf DT_NEEDED = libc.so.6 only; no CUDA/cipher deps.",
+    "census_shim opens no /dev/cipher: source (census_shim.c) and binary (strings) contain no '/dev/cipher', no 'libcipher', no 'cipher_rt'; only dlopen calls are libcublas/libcublasLt (the real GEMM libs interposed) and fopen for the output JSON; no dlsym hook (explicitly avoided).",
+    "vLLM engaged WORKER (not just parent) loaded the substrate: identical PID 3391917 emits both '[cipher_v2] auto-init: V1 Phase A constructor complete pid=3391917' and '(EngineCore pid=3391917) Loading safetensors...' \u2014 proving injection reached the V1 EngineCore worker via env inheritance.",
+    "No actuator env (CIPHER_FP8/MARLIN/KOOPMAN) in run_1a.sh engaged path: grep found none; engaged env is exactly 'CUDA_INJECTION64_PATH=$ANCHOR CIPHER_VOLT=off' for all three workloads.",
+    "VLLM_PLUGINS=\"\" set on all three run paths in run_1a.sh \u2014 confirms the report's claim that injection reached the V1 worker WITHOUT the plugin path.",
+    "Census run is substrate-free (clean separation): census_vllm.err has cipher_v2=0 and DISPATCH=0, confirming the libc-only census shim ran without the substrate loaded. Census shim ran inside the EngineCore worker (interleaved [census] init with (EngineCore pid=3390548) output).",
+    "Anchor md5 = 2edba0d2136f8ede4713d90a8f7cd55f confirmed (matches report entry==exit claim).",
+    "Provenance: all engaged result JSONs exist with complete content (written before any teardown segfault); report's per-rep MFU values match lane1a_tax.json exactly (torch .4771/.4777/.4799; vLLM .5944/.5966/.5950); vanilla JSONs clean of cipher/injection metadata.",
+    "Report's 'DISPATCH LIVE=1' engagement-proof claim verified: actual log line is '[cipher_v2] DISPATCH: substrate registered, LIVE=1' present in both torch and vLLM engaged .err."
+   ]
+  },
+  {
+   "dimension": "HONESTY",
+   "findings": [
+    {
+     "severity": "material",
+     "claim_checked": "Route recommendation pillar: 'The cudagraph path is the wall... the D.9 cublasGemmEx=0 was measured on cudagraph vLLM (d9_build_mfu.py:24 enforce_eager=False)... In eager mode the same GEMM kernels are launched through cublasGemmEx, which is covered.' (report lines 17-22, 74-76, 99-100)",
+     "problem": "The D.9 'GemmEx=0' reconciliation misattributes the cause to cudagraph mode. The D.9 telemetry runs that actually recorded MATMUL calls=0 / classifier obs=0 were run in EAGER mode, not cudagraph. d9_feasibility.log:40+73 and d9_prereq2.log:43+85 both show 'Enforce eager set, disabling torch.compile and CUDAGraphs' immediately preceding '[cipher_v2] MATMUL: exit totals \u2014 calls=0 handled=0 passthrough=0'. The original D9_CIPHER_DELIVERY_REPORT.md (\u00a72, lines 24-42) attributes the zero-interception to libcublas-internal nvjet dispatch BELOW the public cuBLAS API ('vLLM simply never calls the public cuBLAS symbols CIPHER patches'), explicitly a substrate-intercept-bypass mechanism, with NO mention of cudagraph. enforce_eager=False at d9_build_mfu.py:23-24 is the script that produced the 88-98% MFU number, a SEPARATE run from the GemmEx=0 telemetry probe. So the report pairs the MFU-measurement script's enforce_eager=False with a GemmEx=0 finding that came from eager runs, then concludes 'mode is the difference.' The genuinely new and decisive datum is real (Lane 1b census: eager vLLM does call cublasGemmEx >=1900 this run, contradicting the old eager calls=0), but the stated REASON for the conflict (cudagraph vs eager) is unsupported by \u2014 and contradicted by \u2014 the cited evidence. The real difference is run/version/build (05-29 container vLLM vs 06-10), not graph mode.",
+     "evidence": "d9_feasibility.log:40 'Enforce eager set, disabling ... CUDAGraphs' then :73 'MATMUL: exit totals \u2014 calls=0 handled=0 passthrough=0'; d9_prereq2.log:43+85 identical pattern; D9_CIPHER_DELIVERY_REPORT.md:35-42 attributes bypass to nvjet not cudagraph; d9_build_mfu.py:23 enforce_eager=False is the MFU run (fp16_vllm_baseline_pct=64, MFU_vs989=98.3), distinct from the telemetry probe",
+     "suggested_fix": "Replace the 'cudagraph was the cause of D.9 GemmEx=0' reconciliation with the accurate statement: the prior D.9 eager run ALSO saw substrate GemmEx interception=0 (attributed to nvjet bypass); the new measurement (06-10 eager vLLM) shows the public symbol IS now called >=1900x, refuting the universal-nvjet-bypass interpretation. Attribute the change to vLLM build/version/run difference, not enforce_eager mode, since both runs are eager."
+    },
+    {
+     "severity": "material",
+     "claim_checked": "'Coverage exists (1b): eager vLLM fp16 prefill calls cublasGemmEx ... the public entry the substrate GOT-patches' and table cell 'intercepted by substrate: yes' (report lines 12-14, 65)",
+     "problem": "The report conflates the symbol being CALLED (census LD_PRELOAD shim counts 1900) and the classifier OBSERVING GEMMs via CUPTI (gemm_total=3224 in vllm_engaged err) with the substrate's GOT-patch actually INTERCEPTING the call on vLLM. The 'intercepted by substrate: yes (cipher_rt_cublas_shim.c:327)' column is a SOURCE-side assertion (the file:line where the GOT-patch is registered), not a runtime interception measurement on vLLM. The prior D.9 finding was precisely that on eager vLLM prefill the substrate's own MATMUL counter saw calls=0 even though the GOT-patch was armed ('CUBLAS-SHIM resolved'). The Lane 1a engaged-vLLM err shows only the CUPTI classifier counter (gemm_total) incrementing \u2014 there is no MATMUL calls=/handled= exit-total proving GOT-patch interception fired on vLLM this run. The torch handled=1125 cited as proof is a TORCH run, honestly labeled as torch, but it does not establish vLLM interception.",
+     "evidence": "vllm_engaged_r1.err final line gemm_total=3224 is the classifier/CUPTI observation counter; no 'MATMUL: exit totals \u2014 calls=N handled=N' line present in the engaged vLLM err; census shim (census_shim.c) is an independent LD_PRELOAD counter that measures symbol calls, not substrate interception; D9_CIPHER_DELIVERY_REPORT.md:28-31 shows armed GOT-patch + calls=0 simultaneously on eager vLLM",
+     "suggested_fix": "State that Lane 1b proves the public symbol is CALLED in volume on eager vLLM (necessary condition) and CUPTI-observed by the classifier, but does NOT this run demonstrate the GOT-patch substituting/intercepting on the vLLM process; runtime vLLM interception remains to be shown (consistent with the torch handled=1125 being the only actual-interception datum)."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "'Logging ruled out: engaged train with stderr->/dev/null = 0.3427 s/step vs ->file 0.350 \u2014 identical' (report lines 40-42)",
+     "problem": "The devnull (0.34274) and file-median (0.35055) values differ by ~2.3%, not 'identical.' Also the devnull run is a single run while the file value is the median of 3 reps (0.3505/0.3495/0.3543); the devnull is in fact slightly FASTER than all three file reps. The headline conclusion (logging is negligible vs the +150% tax) is correct and robustly supported (2.3% << 150%), so this does not change the verdict, but 'identical' overstates the precision and the comparison is 1-run vs 3-rep-median.",
+     "evidence": "train_engaged_devnull.json step_time_s_median=0.34273728; train_engaged_r1/r2/r3 medians 0.35055/0.34946/0.35425; lane1a_tax.json logging_io_share='negligible (0.343 file vs 0.343 /dev/null)' rounds both to 0.343",
+     "suggested_fix": "Say 'within ~2% (0.3427 devnull vs 0.3505 file median), i.e. far smaller than the +150% tax, so logging cannot explain it' rather than 'identical.'"
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "'Prefill is compute-bound, so the eager-vs-cudagraph penalty is small for prefill' (report line 21-22)",
+     "problem": "This claim underpins the route recommendation but is asserted as reasoning, not measured this run (Lane 1a vLLM is eager-only; no cudagraph-vs-eager prefill MFU comparison was run). The claim happens to be backed by PRIOR data not cited in the report: d9_s1b_vllm_prefill.json shows B8xS2048 eager=387.0ms vs cudagraph=380.8ms (~1.6% gap). The supporting evidence exists but is not referenced, and the report does not flag that this leg is asserted rather than measured this run.",
+     "evidence": "d9_s1b_vllm_prefill.json: enforce_eager=True B8S2048 prefill_ms=387.0 vs enforce_eager=False 380.8; no cudagraph prefill JSON in mfu_lane1/l1a_tax/",
+     "suggested_fix": "Cite d9_s1b_vllm_prefill.json (eager 387ms vs cudagraph 381ms, ~1.6%) as the basis, and note the small-prefill-penalty is from prior data, not measured in Lane 1."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Integrity claim: 'Census shim ldd = libc only ... the one cipher string is its own output path' (report line 109)",
+     "problem": "Minor imprecision: census_shim.so strings contain 'census' tokens (./census.json, [census] init, census_shim.c), not a literal 'cipher' string. The substantive claim (libc-only, no substrate, no /dev/cipher) is correct and verified.",
+     "evidence": "ldd census_shim.so => linux-vdso, libc.so.6, ld-linux only; strings grep 'cipher' => empty; strings show './census.json','census_shim.c'",
+     "suggested_fix": "Change 'the one cipher string' to 'the only project string is its own census output path' for accuracy."
+    }
+   ],
+   "checks_passed": [
+    "Anchor md5 entry==exit verified: md5sum of /home/ubuntu/cipher_rt_phase4/libcipher_rt.so = 2edba0d2136f8ede4713d90a8f7cd55f, matches report",
+    "Eager mode confirmed for both Lane 1a vLLM tax and Lane 1b census: m_bench.py:77 enforce_eager=True (drives both the 0.86% tax and the >=1900 GemmEx census)",
+    "Low-tax leg measured this run and JSON-backed: lane1a_tax.json torch +1.69% (reps .4771/.4777/.4799 vs .4858), vLLM +0.86% (.5944/.5966/.5950 vs .6002); engagement-state proven (VOLT off, FP8/MARLIN DISABLED, DISPATCH LIVE=1, mach_sub=0/marlin_bf16_sub=0 = zero substitution)",
+    "'>=1900' GemmEx honestly presented as a periodic-flush floor: census.json=1900 (exactly multiple of 50), census_shim.c flushes every 50 calls, vLLM worker SIGKILLed so destructor cannot run; report says '>=1900 (periodic-flush floor; worker SIGKILLed)' not an exact count",
+    "D.9 enforce_eager=False confirmed at d9_build_mfu.py:23 (LLM() call) \u2014 the 88-98% MFU source is cudagraph, as the report states",
+    "FLAG 2 verified: d9_hf_quality_result.json WITHIN_BAR:false, ppl_pass(<=0.3%):false, ppl_delta_pct=0.37 \u2014 +0.37% genuinely fails the locked 0.3% bar; both copies (/home/ubuntu and v1_phase_b/d_phase) agree",
+    "FLAG 1 verified: 88-98% MFU is vLLM per-tensor (d9_build_mfu_result.json fp8_scheme_in_vllm='per_tensor_W+per_token_A', MFU_vs989=98.3/96.3/93.7) derated x0.886 (ratio 0.886), quality is HF per-channel \u2014 never co-measured; surfaced in report line 87-88 and LANE2_KERNEL_CONTRACT.md:8-10,43-49",
+    "FLAG 3 verified: Path B never built (LANE2_KERNEL_CONTRACT.md:16 cites D9_FP8_ACTUATOR_BUILD_REPORT.md:214) and accumulator UNRESOLVED (contract:27); surfaced in report line 92",
+    "Segfault disclosure honest: all 9 engaged JSONs (3 torch + 3 train + 3 vllm) parse as valid JSON with complete result fields; source confirms json.dump (m_torch_prefill.py:75, m_train.py:110, m_bench.py:133) precedes process exit, so results are written before teardown",
+    "dlsym-hang disclosed: report lines 71-72 'a global dlsym interposer hung CUDA lazy resolution (caught and dropped)'; census_shim.c:5-6 documents same",
+    "Census shim is genuinely substrate-free: ldd shows only libc/vdso/ld-linux; no /dev/cipher; no substrate linkage",
+    "MFU denominator convention stated: report line 6 'MFU = analytic FLOPs / 989.5 TFLOP/s bf16 dense'; JSONs document flop_model '2*N_params per token (attention excluded => MFU lower bound)' for prefill and '4*N_params' for train",
+    "Zero-substitution during tax measurement confirmed: all engaged err files show mach_sub=0, marlin_bf16_sub=0, marlin_engage=0, volt_engage=0, fp8_calls_handled=0 in JSON \u2014 the 'Substitution ENABLED' L3.9 lines are phase labels not actual substitutions",
+    "Vanilla train baseline clean: train_vanilla_r1.err has 0 '[cipher_v2]' substrate lines",
+    "Train launch-density mechanism corroborated: engaged train shows obs=788855, gemm_total=21456, overflow=12009 (heavy per-launch classify churn) vs clean vanilla",
+    "handled=1125 (FP8 actuator on torch) honestly labeled as torch not vLLM, and is independently verified in mfu_audit/verification_panel.json (arithmetic 1350=1125+225 ties out)"
+   ]
+  },
+  {
+   "dimension": "DIMENSION 4 \u2014 INTEGRITY",
+   "findings": [
+    {
+     "severity": "material",
+     "claim_checked": "Report (lines 5 & 108): 'Fork-1/snapshot/mfu_audit/anchor/vLLM-source READ-ONLY' and 'No fork-1/snapshot/mfu_audit/anchor/vLLM-source edit'.",
+     "problem": "A WRITE into mfu_audit/ occurred during the run window, contradicting the READ-ONLY claim. At the start of this verification, prompt-find (b) returned exactly one non-mfu_lane1 hit: /home/ubuntu/cipher-fusion-evidence/mfu_audit/m_torchpf_cen.json (825 bytes, mtime 2026-06-10 10:11:18, squarely in the >=09:30 window). It is a NEW file (all other mfu_audit/m_torchpf_*.json are from the 08:xx contaminated run; there is no pre-run cen.json), so it was created in mfu_audit during this run \u2014 almost certainly the census/torch-prefill scratch JSON whose RV_OUT/cwd defaulted into mfu_audit (the driver script m_torch_prefill.py lives there). It was then relocated to mfu_lane1/l1b_symbols/m_torchpf_cen.json (still present) and the mfu_audit stray was removed mid-verification (a second identical find moments later returned empty and the file no longer exists). So mfu_audit was not strictly read-only as claimed; a transient artifact was written there and later cleaned up.",
+     "evidence": "First run of prompt-(b) find listed mfu_audit/m_torchpf_cen.json; `ls -la --time-style=full-iso mfu_audit/` showed it 825B @10:11:18. Minutes later the same find returns empty and `ls`/`md5sum` report 'No such file or directory'. The surviving copy mfu_lane1/l1b_symbols/m_torchpf_cen.json md5=f2b19fcdd734bbbded97fc8f1644d8db. run_1a.sh:5 sets AUD=.../mfu_audit and stderr logs cite mfu_audit/m_torch_prefill.py:15, confirming the run used mfu_audit as the script source.",
+     "suggested_fix": "Amend the integrity statement: mfu_audit scripts (m_*.py) were READ, but a scratch JSON (m_torchpf_cen.json) was transiently WRITTEN into mfu_audit and then relocated/removed. Either redirect the census/prefill RV_OUT to mfu_lane1/ explicitly, or disclose the transient write so 'No mfu_audit edit' is not overstated."
+    },
+    {
+     "severity": "material",
+     "claim_checked": "Report Integrity section is silent on git state; prompt item (f) asks to disclose any .git dangling-object writes during the run.",
+     "problem": "A `git stash` push+pop was performed in /home/ubuntu/cipher_rt_phase4/.git DURING the run window and is not disclosed. Two stash commits were written at 09:47:38 (ef6072780...='WIP on master: b2304d3', 215a3db08...='index on master: b2304d3'), plus a tree (849cb90) and blob (a5d3e49) at the same instant; the git index was re-touched at 10:33:48. `git stash list` is now empty and refs/stash does not exist, so the stash was pushed and then popped/dropped, leaving ef607278/215a3db as dangling commits (confirmed in `git fsck` dangling list). This is a real git-state mutation of the cipher_rt_phase4 repo inside the run window.",
+     "evidence": "find .../cipher_rt_phase4/.git -newermt '2026-06-10 09:30' -> objects 215a3db, ef607278, 849cb90, a5d3e49 + index. stat: all four objects @09:47:38, index @10:33:48. git log: ef607278='WIP on master', 215a3db='index on master'. git stash list empty; refs/stash absent; git fsck shows 'dangling commit ef6072780...'. HEAD unchanged (logs/HEAD mtime 2026-06-01; rev-parse HEAD=b2304d3, same as tip).",
+     "suggested_fix": "Disclose the in-run `git stash` (push+pop) in the Integrity section per prompt item (f). Confirm (as verified here) that HEAD, branches, and the anchor .so were NOT altered by it \u2014 but the silence violates the disclosure requirement."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Report line 36 / general: this run is fork-1-preserving and did not rebuild/alter source feeding the anchor.",
+     "problem": "The cipher_rt_phase4 working tree has uncommitted changes (modified cipher_rt_cublas_shim.c plus untracked cipher_rt_fairness.c/.h and several test_* binaries). These predate this run (not in the >=09:30 mtime window) and the anchor .so md5 is unchanged, so they did NOT contaminate the anchor \u2014 but a reader of the integrity note should know the source tree is dirty and the anchor was not rebuilt from current source.",
+     "evidence": "git status: 'modified: cipher_rt_cublas_shim.c' + untracked cipher_rt_fairness.{c,h}, test_pager, test_step3_*; these files are not in the run-window find. Anchor md5 still 2edba0d2... = not rebuilt.",
+     "suggested_fix": "Note that the working tree is dirty (pre-existing) and the shipped anchor is the byte-identical 2edba0d2 binary, not a build of the current dirty source."
+    }
+   ],
+   "checks_passed": [
+    "(a) PASS: md5sum /home/ubuntu/cipher_rt_phase4/libcipher_rt.so = 2edba0d2136f8ede4713d90a8f7cd55f NOW (entry==exit anchor preserved).",
+    "(c) PASS: find /home/ubuntu/.local/lib/python3.10/site-packages/vllm -newermt '2026-06-10 09:30' returns nothing; no vLLM site-packages edits.",
+    "(d) PASS: nvidia-smi compute-apps empty; pgrep m_torch/m_bench/m_train matched only the verifier's own shell (no real leftover workload procs). cipher-exporter.py (pid 1604693) is a May-18 long-running daemon, glances/jupyter/networkd are system services \u2014 none are this run's leftovers.",
+    "(e) PASS: applications.graphics (1980) == default_applications.graphics (1980), max=1980; no manual lock above default. Current SM clock 345 MHz idle (throttle reason 0x1 GpuIdle). Report's 'Clocks DEFAULT (unlocked, 345 MHz idle)' is accurate.",
+    "(f-partial) PASS: cipher-fusion-evidence/.git had NO writes in the run window (clean).",
+    "(g) PASS: census_shim.so and run_1a.sh both exist ONLY under /home/ubuntu/cipher-fusion-evidence/mfu_lane1/ (l1b_symbols/ and l1a_tax/ respectively); system-wide find found no copies elsewhere. census shim ldd-clean libc-only design corroborated by census_shim.c (RV_OUT-based output, atexit writer).",
+    "mfu_audit scripts (m_torch_prefill.py, m_bench.py, m_train.py) were READ as anticipated by the prompt (cited in stderr/run_1a.sh) and their .py files were NOT modified in-window (all .py mtimes are 08:3x)."
+   ]
+  }
+ ]
+}

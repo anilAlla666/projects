@@ -1,0 +1,11 @@
+{
+  "so_path": "/usr/lib/cipher/libcipher_rt.so",
+  "handlers_dir": "/usr/share/cipher/handlers",
+  "model_library_dir": "/home/ubuntu/models",
+  "regimes": {
+    "agent":   {"handler":"cipher_inc4.py","quick_handler":"smoke_agent_scaled.py","inject":{"CIPHER_RT_DISABLE_AUTO_INIT":"1","CIPHER_VOLT":"0"},"timeout":1800},
+    "density": {"handler":"v0_phaseC_nf4_cofire.py","quick_handler":"smoke_density_real.py","inject":{"CIPHER_RT_DISABLE_AUTO_INIT":"1"},"timeout":600},
+    "compute": {"handler":"v0_phaseA_maxmfu.py","quick_handler":"mock_handler.py","inject":{"CUDA_INJECTION64_PATH":"__SO__","CIPHER_FP8":"1"},"timeout":900}
+  },
+  "accelerate_env": {"CIPHER_KV_ALLOC":"1","CIPHER_KVDEDUP":"1"}
+}

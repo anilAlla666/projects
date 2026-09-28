@@ -1,0 +1,11 @@
+{
+  "_comment": "Real-engine config: agent regime -> smoke_agent_real.py (REAL TinyLlama engine). density/compute stay MOCK (clearly labeled) so the secondary lanes don't burn GPU.",
+  "so_path": "/home/ubuntu/cipher_rt_phase4/libcipher_rt.so",
+  "model_library_dir": "/home/ubuntu/models",
+  "regimes": {
+    "agent":   {"handler": "smoke_agent_real.py", "inject": {"CIPHER_RT_DISABLE_AUTO_INIT": "1", "CIPHER_VOLT": "0", "K": "1"}, "headline": true,  "timeout": 240},
+    "density": {"handler": "mock_handler.py",      "inject": {"CIPHER_RT_DISABLE_AUTO_INIT": "1", "CIPHER_VOLT": "1"},          "headline": true,  "timeout": 30},
+    "compute": {"handler": "mock_handler.py",      "inject": {"CUDA_INJECTION64_PATH": "__SO__", "CIPHER_FP8": "1"},            "headline": false, "timeout": 30}
+  },
+  "gates": {"off_byte_identical": true, "engine_fault_max": 0, "density_kl_max": 0.001}
+}

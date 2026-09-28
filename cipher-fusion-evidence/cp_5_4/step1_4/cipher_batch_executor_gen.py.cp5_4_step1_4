@@ -1,0 +1,169 @@
+"""Phase B cross-tenant batched-decode executor — teacher-forced gate.
+
+Form A: one executor holds the model; N tenant clients submit decode requests
+over a Unix socket; the executor fuses them into one B=N batched generate.
+
+Two phases per run:
+  PHASE 1 (throughput) — for each of 5 rounds, recv one request per client,
+    run ONE B=N free-running greedy generate(); sentinel-windowed for power.
+  PHASE 2 (correctness) — teacher-forced: one B=N forward over each prompt's
+    clean-FP16 gold sequence; per-row, per-step logit-KL(gold||substrate).
+    Cascade-free (every position conditioned on the true gold prefix) — the
+    CP 5.6 P2 methodology. A free-running KL would cascade on any FP-tie
+    argmax flip and is not a valid gate.
+
+Clients send all 5 requests up front, then recv 5 responses.
+"""
+import os
+import sys
+import json
+import time
+import socket
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, "/home/ubuntu/cipher_workloads/launch_lib")
+import torch
+import torch.nn.functional as F
+import tenant_register
+from batch_ipc import send_msg, recv_msg
+
+SOCK = os.environ.get("BATCH_SOCK", "/tmp/cipher_batch_exec.sock")
+MODEL = os.environ["WL_MODEL"]
+N_CLIENTS = int(os.environ.get("N_CLIENTS", "2"))
+MAX_NEW = int(os.environ.get("WL_MAX_NEW", "128"))
+GOLD_JSON = os.environ["GOLD_JSON"]
+GOLD_LOGITS = os.environ["GOLD_LOGITS"]
+RESULT = os.environ["RESULT_JSON"]
+SENTINEL = os.environ.get("SENTINEL", "/tmp/cipher_batch_exec.decode_window")
+N_PROMPTS = 5
+
+tenant_register.register("batch_exec")
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+tok = AutoTokenizer.from_pretrained(MODEL, trust_remote_code=False)
+if tok.pad_token is None:
+    tok.pad_token = tok.eos_token
+tok.padding_side = "left"
+m = AutoModelForCausalLM.from_pretrained(
+    MODEL, dtype=torch.float16, attn_implementation="sdpa",
+    trust_remote_code=False).cuda()
+m = m.eval()
+gold_meta = {g["prompt"]: g for g in json.load(open(GOLD_JSON))["prompts"]}
+gold_logits = torch.load(GOLD_LOGITS, map_location="cuda")
+
+# --- CP 5.4 Step 1.3b' — register as the SM-group POOL owner -------------
+# After .cuda() init, before warmup. ALLOCATE(POOL) + a kmod-aligned green
+# context; all model work below runs on _pool.gc_stream (green context).
+import cp54_pool
+_pool = cp54_pool.PoolBinding()
+_pool.build_green_ctx()
+print("CP54-POOL bound: %d groups / %d SMs" % (_pool.grp_count,
+      _pool.grp_count * 8), file=sys.stderr, flush=True)
+
+
+def tf_kl_row(gold_logit, tf_logit):
+    """Per-step KL(gold || substrate), both [gen, vocab] -> [gen]."""
+    lp = F.log_softmax(gold_logit.float(), dim=-1)
+    lq = F.log_softmax(tf_logit.float(), dim=-1)
+    return (lp.exp() * (lp - lq)).sum(dim=-1)
+
+
+if os.path.exists(SOCK):
+    os.unlink(SOCK)
+srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+srv.bind(SOCK)
+srv.listen(64)
+print("LISTENING %s" % SOCK, file=sys.stderr, flush=True)
+conns = []
+for _ in range(N_CLIENTS):
+    c, _ = srv.accept()
+    conns.append(c)
+print("all %d clients connected" % N_CLIENTS, file=sys.stderr, flush=True)
+
+_w = tok(["warm up the model"] * N_CLIENTS, return_tensors="pt").to("cuda")
+with torch.no_grad(), torch.cuda.stream(_pool.gc_stream):
+    m.generate(**_w, max_new_tokens=MAX_NEW, do_sample=False,
+               pad_token_id=tok.eos_token_id)
+torch.cuda.synchronize()
+
+# collect all 5 rounds of requests (clients send up front)
+all_reqs = [[recv_msg(c) for c in conns] for _ in range(N_PROMPTS)]
+
+# PHASE 1 — free-running B=N generate, sentinel-windowed for power
+rounds = []
+with open(SENTINEL, "w") as s:
+    s.write("DECODE_START %.3f\n" % time.time())
+for r in range(N_PROMPTS):
+    # CP 5.4 Step 1.3b' — detect a pool resize (a PARTITION arrived/left) and
+    # rebuild the green context before this round; cheap when nothing changed.
+    if _pool.check_resize():
+        print("CP54-POOL resized -> %d groups / %d SMs" % (_pool.grp_count,
+              _pool.grp_count * 8), file=sys.stderr, flush=True)
+    texts = [req["text"] for req in all_reqs[r]]
+    enc = tok(texts, return_tensors="pt", padding=True).to("cuda")
+    plen = int(enc.input_ids.shape[-1])
+    torch.cuda.synchronize()
+    t0 = time.perf_counter()
+    with torch.no_grad(), torch.cuda.stream(_pool.gc_stream):
+        out = m.generate(**enc, max_new_tokens=MAX_NEW, do_sample=False,
+                         pad_token_id=tok.eos_token_id)
+    torch.cuda.synchronize()
+    dt = time.perf_counter() - t0
+    gen = int(out.shape[-1]) - plen
+    rounds.append({"seqs": out, "plen": plen, "gen": gen, "wall_s": round(dt, 4),
+                   "tokens": gen * len(texts)})
+    print("ROUND %d batch=%d gen=%d wall=%.3fs" % (r, len(texts), gen, dt),
+          file=sys.stderr, flush=True)
+with open(SENTINEL, "a") as s:
+    s.write("DECODE_END %.3f\n" % time.time())
+
+# PHASE 2 — teacher-forced correctness (cascade-free), not windowed
+for r in range(N_PROMPTS):
+    pr = all_reqs[r][0]["prompt_idx"]
+    g = gold_meta[pr]
+    full = g["full_ids"]
+    plen_g = g["plen"]
+    gen_g = len(full) - plen_g
+    gold_batch = torch.tensor([full] * N_CLIENTS, device="cuda")
+    with torch.no_grad(), torch.cuda.stream(_pool.gc_stream):
+        tf = m(input_ids=gold_batch)
+    torch.cuda.synchronize()        # CP 5.4 Step 1.4b FIX — the forward runs on
+                                    # the green-ctx stream; tf.logits is consumed
+                                    # below on the default stream. Without this
+                                    # sync the consumer races the forward and
+                                    # reads zero/partial logits when the forward
+                                    # is slow (small green ctx) — the K<=7
+                                    # TFGATE KL blow-up (Step 1.4 bisection).
+    gl = gold_logits[pr]                              # [gen_g, vocab]
+    kl_pc = []
+    for row in range(N_CLIENTS):
+        seg = tf.logits[row, plen_g - 1:plen_g - 1 + gen_g, :]
+        ks = tf_kl_row(gl, seg)
+        kl_pc.append((float(ks.mean()), float(ks.max())))
+    rounds[r]["kl_pc"] = kl_pc
+    print("TFGATE round=%d prompt=%d kl_max=%.6f"
+          % (r, pr, max(x[1] for x in kl_pc)), file=sys.stderr, flush=True)
+
+# respond to clients
+for r in range(N_PROMPTS):
+    seqs, plen = rounds[r]["seqs"], rounds[r]["plen"]
+    for i, c in enumerate(conns):
+        klm, klx = rounds[r]["kl_pc"][i]
+        send_msg(c, {"output_ids": seqs[i, plen:].tolist(),
+                     "gen": rounds[r]["gen"], "kl_mean": klm, "kl_max": klx})
+
+tot_tok = sum(x["tokens"] for x in rounds)
+tot_wall = sum(x["wall_s"] for x in rounds)
+json.dump({"role": "executor", "n_clients": N_CLIENTS, "model": MODEL,
+           "rounds": [{"round": r, "gen": rounds[r]["gen"],
+                       "tokens": rounds[r]["tokens"],
+                       "wall_s": rounds[r]["wall_s"]} for r in range(N_PROMPTS)],
+           "total_tokens": tot_tok, "total_wall_s": round(tot_wall, 4),
+           "agg_tok_s": round(tot_tok / tot_wall, 3) if tot_wall else None},
+          open(RESULT, "w"), indent=2)
+print("wrote " + RESULT, file=sys.stderr, flush=True)
+for c in conns:
+    c.close()
+srv.close()
+os.unlink(SOCK)
+_pool.free()                              # CP 5.4 Step 1.3b' — release the POOL

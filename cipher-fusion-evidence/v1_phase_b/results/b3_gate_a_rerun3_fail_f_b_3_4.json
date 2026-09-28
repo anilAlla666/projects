@@ -1,0 +1,86 @@
+{
+  "campaign": "V1 Phase B B.3'' Gate A 3rd ATTEMPT after R4 - NEW finding F-B.3.4 substrate vs container CUDA version skew",
+  "date": "2026-05-26",
+  "purpose": "Re-run Gate A after R4 (full CUDA 12 toolkit transitive BFS bind-mount). R4 succeeded at substrate loading but Gate A still FAILS at cuBLAS interception. Per Anil pivot guidance HARD STOP again.",
+  "anchors_at_test": {
+    "cipher_rt_phase4": "8613812e tag v1-substrate-driver-worker-init (UNCHANGED)",
+    "libcipher_rt_so_md5": "1d91e7da (UNCHANGED)",
+    "cipher_kmod": "8c643fc tag week-13-14-complete (UNCHANGED)",
+    "cipher_platform_deb_v2_rev3_md5": "a0ec28921ba315d7a63e0737fcd090c9 (post-R4 rebuild)"
+  },
+  "r4_close_status": {
+    "R4_generalized_dt_needed_discovery": "DONE - cipher_cdi_patch.py refactored to readelf-discover libcipher_rt.so DT_NEEDED chain + transitive BFS through CUDA-class libs; host search + bind-mount at /usr/lib/cipher/<soname>; soft WARNING per missing lib; CIPHER_CUPTI_CONTAINER_PATH special case generalized away",
+    "tests_extended": "ALL 11 PASS (i-xi); case (ix) walks BFS on this pod's actual libcipher_rt.so and finds 7 CUDA libs via libcusolver transitive deps",
+    "deb_rebuild": "cipher-platform_2.0_amd64.deb md5 a0ec2892 (822K, 57 files)",
+    "reinstall_outcome": "env 3/3 mounts 20/20 fully_applied=True; CIPHER bind-mounts 13 baseline + 7 CUDA toolkit libs into /usr/lib/cipher/"
+  },
+  "gate_a_3rd_attempt_progress": "SUBSTRATE LOADS INSIDE CONTAINER for the first time. cipher_v2 constructor completes (pid=1); GOT patcher patches 26 modules with 4 targets registered; partition router initialized; dispatcher LIVE=1. R4 fixed the DT_NEEDED chain.",
+  "gate_a_3rd_attempt_verdict": "FAIL - GATE_A_SHIM_CALLS: 0 despite running torch.matmul; substrate's GOT-patched cuBLAS not exercised",
+  "F-B.3.4_root_cause": {
+    "title": "CIPHER substrate CUDA 12 vs container PyTorch CUDA 13 version skew - GOT patches the wrong library",
+    "container_torch_version": "torch 2.11.0+cu130 (CUDA 13)",
+    "container_torch_loaded_libs": [
+      "libcudart.so.13 from /usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib/",
+      "libcublas.so.13 from /usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib/",
+      "libcublasLt.so.13 from /usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib/"
+    ],
+    "cipher_substrate_built_against": "CUDA 12 toolkit at Phase A close (1d91e7da); DT_NEEDED libcublas.so.12, libcublasLt.so.12, libcudart.so.12, libcusolver.so.11; GOT patcher matches on CUDA 12 SOnames",
+    "mechanism_failure": "R4 bind-mounts host CUDA 12 toolkit into /usr/lib/cipher/ so libcipher_rt.so loads. Substrate's GOT patcher then finds and patches CUDA 12 cuBLAS modules (26 modules, 4 targets). BUT torch's actual matmul path uses CUDA 13 libcublas (loaded by torch from /usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib/libcublas.so.13). The two cuBLAS instances are disjoint - CIPHER's GOT patches a library that torch doesn't call into.",
+    "GATE_A_SHIM_CALLS": "0 (substrate loaded; substrate's GOT-patched cuBLAS not exercised; MATMUL calls=0 handled=0 passthrough=0)"
+  },
+  "secondary_finding_F-B.3.5": {
+    "title": "/dev/cipher device node not exposed inside container",
+    "symptoms": "Multiple substrate components log 'open(/dev/cipher) failed: No such file or directory' (GREEN/CP54 + tenant + CUPTI)",
+    "impact": "cipher_v2 falls back to hash-pick green ctx; CUPTI launches won't populate (no per-tenant MFU)",
+    "remediation": "Simple: cipher_cdi_patch.py adds /dev/cipher as deviceNode entry in CDI patch (small extension); separate from F-B.3.4 fundamental issue",
+    "fix_effort": "~0.1 ED on top of any F-B.3.4 fix"
+  },
+  "remediation_candidates_for_F-B.3.4": [
+    {
+      "option": "Option 8 (substrate rebuild against CUDA 13)",
+      "effort": "~2-3 ED substrate + Phase A regression + new anchor rotation (cipher_rt_phase4 8613812e -> new commit; libcipher_rt.so md5 1d91e7da -> new md5)",
+      "trade": "Clean fix: substrate matches container's CUDA 13. CIPHER bind-mounts simplify (only need libcupti.so.13 from host if any; container has libcudart/libcublas/etc bundled). Eliminates entire CUDA 12 host-dependency chain (F-B.3.1 + F-B.3.3 also disappear).",
+      "risk": "Phase A regression test must re-run; substrate ABI rotation requires kmod compat verification; cipher_kv_bridge would need py310/py312 rebuilds against new substrate"
+    },
+    {
+      "option": "Option 9 (pin to CUDA 12 vLLM image)",
+      "effort": "~0.5 ED documentation + image tag pin",
+      "trade": "Brittle for v1.x (vLLM ecosystem already on CUDA 13); customer-side hard pin (which neoclouds choose anyway, but limits design partner reach)"
+    },
+    {
+      "option": "Option 10 (dual-version substrate)",
+      "effort": "~3-5 ED substrate refactor",
+      "trade": "Substrate detects CUDA major version at runtime and patches the appropriate cuBLAS; supports both CUDA 12 and CUDA 13 containers from single .deb"
+    },
+    {
+      "option": "Option 11 (driver-API-level interception)",
+      "effort": "~5-7 ED substrate refactor",
+      "trade": "Substrate intercepts at cuLaunchKernel / cuModuleLoad level (driver API), version-agnostic to CUDA toolkit; substantial code change to substrate; eliminates all CUDA toolkit version coupling"
+    },
+    {
+      "option": "Option 12 (deferred carve-out)",
+      "effort": "~0.5 ED documentation",
+      "trade": "Accept v1 PARTIAL Branch B close: substrate LOADS in container (R4 achievement); cuBLAS interception requires CUDA 12 vLLM stack. Document in scope-lock §15 honest residue. Ship v1; v2.0 rebuilds against CUDA 13."
+    }
+  ],
+  "recommendation_surface_for_anil_pick": {
+    "primary_recommendation": "Option 8 (substrate rebuild against CUDA 13). This is the structurally cleanest fix and eliminates F-B.3.1, F-B.3.3, AND F-B.3.4 in one move. Substrate has been at CUDA 12 since CP 3.3 (2026-04 era); CUDA 12 was the right call then; CUDA 13 is the current ecosystem default. The rebuild is a v1.x scope expansion that pays for itself by removing the entire host-CUDA-toolkit dependency.",
+    "alternative_recommendation": "Option 12 (deferred carve-out) for v1 fast-path: explicitly scope v1 to CUDA 12 vLLM stacks; ship cipher-platform v2.0 with documented constraint; v1.1 rebuilds against CUDA 13 with Phase A regression. Two-deploy story.",
+    "why_not_option_9": "Option 9 (CUDA 12 image pin) only solves THIS pod's immediate test. Design partners running CUDA 13 NIM / vLLM (which is the current default) can't deploy. Not a v1 path."
+  },
+  "discipline_carry": {
+    "no_auto_scope_degrade": "HARD STOP per discipline (e) + Anil pivot guidance verbatim 'If Gate A FAIL: HARD STOP again; surface for further Anil adjudication.'",
+    "third_consecutive_hard_stop": "F-B.3.1 -> F-B.3.3 -> F-B.3.4. Each finding structurally distinct; each surfaced before proceeding. The pattern is: each Gate A failure reveals a new mechanism gap. R1 + R4 fixed the packaging-layer gaps. F-B.3.4 is the substrate-layer gap that NO packaging fix addresses.",
+    "branch_classification": "PARTIAL Branch B (substrate loads + R4 mechanism works) but FAIL on the contract gate (cuBLAS interception is the CIPHER value-prop)",
+    "branch_d_consideration": "NOT quite Branch D: substrate IS loading; bind-mounts ARE honored; GOT patches DO fire. Just patches the wrong cuBLAS. So Branch B/C boundary, not Branch D. Substrate is structurally correct but built for a different runtime."
+  },
+  "eng_day_consumed": "~1.5 ED of B.3'' budget (initial 0.5 + R1+R2+R3+Gate E 0.5 + R4+Gate A rerun 3 0.5); soft ceiling 2.5 ED still has 1 ED headroom but next step is substrate-side which exits B.3'' scope",
+  "honest_residue": [
+    "1. F-B.3.4 is a SUBSTRATE-side issue that no amount of CDI packaging work fixes. The R1+R3+R4 work is correct and lands the v1 deployment mechanism; what it cannot fix is the substrate-vs-container CUDA-version skew.",
+    "2. Secondary finding F-B.3.5 (/dev/cipher not in container) is a small CDI patch extension (deviceNode entry); should be addressed in the same B.2'' revisit that handles F-B.3.4, IF the F-B.3.4 fix is option 12 (deferred carve-out). If F-B.3.4 fix is Option 8 (substrate rebuild), F-B.3.5 still needs the deviceNode addition.",
+    "3. R4 work IS the right architectural mechanism even if the substrate is rebuilt against CUDA 13 (Option 8). Different CUDA versions still have ABI deps that need host bind-mounting; the dynamic discovery + transitive BFS is the right pattern; will only become MORE relevant as substrate evolves.",
+    "4. Three consecutive HARD STOPs on Gate A may suggest the v1 mechanism design intent (CUDA 12 substrate + customer CUDA 13 containers) was wrong at the architectural level. Surface this honestly: 'substrate-customer CUDA version pin' may need to be an explicit v1 design decision rather than a discovered constraint.",
+    "5. Substrate code anchors UNCHANGED through all of B.3''; the substrate rebuild (Option 8) would rotate them. Phase A close did not have CUDA 13 in scope.",
+    "6. R4 evidence on this pod's libcipher_rt.so: BFS discovered exactly the 7 CUDA 12 libs that ldd reported in F-B.3.3 (libcupti, libcudart, libcusolver, libnvJitLink, libcusparse, libcublas, libcublasLt). The mechanism is correct."
+  ]
+}

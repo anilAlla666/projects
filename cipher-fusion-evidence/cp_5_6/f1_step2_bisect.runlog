@@ -1,0 +1,70 @@
+CP 5.6 / finding F1 — STEP 2: integration-path bisection
+=========================================================
+Engine under test: libcipher_rt.so.pre_cp5_3_step2  (c2c5d313, F1-broken build)
+Harness: f1_step2_bisect.cpp  (extends Step 1; Mistral-7B L0 q_proj [4096,4096], M=1)
+degenerate gate: nan|inf | cos<0.85 | rel>0.35   (correct = rel~0.140 cos~0.9905)
+
+Variant A  100 sequential dispatches, NULL stream, synced between each
+    iter 0   nan=0 inf=0 max_abs=0.3486 rel=0.1400 cos=0.9905  ok
+    iter 99  nan=0 inf=0 max_abs=0.3486 rel=0.1400 cos=0.9905  ok
+    RESULT A: PASS
+
+Variant B  100 sequential dispatches, NULL stream, NO sync between (sync at end)
+    final    nan=0 inf=0 max_abs=0.3486 rel=0.1400 cos=0.9905  ok
+    RESULT B: PASS
+
+Variant C  100 dispatches, each wrapped in explicit cuCtxPushCurrent/Pop(primary)
+    iter 0   nan=0 inf=0 max_abs=0.3486 rel=0.1400 cos=0.9905  ok
+    iter 99  nan=0 inf=0 max_abs=0.3486 rel=0.1400 cos=0.9905  ok
+    RESULT C: PASS
+
+Variant D  100 dispatches under CUDA_INJECTION64_PATH=<c2c5d313>  (CUPTI active)
+    iter 0   nan=0 inf=0 max_abs=0.3486 rel=0.1400 cos=0.9905  ok
+    iter 99  nan=0 inf=0 max_abs=0.3486 rel=0.1400 cos=0.9905  ok
+    RESULT D: PASS
+    *** DIAG-T4.2.4d: total_launches=103  ctx_swaps_to_green=0
+    ***               on_primary=0 on_null_stream=103
+    *** => CUPTI was subscribed and saw all 103 launches, but the per-launch
+    ***    green-enforcement (cipher_cupti.c:123) NEVER fired. The engine's
+    ***    PrimaryCtxGuard sets cipher_rt_in_marlin_quant=1 for the whole
+    ***    dispatch, which is exactly the condition that gates out the green
+    ***    swap. The GEMM stays pinned to the primary context by design.
+
+Variant E  dispatches interleaved across TWO streams, no sync between
+    stream1 final  nan=0 inf=0 max_abs=0.3486 rel=0.1400 cos=0.9905  ok
+    stream2 final  nan=0 inf=0 max_abs=0.3486 rel=0.1400 cos=0.9905  ok
+    RESULT E: PASS
+
+=========================================================
+STEP 2 VERDICT: A,B,C,D,E ALL PASS — no single-context / stream-level trigger
+reproduces the degeneracy. The bug is structurally unreachable by A-E.
+
+Root mechanism (confirmed in cipher_rt_marlin_engine.cpp PrimaryCtxGuard +
+cipher_rt_marlin_engine_dispatch, and by Variant D's ctx_swaps_to_green=0):
+
+  c2c5d313's cipher_rt_marlin_engine_dispatch UNCONDITIONALLY wraps the GEMM
+  launch in PrimaryCtxGuard, which:
+    (a) cuCtxSetCurrent(primary)  -> GEMM + its write to output buffer C run
+        on the PRIMARY context, regardless of the caller's context;
+    (b) cipher_rt_in_marlin_quant=1 -> CUPTI's per-launch green-enforcement
+        is suppressed for the GEMM (proven: D's ctx_swaps_to_green=0).
+
+  A-E all run in ONE context (the harness's primary). GEMM producer and
+  consumer share that context => coherent => correct output every time.
+
+  The real decode breaks because the host app runs its surrounding decode
+  kernels on a GREEN CUcontext (the 8-SM partition CUPTI green-enforcement
+  switches app threads onto). c2c5d313 pins the GEMM + buffer-C write to the
+  PRIMARY context. Producer (primary) and consumer (green) are on DIFFERENT
+  contexts with independent, unsynchronized streams => the green-context
+  consumer races the primary-context GEMM => garbage logits => argmax(0).
+
+  This is also why CP 5.3 STEP 2's dc804eb3 fix works: it skips the
+  PrimaryCtxGuard when a green context is active (engine.cpp:1005-1011), so
+  the GEMM launches on the caller's green context/stream — same context as
+  the consumer => ordered => coherent.
+
+MINIMAL TRIGGER: cross-CONTEXT, not cross-stream. Requires a second (green)
+CUcontext with the GEMM-output consumer on it. A-E cannot express this.
+Next step = Variant F: real green/secondary context, consumer kernel reads C
+with no cross-context sync — expected to reproduce the degeneracy.

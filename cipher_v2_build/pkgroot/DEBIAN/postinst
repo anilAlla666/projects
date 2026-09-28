@@ -1,0 +1,13 @@
+#!/bin/sh
+set -e
+echo "[cipher] verifying substrate integrity (no-regress anchor)"
+echo "2edba0d2136f8ede4713d90a8f7cd55f  /usr/lib/cipher/libcipher_rt.so" | md5sum -c - || { echo "[cipher] FATAL: libcipher_rt.so md5 mismatch"; exit 1; }
+if [ -d /usr/src/cipher-kmod-0.7.0 ]; then
+  dkms add -m cipher-kmod -v 0.7.0 2>/dev/null || true
+  dkms build -m cipher-kmod -v 0.7.0 || echo "[cipher] WARN: dkms build failed (need linux-headers + nvidia.ko); module not loaded"
+  dkms install -m cipher-kmod -v 0.7.0 2>/dev/null || true
+  modprobe cipher_kmod 2>/dev/null || echo "[cipher] WARN: modprobe cipher_kmod failed (load manually after headers present)"
+fi
+[ -e /dev/cipher ] && chmod 0666 /dev/cipher 2>/dev/null || true
+echo "[cipher] installed. Validate this box:  cipher selftest --quick"
+exit 0

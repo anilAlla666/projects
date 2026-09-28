@@ -1,0 +1,15 @@
+# CP 2.5 audit — GOT relocation viability (2026-05-16)
+# objdump -R: confirms GOT patching can intercept both substrates.
+
+## libtorch_cuda.so — cuBLAS GEMM (Marlin routing path):
+0000000016a56858 R_X86_64_JUMP_SLOT  cublasGemmStridedBatchedEx@libcublas.so.13
+0000000016a589d0 R_X86_64_JUMP_SLOT  cublasGemmEx@libcublas.so.13
+
+## libtorch_cpu.so — ATen SDPA ::call (attn substrate path), 3 hooked:
+0000000014f50880 R_X86_64_JUMP_SLOT  _ZN2at4_ops39_scaled_dot_product_efficient_attention4callERKNS_6TensorES4_S4_RKSt8optionalIS2_EbdbS5_IdE@@Base
+0000000014f50dd0 R_X86_64_JUMP_SLOT  _ZN2at4_ops35_scaled_dot_product_cudnn_attention4callERKNS_6TensorES4_S4_RKSt8optionalIS2_EbdbbS5_IdE@@Base
+0000000014f5ae68 R_X86_64_JUMP_SLOT  _ZN2at4_ops35_scaled_dot_product_flash_attention4callERKNS_6TensorES4_S4_dbbSt8optionalIdE@@Base
+
+## Finding: both substrates have R_X86_64_JUMP_SLOT GOT relocs →
+## GOT patching from InitializeInjection2 catches both. Decision 4
+## 'migrate attn now' is verified-viable, not assumed.

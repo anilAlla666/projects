@@ -1,0 +1,135 @@
+{
+  "campaign": "V1 Phase B B.2'' substep 8 - cipher-platform_2.0_amd64.deb build + install + close gates",
+  "date": "2026-05-26",
+  "purpose": "Per V1 Phase B scope-lock addendum B.1'' §7 sub-step 8: assemble .deb, install on this pod, run close gates (CLI status/verify/version/refresh + standalone health-check.sh + systemd watcher state), surface for B.3'' three-gate authorization.",
+  "anchors_at_build": {
+    "cipher_rt_phase4": "8613812e tag v1-substrate-driver-worker-init",
+    "libcipher_rt_so_md5": "1d91e7dabba6b3ace520d78fdb085fc3",
+    "libcipher_v2_so_md5": "cc0479b836e560619e2b286ca1caecb7",
+    "libc10_so_md5": "b814a98fc9420f824bf6a520b6283c92",
+    "cipher_kmod": "8c643fc tag week-13-14-complete",
+    "cipher_kmod_srcversion_at_install": "C36ED68CEEDD744995C0AC4 (DKMS 0.6.5)",
+    "cipher_vllm_plugin_md5": "b89a9b6e",
+    "cipher_kv_bridge_so_md5": "5a3db034ea2b950bf426eb48140ec8fd",
+    "cipher_fusion_evidence": "9eaaf45 (B.2'' substep 7 commit; this substep lands at next commit)"
+  },
+  "build": {
+    "script": "v1_phase_b/packaging/build_deb.sh",
+    "output": "/tmp/cipher-deb-build/cipher-platform_2.0_amd64.deb",
+    "deb_md5": "d7eb62231e405e963abb384a2c7dd7ce",
+    "deb_size_bytes": 786534,
+    "deb_size_human": "769K",
+    "file_count": 56,
+    "verdict": "PASS - .deb builds clean; size well under 50 MB target; assembles substrate libs + plugin chain + DKMS source + scripts + systemd units"
+  },
+  "install": {
+    "command": "sudo apt install -y /tmp/cipher-deb-build/cipher-platform_2.0_amd64.deb",
+    "verdict": "PASS - v1.0 -> v2.0 upgrade clean via Conflicts/Replaces; DKMS auto-built + installed 0.6.5; cipher_cdi_patch.sh first-apply env 3/3 mounts 12/12 fully_applied=True; operator banner printed correctly",
+    "dpkg_warning": "dpkg: warning: unable to delete old directory '/usr/src/cipher-kmod-0.4.8': Directory not empty - benign (DKMS build artifacts from v1.0; no functional impact); v2.0 prerm cleans on uninstall"
+  },
+  "close_gates": {
+    "gate_1_cipher_platform_status_under_sudo": {
+      "command": "sudo cipher-platform status",
+      "result": {
+        "dpkg_version": "2.0",
+        "substrate_md5": "1d91e7dabba6b3ace520d78fdb085fc3",
+        "kmod_loaded": true,
+        "kmod_version": "0.6.5",
+        "dev_cipher_present": true,
+        "cdi_applied": true,
+        "cdi_marker": true,
+        "plugin_entries": ["cipher_vllm_kv", "cipher_vllm_kvdedup"],
+        "systemd_watcher": "active"
+      },
+      "exit": 0,
+      "verdict": "PASS"
+    },
+    "gate_2_cipher_platform_verify_under_sudo": {
+      "command": "sudo cipher-platform verify",
+      "result": "cipher-platform verify: PASS",
+      "exit": 0,
+      "verdict": "PASS"
+    },
+    "gate_3_cipher_platform_version": {
+      "command": "cipher-platform version",
+      "result": "cipher-platform 2.0; substrate libcipher_rt.so md5 1d91e7dabba6b3ace520d78fdb085fc3; kmod version 0.6.5 srcversion C36ED68CEEDD744995C0AC4",
+      "exit": 0,
+      "verdict": "PASS"
+    },
+    "gate_4_cipher_platform_refresh_idempotent": {
+      "command": "sudo cipher-platform refresh",
+      "result": "before applied=True -> after applied=True (idempotent no-op rewrite avoided by cipher_cdi_patch.py no-write-when-unchanged guard from substep 4)",
+      "exit": 0,
+      "verdict": "PASS"
+    },
+    "gate_5_health_check_sh_under_sudo": {
+      "command": "sudo /usr/lib/cipher/health-check.sh",
+      "result": "6/6 checks PASS: substrate present 487744 bytes + cipher_kmod loaded 0.6.5 + /dev/cipher present + CDI marker + plugin chain present + nvidia-container-toolkit 1.18.1 >= 1.17",
+      "exit": 0,
+      "verdict": "PASS"
+    },
+    "gate_6_systemd_watcher_active": {
+      "command": "systemctl is-active cipher-platform-watch.path",
+      "result": "active",
+      "exit": 0,
+      "verdict": "PASS"
+    },
+    "gate_7_cipher_run_backward_compat": {
+      "command": "which cipher-run",
+      "result": "/usr/bin/cipher-run (CP 2.5 wrapper preserved for non-container bare-metal deployments)",
+      "verdict": "PASS"
+    }
+  },
+  "ux_bug_surfaced_and_fixed_within_substep_8": {
+    "issue": "/var/run/cdi/nvidia.yaml is mode -rw------- root-readable only. Non-sudo cipher-platform status/verify shells out to cipher_cdi_patch.sh status which exits with PermissionError. Initial CLI logic reported applied=False marker=None (false negative); verify reported 'CDI patch not applied' (misleading - patch IS applied, status just can't read it).",
+    "fix": "cipher_platform_cli.py _cdi_status() now checks os.access(CDI_PATH, os.R_OK) before shelling out; if not readable, returns {'applied': 'unknown', 'permission_denied': True, 'hint': '...root-readable only; re-run with sudo.'}. _cmd_verify treats permission_denied as a distinct failure mode with sudo-hint failure message.",
+    "post_fix_behavior": {
+      "non_sudo_status": "CDI patch: applied=unknown marker=None (clear that this is a read-permission state, not a substrate failure)",
+      "non_sudo_verify": "FAIL exit 1 with message 'CDI status unreadable: /var/run/cdi/nvidia.yaml is root-readable only; re-run with sudo.; re-run `sudo cipher-platform verify` for a conclusive check.'",
+      "sudo_status_and_verify": "PASS as verified in close gates above"
+    },
+    "rotated_cli_md5_in_evidence": "909ff2f0 -> 8522b37b",
+    "runbook_already_documents_sudo": "Runbook §1 already documents `sudo cipher-platform status` and `sudo cipher-platform verify` as the standard operator invocation; this fix improves the non-sudo error message for accidental non-sudo runs."
+  },
+  "deb_contents_summary": {
+    "DEBIAN/control": "v2.0 metadata with Depends nvidia-container-toolkit + python3-yaml + dkms",
+    "DEBIAN/changelog": "2 entries: v2.0 Phase B close + v1.0 CP 2.5 retroactive",
+    "DEBIAN/postinst": "DKMS register/build/install 0.6.5 + cipher_cdi_patch.sh apply + systemctl enable cipher-platform-watch.path + operator banner",
+    "DEBIAN/prerm": "systemctl disable watcher + CDI revert + module unload + DKMS unregister 0.6.5 (and stale 0.4.8 on upgrade)",
+    "usr/bin/cipher-run": "CP 2.5 backward-compat wrapper (preserved)",
+    "usr/bin/cipher-platform": "v2.0 operator CLI (5 subcommands; substep 5 + UX fix at substep 8)",
+    "usr/lib/cipher/libcipher_rt.so": "Phase A close substrate (487744 bytes; md5 1d91e7da)",
+    "usr/lib/cipher/libcipher_v2.so": "Track 2 close substrate (md5 cc0479b8)",
+    "usr/lib/cipher/libc10.so": "ABI-stable c10 core (md5 b814a98f; sourced from torch lib)",
+    "usr/lib/cipher/cipher_cdi_patch.py + .sh": "P1 mechanism (substep 3 + watcher loop guard at substep 4)",
+    "usr/lib/cipher/runbook.md": "operator runbook 5 sections (substep 6)",
+    "usr/lib/cipher/health-check.sh": "standalone validator (substep 7)",
+    "usr/lib/python3/dist-packages/*": "plugin chain (cipher_vllm_kv + kvdedup + kv_offload + model_fingerprint + kv_bridge.so + dist-info)",
+    "usr/src/cipher-kmod-0.6.5/*": "DKMS source (16 .c + 4 .h + Makefile + Kbuild + dkms.conf)",
+    "lib/systemd/system/cipher-platform-watch.{path,service}": "auto re-patch convenience (substep 4)"
+  },
+  "summary": {
+    "substep_8_verdict": "PASS - .deb builds clean, installs clean, all 7 close gates PASS",
+    "build_size": "769K (well under 50 MB target)",
+    "v1_to_v2_upgrade": "clean via Conflicts/Replaces",
+    "close_gate_count": 7,
+    "close_gate_pass": 7,
+    "close_gate_fail": 0
+  },
+  "anchors_at_close": {
+    "cipher_rt_phase4": "8613812e tag v1-substrate-driver-worker-init (UNCHANGED)",
+    "cipher_kmod": "8c643fc tag week-13-14-complete (UNCHANGED)",
+    "cipher_vllm_plugin_md5": "b89a9b6e (UNCHANGED)",
+    "cipher_platform_deb": "cipher-platform_2.0_amd64.deb md5 d7eb62231e405e963abb384a2c7dd7ce",
+    "cipher_fusion_evidence_pending": "this substep 8 commit"
+  },
+  "honest_residue": [
+    "1. .deb installed on the build pod itself (Lambda H100, Ubuntu 22.04, kernel 6.8.0-1046-nvidia). Verification on a CLEAN target node (no pre-installed v1.0) is deferred - the v1->v2 upgrade path was exercised here but a from-scratch install would surface different postinst paths (e.g., first DKMS add vs replace).",
+    "2. systemd path-watcher 'active' state verified, but the PathChanged trigger has not yet fired in this session (would require nvidia-ctk to regenerate nvidia.yaml; tested only via direct cipher_cdi_patch.sh apply at install time). Trigger behavior under real driver upgrade is implicit; B.3'' Gate E exercises this in a more realistic scenario.",
+    "3. cipher-platform-watch.service SuccessExitStatus=0 1 allows the service to NOT fail on rc=1 (e.g., transient nvidia.yaml-missing during regeneration). For ops monitoring, this means systemd alert thresholds need to be set against journal log content patterns, not service-failed state.",
+    "4. cipher-run backward-compat wrapper retained even though v2.0 deployment is CDI-driven. Could be removed in v2.x if CDI adoption is universal; carries 0 KB cost (712-byte script).",
+    "5. Verify subcommand verbose output mixes useful PASS/FAIL with substrate's own [cipher_v2] init prints (the ctypes.CDLL of libcipher_rt.so triggers substrate auto-init constructor which prints; harmless but noisy). Could redirect to /dev/null in v2.x; not blocking.",
+    "6. dpkg 'unable to delete old directory /usr/src/cipher-kmod-0.4.8' warning is benign carry-over from v1.0 era. Fresh installs from-scratch will not have this. Documented in install_verdict.dpkg_warning.",
+    "7. The .deb assumes target host has nvidia-container-toolkit-generated /var/run/cdi/nvidia.yaml at postinst time. On a host with NVIDIA driver but no nvidia-ctk cdi generate run, postinst will print a WARNING but install completes; first apply happens via systemd watcher once nvidia-ctk runs. Runbook §3.3 covers this path."
+  ]
+}

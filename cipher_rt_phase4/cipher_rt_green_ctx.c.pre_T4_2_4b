@@ -1,0 +1,132 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * cipher_rt_green_ctx.c -- T4.2.4a Green Context scaffold (one per process).
+ *
+ * v1 (this build): single green context per process covering ALL device
+ * SMs. Pushing it as current before cuStreamCreate binds the resulting
+ * stream to the green ctx. No real partition restriction yet — this
+ * proves the plumbing is in place for T4.2.4b.
+ *
+ * v2 (T4.2.4b, deferred): instead of a single full-SM green ctx, create
+ * a per-tenant green ctx whose SM subset matches ARBITRATE's granted
+ * mask. The mask currently maps to 4-SM-aligned partitions (cipher_kmod
+ * CIPHER_SMS_PER_PARTITION); v2 needs to translate from kmod slot
+ * indices to actual SM indices (cuDevSmResourceSplitByCount partition).
+ */
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdatomic.h>
+#include <pthread.h>
+
+#include <cuda.h>
+
+#include "cipher_v2_internal.h"
+#include "cipher_rt_green_ctx.h"
+
+static CUgreenCtx       g_green_ctx       = NULL;
+static CUcontext        g_green_cuctx     = NULL;
+static atomic_int       g_green_init_attempted = 0;
+static atomic_int       g_green_init_succeeded = 0;
+static atomic_ulong     g_streams_observed = 0;
+static pthread_mutex_t  g_green_lock      = PTHREAD_MUTEX_INITIALIZER;
+
+int cipher_rt_green_ctx_is_initialized(void)
+{
+	return atomic_load(&g_green_init_succeeded);
+}
+
+unsigned long cipher_rt_green_ctx_streams_observed(void)
+{
+	return atomic_load(&g_streams_observed);
+}
+
+int cipher_rt_green_ctx_ensure(void)
+{
+	CUdevice dev = 0;
+	CUdevResource sm_res;
+	CUdevResourceDesc desc;
+	CUresult cr;
+	unsigned int n_groups;
+
+	if (atomic_load(&g_green_init_succeeded))
+		return 0;
+
+	pthread_mutex_lock(&g_green_lock);
+	if (atomic_load(&g_green_init_succeeded)) {
+		pthread_mutex_unlock(&g_green_lock);
+		return 0;
+	}
+	if (atomic_exchange(&g_green_init_attempted, 1)) {
+		/* Already attempted and failed; do not retry. */
+		pthread_mutex_unlock(&g_green_lock);
+		return -1;
+	}
+
+	/* Step 1: get device 0's full SM resource set. */
+	cr = cuDeviceGetDevResource(dev, &sm_res, CU_DEV_RESOURCE_TYPE_SM);
+	if (cr != CUDA_SUCCESS) {
+		cipher_log("GREEN: cuDeviceGetDevResource rc=%d (CUresult)", cr);
+		pthread_mutex_unlock(&g_green_lock);
+		return -1;
+	}
+	cipher_log("GREEN: device 0 has %u SMs available (full set, v1 no partition)",
+	           sm_res.sm.smCount);
+
+	/* Step 2: generate descriptor from the full SM set (no split). */
+	cr = cuDevResourceGenerateDesc(&desc, &sm_res, 1);
+	if (cr != CUDA_SUCCESS) {
+		cipher_log("GREEN: cuDevResourceGenerateDesc rc=%d", cr);
+		pthread_mutex_unlock(&g_green_lock);
+		return -1;
+	}
+
+	/* Step 3: create the green context. */
+	cr = cuGreenCtxCreate(&g_green_ctx, desc, dev,
+	                      CU_GREEN_CTX_DEFAULT_STREAM);
+	if (cr != CUDA_SUCCESS) {
+		cipher_log("GREEN: cuGreenCtxCreate rc=%d", cr);
+		pthread_mutex_unlock(&g_green_lock);
+		return -1;
+	}
+
+	/* Step 4: convert to CUcontext for cuCtxPushCurrent. */
+	cr = cuCtxFromGreenCtx(&g_green_cuctx, g_green_ctx);
+	if (cr != CUDA_SUCCESS) {
+		cipher_log("GREEN: cuCtxFromGreenCtx rc=%d", cr);
+		(void)cuGreenCtxDestroy(g_green_ctx);
+		g_green_ctx = NULL;
+		pthread_mutex_unlock(&g_green_lock);
+		return -1;
+	}
+
+	(void)n_groups;
+	atomic_store(&g_green_init_succeeded, 1);
+	cipher_log("GREEN: green context created — sm_count=%u CUcontext=%p",
+	           sm_res.sm.smCount, (void *)g_green_cuctx);
+	pthread_mutex_unlock(&g_green_lock);
+	return 0;
+}
+
+int cipher_rt_green_ctx_push(void)
+{
+	CUresult cr;
+	if (!atomic_load(&g_green_init_succeeded)) {
+		return -1;
+	}
+	atomic_fetch_add(&g_streams_observed, 1);
+	cr = cuCtxPushCurrent(g_green_cuctx);
+	if (cr != CUDA_SUCCESS) {
+		cipher_dbg("GREEN: cuCtxPushCurrent rc=%d", cr);
+		return -1;
+	}
+	return 0;
+}
+
+void cipher_rt_green_ctx_pop(void)
+{
+	CUcontext popped;
+	if (!atomic_load(&g_green_init_succeeded)) return;
+	(void)cuCtxPopCurrent(&popped);
+}

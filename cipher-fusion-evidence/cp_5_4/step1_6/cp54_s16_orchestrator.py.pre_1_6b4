@@ -1,0 +1,432 @@
+#!/usr/bin/env python3
+"""CP 5.4 Step 1.6B-2 — mixed-deployment orchestrator (THROWAWAY).
+
+Launches a CIPHER mixed deployment — the POOL batched executor + N PARTITION
+tenants (isolated, each on its own kmod-allocated green-context SM slice) — runs
+them concurrently, and runs the continuous per-round two-clause SM-disjointness
+check (design memo §6 / §11).
+
+Launch ORDER is load-bearing (Step 1.3b' Test B):
+  1. executor first -> cp54_pool ALLOCATE(POOL) claims all 15 groups on the
+     LOW prefix (torch.cuda.GreenContext.create is a count-only low-prefix
+     pick — the POOL must own the low prefix);
+  2. PARTITION tenants -> each ALLOCATE(PARTITION) triggers a kmod pool_shrink
+     that releases the POOL's HIGH groups, so partitions take the high end and
+     the POOL keeps a clean low prefix;
+  3. batch_clients -> the executor (blocked at accept() since LISTENING) starts
+     its rounds; check_resize() rebuilds the POOL green ctx for the new count;
+  4. START the partitions.
+
+Disjointness (per-round, centralised here): for each round, the pairwise
+intersection of every member's observed SM set must be empty (clause 2); each
+partition's observed set must lie inside its static kmod allocation (clause 1).
+The POOL's clause 1 is cp54_pool's own build-time %smid self-verify (it raises
+on mismatch — executor-not-crashed ⇒ POOL clause 1 held).
+
+PARTITION tenants are launched with CUDA_INJECTION64_PATH (memo §11.6). The
+POOL executor is launched plain per the run_arm3.sh recipe (cp54_pool provides
+its green ctx; no CUDA injection needed for the POOL path).
+
+Output: <outdir>/orchestrator_result.json + per-tenant JSON/logs.
+"""
+import argparse
+import json
+import os
+import statistics as st
+import subprocess
+import sys
+import threading
+import time
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+RT = "/home/ubuntu/cipher_rt_phase4/libcipher_rt.so"
+PART_TENANT = os.path.join(HERE, "cp54_s16_partition_tenant.py")
+SESSION1 = "/home/ubuntu/cipher-fusion-evidence/cp_5_6/phase_b/session1"
+EXECUTOR = os.path.join(SESSION1, "cipher_batch_executor_gen.py")
+BATCH_CLIENT = os.path.join(SESSION1, "batch_client.py")
+WL01 = "/home/ubuntu/cipher-fusion-evidence/cp_5_6/phase_a/WL01"
+GOLD_JSON = WL01 + "/gold.json"
+GOLD_LOGITS = WL01 + "/gold_logits.pt"
+MODEL = "/home/ubuntu/models/TinyLlama-1.1B"
+
+GROUP_SMS = {
+    0: {0, 1, 16, 17, 32, 33, 48, 49}, 1: {2, 3, 18, 19, 34, 35, 50, 51},
+    2: {4, 5, 20, 21, 36, 37, 52, 53}, 3: {6, 7, 22, 23, 38, 39, 54, 55},
+    4: {8, 9, 24, 25, 40, 41, 56, 57}, 5: {10, 11, 26, 27, 42, 43, 58, 59},
+    6: {12, 13, 28, 29, 44, 45, 60, 61}, 7: {14, 15, 30, 31, 46, 47, 62, 63},
+    8: {64, 65, 78, 79, 92, 93, 106, 107}, 9: {66, 67, 80, 81, 94, 95, 108, 109},
+    10: {68, 69, 82, 83, 96, 97, 110, 111}, 11: {70, 71, 84, 85, 98, 99, 112, 113},
+    12: {72, 73, 86, 87, 100, 101, 114, 115}, 13: {74, 75, 88, 89, 102, 103, 116, 117},
+    14: {76, 77, 90, 91, 104, 105, 118, 119},
+}
+
+
+def mask_to_sms(m):
+    s = set()
+    for g in range(15):
+        if m & (1 << g):
+            s |= GROUP_SMS[g]
+    return s
+
+
+def olog(m):
+    print("[orch %s] %s" % (time.strftime("%H:%M:%S"), m), flush=True)
+
+
+def barrier_coordinator(tag, members, rounds, stop, per_round_timeout=180.0):
+    """CP 5.4 Step 1.6B-2A — per-round lockstep coordinator. For each round r:
+    wait until every member has dropped its `<member>_r<r>.done` sentinel, then
+    write `all_r<r>.go` to release the round-r+1 barrier. Runs in a thread."""
+    for r in range(rounds):
+        t0 = time.time()
+        while not stop.is_set():
+            if all(os.path.exists("/tmp/cp54_s16_%s_%s_r%d.done"
+                                  % (tag, m, r)) for m in members):
+                break
+            if time.time() - t0 > per_round_timeout:
+                olog("BARRIER: timeout at round %d — members missing: %s"
+                     % (r, [m for m in members
+                            if not os.path.exists(
+                                "/tmp/cp54_s16_%s_%s_r%d.done" % (tag, m, r))]))
+                stop.set()
+                # unblock any surviving members so they exit cleanly
+                for rr in range(r, rounds):
+                    open("/tmp/cp54_s16_%s_all_r%d.go" % (tag, rr), "w").close()
+                return
+            time.sleep(0.05)
+        if stop.is_set():
+            return
+        open("/tmp/cp54_s16_%s_all_r%d.go" % (tag, r), "w").close()
+        olog("BARRIER round %d — all %d members done, released" % (r, len(members)))
+
+
+class Tenant:
+    """A PARTITION tenant subprocess + the state its stdout drainer fills."""
+
+    def __init__(self, name, sm, outdir):
+        self.name = name
+        self.sm = sm
+        self.out_json = os.path.join(outdir, "%s.json" % name)
+        self.log = open(os.path.join(outdir, "%s.stderr.log" % name), "w")
+        self.proc = None
+        self.pid = None
+        self.grp_mask = None
+        self.ready = threading.Event()
+        self.done = threading.Event()
+        self.rounds = {}                       # round idx -> observed SM list
+        self.lock = threading.Lock()
+
+    def launch(self, rounds, tag):
+        env = dict(os.environ)
+        env.update({
+            "CUDA_INJECTION64_PATH": RT,
+            "CIPHER_QOS_CLASS": "partition",
+            "CIPHER_SM_COUNT": str(self.sm),
+            "TENANT": self.name, "OUT_JSON": self.out_json,
+            "ROUNDS": str(rounds), "NOSIGNAL": "0",
+            "BARRIER_TAG": tag,
+            "WL_MODEL": MODEL, "GOLD_JSON": GOLD_JSON,
+            "GOLD_LOGITS": GOLD_LOGITS,
+        })
+        self.proc = subprocess.Popen(
+            [sys.executable, PART_TENANT], env=env,
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=self.log, text=True, bufsize=1)
+        threading.Thread(target=self._drain, daemon=True).start()
+
+    def _drain(self):
+        for line in self.proc.stdout:
+            line = line.strip()
+            if line.startswith("READY"):
+                p = line.split()
+                self.pid = int(p[1])
+                self.grp_mask = int(p[2].split("=")[1], 16)
+                self.ready.set()
+            elif line.startswith("ROUND"):
+                p = line.split()
+                r = int(p[1])
+                sms = sorted(int(x) for x in p[3].split(",")) \
+                    if len(p) > 3 and p[3] else []
+                with self.lock:
+                    self.rounds[r] = sms
+            elif line == "DONE":
+                self.done.set()
+
+    def start(self):
+        self.proc.stdin.write("START\n")
+        self.proc.stdin.flush()
+
+
+def tail_executor(path, state, stop):
+    """Tail the executor log: LISTENING / POOL grp_mask / per-round observed
+    SMs / TFGATE lines."""
+    f = None
+    while not stop.is_set():
+        if f is None:
+            if os.path.exists(path):
+                f = open(path)
+            else:
+                time.sleep(0.1)
+                continue
+        line = f.readline()
+        if not line:
+            time.sleep(0.1)
+            continue
+        line = line.strip()
+        if "LISTENING" in line:
+            state["listening"].set()
+        elif "ALLOCATE(POOL)" in line and "grp_mask=" in line:
+            for tokn in line.split():
+                if tokn.startswith("grp_mask="):
+                    state["init_grp_mask"] = int(tokn.split("=")[1], 16)
+        elif line.startswith("POOL_ROUND"):
+            p = line.split()
+            r = int(p[1])
+            sms = sorted(int(x) for x in p[3].split(",")) \
+                if len(p) > 3 and p[3] else []
+            state["rounds"][r] = sms
+        elif line.startswith("TFGATE round="):
+            state["tfgate"].append(line)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--partitions", default="16,16",
+                    help="comma list of PARTITION SM counts")
+    ap.add_argument("--pool-clients", type=int, default=2)
+    ap.add_argument("--rounds", type=int, default=5,
+                    help="PARTITION tenant rounds (executor is fixed at 5)")
+    ap.add_argument("--no-pool", action="store_true")
+    ap.add_argument("--tag", default="op_sanity")
+    ap.add_argument("--outdir", default=None)
+    ap.add_argument("--ready-timeout", type=float, default=300.0)
+    args = ap.parse_args()
+
+    outdir = args.outdir or os.path.join(HERE, "b2_" + args.tag)
+    os.makedirs(outdir, exist_ok=True)
+    sms = [int(x) for x in args.partitions.split(",")]
+    olog("config: partitions=%s pool=%s clients=%d rounds=%d outdir=%s"
+         % (sms, not args.no_pool, args.pool_clients, args.rounds, outdir))
+    # clean any stale per-round barrier sentinels for this tag
+    import glob
+    for f in glob.glob("/tmp/cp54_s16_%s_*" % args.tag):
+        try:
+            os.unlink(f)
+        except OSError:
+            pass
+
+    pool_state = {"listening": threading.Event(), "init_grp_mask": None,
+                  "rounds": {}, "tfgate": []}
+    exe_proc = clients = None
+    exe_log = os.path.join(outdir, "executor.log")
+    stop_tail = threading.Event()
+
+    # ---- 1. launch the POOL executor first; wait LISTENING ---------------
+    if not args.no_pool:
+        sock = "/tmp/cp54_s16_%s.sock" % args.tag
+        sentinel = "/tmp/cp54_s16_%s.sentinel" % args.tag
+        for p in (sock, sentinel):
+            if os.path.exists(p):
+                os.unlink(p)
+        env = dict(os.environ)
+        env.update({
+            "WL_MODEL": MODEL, "N_CLIENTS": str(args.pool_clients),
+            "WL_MAX_NEW": "128", "BATCH_SOCK": sock, "SENTINEL": sentinel,
+            "BARRIER_TAG": args.tag,
+            "GOLD_JSON": GOLD_JSON, "GOLD_LOGITS": GOLD_LOGITS,
+            "RESULT_JSON": os.path.join(outdir, "executor_result.json"),
+        })
+        exe_proc = subprocess.Popen(
+            [sys.executable, EXECUTOR], env=env,
+            stdout=open(exe_log, "w"), stderr=subprocess.STDOUT, text=True)
+        threading.Thread(target=tail_executor,
+                         args=(exe_log, pool_state, stop_tail),
+                         daemon=True).start()
+        olog("launched POOL executor — waiting LISTENING")
+        t0 = time.time()
+        while not pool_state["listening"].is_set():
+            if exe_proc.poll() is not None:
+                olog("FATAL: executor exited before LISTENING — see executor.log")
+                sys.exit(2)
+            if time.time() - t0 > args.ready_timeout:
+                olog("FATAL: timeout waiting for executor LISTENING")
+                sys.exit(2)
+            time.sleep(0.2)
+        olog("executor LISTENING (POOL claimed grp_mask=0x%04x)"
+             % (pool_state["init_grp_mask"] or 0))
+
+    # ---- 2. launch PARTITION tenants; they shrink the POOL; wait READY ---
+    tenants = [Tenant("part%d" % i, sm, outdir) for i, sm in enumerate(sms)]
+    for t in tenants:
+        t.launch(args.rounds, args.tag)
+        olog("launched PARTITION %s (%d SM) via CUDA_INJECTION64_PATH"
+             % (t.name, t.sm))
+    t0 = time.time()
+    for t in tenants:
+        while not t.ready.is_set():
+            if t.proc.poll() is not None:
+                olog("FATAL: %s exited before READY (rc=%d) — see %s.stderr.log"
+                     % (t.name, t.proc.returncode, t.name))
+                sys.exit(2)
+            if time.time() - t0 > args.ready_timeout:
+                olog("FATAL: timeout waiting for %s READY" % t.name)
+                sys.exit(2)
+            time.sleep(0.2)
+        olog("%s READY pid=%d grp_mask=0x%04x (%d SMs)"
+             % (t.name, t.pid, t.grp_mask, len(mask_to_sms(t.grp_mask))))
+
+    # ---- 3. launch the POOL clients (executor begins its rounds) ---------
+    if not args.no_pool:
+        clients = []
+        for i in range(args.pool_clients):
+            cenv = dict(os.environ)
+            cenv.update({"BATCH_SOCK": sock, "TENANT": "pool_t%d" % i,
+                         "GEN_LEN": "128",
+                         "OUT_JSON": os.path.join(outdir, "pool_t%d.json" % i)})
+            clients.append(subprocess.Popen(
+                [sys.executable, BATCH_CLIENT], env=cenv,
+                stdout=open(os.path.join(outdir, "pool_t%d.log" % i), "w"),
+                stderr=subprocess.STDOUT, text=True))
+        olog("launched %d POOL clients" % args.pool_clients)
+
+    # ---- 4. start the per-round lockstep coordinator; release the barrier -
+    barrier_members = [t.name for t in tenants]
+    if not args.no_pool:
+        barrier_members.append("pool")
+    bstop = threading.Event()
+    threading.Thread(target=barrier_coordinator,
+                     args=(args.tag, barrier_members, args.rounds, bstop),
+                     daemon=True).start()
+    olog("per-round barrier coordinator started — members=%s rounds=%d"
+         % (barrier_members, args.rounds))
+    olog("=== BARRIER RELEASE — START partitions ===")
+    for t in tenants:
+        t.start()
+
+    # ---- 5. wait for completion -----------------------------------------
+    for t in tenants:
+        t.proc.wait()
+        olog("%s exited rc=%d" % (t.name, t.proc.returncode))
+    if exe_proc is not None:
+        exe_proc.wait()
+        olog("executor exited rc=%d" % exe_proc.returncode)
+        for c in clients:
+            c.wait()
+    time.sleep(0.5)
+    stop_tail.set()
+    bstop.set()
+
+    # ---- 6. per-round disjointness --------------------------------------
+    # Per round: collect every member's observed SM set; clause 1 (partition
+    # observed ⊆ its static alloc) and clause 2 (pairwise observed-disjoint).
+    part_alloc = {t.name: mask_to_sms(t.grp_mask) for t in tenants}
+    clause1_fails, clause2_fails = [], []
+    obs_by_round = {}                      # round -> {member: set}
+    for t in tenants:
+        for r, v in t.rounds.items():
+            obs_by_round.setdefault(r, {})[t.name] = set(v)
+    if not args.no_pool:
+        for r, v in pool_state["rounds"].items():
+            obs_by_round.setdefault(r, {})["POOL"] = set(v)
+    for r in sorted(obs_by_round):
+        mem = obs_by_round[r]
+        for nm, obs in mem.items():                          # clause 1
+            if nm in part_alloc and (obs - part_alloc[nm]):
+                clause1_fails.append((r, nm, sorted(obs - part_alloc[nm])))
+        names = list(mem)
+        for i in range(len(names)):                          # clause 2
+            for j in range(i + 1, len(names)):
+                inter = mem[names[i]] & mem[names[j]]
+                if inter:
+                    clause2_fails.append(
+                        (r, names[i], names[j], sorted(inter)))
+
+    # ---- 7. correctness + per-tenant variance ---------------------------
+    tenant_stats = []
+    kl_all_pass = True
+    for t in tenants:
+        try:
+            d = json.load(open(t.out_json))
+        except Exception as e:                               # noqa: BLE001
+            olog("WARN: cannot read %s: %r" % (t.out_json, e))
+            kl_all_pass = False
+            continue
+        steps = []                       # decode steps, excl. step 1/round
+        for rd in d["rounds_detail"]:
+            steps += rd["decode_ms"][1:]
+        cv = (st.pstdev(steps) / st.mean(steps)) if len(steps) > 1 else None
+        kg = d.get("kl_gate_pass", False)
+        kl_all_pass = kl_all_pass and kg
+        tenant_stats.append({
+            "tenant": t.name, "sm": t.sm, "grp_mask": t.grp_mask,
+            "kl_max": d["kl_max_all"], "kl_gate_pass": kg,
+            "clause1_self_fails": d.get("clause1_disjointness_fails", -1),
+            "n_decode_steps_excl_step1": len(steps),
+            "decode_ms_mean": st.mean(steps) if steps else None,
+            "decode_ms_p50": st.quantiles(steps, n=100)[49] if len(steps) > 2 else None,
+            "decode_ms_p99": st.quantiles(steps, n=100)[98] if len(steps) > 2 else None,
+            "decode_ms_cv": cv,
+        })
+
+    pool_result = None
+    pool_ok = True
+    if not args.no_pool:
+        try:
+            pool_result = json.load(
+                open(os.path.join(outdir, "executor_result.json")))
+        except Exception as e:                               # noqa: BLE001
+            olog("WARN: no executor_result.json: %r" % e)
+            pool_ok = False
+        # POOL clause 1 = cp54_pool's build-time %smid self-verify; the
+        # executor exits non-zero / RuntimeError on a self-verify mismatch.
+        if exe_proc.returncode != 0:
+            pool_ok = False
+
+    disjoint_pass = not clause1_fails and not clause2_fails
+    verdict = disjoint_pass and kl_all_pass and pool_ok
+    summary = {
+        "tag": args.tag, "partitions_sm": sms, "pool": not args.no_pool,
+        "rounds": args.rounds,
+        "partition_alloc": {t.name: {"grp_mask": t.grp_mask,
+                                     "sm_count": len(mask_to_sms(t.grp_mask))}
+                            for t in tenants},
+        "pool_init_grp_mask": pool_state["init_grp_mask"],
+        "disjointness": {
+            "pass": disjoint_pass,
+            "rounds_checked": sorted(obs_by_round),
+            "clause1_fails": clause1_fails,
+            "clause2_fails": clause2_fails,
+        },
+        "correctness": {"all_partition_kl_gate_pass": kl_all_pass,
+                        "pool_ok": pool_ok,
+                        "tfgate_lines": pool_state["tfgate"]},
+        "tenant_stats": tenant_stats,
+        "pool_result": pool_result,
+        "verdict": "PASS" if verdict else "FAIL",
+    }
+    with open(os.path.join(outdir, "orchestrator_result.json"), "w") as f:
+        json.dump(summary, f, indent=2)
+
+    olog("===== Step 1.6B-2 orchestrator summary =====")
+    for t in tenants:
+        olog("  PARTITION %-7s grp_mask=0x%04x  %d SMs"
+             % (t.name, t.grp_mask, len(mask_to_sms(t.grp_mask))))
+    for tsx in tenant_stats:
+        olog("  %-7s kl_gate=%s kl_max=%.2e  decode mean=%.2fms p99=%.2fms "
+             "CV=%.4f" % (tsx["tenant"], tsx["kl_gate_pass"], tsx["kl_max"],
+                          tsx["decode_ms_mean"] or 0,
+                          tsx["decode_ms_p99"] or 0, tsx["decode_ms_cv"] or 0))
+    if pool_result:
+        olog("  POOL agg_tok_s=%s" % pool_result.get("agg_tok_s"))
+    olog("  disjointness: %s (rounds=%s clause1_fails=%d clause2_fails=%d)"
+         % ("PASS" if disjoint_pass else "FAIL", sorted(obs_by_round),
+            len(clause1_fails), len(clause2_fails)))
+    olog("  correctness: partition KL gates %s, POOL %s"
+         % ("PASS" if kl_all_pass else "FAIL", "OK" if pool_ok else "FAIL"))
+    olog("VERDICT: %s — wrote %s/orchestrator_result.json"
+         % (summary["verdict"], outdir))
+    sys.exit(0 if verdict else 1)
+
+
+if __name__ == "__main__":
+    main()

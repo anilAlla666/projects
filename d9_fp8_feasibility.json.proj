@@ -1,0 +1,6 @@
+PER-TENSOR DROP_DOWNPROJ LAYER PROJECTION (Mistral-7B, batch N=8192, bf16, full clock):
+- fused per-tensor FP8 GEMM (scalar->bf16, no epilogue): q 1.77x, k 1.89x, v 1.89x, o 1.81x, gate 2.05x, up 1.91x, down 1.98x vs bf16
+- layer drop_downproj (q,k,v,o,gate,up=fp8; down=bf16): 1.28x over bf16 with NAIVE act-quant (conservative); ~1.4-1.5x with optimized fused act-quant
+- => MFU vs 989: ~99% full-clock (naive quant) ; ~85-100% at sustained 700W (the real open question — down_proj declined forgoes its 2x)
+- down_proj is the single most expensive GEMM (K=14336, 2x FP8 gain); declining it to bf16 is what costs the headroom
+- per-tensor all_fp8 layer 1.24x BUT quality +0.478% FAILS even amended 0.37% bar -> all_fp8 is per-CHANNEL-only (needs CUTLASS)

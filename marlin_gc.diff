@@ -1,0 +1,431 @@
+diff --git a/cipher_rt_marlin.h b/cipher_rt_marlin.h
+index 7936a44..88ec905 100644
+--- a/cipher_rt_marlin.h
++++ b/cipher_rt_marlin.h
+@@ -25,6 +25,17 @@ extern "C" {
+  * on success, -1 if NVRTC unavailable. */
+ int cipher_rt_marlin_init(void);
+ 
++/* GC-on-free (2026-05-30): cache lifecycle API for model load/free/reload
++ * churn (Goal-1 100 bursty agents). The residence/owner layer calls
++ * evict_weight when a model's weights are freed (completing the bind_model
++ * lifecycle); reclaim_retired drains the retired device buffers at a quiescent
++ * point (it device-synchronizes first, so it is safe to call only when no
++ * Marlin GEMM must remain in flight — e.g. after torch.cuda.synchronize at a
++ * per-cycle barrier). Both are no-ops when nothing has been evicted, so they
++ * never perturb the steady (no-churn) path. */
++void cipher_rt_marlin_engine_evict_weight(const void *app_w_ptr);
++int  cipher_rt_marlin_engine_reclaim_retired(void);
++
+ /* Diagnostic accessors. */
+ int  cipher_rt_marlin_is_active(void);
+ unsigned long cipher_rt_marlin_calls_total(void);    /* eligible calls seen */
+diff --git a/cipher_rt_marlin_actuator.c b/cipher_rt_marlin_actuator.c
+index 619bcff..815b446 100644
+--- a/cipher_rt_marlin_actuator.c
++++ b/cipher_rt_marlin_actuator.c
+@@ -36,7 +36,11 @@
+ extern int cipher_rt_marlin_engine_init(void);
+ extern int cipher_rt_marlin_engine_ensure_compiled(void);
+ extern int cipher_rt_marlin_engine_observe_weight(const void *w_ptr);
+-extern int cipher_rt_marlin_engine_is_ready(const void *w_ptr);
++/* GC-on-free (2026-05-30): is_ready threads the live (K,N) so the engine can
++ * dim-revalidate + fingerprint-check the cached kit and evict a stale one
++ * (model load/free/reload churn). Not a gate change — the actuator's decline
++ * logic is unchanged; this only passes already-computed dims for validation. */
++extern int cipher_rt_marlin_engine_is_ready(const void *w_ptr, int K, int N);
+ extern int cipher_rt_marlin_engine_lookup(const void *w_ptr,
+                                           void **out_B, void **out_S,
+                                           int *out_K, int *out_N, int *out_G);
+@@ -49,7 +53,12 @@ extern unsigned long cipher_rt_marlin_engine_weights_count(void);
+ /* W.2 (2026-05-27): bf16 path bridges. */
+ extern int cipher_rt_marlin_engine_quantize_repack_bf16(
+ 	const void *d_bf16_weight, int K, int N);
+-extern void *cipher_rt_marlin_engine_bf16_surrogate(const void *bf16_w_ptr);
++/* GC-on-free: bf16_surrogate threads the live (K,N) so the engine validates
++ * the Layer-1 (bf16_w → surrogate) mapping (the dominant churn surface) and
++ * returns null on a reused pointer → the actuator re-quantizes. Not a gate
++ * change. */
++extern void *cipher_rt_marlin_engine_bf16_surrogate(const void *bf16_w_ptr,
++                                                     int K, int N);
+ extern int cipher_rt_marlin_engine_dispatch_bf16(
+ 	const void *a_bf16, const void *marlin_B, const void *marlin_S,
+ 	void *c_bf16, int M, int N, int K, int G, void *stream);
+@@ -195,7 +204,7 @@ static int maybe_handle_marlin(const struct cipher_rt_matmul_call *call,
+ 			return CIPHER_RT_MATMUL_PASSTHROUGH;
+ 		}
+ 		const void *bf16_w = call->A;
+-		void *fp16_surrogate = cipher_rt_marlin_engine_bf16_surrogate(bf16_w);
++		void *fp16_surrogate = cipher_rt_marlin_engine_bf16_surrogate(bf16_w, bf16_K, bf16_N);
+ 		if (!fp16_surrogate) {
+ 			/* first call for this weight ptr: cast bf16->fp16 + RTN INT4 */
+ 			if (cipher_rt_marlin_engine_quantize_repack_bf16(bf16_w, bf16_K, bf16_N) != 0) {
+@@ -205,7 +214,7 @@ static int maybe_handle_marlin(const struct cipher_rt_matmul_call *call,
+ 				atomic_fetch_add(&g_calls_skipped, 1);
+ 				return CIPHER_RT_MATMUL_PASSTHROUGH;
+ 			}
+-			fp16_surrogate = cipher_rt_marlin_engine_bf16_surrogate(bf16_w);
++			fp16_surrogate = cipher_rt_marlin_engine_bf16_surrogate(bf16_w, bf16_K, bf16_N);
+ 			if (!fp16_surrogate) {
+ 				atomic_fetch_add(&g_calls_skipped, 1);
+ 				return CIPHER_RT_MATMUL_PASSTHROUGH;
+@@ -268,7 +277,7 @@ static int maybe_handle_marlin(const struct cipher_rt_matmul_call *call,
+ 
+ 	hits = cipher_rt_marlin_engine_observe_weight(weight_ptr);
+ 
+-	if (!cipher_rt_marlin_engine_is_ready(weight_ptr)) {
++	if (!cipher_rt_marlin_engine_is_ready(weight_ptr, marlin_K, marlin_N)) {
+ 		if (hits < STABILITY_THRESHOLD) {
+ 			atomic_fetch_add(&g_calls_skipped, 1);
+ 			return CIPHER_RT_MATMUL_PASSTHROUGH;
+diff --git a/cipher_rt_marlin_engine.cpp b/cipher_rt_marlin_engine.cpp
+index 35b7b12..a92d8af 100644
+--- a/cipher_rt_marlin_engine.cpp
++++ b/cipher_rt_marlin_engine.cpp
+@@ -51,6 +51,13 @@ extern "C" { __thread int cipher_rt_in_marlin_quant = 0; }
+  * memo §3. */
+ extern "C" unsigned int cipher_rt_green_ctx_sm_count(void);
+ 
++/* GC-on-free (2026-05-30): Layer-1 bf16→fp16 surrogate-map entry. Carries the
++ * surrogate pointer plus the (K,N) and a content fingerprint of the *app* bf16
++ * weight, so a reused bf16 weight pointer (model freed → new model loaded at
++ * the same address) is detected and the stale surrogate is never returned.
++ * Global scope (the map has external linkage; referenced via extern below). */
++struct Bf16Entry { void *surrogate; uint64_t fp; int K; int N; };
++
+ /* ── NVRTC + CUDA driver function-pointer bindings (dlsym at init) ─────── */
+ 
+ namespace {
+@@ -88,6 +95,7 @@ typedef int (*pf_cudaMemcpyAsync)(void*, const void*, size_t, int, void*);
+ typedef int (*pf_cudaMemset)(void*, int, size_t);
+ typedef int (*pf_cudaMemsetAsync)(void*, int, size_t, void*);
+ typedef int (*pf_cudaDeviceGetAttribute)(int*, int, int);
++typedef int (*pf_cudaDeviceSynchronize)(void);
+ 
+ struct Api {
+     void *libnvrtc = nullptr;
+@@ -122,6 +130,9 @@ struct Api {
+     pf_cudaMemset             rt_memset      = nullptr;
+     pf_cudaMemsetAsync        rt_memset_async= nullptr;
+     pf_cudaDeviceGetAttribute rt_devattr     = nullptr;
++    /* GC-on-free (2026-05-30): quiescent barrier for the retired-kit reclaim.
++     * Optional — NOT in the `ok` required set, so resolve never newly fails. */
++    pf_cudaDeviceSynchronize  rt_devsync     = nullptr;
+ 
+     bool ok = false;
+ } g_api;
+@@ -184,6 +195,9 @@ bool resolve_api() {
+     g_api.rt_memset      = (pf_cudaMemset)dlsym(g_api.libcudart, "cudaMemset");
+     g_api.rt_memset_async= (pf_cudaMemsetAsync)dlsym(g_api.libcudart, "cudaMemsetAsync");
+     g_api.rt_devattr     = (pf_cudaDeviceGetAttribute)dlsym(g_api.libcudart, "cudaDeviceGetAttribute");
++    /* GC-on-free reclaim barrier (optional; absence only disables reclaim-free,
++     * never the actuator). */
++    g_api.rt_devsync     = (pf_cudaDeviceSynchronize)dlsym(g_api.libcudart, "cudaDeviceSynchronize");
+ 
+     g_api.ok = g_api.create_prog && g_api.compile_prog
+             && g_api.get_ptx_size && g_api.get_ptx
+@@ -530,6 +544,8 @@ struct WeightSlot {
+     int     G;              /* group size (128) */
+     void   *marlin_B;       /* device pointer, INT32-packed */
+     void   *marlin_S;       /* device pointer, fp16 scales */
++    uint64_t fp;            /* GC-on-free: content fingerprint of the keyed
++                            * weight at quantize time (0 = not computed) */
+ };
+ 
+ std::mutex g_weight_mu;
+@@ -607,6 +623,71 @@ extern "C" void cipher_rt_marlin_engine_bind_model(const void *w_ptr,
+     else                  g_wptr_model[w_ptr] = (uint64_t)model_id;
+ }
+ 
++/* ── GC-on-free infrastructure (2026-05-30) ─────────────────────────────
++ * The Marlin weight cache previously never evicted a kit when a model was
++ * freed: under load/free/reload churn a reused weight pointer hit a stale
++ * kit → wrong output (Qwen2 all-zeros) or, on a shape mismatch, an
++ * illegal-memory-access (kit packed for the old dims). Fix:
++ *   - dim re-validation on the cached path (is_ready / ensure / surrogate);
++ *   - a content fingerprint catching same-shape reuse (env CIPHER_MARLIN_GC_FP,
++ *     default on);
++ *   - retired-kit list + reclaim_retired(): freeing a kit inline would UAF a
++ *     kit still referenced by an in-flight launch on another stream (the
++ *     Track-2 weight-sharing regime), so eviction only RETIRES the buffers;
++ *     they are cudaFree'd only after a device-sync quiescent barrier in
++ *     reclaim. Lock order: g_bf16_weight_mu → g_weight_mu → g_retire_mu
++ *     (g_retire_mu is a leaf). */
++
++bool g_gc_fp_enabled = true;   /* CIPHER_MARLIN_GC_FP (default on) */
++
++/* Strided device-sample content fingerprint of a weight tensor. elem_bytes = 2
++ * (fp16/bf16). Samples a small in-bounds head chunk via a synchronous DtoH and
++ * folds in (K,N,total) — enough to distinguish two different models occupying
++ * the same reused address. (A same-address, same-shape, byte-identical-head
++ * collision across distinct trained weights is astronomically unlikely.)
++ * Returns 0 on any failure → callers treat 0 as "unknown" → no eviction
++ * (fail-safe: a failed sample never triggers a spurious re-quant). */
++uint64_t weight_fingerprint(const void *w, int K, int N, int elem_bytes) {
++    if (!w || K <= 0 || N <= 0 || !g_api.rt_memcpy) return 0;
++    size_t total = (size_t)K * (size_t)N * (size_t)elem_bytes;
++    if (total == 0) return 0;
++    const size_t CH = 256;
++    size_t n = (total < CH) ? total : CH;
++    unsigned char buf[CH];
++    if (g_api.rt_memcpy(buf, w, n, /*cudaMemcpyDeviceToHost*/ 2) != 0) return 0;
++    uint64_t h = 1469598103934665603ULL;            /* FNV-1a basis */
++    for (size_t i = 0; i < n; ++i) { h ^= buf[i]; h *= 1099511628211ULL; }
++    h ^= (uint64_t)(unsigned)K; h *= 1099511628211ULL;
++    h ^= (uint64_t)(unsigned)N; h *= 1099511628211ULL;
++    h ^= (uint64_t)total;       h *= 1099511628211ULL;
++    return h ? h : 1ULL;                            /* reserve 0 = "unknown" */
++}
++
++/* Retired device buffers awaiting a quiescent free (see reclaim_retired). */
++std::vector<void*> g_retired;
++std::mutex         g_retire_mu;
++
++void retire_buf(void *p) {
++    if (!p) return;
++    std::lock_guard<std::mutex> lk(g_retire_mu);
++    g_retired.push_back(p);
++}
++
++/* Evict every g_weights slot whose key.w_ptr matches `wptr` (any model_id),
++ * retiring its kit buffers. Caller MUST hold g_weight_mu. */
++void evict_g_weights_for_ptr_locked(const void *wptr) {
++    if (!wptr) return;
++    for (auto it = g_weights.begin(); it != g_weights.end(); ) {
++        if (it->first.w_ptr == wptr) {
++            retire_buf(it->second.marlin_B);
++            retire_buf(it->second.marlin_S);
++            it = g_weights.erase(it);
++        } else {
++            ++it;
++        }
++    }
++}
++
+ /* ── Quantization: fp16 weight → INT4 packed + fp16 per-group scales ──── */
+ /*
+  * GPU-side via two NVRTC-compiled kernels (cipher_w_compute_scales,
+@@ -1010,7 +1091,17 @@ bool ensure_weight_quantized_repacked(const void *d_fp16_weight, int K, int N)
+     {
+         std::lock_guard<std::mutex> lk(g_weight_mu);
+         WeightSlot *s = find_or_create_slot_locked(d_fp16_weight);
+-        if (s->ready) return true;
++        if (s->ready) {
++            /* GC-on-free: a cached kit at this key is only valid if its dims
++             * still match. A shape mismatch means a different-shape weight now
++             * lives here (post free+realloc) — retire the stale kit and
++             * re-quantize. (Same-shape content reuse is caught upstream by the
++             * fingerprint in is_ready / bf16_surrogate.) */
++            if (s->K == K && s->N == N) return true;
++            retire_buf(s->marlin_B);
++            retire_buf(s->marlin_S);
++            *s = WeightSlot{};
++        }
+     }
+ 
+     /* Do the host-side work outside the lock to avoid holding it during
+@@ -1031,18 +1122,27 @@ bool ensure_weight_quantized_repacked(const void *d_fp16_weight, int K, int N)
+     if (!marlin_repack_host(int4.data(), scales.data(), K, N, G, &m))
+         return false;
+ 
++    /* Fingerprint computed outside the lock (a DtoH sample) so the lock-hold
++     * stays short. One-shot per (re)quantize, not the hot cached path. */
++    uint64_t fp = g_gc_fp_enabled ? weight_fingerprint(d_fp16_weight, K, N, 2) : 0;
+     {
+         std::lock_guard<std::mutex> lk(g_weight_mu);
+         WeightSlot *s = find_or_create_slot_locked(d_fp16_weight);
+-        if (s->ready) {
+-            /* Another thread beat us; free our copy. */
++        if (s->ready && s->K == K && s->N == N) {
++            /* Another thread beat us with a same-shape kit; free our copy. */
+             g_api.rt_free(m.B);
+             g_api.rt_free(m.S);
+             return true;
+         }
++        if (s->ready) {
++            /* A stale (different-shape) kit was racing here; retire it. */
++            retire_buf(s->marlin_B);
++            retire_buf(s->marlin_S);
++        }
+         s->K = K; s->N = N; s->G = G;
+         s->marlin_B = m.B;
+         s->marlin_S = m.S;
++        s->fp = fp;
+         s->ready = 1;
+     }
+     return true;
+@@ -1055,6 +1155,16 @@ bool ensure_weight_quantized_repacked(const void *d_fp16_weight, int K, int N)
+ extern "C" int cipher_rt_marlin_engine_init(void)
+ {
+     if (!resolve_api()) return -1;
++    /* GC-on-free fingerprint check: default ON (correctness-first). Set
++     * CIPHER_MARLIN_GC_FP=0 to disable the per-call content fingerprint (dim
++     * re-validation + the event-driven evict API still run). Exposed so the
++     * fingerprint's hot-path cost is measurable. */
++    {
++        const char *e = getenv("CIPHER_MARLIN_GC_FP");
++        g_gc_fp_enabled = !(e && (e[0] == '0' || e[0] == 'n' || e[0] == 'N'));
++        cipher_log("MARLIN: GC-on-free active (fingerprint=%s)",
++                   g_gc_fp_enabled ? "on" : "off");
++    }
+     /* Defer NVRTC compile to first eligible call (~19s cold; don't block
+      * libcipher_rt init). */
+     cipher_log("MARLIN: engine init OK (NVRTC + cuda + cudart resolved; "
+@@ -1075,13 +1185,30 @@ extern "C" int cipher_rt_marlin_engine_observe_weight(const void *w_ptr)
+     return s->observation_count;
+ }
+ 
+-extern "C" int cipher_rt_marlin_engine_is_ready(const void *w_ptr)
++extern "C" int cipher_rt_marlin_engine_is_ready(const void *w_ptr, int K, int N)
+ {
++    /* GC-on-free validate-on-use (fp16-direct path). Fingerprint computed
++     * before the lock (DtoH sample) so the lock-hold stays short; samples
++     * w_ptr with the LIVE (K,N) → always in-bounds for the current allocation.
++     */
++    uint64_t live = g_gc_fp_enabled ? weight_fingerprint(w_ptr, K, N, 2) : 0;
+     std::lock_guard<std::mutex> lk(g_weight_mu);
+     MarlinWeightKey k{marlin_model_id_for_locked(w_ptr), w_ptr};
+     auto it = g_weights.find(k);
+-    if (it == g_weights.end()) return 0;
+-    return it->second.ready ? 1 : 0;
++    if (it == g_weights.end() || !it->second.ready) return 0;
++    bool stale = (it->second.K != K || it->second.N != N);
++    if (!stale && live && it->second.fp && live != it->second.fp) stale = true;
++    if (stale) {
++        /* Reused pointer: a freed model's kit lingers here. Retire + evict so
++         * the caller re-quantizes for the current weight (the actuator's
++         * captured observation count is already past threshold → re-quant
++         * fires this same call; output stays correct). */
++        retire_buf(it->second.marlin_B);
++        retire_buf(it->second.marlin_S);
++        g_weights.erase(it);
++        return 0;
++    }
++    return 1;
+ }
+ 
+ extern "C" int cipher_rt_marlin_engine_lookup(const void *w_ptr,
+@@ -1263,27 +1390,114 @@ extern "C" int cipher_rt_marlin_engine_quantize_repack_bf16(
+         g_api.rt_free(d_fp16);
+         return -1;
+     }
+-    /* Record the bf16 -> fp16 mapping. See dispatch_bf16 below. */
++    /* Record the bf16 -> fp16 mapping (Layer-1). GC-on-free: carry (K,N) + a
++     * fingerprint of the APP bf16 weight so a reused bf16 pointer is detected
++     * at bf16_surrogate before the stale surrogate is handed out. */
+     extern std::mutex g_bf16_weight_mu;
+-    extern std::unordered_map<const void*, void*> g_bf16_to_fp16_weight;
++    extern std::unordered_map<const void*, Bf16Entry> g_bf16_to_fp16_weight;
++    uint64_t fp_bf16 = g_gc_fp_enabled ? weight_fingerprint(d_bf16_weight, K, N, 2) : 0;
+     {
+         std::lock_guard<std::mutex> lk(g_bf16_weight_mu);
+-        g_bf16_to_fp16_weight[d_bf16_weight] = d_fp16;
++        Bf16Entry e; e.surrogate = d_fp16; e.fp = fp_bf16; e.K = K; e.N = N;
++        g_bf16_to_fp16_weight[d_bf16_weight] = e;
+     }
+     return 0;
+ }
+ 
+ /* W.2: bf16 weight pointer -> the fp16 surrogate used as cache key in
+  * g_weights. The dispatch_bf16 wrapper resolves the surrogate at call
+- * time so lookup succeeds. */
++ * time so lookup succeeds. GC-on-free (2026-05-30): values carry (K,N)+fp
++ * (Bf16Entry) for reuse detection. */
+ std::mutex g_bf16_weight_mu;
+-std::unordered_map<const void*, void*> g_bf16_to_fp16_weight;
++std::unordered_map<const void*, Bf16Entry> g_bf16_to_fp16_weight;
++
++/* GC-on-free public API. evict_weight: the residence layer calls this when a
++ * model's weights are freed (completing the bind_model lifecycle). Removes the
++ * Layer-1 surrogate entry and all Layer-2 kit slots for the pointer AND the
++ * surrogate, retiring every buffer. Idempotent; safe for unknown ptrs.
++ * Lock order g_bf16_weight_mu → g_weight_mu (sequential, never nested) →
++ * g_retire_mu (leaf, inside evict_g_weights_for_ptr_locked / retire_buf). */
++extern "C" void cipher_rt_marlin_engine_evict_weight(const void *app_w_ptr)
++{
++    if (!app_w_ptr) return;
++    void *surrogate = nullptr;
++    {
++        std::lock_guard<std::mutex> lk(g_bf16_weight_mu);
++        auto it = g_bf16_to_fp16_weight.find(app_w_ptr);
++        if (it != g_bf16_to_fp16_weight.end()) {
++            surrogate = it->second.surrogate;
++            g_bf16_to_fp16_weight.erase(it);
++        }
++    }
++    {
++        std::lock_guard<std::mutex> lk(g_weight_mu);
++        evict_g_weights_for_ptr_locked(app_w_ptr);                 /* fp16-direct kit */
++        if (surrogate) evict_g_weights_for_ptr_locked(surrogate);  /* bf16 surrogate kit */
++        g_wptr_model.erase(app_w_ptr);
++    }
++    if (surrogate) retire_buf(surrogate);                          /* the fp16 surrogate */
++}
+ 
+-extern "C" void *cipher_rt_marlin_engine_bf16_surrogate(const void *bf16_w_ptr)
++/* Free all retired buffers after a quiescent device-sync barrier — every
++ * Marlin kernel launched before now has completed, so no in-flight launch
++ * still references a retired buffer (the safe-reclaim invariant). The
++ * residence layer / churn harness calls this at a per-cycle barrier (after its
++ * own torch.cuda.synchronize). If cudaDeviceSynchronize is unavailable the
++ * buffers stay retired (bounded leak) rather than risk a UAF. Returns the
++ * count freed, 0 if nothing pending, -1 if reclaim was skipped. */
++extern "C" int cipher_rt_marlin_engine_reclaim_retired(void)
+ {
+-    std::lock_guard<std::mutex> lk(g_bf16_weight_mu);
+-    auto it = g_bf16_to_fp16_weight.find(bf16_w_ptr);
+-    return (it != g_bf16_to_fp16_weight.end()) ? it->second : nullptr;
++    if (!g_api.rt_free) return -1;
++    std::vector<void*> local;
++    {
++        std::lock_guard<std::mutex> lk(g_retire_mu);
++        if (g_retired.empty()) return 0;
++        local.swap(g_retired);
++    }
++    if (!g_api.rt_devsync) {
++        std::lock_guard<std::mutex> lk(g_retire_mu);
++        for (void *p : local) g_retired.push_back(p);
++        return -1;
++    }
++    (void)g_api.rt_devsync();
++    int n = 0;
++    for (void *p : local) { if (p) { g_api.rt_free(p); n++; } }
++    return n;
++}
++
++extern "C" void *cipher_rt_marlin_engine_bf16_surrogate(const void *bf16_w_ptr,
++                                                        int K, int N)
++{
++    /* GC-on-free validate-on-use (Layer-1, the dominant bf16 production
++     * surface). Resolve the surrogate + check (K,N); for a same-shape hit,
++     * re-verify content identity via a fingerprint (DtoH) OUTSIDE the lock.
++     * On staleness, evict both layers and return null so the actuator
++     * re-quantizes the current model. */
++    void *surrogate = nullptr;
++    bool  stale = false;
++    {
++        std::lock_guard<std::mutex> lk(g_bf16_weight_mu);
++        auto it = g_bf16_to_fp16_weight.find(bf16_w_ptr);
++        if (it == g_bf16_to_fp16_weight.end()) return nullptr;
++        surrogate = it->second.surrogate;
++        if (it->second.K != K || it->second.N != N) stale = true;
++    }
++    if (!stale && g_gc_fp_enabled) {
++        uint64_t live = weight_fingerprint(bf16_w_ptr, K, N, 2);
++        uint64_t stored = 0;
++        {
++            std::lock_guard<std::mutex> lk(g_bf16_weight_mu);
++            auto it = g_bf16_to_fp16_weight.find(bf16_w_ptr);
++            if (it == g_bf16_to_fp16_weight.end()) return nullptr;  /* raced an evict */
++            stored = it->second.fp;
++        }
++        if (live && stored && live != stored) stale = true;
++    }
++    if (stale) {
++        cipher_rt_marlin_engine_evict_weight(bf16_w_ptr);
++        return nullptr;
++    }
++    return surrogate;
+ }
+ 
+ /* W.3 (2026-05-27) Sub-step 2: shared bf16→fp16 cast allocator for EDMD

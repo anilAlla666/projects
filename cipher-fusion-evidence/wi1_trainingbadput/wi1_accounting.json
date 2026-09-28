@@ -1,0 +1,83 @@
+{
+  "goodput_definition": "TRAINING (compute-progress-time / total-time); SDC detection = badput reduction",
+  "real_measured": {
+    "step_time_s_median": 0.1389,
+    "step_time_s_mean": 0.1483,
+    "checkpoint_write_s_LoRA": null,
+    "per_check_cost_s": 0.0621,
+    "detection_latency_steps": {
+      "N8": 4,
+      "N45": 25
+    },
+    "max_detect_residual": 124.125,
+    "false_positives_clean": {
+      "detections": 0,
+      "max_clean_residual": 0,
+      "gemms_checked": 3064
+    },
+    "detector_overhead_per_check_method": {
+      "N8_pct": 5.59,
+      "N45_pct": 0.99
+    },
+    "detector_overhead_60step_mean_noisy": {
+      "N8_pct": 5.9,
+      "N45_pct": 4.5
+    }
+  },
+  "checkpoint_cadence_steps": 100,
+  "badput_avoided_per_fault_GPUseconds": {
+    "next_checkpoint_~C/2=50": {
+      "N8": 6.39,
+      "N45": 3.47
+    },
+    "one_checkpoint_C=100": {
+      "N8": 13.33,
+      "N45": 10.42
+    },
+    "silent_10C=1000": {
+      "N8": 138.35,
+      "N45": 135.43
+    }
+  },
+  "breakeven_fault_rate_per_step": {
+    "next_checkpoint_~C/2=50": {
+      "N8_1_per_steps": 823,
+      "N45_1_per_steps": 2516
+    },
+    "one_checkpoint_C=100": {
+      "N8_1_per_steps": 1718,
+      "N45_1_per_steps": 7548
+    },
+    "silent_10C=1000": {
+      "N8_1_per_steps": 17820,
+      "N45_1_per_steps": 98121
+    }
+  },
+  "effective_training_time_examples": {
+    "W10k_1fault_silent1000_N8_p1.0": {
+      "coverage_p": 1.0,
+      "without": 0.905,
+      "with": 0.9422,
+      "delta_pp": 3.727
+    },
+    "W10k_5faults_silent1000_N8_p1.0": {
+      "coverage_p": 1.0,
+      "without": 0.6557,
+      "with": 0.9235,
+      "delta_pp": 26.771
+    },
+    "W10k_5faults_silent1000_N8_p0.5": {
+      "coverage_p": 0.5,
+      "without": 0.6557,
+      "with": 0.7508,
+      "delta_pp": 9.507
+    },
+    "W10k_1fault_nextckpt50_N8_p1.0": {
+      "coverage_p": 1.0,
+      "without": 0.9901,
+      "with": 0.9422,
+      "delta_pp": -4.785
+    }
+  },
+  "coverage_note": "eff_time WIN assumes the fault lands in a COVERED fp16 linear-GEMM op (p). Uncovered SDCs (attention/lm_head/non-GEMM/mercurial-core) are caught with p=0 and revert to WITHOUT cost + overhead. Realized fleet win = covered-SDC fraction x the p=1 band; net-negative regime widens as p falls."
+}

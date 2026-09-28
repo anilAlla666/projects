@@ -1,0 +1,62 @@
+{
+  "schema_version": "rc.v1",
+  "event_type": "gpu_reliability_event",
+  "gpu": {
+    "node": "192-222-53-2",
+    "gpu_index": 0,
+    "uuid": "GPU-993dd5d1-740e-ce8f-7c5e-404188d4b950",
+    "pci_bus_id": "00000000:07:00.0",
+    "name": "NVIDIA H100 80GB HBM3",
+    "driver": "580.105.08"
+  },
+  "verdict": "HEALTHY",
+  "severity": "info",
+  "fault_onset": null,
+  "signal_sources": {
+    "sdc_detector": {
+      "fired": false,
+      "observers": [],
+      "coverage_note": "linear projections (qkv/o/gate_up/down) via cublasGemmEx; attention(FlashAttn)+lm_head uncovered",
+      "threshold": "T=0 (bit-identical clean recompute)"
+    },
+    "nvml_ecc": {
+      "vol_uncorr_delta": 0,
+      "vol_corr_delta": 0,
+      "agg_uncorr_delta": 0,
+      "agg_corr_delta": 0
+    },
+    "nvml_xid": {
+      "events": []
+    },
+    "nvml_throttle_reasons_seen": [
+      "0x0",
+      "0x1",
+      "0x4"
+    ],
+    "nvml_power_clock": {
+      "sm_clk_mhz_final": 1830,
+      "power_mw_final": 124679
+    },
+    "telemetry_source": "NVML (DCGM/dcgmi absent on this pod)"
+  },
+  "corroboration": "uncorroborated_by_hardware_counters",
+  "process_context": {
+    "descriptor": null,
+    "co_resident_count": 1,
+    "co_resident_tgids": [
+      3320192
+    ],
+    "nvml_compute_pids_seen": [
+      3320192
+    ],
+    "note": "DESCRIPTIVE (what was running), NOT attributive (who caused it). Per-GPU verdict; per-tenant attribution is v2."
+  },
+  "scope_caveats": [
+    "per-GPU not per-tenant (v1)",
+    "ONE GPU validated; multi-GPU scale + aggregation service unbuilt",
+    "eager-hosted: cudagraph-on hosting carries the Path-1 +51% eager tax (documented)",
+    "deterministic mercurial-core faults BLIND to same-GPU recompute (DCGM RAS may catch some)",
+    "attention-internal SDC (Gap-3) + NCCL/collective out of scope",
+    "corroborated branch (SDC+ECC/XID) specified but UNEXERCISED here (no real hardware fault injected; software flip => NVML correctly counter-clean)"
+  ]
+}

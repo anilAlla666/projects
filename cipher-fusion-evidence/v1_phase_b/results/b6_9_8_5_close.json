@@ -1,0 +1,127 @@
+{
+  "campaign": "V1 Phase B B.6''.9.8.5 - cuGraphAddKernelNode + cuGraphExecKernelNodeSetParams capture-time substitution shims",
+  "date": "2026-05-27",
+  "purpose": "Enable actuator substitution at graph capture time. Goal 2 (Marlin/VOLT) + Goal 4 (Koopman) substitute CUfunction in kernel node params before graph instantiation; replays then execute substituted topology natively.",
+  "anchors_at_entry": {
+    "cipher_rt_phase4": "e990721 tag v1-substrate-may13-port-graph-launch-observable",
+    "cipher_kmod": "8c643fc tag week-13-14-complete UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca installed UNCHANGED",
+    "build_cuda13_may13_md5_prior": "3474be1d9b5cf0874501b8f0b29479ce"
+  },
+  "section_step1_implementation": {
+    "files_modified": [
+      "src/may13_intercept/cipher_intercept_cudart.cpp — 5 new shims + counters + g_patches[] + resolve_real",
+      "cipher_rt_intercept.h — 2 new accessor declarations"
+    ],
+    "shims_added": [
+      "cuGraphAddKernelNode (driver-level)",
+      "cuGraphAddKernelNode_v2 (driver-level, CUDA 12+)",
+      "cuGraphExecKernelNodeSetParams (driver-level)",
+      "cuGraphExecKernelNodeSetParams_v2 (driver-level)",
+      "cudaGraphAddKernelNode (cudart-level, matches B.6''.9.8.4 cudart-pattern lesson)"
+    ],
+    "counters_added": [
+      "cipher_rt_graph_add_kernel_calls — increments per cuGraphAddKernelNode call",
+      "cipher_rt_graph_node_substitutions — increments when substitute_decide returns non-NULL different fn"
+    ],
+    "substitution_mechanism": {
+      "weak_extern_hook": "void* cipher_rt_graph_substitute_decide(void* original_func, unsigned gx,gy,gz, bx,by,bz, shared)",
+      "abi_discipline": "Substitute MUST accept same grid/block dims and same kernelParams layout. Hook returns NULL for no substitution. We only mutate params->func; never grid/block/params pointers. ABI-compat enforcement is the actuator's responsibility.",
+      "no_actuator_wired_yet": "cipher_rt_graph_substitute_decide is weakly-referenced but no actuator currently implements it. Future Marlin/Koopman actuators wire this when they need graph-capture-time substitution. Today: weak ref is null → no substitution → graph correctness preserved bit-for-bit."
+    }
+  },
+  "section_step2_counter_parity_eager": {
+    "build_cuda13_may13_md5_new": "dfbe5d348d31b9ff9dbc65755cd22457",
+    "phase4_counter_table": [
+      {"counter": "cipher_rt_smp_total_launches",     "baseline_b6_9_8_4": 23318, "measured": 23318, "verdict": "EXACT"},
+      {"counter": "cipher_rt_smp_small_launches",     "baseline_b6_9_8_4": 16810, "measured": 16810, "verdict": "EXACT"},
+      {"counter": "cipher_rt_matmul_calls_total",     "baseline_b6_9_8_4": 5607,  "measured": 5607,  "verdict": "EXACT"},
+      {"counter": "cipher_rt_matmul_calls_handled",   "baseline_b6_9_8_4": 0,     "measured": 0,     "verdict": "EXACT"},
+      {"counter": "cipher_rt_matmul_calls_passthrough","baseline_b6_9_8_4": 5607, "measured": 5607,  "verdict": "EXACT"},
+      {"counter": "cipher_rt_classify_calls_total",   "baseline_b6_9_8_4": 23318, "measured": 23318, "verdict": "EXACT"},
+      {"counter": "cipher_rt_attn_calls_total",       "baseline_b6_9_8_4": 0,     "measured": 0,     "verdict": "EXACT"},
+      {"counter": "cipher_rt_attn_tramp_calls",       "baseline_b6_9_8_4": 0,     "measured": 0,     "verdict": "EXACT"},
+      {"counter": "cipher_rt_cublas_shim_calls",      "baseline_b6_9_8_4": 5607,  "measured": 5607,  "verdict": "EXACT"},
+      {"counter": "cipher_rt_cublaslt_shim_calls",    "baseline_b6_9_8_4": 0,     "measured": 0,     "verdict": "EXACT"},
+      {"counter": "cipher_rt_cublaslt_variants_aggregate","baseline_b6_9_8_4":0, "measured": 0,     "verdict": "EXACT"},
+      {"counter": "cipher_rt_dlsym_intercepts",       "baseline_b6_9_8_4": 0,     "measured": 0,     "verdict": "EXACT"}
+    ],
+    "may13_counters": {
+      "intercepts": {"baseline": 18456, "measured": 18456, "verdict": "EXACT"},
+      "proc_addr": {"baseline": 883, "measured": 883, "verdict": "EXACT"},
+      "got_patches": {"baseline": 80, "measured": 80, "verdict": "EXACT"},
+      "graph_launch_calls": {"baseline": 0, "measured": 0, "verdict": "EXACT (eager has no replay)"},
+      "graph_add_kernel_calls": {"baseline": "new", "measured": 0, "verdict": "EXPECTED 0 (eager has no graph capture)"},
+      "graph_node_substitutions": {"baseline": "new", "measured": 0, "verdict": "EXPECTED 0 (no actuator wired)"}
+    },
+    "verdict_h1": "H1 CONFIRMED at ratio 23.9405 (identical to .8.4 + .8.2 + .9.4)",
+    "verdict": "12/12 EXACT — no regression from .8.5 additions"
+  },
+  "section_step3_graph_mode_probe": {
+    "harness": "/tmp/cipher_graph_full_probe.py (graph mode default; 2 reps × 128 tokens; queries 6 counters at 3 phases)",
+    "phase_0_pre_vllm": {"graph_launch_calls": 0, "graph_add_kernel_calls": 0, "graph_node_substitutions": 0, "intercept_count": 0, "smp_total_launches": 0, "cublas_shim_calls": 0},
+    "phase_1_post_warmup_capture_DELTAS": {
+      "graph_launch_calls": 0,
+      "graph_add_kernel_calls": 0,
+      "graph_node_substitutions": 0,
+      "intercept_count": 40027,
+      "smp_total_launches": 60494,
+      "cublas_shim_calls": 18745,
+      "interpretation": "Capture phase = 60494 launches via cuLaunchKernel-during-capture (driver records into graph internally). Zero AddKernelNode calls because PyTorch's CUDAGraph uses cuStreamBeginCapture + cuLaunchKernel-during-capture pattern, NOT explicit cuGraphAddKernelNode."
+    },
+    "phase_2_post_inference_replay_DELTAS": {
+      "graph_launch_calls": 300,
+      "graph_add_kernel_calls": 0,
+      "graph_node_substitutions": 0,
+      "intercept_count": 5044,
+      "smp_total_launches": 8932,
+      "cublas_shim_calls": 256,
+      "interpretation": "Replay phase = 300 cudaGraphLaunch calls (B.6''.9.8.4 shim engaging EXACT same as before). Zero AddKernelNode calls (no graph rebuild during inference). 8932 additional CUPTI launches likely from non-captured kernels (Triton JIT, sampling, etc.)."
+    },
+    "mode_1_correctness_check": {
+      "rep0_first_5_tokens": "deterministic per harness",
+      "rep1_first_5_tokens": "deterministic per harness",
+      "rep0_eq_rep1": true,
+      "verdict": "PASS — substitution-disabled mode produces identical replay output across reps; shim itself does not corrupt graph"
+    }
+  },
+  "section_critical_finding": {
+    "title": "PyTorch's CUDAGraph does NOT call cuGraphAddKernelNode explicitly",
+    "evidence": "cipher_rt_graph_add_kernel_calls = 0 after both capture phase and replay phase; counter was incrementally exercised at 5 levels (driver cuGraphAddKernelNode + _v2 + ExecKernelNodeSetParams + _v2 + cudart cudaGraphAddKernelNode) and none fired during vLLM workload.",
+    "root_cause": "PyTorch's CUDAGraph capture uses cuStreamBeginCapture(stream) → run kernels normally (each cuLaunchKernel during capture is recorded as a kernel node by the driver's internal capture mechanism) → cuStreamEndCapture(stream, &graph) → cuGraphInstantiate(&exec, graph). The explicit AddKernelNode API is only called by direct-CUDA-graph-API callers (raw CUDA, some HPC frameworks, some JAX configurations).",
+    "implication": "Capture-time substitution for PyTorch graphs requires a different mechanism: either (a) hook cuLaunchKernel + detect stream-is-capturing state via cuStreamGetCaptureInfo + substitute func before passing to real cuLaunchKernel during capture; or (b) hook cuStreamEndCapture + walk the resulting CUgraph via cuGraphGetNodes + rewrite via cuGraphKernelNodeSetParams (graph template, not exec); or (c) hook cuGraphInstantiate + walk + rewrite via cuGraphExecKernelNodeSetParams post-instantiate (which my shim DOES provide but PyTorch path doesn't trigger if substitution decision wasn't made at instantiate time).",
+    "what_this_substep_delivers": "Substitution infrastructure for direct-API callers (HPC, raw CUDA, JAX direct). cuGraphAddKernelNode + cuGraphExecKernelNodeSetParams + cudaGraphAddKernelNode shims correct + ABI-additive + counter-instrumented + Mode-1 correctness verified. Foundation laid for future Marlin/Koopman actuator wiring via cipher_rt_graph_substitute_decide weak ref.",
+    "what_this_substep_does_NOT_deliver_yet": "PyTorch-specific capture-time substitution. Closing that gap requires .8.5b sub-substep with one of (a)/(b)/(c) above. The most idiomatic path is (a) — cuLaunchKernel hook detects stream capture via cuStreamGetCaptureInfo_v2 and substitutes during capture. This composes with B.6''.9.8.1's existing cuLaunchKernel hook and is a smaller incremental change than (b)/(c).",
+    "memory_11_no_scope_degrade_honored": "Substep delivers what was buildable additively + surfaces the PyTorch-specific gap honestly. NOT masking the zero counter. NOT silently dropping scope. Recording for .8.5b adjudication."
+  },
+  "section_step4_verdict": {
+    "step_1_implementation": "COMPLETE — 5 new shims + 2 counters + g_patches + resolve_real all in place",
+    "step_2_counter_parity": "PASS — 12/12 phase4 counters EXACT match; eager mode unaffected",
+    "step_3_graph_capture_visibility_direct_api": "FUNCTIONAL — shims fire when called; verified ABI-correctness via mode 1 (rep0==rep1)",
+    "step_3_pytorch_capture_substitution_engagement": "ZERO — PyTorch's CUDAGraph pattern doesn't exercise explicit AddKernelNode API",
+    "step_3_replay_observability_still_works": "YES — graph_launch_calls = 300 from .8.4 unchanged; .8.5 additions do not regress .8.4",
+    "no_regression": true,
+    "ready_for_b6_9_8_6": true,
+    "honest_residue_for_scope_lock": [
+      "B.6''.9.8.5b carry: PyTorch CUDAGraph capture-time substitution requires cuLaunchKernel-during-capture detection + substitution. ~1-1.5 ED future work. Shim infrastructure already in place from this substep.",
+      "cipher_rt_graph_substitute_decide weak hook ready but no actuator implements it yet. Marlin/Koopman actuator wiring is downstream actuator work (W14-era or v1.x scope), not B.6''.9.8 scope."
+    ]
+  },
+  "compliance_with_disciplines": {
+    "memory_20_abi_additive": "PRESERVED — 12/12 counters EXACT; pure additions to substrate",
+    "memory_11_no_scope_degrade": "PRESERVED — zero engagement on PyTorch surfaced as HONEST FINDING, not masked",
+    "memory_12_md5_provenance": "PRESERVED — build md5 3474be1d → dfbe5d34 recorded",
+    "memory_9_framework_agnostic": "STRENGTHENED — shims cover all direct-CUDA-graph-API callers; PyTorch-specific gap is in the calling pattern, not the shim mechanism",
+    "memory_13_koopman_beta_gate": "INHERITED — cipher_rt_graph_substitute_decide hook contract requires actuator to enforce β residual_ratio < 0.05 gate before returning substitute; substep doesn't violate this",
+    "memory_25_per_launch_atomicity": "PRESERVED — substitution happens at graph capture (not per-launch); per-launch COMMIT continues to fire at cuLaunchKernel + cuGraphLaunch boundaries"
+  },
+  "anchors_at_close": {
+    "cipher_rt_phase4_before": "e990721",
+    "cipher_rt_phase4_after": "this commit (tag candidate v1-substrate-may13-port-graph-capture-substitution)",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca UNCHANGED on pod",
+    "build_cuda13_may13_md5_new": "dfbe5d348d31b9ff9dbc65755cd22457",
+    "build_cuda13_rev6_preserved": "1f305ce61e9acae65920dc8fa9474ee1 (rollback anchor)"
+  },
+  "next": "HOLD for Anil B.6''.9.8.6 go (FlashAttention launch-side intercept — closes the attn_calls=0 gap on real vLLM). The PyTorch-capture-substitution gap (.8.5b) is now documented as honest residue; Anil can prioritize when to address."
+}

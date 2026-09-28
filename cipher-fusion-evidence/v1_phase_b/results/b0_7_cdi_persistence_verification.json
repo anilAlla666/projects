@@ -1,0 +1,85 @@
+{
+  "campaign": "V1 Phase B.0.7+ CDI persistence verification (Q9 additional empirical test)",
+  "date": "2026-05-26",
+  "purpose": "Per Anil 2026-05-26 Q9 additional verification request: test that /etc/cdi/cipher.yaml survives nvidia-ctk regeneration cycles. Test conducted in /tmp/cdi-test/ to avoid sudo writes to /etc/cdi/; mechanism behavior is identical.",
+  "anchors_at_test": {
+    "cipher_rt_phase4": "8613812e tag v1-substrate-driver-worker-init",
+    "libcipher_rt_so_md5": "1d91e7da",
+    "cipher_kmod": "8c643fc tag week-13-14-complete",
+    "cipher-fusion-evidence": "60331765 (B.1' addendum)",
+    "nvidia_container_toolkit": "1.18.1-0lambda0.22.04.1"
+  },
+  "test_1_q9a_sibling_yaml_same_kind": {
+    "description": "Per Anil Q9 (a) spec verbatim: drop cipher.yaml with kind: nvidia.com/gpu + additional CIPHER mounts under devices[].all.containerEdits",
+    "cipher_yaml_content": "cdiVersion: 0.5.0\nkind: nvidia.com/gpu\ndevices:\n  - name: all\n    containerEdits:\n      env: [CIPHER_TEST_PERSISTENCE=yes, CUDA_INJECTION64_PATH=/usr/lib/cipher/libcipher_rt.so]\n      mounts: [{hostPath: /usr/lib/cipher/libcipher_rt.so, containerPath: /usr/lib/cipher/libcipher_rt.so, ...}]",
+    "nvidia_ctk_cdi_list_output": [
+      "level=warning msg=\"/tmp/cdi-test/nvidia.yaml: [conflicting device \\\"nvidia.com/gpu=all\\\" (specs \\\"/tmp/cdi-test/nvidia.yaml\\\", \\\"/tmp/cdi-test/cipher.yaml\\\")]\"",
+      "level=warning msg=\"/tmp/cdi-test/cipher.yaml: [conflicting device \\\"nvidia.com/gpu=all\\\" (specs \\\"/tmp/cdi-test/nvidia.yaml\\\", \\\"/tmp/cdi-test/cipher.yaml\\\")]\"",
+      "level=info msg=\"Found 2 CDI devices\"",
+      "nvidia.com/gpu=0",
+      "nvidia.com/gpu=GPU-993dd5d1-740e-ce8f-7c5e-404188d4b950"
+    ],
+    "verdict": "FAIL",
+    "mechanism_finding": "CDI rejects duplicate device declarations across spec files (same vendor+class+device_name = conflict). Per CDI design intent: each device declared by exactly ONE spec file. With both nvidia.yaml and cipher.yaml declaring nvidia.com/gpu=all, neither nvidia.com/gpu=all is registered; CDI only registers the non-conflicting per-device entries (nvidia.com/gpu=0 + nvidia.com/gpu=GPU-...). The customer's `--gpus all` flag would not find nvidia.com/gpu=all device, breaking GPU container startup entirely.",
+    "implication_for_q9a": "Q9 option (a) extend-nvidia.com/gpu-via-sibling-cipher.yaml is INFEASIBLE per CDI's collision-detection semantics."
+  },
+  "test_2_cipher_com_gpu_kind_persistence": {
+    "description": "Alternative test: cipher.yaml uses NEW kind cipher.com/gpu (avoids the nvidia.com/gpu collision). Verify it survives nvidia-ctk cdi generate.",
+    "cipher_yaml_content_md5_pre": "464a0ca2560e8ef59622f13d67e0c795",
+    "command_run": "nvidia-ctk cdi generate --output=/tmp/cdi-test/nvidia.yaml",
+    "nvidia_ctk_warnings": [
+      "Could not locate nvidia-imex: pattern not found",
+      "Could not locate nvidia-imex-ctl: pattern not found",
+      "Could not locate nvidia_drv.so: pattern not found",
+      "Could not locate libglxserver_nvidia.so.580.105.08: pattern not found",
+      "Generated CDI spec with version 1.0.0 (nvidia.yaml regenerated)"
+    ],
+    "cipher_yaml_content_md5_post": "464a0ca2560e8ef59622f13d67e0c795",
+    "persistence_verdict": "PASS (md5 unchanged; nvidia-ctk only touches its target file nvidia.yaml; cipher.yaml at different kind survives intact)",
+    "nvidia_ctk_cdi_list_post": [
+      "level=info msg=\"Found 4 CDI devices\"",
+      "cipher.com/gpu=all",
+      "nvidia.com/gpu=0",
+      "nvidia.com/gpu=GPU-993dd5d1-740e-ce8f-7c5e-404188d4b950",
+      "nvidia.com/gpu=all"
+    ],
+    "but_problem": "cipher.com/gpu=all requires customer to add `--device cipher.com/gpu=all` to docker run command. Docker's `--gpus all` flag maps ONLY to nvidia.com/gpu device class. So cipher.com/gpu kind preserves persistence but violates Goal 5 verbatim (requires customer-side flag)."
+  },
+  "consolidated_branch_c_finding": {
+    "verdict": "BRANCH C mechanism finding per V1_PHASE_B_SCOPE_LOCK §8 (R-A.1-equivalent caveat: surface mechanism findings immediately, do NOT silently scope-degrade).",
+    "summary": "M1 nvidia-container-toolkit CDI mechanism is the correct meta-architecture for substrate injection. The WITHIN-M1 implementation path Anil 2026-05-26 Q9 (a) proposed (sibling cipher.yaml, same nvidia.com/gpu kind) FAILS at CDI collision-detection layer. Three alternative sub-paths within M1 need Anil adjudication before B.1'' amendment lands.",
+    "alternative_paths_for_anil_pick": {
+      "sub_P1_modify_nvidia_yaml_in_place": {
+        "mechanism": "cipher-platform .deb postinst patches /var/run/cdi/nvidia.yaml (or generates /etc/cdi/nvidia.yaml that takes precedence) to add CIPHER mounts + env to the existing nvidia.com/gpu=all entry's containerEdits. Customer's --gpus all triggers BOTH NVIDIA's libs AND CIPHER's libs through the SAME nvidia.com/gpu=all device.",
+        "goal_5_preserved": "YES verbatim (customer's --gpus all unchanged)",
+        "fragility": "MEDIUM - every NVIDIA driver update or nvidia-ctk auto-regenerate wipes CIPHER additions; postinst-upgrade-hook + repeat-on-driver-update needed",
+        "engineering_cost": "~2-3 ED (patch script + driver-update hook + .deb upgrade machinery)",
+        "recommendation": "RECOMMENDED if Anil accepts the driver-update-time re-patch operational cost"
+      },
+      "sub_P2_take_over_etc_cdi_nvidia_yaml": {
+        "mechanism": "cipher-platform .deb postinst runs nvidia-ctk cdi generate to produce nvidia spec, ADDS CIPHER mounts, writes result to /etc/cdi/nvidia.yaml. /etc/cdi/ takes precedence over /var/run/cdi/ per spec-dirs order. CIPHER OWNS the /etc/cdi/nvidia.yaml file.",
+        "goal_5_preserved": "YES verbatim",
+        "fragility": "HIGHER - CIPHER becomes responsible for regenerating /etc/cdi/nvidia.yaml on every NVIDIA driver update; stale-spec risk if cipher-platform .deb is not updated in lockstep with driver",
+        "engineering_cost": "~3-4 ED (generation + merge tool + driver-version-tracking + upgrade machinery)",
+        "recommendation": "STRONG long-term answer but heavier v1 lift"
+      },
+      "sub_P3_cipher_com_gpu_kind_plus_customer_flag": {
+        "mechanism": "cipher.yaml uses kind cipher.com/gpu (cleanly coexists with NVIDIA's nvidia.com/gpu). Customer adds `--device cipher.com/gpu=all` to docker run.",
+        "goal_5_preserved": "NO (requires customer-side --device flag)",
+        "fragility": "LOW (clean CDI mechanism)",
+        "engineering_cost": "~1 ED (just author cipher.yaml + .deb installs it)",
+        "recommendation": "REJECTED - violates Goal 5 verbatim per Anil 2026-05-26 contract correction"
+      }
+    },
+    "additional_consideration": "Open question: does newer Docker (29.x) or k8s offer auto-include-all-CDI-devices behavior (e.g., NVIDIA_VISIBLE_DEVICES=all-cdi-vendors) that would let cipher.com/gpu=all auto-trigger alongside nvidia.com/gpu=all? Anil may want to investigate this OR conclude sub-P1 is the v1 answer. Pre-existing precedent: NVIDIA visible-devices env var has historically been NVIDIA-specific; cipher.com extension would require a new mechanism."
+  },
+  "phase_b_b1_double_prime_blocked": "Until Anil picks sub-path P1/P2/P3 (or surfaces a 4th), B.1'' amendment cannot draft with a specific .deb postinst design. The B.0.7 §3.2 example CIPHER CDI spec snippet (sibling cipher.yaml, kind nvidia.com/gpu) is INVALIDATED by this Branch C finding; B.1'' must adopt the chosen sub-path mechanism.",
+  "hard_budget": "B.0.7+ persistence test ~15 minutes. Within 0.25 ED Anil allocation. No silent extension.",
+  "honest_residue": [
+    "1. Q9 (a) Anil spec verbatim is infeasible by CDI design; surface immediately per R-A.1-equivalent caveat. No silent scope-degrade.",
+    "2. Three alternative sub-paths surfaced (P1/P2/P3) with engineering-cost + Goal-5-verbatim assessment. P3 is explicitly REJECTED for Goal 5 violation. P1 vs P2 is operational-tradeoff (driver-update-time re-patch ease).",
+    "3. sudo + docker permissions on this pod prevent full end-to-end test of P1/P2 in production /etc/cdi/. Mechanism verified at nvidia-ctk parse + collision-detection layer; production deployment-and-verification deferred to B.2'' on a cluster operator's host.",
+    "4. Devang Nebius re-contact (separately drafted) may surface Nebius-side CDI extension patterns that inform P1 vs P2 pick.",
+    "5. Anil instruction in this turn assumed Q9 (a) would pass. B.0.7+ empirical evidence reverses that assumption; B.1'' amendment is BLOCKED on Anil's sub-path pick."
+  ]
+}

@@ -1,0 +1,131 @@
+{
+  "campaign": "V1 Phase B B.6''.9.8.4 - cuGraphLaunch + cuGraphLaunchPipelined shims (graph-replay observability)",
+  "date": "2026-05-27",
+  "purpose": "Close the H2 blind spot. Pre-.8.4 substrate visibility = 4.14% of graph-mode steady-state (B.6''.9.5 Test 1G). cuGraphLaunch shim observes graph-level replay; combined with .8.5 capture-time substitution, closes the graph-replay coverage gap.",
+  "anchors_at_entry": {
+    "cipher_rt_phase4": "7ffb984 tag v1-substrate-may13-port-phase-a-regression-verified",
+    "cipher_kmod": "8c643fc tag week-13-14-complete UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca installed UNCHANGED",
+    "build_cuda13_may13_md5_prior": "d752b1f23179aff64a892d7c8b8de935"
+  },
+  "section_step1_implementation": {
+    "files_modified": {
+      "src/may13_intercept/cipher_intercept_cudart.cpp": [
+        "Added typedefs cuGraphLaunch_fn + cuGraphLaunchPipelined_fn + cudaGraphLaunch_fn",
+        "Added forward decls for new shims + accessor",
+        "Added 5 static fn ptr slots: g_real_cuGraphLaunch + _ptsz + Pipelined + cudaGraphLaunch + _ptsz",
+        "Added atomic counter g_graph_launch_calls",
+        "Added weak refs to cipher_v2_current_tenant_id_from_stream + cipher_rt_commit_observe_and_publish",
+        "Added 5 shim functions + cipher_rt_graph_launch_observe inline helper + cipher_rt_graph_launch_calls accessor",
+        "Added 5 entries to g_patches[] table (cuGraphLaunch + _ptsz + Pipelined + cudaGraphLaunch + _ptsz)",
+        "Added 3 dlsym resolves in resolve_real() libcuda block + 2 dlsym resolves in libcudart block"
+      ],
+      "cipher_rt_intercept.h": [
+        "Added cipher_rt_graph_launch_calls() declaration"
+      ]
+    },
+    "shim_behavior": [
+      "Per call: g_graph_launch_calls.fetch_add(1) + g_intercept_count.fetch_add(1)",
+      "Per call: resolve tenant_id from stream via weak-ref cipher_v2_current_tenant_id_from_stream",
+      "Per call: call cipher_rt_commit_observe_and_publish(tenant_id) for COMMIT publish at graph-launch boundary (Memory #25)",
+      "Per call: forward to real cuGraphLaunch / cudaGraphLaunch via cached fn ptr",
+      "Memory #9 framework-agnostic: weak refs degrade gracefully if substrate subsystems aren't linked",
+      "No substitution in this substep — graph nodes sealed at instantiate time; substitution is .8.5 scope"
+    ],
+    "critical_finding_during_step3": {
+      "first_attempt": "Build with only cuGraphLaunch + cuGraphLaunch_ptsz + cuGraphLaunchPipelined (driver-level) shims — cipher_rt_graph_launch_calls = 0 after inference",
+      "root_cause": "cudart-cudart's cudaGraphLaunch caches the real cuGraphLaunch pointer at libcudart load time, BEFORE our cuGetProcAddress hook can redirect. PyTorch's CUDAGraph.replay() calls cudaGraphLaunch (cudart-level) which uses the cached driver pointer — bypasses our driver-level shim entirely.",
+      "fix": "Added cudaGraphLaunch + cudaGraphLaunch_ptsz cudart-level shims. GOT-patches cudart's GOT entry so PyTorch's call routes through our shim, which then calls the real cudaGraphLaunch.",
+      "second_attempt": "cipher_rt_graph_launch_calls = 300 after 2 reps × 128 token inference — shim engaged",
+      "lesson": "Driver-level GOT patches alone are insufficient when cudart caches function pointers at init. Must intercept at the cudart-level too for the cudaGraph* family. Same pattern as cuLaunchKernel vs cudaLaunchKernel which may13 already had."
+    }
+  },
+  "section_step2_counter_parity": {
+    "build_cuda13_may13_md5_new": "3474be1d9b5cf0874501b8f0b29479ce",
+    "build_cuda13_may13_md5_prior": "d752b1f23179aff64a892d7c8b8de935",
+    "build_cuda13_rev6_md5": "1f305ce61e9acae65920dc8fa9474ee1 (PRESERVED unchanged at build_cuda13/; rollback anchor)",
+    "harness": "cipher_graph_audit.py eager mode (CIPHER_AUDIT_EAGER=1)",
+    "phase4_counter_parity_table": [
+      {"counter": "cipher_rt_smp_total_launches",     "b6_9_8_2_baseline": 23318, "b6_9_8_4_measured": 23318, "delta_pct": "0.00%", "verdict": "EXACT"},
+      {"counter": "cipher_rt_smp_small_launches",     "b6_9_8_2_baseline": 16810, "b6_9_8_4_measured": 16810, "delta_pct": "0.00%", "verdict": "EXACT"},
+      {"counter": "cipher_rt_matmul_calls_total",     "b6_9_8_2_baseline": 5607,  "b6_9_8_4_measured": 5607,  "delta_pct": "0.00%", "verdict": "EXACT"},
+      {"counter": "cipher_rt_matmul_calls_handled",   "b6_9_8_2_baseline": 0,     "b6_9_8_4_measured": 0,     "delta_pct": "n/a",   "verdict": "EXACT"},
+      {"counter": "cipher_rt_matmul_calls_passthrough","b6_9_8_2_baseline":5607, "b6_9_8_4_measured": 5607,  "delta_pct": "0.00%", "verdict": "EXACT"},
+      {"counter": "cipher_rt_classify_calls_total",   "b6_9_8_2_baseline": 23318, "b6_9_8_4_measured": 23318, "delta_pct": "0.00%", "verdict": "EXACT"},
+      {"counter": "cipher_rt_attn_calls_total",       "b6_9_8_2_baseline": 0,     "b6_9_8_4_measured": 0,     "delta_pct": "n/a",   "verdict": "EXACT"},
+      {"counter": "cipher_rt_attn_tramp_calls",       "b6_9_8_2_baseline": 0,     "b6_9_8_4_measured": 0,     "delta_pct": "n/a",   "verdict": "EXACT"},
+      {"counter": "cipher_rt_cublas_shim_calls",      "b6_9_8_2_baseline": 5607,  "b6_9_8_4_measured": 5607,  "delta_pct": "0.00%", "verdict": "EXACT"},
+      {"counter": "cipher_rt_cublaslt_shim_calls",    "b6_9_8_2_baseline": 0,     "b6_9_8_4_measured": 0,     "delta_pct": "n/a",   "verdict": "EXACT"},
+      {"counter": "cipher_rt_cublaslt_variants_aggregate","b6_9_8_2_baseline":0, "b6_9_8_4_measured": 0,     "delta_pct": "n/a",   "verdict": "EXACT"},
+      {"counter": "cipher_rt_dlsym_intercepts",       "b6_9_8_2_baseline": 0,     "b6_9_8_4_measured": 0,     "delta_pct": "n/a",   "verdict": "EXACT"}
+    ],
+    "may13_counters_eager": {
+      "intercepts": {"baseline": 18456, "measured": 18456, "delta": "EXACT — no graph launches in eager"},
+      "proc_addr": {"baseline": 883, "measured": 883, "delta": "EXACT"},
+      "got_patches": {"baseline": 79, "measured": 80, "delta": "+1 (cudaGraphLaunch is one more GOT entry to patch in cudart's GOT)"},
+      "graph_launch_calls": {"measured": 0, "interpretation": "EXACT — eager mode has no graph replay, so shim correctly does not fire"}
+    },
+    "verdict_h1": "H1 CONFIRMED at ratio 23.9405 (identical to B.6''.9.8.2 + B.6''.9.4)",
+    "evidence_file": "v1_phase_b/results/b6_9_8_4/counter_parity_eager_final.txt"
+  },
+  "section_step3_graph_mode_coverage": {
+    "harness_a": "cipher_graph_audit.py CIPHER_AUDIT_EAGER=0 (5×128 prompts)",
+    "harness_b": "cipher_graph_launch_probe.py (2 reps × 128 tokens; directly queries cipher_rt_graph_launch_calls via ctypes)",
+    "harness_a_counters": {
+      "smp_total_launches_steady_delta": 2504,
+      "matmul_calls_total_steady_delta": 63,
+      "verdict_h2": "H2 CONFIRMED at ratio 0.0414 (steady cuLaunchKernel still ~4% of warmup)",
+      "interpretation": "CUPTI launch counter behavior unchanged; cuGraphLaunch shim is independent observability path"
+    },
+    "harness_b_graph_launch_probe": {
+      "phase_0_pre_vllm": {"cipher_rt_graph_launch_calls": 0},
+      "phase_1_post_warmup_capture": {"cipher_rt_graph_launch_calls": 0, "interpretation": "expected — graph capture not replay"},
+      "phase_2_post_inference_replay": {"cipher_rt_graph_launch_calls": 300, "interpretation": "300 cudaGraphLaunch calls captured during 2 reps × 128 tokens = ~150/rep ~= 1.17 graph launches per token"},
+      "steady_state_delta": 300,
+      "verdict": "CUDAGRAPH REPLAY OBSERVABILITY ESTABLISHED — shim is firing"
+    },
+    "additional_steady_state_deltas_graph_mode": {
+      "cipher_intercept_count_delta": 5044,
+      "cipher_rt_smp_total_launches_delta": 8932,
+      "cipher_rt_cublas_shim_calls_delta": 256,
+      "cipher_rt_classify_calls_delta": 8932,
+      "interpretation": "CUPTI sees 8932 launches in steady-state (some captured-graph-internal launches still surface via CUPTI). may13 intercepts include 300 from cuGraphLaunch + 4744 from cuLaunchKernel hook on non-graph kernels."
+    }
+  },
+  "section_verdict": {
+    "step_1_implementation_complete": true,
+    "step_2_counter_parity": "PASS (12/12 phase4 counters EXACT match B.6''.9.8.2 baseline)",
+    "step_3_graph_launch_observability": "PASS (cipher_rt_graph_launch_calls = 300 post-inference, was 0 pre-fix)",
+    "no_regression_introduced": true,
+    "ready_for_b6_9_8_5": true,
+    "honest_residue": [
+      "cudaGraphLaunch (cudart-level) shim was REQUIRED — driver-level cuGraphLaunch alone insufficient due to cudart's cached fn ptr at init. This is a generalizable lesson for future driver-API ports.",
+      "Substitution at replay-time is impossible by design (graph nodes sealed at instantiate). Substitution must happen at cuGraphAddKernelNode (B.6''.9.8.5 scope) or via cuGraphExecKernelNodeSetParams.",
+      "300 graph launches over 2 reps × 128 tokens = ~150 per rep. Need to validate this scales linearly with token count in larger workload — defer to .8.8 Gate G."
+    ]
+  },
+  "compliance_with_disciplines": {
+    "memory_20_abi_additive": "PRESERVED — 12/12 phase4 counters EXACT match; only additions to substrate (5 new shim functions + 1 new counter + 5 new g_patches entries + 5 new dlsym resolves)",
+    "memory_11_no_scope_degrade": "PRESERVED — graph_launch_calls=0 failure surfaced as HARD STOP (not masked); root-caused via probe harness; fix added; re-verified",
+    "memory_12_md5_provenance": "PRESERVED — build md5s d752b1f→fe8353e1→3474be1d (three iterations) all recorded",
+    "memory_9_framework_agnostic": "STRENGTHENED — weak refs to cipher_v2_*/cipher_rt_commit_* keep shim framework-agnostic; graph launch observability is structurally framework-agnostic (any CUDA Graphs caller benefits)",
+    "memory_25_per_launch_atomicity": "PRESERVED — COMMIT publish at graph-launch boundary treats each cuGraphLaunch as one logical work unit"
+  },
+  "anchors_at_close": {
+    "cipher_rt_phase4_before": "7ffb984",
+    "cipher_rt_phase4_after": "this commit (tag candidate v1-substrate-may13-port-graph-launch-observable)",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca UNCHANGED on pod",
+    "build_cuda13_may13_md5_new": "3474be1d9b5cf0874501b8f0b29479ce",
+    "build_cuda13_rev6_preserved": "1f305ce61e9acae65920dc8fa9474ee1 (rollback anchor)"
+  },
+  "what_did_not_change": [
+    "cipher_kmod — no kmod touch through B.6''.9.8 plan",
+    "/usr/lib/cipher/libcipher_rt.so on pod — diagnostic only via docker -v",
+    "cipher-platform v2.0 rev6 .deb on pod — rev7 .deb at B.6''.9.8.9",
+    "build_cuda13/ rev6 substrate preserved as rollback anchor",
+    "All 9-12 existing phase4 counters under eager mode (B.6''.9.8.2 baseline)",
+    "Phase A A.2 anchor 19090 (validated in B.6''.9.8.3 substep — still valid)"
+  ],
+  "next": "HOLD for Anil B.6''.9.8.5 go (cuGraphAddKernelNode + cuGraphExecKernelNodeSetParams capture-time kernel node substitution). The cipher_graph_inspect.cpp scaffold from .8.1 is ready to extend; substitution path lands on top of summarize_graph()'s walker pattern."
+}

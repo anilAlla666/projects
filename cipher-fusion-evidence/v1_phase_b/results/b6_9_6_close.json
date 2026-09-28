@@ -1,0 +1,155 @@
+{
+  "campaign": "V1 Phase B B.6''.9.6 - cipher-may13-evidence cipher_intercept.cpp audit (read-only)",
+  "date": "2026-05-27",
+  "purpose": "Assess whether the may13-era driver-API interception design is portable to cipher_rt_phase4 for B.6''.9.8, in order to shrink or clarify B.6''.9.8 scope/ED.",
+  "anchors": {
+    "cipher_rt_phase4": "78bfded UNCHANGED",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher-fusion-evidence_entry": "66e8180",
+    "cipher_may13_evidence_head": "fc8a9ae"
+  },
+  "audited_files": {
+    "include/cipher_intercept.h": {"lines": 92, "purpose": "public API + CipherKernelDesc + dispatch result enum + stats struct"},
+    "src/cipher_intercept.cpp": {"lines": 445, "purpose": "small LD_PRELOAD shim — cuLaunchKernel hook via cuGetProcAddress redirect + cuLaunchKernelEx shim; .so constructor wires real fn resolution"},
+    "src/cipher_intercept_cudart.cpp": {"lines": 3006, "purpose": "FULL driver+cudart interception substrate; GOT-patch table for 25+ symbols; cuGetProcAddress + ProcAddress_v2 + all cuLaunchKernel variants + all cudaLaunchKernel variants + module/library load hooks + register-fat-binary + cuBLAS + NCCL"},
+    "include/cipher_graph.h": {"lines": 69, "purpose": "Stage 5 graph engine API — begin/end_capture, replay, destroy"},
+    "src/cipher_graph.cpp": {"lines": 293, "purpose": "Stage 5 sliding-window kernel-fp detector + cuStreamBeginCapture-driven graph capture pipeline"},
+    "src/cipher_graph_inspect.cpp": {"lines": 287, "purpose": "Phase 3 graph-capture audit — intercepts cuGraphInstantiate + InstantiateWithFlags + cudartGraphInstantiate variants; walks CUgraph via cuGraphGetNodes + cuGraphKernelNodeGetParams + cuFuncGetName; aggregates kernel-name histogram per graph"}
+  },
+  "section_a_entry_point_coverage_inventory": [
+    {"entry_point": "cuGetProcAddress",                      "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:2884",  "mechanism": "GOT-patch table + cuGetProcAddress shim redirects requested symbols to internal shim table via get_shim()", "capability": "substitution-capable (full driver-API redirect)"},
+    {"entry_point": "cuGetProcAddress_v2",                   "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:2898",  "mechanism": "Same as v1; falls back to v1 real if v2 not resolved",                                                                          "capability": "substitution-capable"},
+    {"entry_point": "cuLaunchKernel",                        "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:2217",  "mechanism": "GOT-patch entry pointing to cipher shim; dispatch_and_log() routes",                                                            "capability": "substitution-capable (returns CUDA_SUCCESS on SUBSTITUTED, passes through otherwise)"},
+    {"entry_point": "cuLaunchKernel_ptsz",                   "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:2316",  "mechanism": "GOT-patch entry — per-thread-stream variant",                                                                                    "capability": "substitution-capable"},
+    {"entry_point": "cuLaunchKernelEx",                      "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:2428",  "mechanism": "GOT-patch entry; reads CUlaunchConfig + delegates to dispatch_and_log",                                                          "capability": "substitution-capable"},
+    {"entry_point": "cuLaunchKernelEx_ptsz",                 "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:2561",  "mechanism": "GOT-patch entry",                                                                                                               "capability": "substitution-capable"},
+    {"entry_point": "cuLaunchCooperativeKernel",             "may13_hooked": false, "may13_file_line": "n/a",                                    "mechanism": "n/a",                                                                                                                          "capability": "NEW WORK in B.6''.9.8 (low-traffic; ML workloads rarely use)"},
+    {"entry_point": "cudaLaunchKernel",                      "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:2815",  "mechanism": "GOT-patch + cudart resolve via dlsym",                                                                                          "capability": "substitution-capable"},
+    {"entry_point": "cudaLaunchKernel_ptsz",                 "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:2823",  "mechanism": "Same",                                                                                                                          "capability": "substitution-capable"},
+    {"entry_point": "__cudaLaunchKernel + ptsz",             "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:2832-2845","mechanism": "nvcc host-stub variants — mandatory for torch 2.11/cudart 13 per may13 comment",                                              "capability": "substitution-capable"},
+    {"entry_point": "cudaLaunchKernelExC + ptsz",            "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:2848,2876","mechanism": "GOT-patch + cudart resolve",                                                                                                  "capability": "substitution-capable"},
+    {"entry_point": "cuGraphLaunch / cuGraphLaunchPipelined","may13_hooked": false, "may13_file_line": "n/a",                                    "mechanism": "n/a — may13 inspects at instantiate time, not at replay",                                                                       "capability": "NEW WORK in B.6''.9.8 (replay-time intercept — H2 blind-spot closer)"},
+    {"entry_point": "cuGraphAddKernelNode / _v2",            "may13_hooked": false, "may13_file_line": "n/a",                                    "mechanism": "PyTorch uses cuStreamBeginCapture-driven path; nodes added implicitly. Direct API not on hot path on modern PyTorch.",          "capability": "NEW WORK if explicit-add path matters; else skip"},
+    {"entry_point": "cuGraphExecKernelNodeSetParams",        "may13_hooked": false, "may13_file_line": "n/a — Phase 3 PROPOSED but not built",   "mechanism": "Phase 3 audit found no Marlin work to do; infrastructure sketched in cipher_graph_inspect.cpp but the swap layer not built",     "capability": "NEW WORK (with cipher_graph_inspect summarize_graph as starting scaffold)"},
+    {"entry_point": "cuGraphInstantiate / _v2",              "may13_hooked": true,  "may13_file_line": "src/cipher_graph_inspect.cpp:227,238",  "mechanism": "LD_PRELOAD-style override + walks graph nodes via cuGraphGetNodes + reports kernel histogram",                                  "capability": "observation-only today; substitution-capable via in-place node rewrite (NOT BUILT but scaffolded)"},
+    {"entry_point": "cuGraphInstantiateWithFlags",           "may13_hooked": true,  "may13_file_line": "src/cipher_graph_inspect.cpp:227",     "mechanism": "Same",                                                                                                                          "capability": "observation-only"},
+    {"entry_point": "cudaGraphInstantiate (cudart-level)",   "may13_hooked": true,  "may13_file_line": "src/cipher_graph_inspect.cpp:255",     "mechanism": "PyTorch path; cudart resolves via cached fn ptr at first use; may13 catches via cudart dlsym hook",                              "capability": "observation-only"},
+    {"entry_point": "cudaGraphInstantiateWithFlags",         "may13_hooked": true,  "may13_file_line": "src/cipher_graph_inspect.cpp:273",     "mechanism": "Same",                                                                                                                          "capability": "observation-only"},
+    {"entry_point": "cuModuleLoad / LoadData / LoadDataEx",  "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:1671,1704","mechanism": "GOT-patch — observes dynamic cubin loads",                                                                                       "capability": "observation-capable (builds CUmodule→cubin map for later kernel name lookup)"},
+    {"entry_point": "cuLibraryLoadData / cuLibraryGetKernel","may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:1759,1793","mechanism": "GOT-patch — CUDA 12+ library API",                                                                                              "capability": "observation-capable"},
+    {"entry_point": "cuModuleGetFunction",                   "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:1730",  "mechanism": "GOT-patch — builds CUfunction→name map",                                                                                        "capability": "observation-capable"},
+    {"entry_point": "cuKernelGetFunction / Name / ParamInfo","may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:1812 + resolve_real",  "mechanism": "Real fns resolved + used for cipher_param_query_via_cuda + cipher_param_query_name",                              "capability": "observation-capable (param recovery for substitution)"},
+    {"entry_point": "cuFuncGetName / GetAttribute",          "may13_hooked": false, "may13_file_line": "n/a — only used as REAL (lookup) not patched", "mechanism": "Used inside cipher_graph_inspect.cpp:137 to resolve kernel name from CUfunction",                                            "capability": "n/a (read-only consumer)"},
+    {"entry_point": "cuModuleEnumerateFunctions",            "may13_hooked": false, "may13_file_line": "n/a",                                    "mechanism": "n/a",                                                                                                                          "capability": "NEW WORK if needed (low priority — cuModuleGetFunction + lazy enumerate suffices)"},
+    {"entry_point": "__cudaRegisterFatBinary / End / Function","may13_hooked": true, "may13_file_line": "src/cipher_intercept_cudart.cpp:1591,1618,1625","mechanism": "Static cubin registration hooks — catches nvcc-emitted ahead-of-time kernels",                                              "capability": "observation-capable"},
+    {"entry_point": "cublasGemmEx + cublasLtMatmul",         "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:1064,1073","mechanism": "GOT-patch + dlsym wrapper for cuBLASLt internal resolution",                                                                    "capability": "substitution-capable (may13 has Marlin substitution; cipher_rt_phase4 has its own cuBLAS GOT today)"},
+    {"entry_point": "ncclAllReduce",                         "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:1368",  "mechanism": "Already separate plugin in cipher_rt_phase4",                                                                                   "capability": "not in B.6''.9.8 scope"},
+    {"entry_point": "cudaMemcpy / Async",                    "may13_hooked": true,  "may13_file_line": "src/cipher_intercept_cudart.cpp:2962,2974","mechanism": "Probe-only (env-gated)",                                                                                                       "capability": "observation-capable"}
+  ],
+  "section_b_architectural_compatibility_assessment": {
+    "cp_2_5_d2_iii_conflict_origin": "Recorded at CP 2.5 close ([[cipher-cp25-closed]]): may13 design conflicted with cipher_rt_phase4's GOT patcher. Concrete nature of conflict needed verification (read-only audit).",
+    "what_we_found": [
+      "cipher_rt_phase4 today imports 18+ may13 source files (oracle, recipes, kernel_table, runtime, telemetry, etc.) — see Makefile lines 78-84. The OBSERVER/ACTUATOR layer ports cleanly.",
+      "cipher_rt_phase4 has NOT imported cipher_intercept.cpp, cipher_intercept_cudart.cpp, or cipher_graph_inspect.cpp — the driver-API interception layer.",
+      "cipher_rt_phase4's current driver-side touch points are: (1) cipher_cupti.c CUPTI callback line 162 (passive observation), (2) cuBLAS GOT patcher targeting cublasGemmEx + cublasLtMatmul + 17 LT variants, (3) ATen SDPA trampolines for attention. NONE of these overlap the driver-API entry points may13's cipher_intercept_cudart.cpp hooks (which target the LAUNCH path itself + module-load + cuGetProcAddress, not cuBLAS).",
+      "Therefore the historical 'conflict' is bounded to: (a) init-order issues — may13 uses constructor(101) + cipher_rt_phase4 auto-init has its own priority chain; (b) overlapping CUPTI vs LD_PRELOAD launch observation; (c) potential double-counting of cuBLAS calls if both layers GOT-patch cuBLAS (may13 + phase4 each have separate cuBLAS hooks)."
+    ],
+    "structural_compatibility_verdict": "NON-CONFLICTING in code at driver-API + module-load + graph layers — these are gaps in cipher_rt_phase4 today, not overlaps. The cuBLAS layer in may13 IS a duplicate of cipher_rt_phase4's existing hook and would need explicit reconciliation (drop may13's cuBLAS shim during port, keep phase4's CUDA-13 + Path B' assembly trampolines instead).",
+    "phase_a_finding_recall": "[[v1-phase-a-driver-worker-init]]: modern CUDA uses cuGetProcAddress lazy resolution which bypasses LD_PRELOAD constructor + dlsym hook. Phase A picked CUDA_INJECTION64_PATH (driver-mediated active invocation). may13's mechanism is cuGetProcAddress redirection — that IS what Phase A also does inside the InitializeInjection2 callback. So may13's interception mechanism is portable; only the .so constructor wrapper around it needs adjustment to fire via InitializeInjection2 instead of constructor()."
+  },
+  "section_c_portability_ranking": {
+    "port_as_is": [
+      "cipher_intercept_cudart.cpp:2884-2911 — cuGetProcAddress + cuGetProcAddress_v2 shims (THE FOUNDATION per Memory #4)",
+      "cipher_intercept_cudart.cpp:1899-1942 — g_patches[] symbol-to-shim table + get_shim() lookup",
+      "cipher_intercept_cudart.cpp:1946-1998 — resolve_real() dlsym bootstrap of all real fn pointers from libcuda.so + libcudart",
+      "cipher_intercept_cudart.cpp:2000+ — patch_slot() + dl_iterate_phdr() GOT-patch machinery (the dl_iterate code that walks loaded modules' GOT tables and rewrites slots)",
+      "cipher_intercept_cudart.cpp:2217,2316,2428,2561 — cuLaunchKernel + cuLaunchKernel_ptsz + cuLaunchKernelEx + cuLaunchKernelEx_ptsz shims",
+      "cipher_intercept_cudart.cpp:2815-2880 — cudaLaunchKernel + ptsz + __cudaLaunchKernel + ptsz + cudaLaunchKernelExC + ptsz shims",
+      "cipher_intercept_cudart.cpp:1591-1670 — __cudaRegisterFatBinary + FatBinaryEnd + Function shims (catches static cubin registration)",
+      "cipher_intercept_cudart.cpp:1671-1812 — cuModuleLoadData + LoadDataEx + GetFunction + cuLibraryLoadData + LibraryGetKernel + KernelGetFunction shims",
+      "cipher_graph_inspect.cpp full file — cuGraphInstantiate + InstantiateWithFlags + cudaGraphInstantiate + cudaGraphInstantiateWithFlags shims + summarize_graph() walker"
+    ],
+    "port_with_adaptation": [
+      "cipher_intercept.cpp:420-445 — .so constructor: adapt to fire via cipher_rt_phase4's InitializeInjection2 callback instead of LD_PRELOAD constructor() (per Phase A finding)",
+      "cipher_intercept_cudart.cpp:2920-2933 — cipher_hook_init constructor(101): merge with existing cipher_rt_phase4 init chain; resolve priority conflict",
+      "cipher_intercept_cudart.cpp:1451+ — dispatch_and_log() integration: adapt to cipher_rt_phase4's current dispatch flow (oracle + classify + actuator routing)",
+      "Stats counter integration: port g_intercept_count + g_proc_addr_count + g_got_patches to cipher_rt_phase4's T-symbol export pattern (cipher_rt_smp_total_launches already exists; align names)"
+    ],
+    "reference_design_only_rewrite_needed": [
+      "cipher_intercept.cpp:128-150 — SPECULATE/lookaside path: depends on may13-era 10ops state which cipher_rt_phase4 has migrated; needs new wiring against current observer/actuator implementations",
+      "cipher_intercept.cpp:165-182 — RING_WRITE per-launch event capture: cipher_rt_phase4 has its own RING_WRITE (W10-12 Step 1); align entry struct"
+    ],
+    "architectural_conflict_cannot_port": [
+      "cipher_intercept_cudart.cpp:1064,1073 — cublasGemmEx + cublasLtMatmul shims: DUPLICATE of cipher_rt_phase4's existing cuBLAS GOT patcher (which is CUDA 13-built + Path B' 17 LT trampoline coverage). DROP this from the port; keep cipher_rt_phase4's version. No cuBLAS regression."
+    ],
+    "new_work_not_in_may13": [
+      "cuGraphLaunch / cuGraphLaunchPipelined shims — replay-time intercept; this is the H2 blind-spot closer; may13 only inspects at instantiate time. ~2-3 ED",
+      "cuGraphAddKernelNode / _v2 + cuGraphExecKernelNodeSetParams shims for per-node substitution at capture-time (PyTorch path uses implicit capture, so these are needed for explicit-API non-PyTorch workloads + for actuator substitution into already-instantiated graphs). ~2-3 ED",
+      "FlashAttention launch-side intercept (kernel-driver level, not ATen) — closes the attn_calls=0 visibility gap on real vLLM (B.6''.9.4 §C finding). ~2-3 ED",
+      "cuLaunchCooperativeKernel shim — low priority, ~0.5 ED"
+    ]
+  },
+  "section_d_b6_9_8_ed_estimate_refined": {
+    "previous_estimate_b6_9_5": "~12-18 ED (cuGraphLaunch + cuGraphAddKernelNode + cuGetProcAddress + FlashAttn)",
+    "may13_port_savings": {
+      "cuGetProcAddress + cuLaunchKernel/Ex + module/library load + graph instantiate + cudaLaunchKernel variants are ALREADY BUILT": "saves ~6-9 ED (most of original 12-18 was these)",
+      "battle_tested": "may13 ran 224-node Mistral-7B graphs cleanly + caught the cuLaunchKernel stream-NULL bug + delivered 1.38× B=8 speedup; not greenfield"
+    },
+    "ed_breakdown_refined": {
+      "port_may13_driver_api_substrate_as_is": "4-6 ED (file fork + integration tests + GOT-patcher coexistence checks)",
+      "adapt_constructor_to_cuda_injection64_path_pattern": "1-2 ED (rewrap may13's constructor logic inside cipher_rt_phase4's InitializeInjection2 callback)",
+      "drop_may13_cublas_shim_keep_phase4_version": "0.25 ED (delete + sanity test)",
+      "new_cuGraphLaunch_wrap": "2-3 ED",
+      "new_cuGraphAddKernelNode_cuGraphExecKernelNodeSetParams_wraps": "2-3 ED (use may13 summarize_graph as scaffolding for the walker)",
+      "new_FlashAttention_launch_side_intercept": "2-3 ED",
+      "integration_regression_existing_substrate": "1-2 ED"
+    },
+    "best_case": "~9-10 ED (clean port; cuGraphLaunch is straightforward)",
+    "worst_case": "~14-16 ED (integration conflicts surface; FlashAttention path requires reverse-engineering)",
+    "realistic_estimate": "~10-13 ED (median)",
+    "phase_b_total_revised_projection_at_close": "~15-20 ED (down from ~16-22 at B.6''.9.5 close; further down from ~18-24 at B.6''.9.4)"
+  },
+  "section_e_architecture_recommendation": {
+    "preferred_option": "PORT may13 + EXTEND (additive)",
+    "rationale": [
+      "Memory #20 ABI-additive discipline preserved — cipher_rt_phase4's current cuBLAS GOT + ATen SDPA + CUPTI all UNCHANGED",
+      "Memory #9 framework-agnostic moat strengthened — driver-API interception is structurally framework-agnostic (PyTorch + JAX + TF + cuBLAS + cuDNN + raw CUDA all route through cuGetProcAddress)",
+      "~70% of B.6''.9.8 scope is already built + battle-tested in may13 (224-node Mistral-7B graph captures + 1.38× B=8 speedup attested in CLAUDE.md)",
+      "Non-conflicting code layers — may13 hooks LAUNCH path + module load + graph instantiate; cipher_rt_phase4 hooks cuBLAS + ATen + CUPTI. Orthogonal.",
+      "Only one structural conflict (may13 cuBLAS shim) — resolved by dropping it from port; keep cipher_rt_phase4's CUDA-13 + Path B' version which is newer and CUDA-13-built"
+    ],
+    "rejected_alternatives": [
+      "Fresh implementation using may13 as design reference: wastes 6-9 ED rewriting battle-tested code; risks reintroducing bugs may13 already fixed (e.g., stream-NULL capture bug Phase 3 caught)",
+      "Hybrid (port only graph inspect + rewrite launch path): no benefit — the launch path port is the bulk of the saved work"
+    ],
+    "concrete_b6_9_8_sequence_proposed": [
+      "Step 1 — fork may13 cipher_intercept_cudart.cpp + cipher_graph_inspect.cpp into cipher_rt_phase4/src/may13_driver/ (~0.5 ED)",
+      "Step 2 — drop cublasGemmEx + cublasLtMatmul + ncclAllReduce shims; keep all other shims (~0.25 ED)",
+      "Step 3 — wrap constructor logic inside cipher_rt_phase4's existing InitializeInjection2 callback; resolve init-priority with existing autoinit chain (~1.5 ED)",
+      "Step 4 — adapt dispatch_and_log() to current cipher_rt_phase4 dispatch flow + align RING_WRITE entry struct (~1.5 ED)",
+      "Step 5 — add cuGraphLaunch + cuGraphLaunchPipelined shims (~2 ED)",
+      "Step 6 — add cuGraphAddKernelNode_v2 + cuGraphExecKernelNodeSetParams_v2 shims using cipher_graph_inspect summarize_graph as scaffolding (~2.5 ED)",
+      "Step 7 — FlashAttention launch-side intercept (~2.5 ED)",
+      "Step 8 — regression: B.6''.8 Gate A 5th + SC6 76.0% baseline + B.6''.9.4 audit script under graph mode default (expect H2 ratio shift from 4.14% → near-100% if all substitutions land) (~1 ED)",
+      "Step 9 — .deb rev7 rebuild + install + verify (~0.5 ED)",
+      "Total realistic: ~12 ED"
+    ]
+  },
+  "carry_forward_to_scope_lock_section_15": [
+    "items 9-12 from earlier B.6''.9 substeps UNCHANGED",
+    "item 13 (NEW B.6''.9.6): may13 cipher_intercept_cudart.cpp + cipher_graph_inspect.cpp identified as ~70% port-as-is for B.6''.9.8 driver-API substrate. CP 2.5 D2(iii) conflict re-audited: structural compatibility verified at driver-API + module-load + graph layers; only architectural conflict is duplicate cuBLAS shim (resolved by dropping may13 version, keeping cipher_rt_phase4's CUDA-13 + Path B' version).",
+    "item 14 (NEW B.6''.9.6): Phase 3 graph capture audit infrastructure (cipher_graph_inspect.cpp summarize_graph + cuGraphInstantiate hooks) becomes the scaffolding for cuGraphExecKernelNodeSetParams node-rewrite path in B.6''.9.8 Step 6."
+  ],
+  "discipline_preserved": {
+    "read_only": "No code copied or moved through this audit. Only file reads + git log + grep.",
+    "memory_20_abi_alignment": "B.6''.9.8 port plan is additive — no kmod change, no removal of existing substrate functions, no replacement of working cuBLAS/SDPA/CUPTI paths.",
+    "memory_9_framework_agnostic_alignment": "may13's cuGetProcAddress-based driver-API interception is structurally framework-agnostic (cited in may13 cipher_intercept.h:5-6 verbatim: 'Transparent to all frameworks: PyTorch, JAX, TensorFlow, cuBLAS, cuDNN — they all land here'). Port strengthens moat."
+  },
+  "anchors_at_close": {
+    "cipher_rt_phase4": "78bfded UNCHANGED",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca UNCHANGED",
+    "cipher_may13_evidence": "fc8a9ae UNCHANGED (audit only)"
+  },
+  "next": "HOLD for Anil B.6''.9.8 paste-ready prompt approval. After approval: 9-step port sequence above lands incrementally; each step commits + tags; integration regression at Step 8 gates the .deb rev7 ship."
+}

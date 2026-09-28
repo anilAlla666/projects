@@ -1,0 +1,67 @@
+{
+  "campaign": "V1 Phase B.0 substrate-only baseline measurement",
+  "date": "2026-05-26",
+  "anchors_at_b0": {
+    "cipher_rt_phase4": "8613812e",
+    "cipher_rt_phase4_tag": "v1-substrate-driver-worker-init",
+    "libcipher_rt_so_md5": "1d91e7da",
+    "cipher_kmod": "8c643fc",
+    "cipher_kmod_tag": "week-13-14-complete",
+    "cipher-fusion-evidence": "0852e81",
+    "cipher_vllm_plugin_md5": "b89a9b6e (file on disk; pip-uninstalled from vllm_env Python for this measurement)"
+  },
+  "deployment_path": "CUDA_INJECTION64_PATH=/home/ubuntu/cipher_rt_phase4/libcipher_rt.so, plugin uninstalled (Branch D (a) deployment per Phase A close)",
+  "plugin_state_during_measurement": {
+    "pip_installed_in_vllm_env": false,
+    "general_plugins_entry_points": "no cipher entries (verified via importlib.metadata)",
+    "rationale": "Anil 2026-05-26 spec required no-plugin path for substrate-only baseline"
+  },
+  "track_2_sc6_results": {
+    "TinyLlama": {
+      "shared_n4_PASS": true,
+      "independent_n5_PASS": true,
+      "fb_shared_loaded_mib": 2926.4,
+      "fb_independent_5tenant_mib": 14632,
+      "savings_pct_at_N4": 59.6,
+      "asymptote_pct_large_N": 74.5,
+      "est_weights_W_mib": 2181.0,
+      "est_context_C_mib": 745.0
+    },
+    "Mistral-7B": {
+      "shared_n4_PASS": true,
+      "independent_n5_PASS": true,
+      "fb_shared_loaded_mib": 17632,
+      "fb_independent_5tenant_mib": 73392,
+      "savings_pct_at_N4": 76.0,
+      "asymptote_pct_large_N": 95.0,
+      "est_weights_W_mib": 13940.0,
+      "est_context_C_mib": 738.4
+    }
+  },
+  "comparison_vs_with_plugin_baseline": {
+    "source": "cipher-fusion-evidence/TRACK3_SC1_SC6_E2E_RESULT.md §4 (2026-05-23, plugin installed)",
+    "TinyLlama_N4_with_plugin": 59.9,
+    "TinyLlama_N4_without_plugin": 59.6,
+    "TinyLlama_delta_pct": -0.3,
+    "Mistral_7B_N4_with_plugin": 76.0,
+    "Mistral_7B_N4_without_plugin": 76.0,
+    "Mistral_7B_delta_pct": 0.0,
+    "verdict": "Track 2 SC6 weight-savings number is INDEPENDENT of cipher-vllm-kv plugin install state; substrate-only baseline equals with-plugin baseline within noise floor"
+  },
+  "load_bearing_finding_for_phase_b_scope": {
+    "what_anil_spec_said": "CP 5.1 KV-buffer ownership: _cipher_allocate_kv_cache_tensors hook at cipher_vllm_kv.py:305 ... is the load-bearing path for Track 2 SC6's 76% N=4 Mistral-7B savings",
+    "what_empirical_evidence_shows": "Track 2 SC6's 76% comes from cipher_kv_bridge.so (weight arena C extension) + cipher_kmod weight-arena registry ioctls + sc6_producer.py/sc6_consumer.py test orchestration; SC6 imports cipher_kv_bridge but does NOT import cipher_vllm_kv plugin; SC6 does not use vLLM's KV-cache path so the _cipher_allocate_kv_cache_tensors hook is irrelevant to SC6's measurement",
+    "implication_for_phase_b": "The Phase B scope (migrate cipher_vllm_plugin functionality into substrate) is structurally INDEPENDENT of Track 2 SC6's 76% headline number. The 76% is preserved at substrate-only baseline = no uplift needed from Phase B for that specific metric. Phase B's actual value-add is the vLLM-specific KV-cache buffer ownership path that is exercised when vLLM is the inference engine; that path matters for vLLM-on-CIPHER deployments but does NOT determine the 76% Track 2 SC6 standalone number.",
+    "anil_review_needed": "Per NO AUTO SCOPE-DEGRADE discipline, this finding does NOT change Phase B scope without Anil adjudication. Surfacing as required-pre-scope-lock-decision."
+  },
+  "track_3_v1_sc1_sc6": {
+    "status": "NOT RUN this turn",
+    "reason": "Track 3 DSM SC1-SC6 are separate from Track 2 phase_c SC1-SC6 (per cipher-track3-dsm memory: 'all 6 SCs ... final anchors kmod 285d102e + libcipher_rt 83afd1ca'); the runnable .py files at phase_c/sc[2-6]_*.py are Track 2 weight-sharing tests per TRACK3_SC1_SC6_E2E_RESULT.md §1 'on-disk file set is phase_c/sc[2-6]_*.py and the closeout doc brands it Track 2 cross-tenant weight sharing'. Track 3 DSM tests run via separate harness or kmod-level smoke; explicit run sequence not located in this turn's evidence trail.",
+    "phase_b_disposition": "include Track 3 v1 SC1-SC6 run sequence identification as a Phase B scope-lock entry-checklist item; do not block B.0 close on Track 3 since Track 3 substrate (kmod 8c643fc) is unchanged in Phase A and not touched in Phase B per spec."
+  },
+  "honest_residue": [
+    "1. Track 2 SC6 76% number is independent of plugin per empirical evidence. Anil mechanism-based expectation was incorrect.",
+    "2. Track 3 v1 SC1-SC6 test sequence not located in this turn; deferred to Phase B scope-lock entry checklist.",
+    "3. accelerate Python package was missing from vllm_env at B.0 start; installed via pip during B.0 setup. Not a contract violation (accelerate is a transitive dep of transformers, already in env via other paths; installing here just made the explicit import resolve). Document for environment-state audit trail."
+  ]
+}

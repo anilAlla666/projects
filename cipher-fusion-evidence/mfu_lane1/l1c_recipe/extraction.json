@@ -1,0 +1,825 @@
+{
+ "hunts": [
+  {
+   "hunt": "d9-record",
+   "extraction": {
+    "topic": "D.9 FP8 quality-passing recipe (~+0.37% PPL @ 88\u201398% bf16-denominator MFU) \u2014 exact kernel contract, record vs assumption",
+    "summary": "The \"+0.37% PPL at 88\u201398% MFU\" pairing in the D.9 record is NOT one measured config \u2014 the record itself flags this. QUALITY side (measured, RECORD): per-CHANNEL-weight + per-TOKEN-activation rowwise FP8 E4M3, executed on the HF eager Mistral-7B-v0.1 fp16 forward via torch._scaled_mm (use_fast_accum=True, fp16 out), on 224 linears = 32 layers \u00d7 {q,k,v,o,gate,up,down}, lm_head EXCLUDED \u2192 PPL 5.3525\u21925.3723 = +0.37%, MMLU \u22120.4pp (45.4\u219245.0), true full-vocab KL 0.00357 nats. It FAILED the LOCKED 0.3% bar (WITHIN_BAR:false) and \"passes\" only under the 0.37% amendment the D.9 actuator charter pre-authorized for Path B (basis arXiv 2411.02355 \"essentially lossless\"). MFU side: measured full-coverage vLLM FP8 prefill = 91.7\u201398.3% vs the 989 TFLOPS bf16 denominator (46\u201349% vs 1979 FP8-native), but with vLLM's ONLINE scheme = per-TENSOR weight + per-token activation; the \"88\u201398%\" is the per-channel-adjusted band obtained by multiplying by a first-party single-shape per-channel/per-tensor GEMM ratio 0.886 (1265/1427 TFLOPS) \u2014 the per-channel config was NEVER measured end-to-end in vLLM (llm-compressor\u2194vLLM _C.abi3.so env-block). The 5-agent panel explicitly names this prereg single-engine-rule violation (quality=HF/per-channel, MFU=vLLM/per-tensor). The only config passing the LOCKED 0.3% bar was drop_downproj per-channel (+0.2465%, 73% coverage) at modeled ~80% MFU. Path B (CIPHER-native CUTLASS rowwise kernel) was never built. Reproducible kernel contract for the +0.37% record: w_scale[oc]=amax(|W|,dim=in)/448 clamp 1e-12 fp32; W8=(W/w_scale)\u2192float8_e4m3fn (static, per output channel); a_scale[row]=amax(|x_row|)/448 clamp 1e-12 fp32, computed dynamically per call; out=torch._scaled_mm(x8, W8\u1d40, scale_a=a_scale, scale_b=w_scale\u1d40, out_dtype=fp16, use_fast_accum=True); bias added post-GEMM in fp16. Eval: WikiText-2-raw-v1 test, non-empty lines joined \"\\n\\n\", first 50 non-overlapping 2048-token windows (stride=2048, 102,400 tok), teacher-forced next-token NLL (fp32 log-softmax, first token/window unscored), PPL=exp(\u03a3NLL/\u03a3targets); MMLU 0-shot 500q (first 100 of 5 named subjects, argmax over \" A\"..\" D\" last-token logits); KL on first 10 windows. MFU config: vLLM quantization=\"fp8\", dtype=float16, enforce_eager=False, prefix-cache OFF, distinct synthetic prompts, B\u2208{8,16}\u00d7S\u2208{2048,4096}, prefill isolated as t(mt=1)\u2212(t(mt=2)\u2212t(mt=1)) best-of-4, FLOPs=2\u00b77.241e9\u00b7BS+2\u00b732\u00b7B\u00b732\u00b7S\u00b2\u00b7128, denominator 989e12, sustained 1418\u20131485 MHz / 647\u2013694 W. vLLM-source consultation (installed 0.20.2, may differ from the 2026-05 container) corroborates: online fp8 = per-tensor static weight (kFp8StaticTensorSym, ops.scaled_fp8_quant(weight, scale=None)) + dynamic per-token activation (kFp8DynamicTokenSym when CUTLASS fp8 supported); lm_head unquantized (get_quant_method only matches LinearBase; ParallelLMHead is a VocabParallelEmbedding); vLLM's torch _scaled_mm fallback passes NO use_fast_accum. Exact accumulator precision of the +0.37% run is UNRESOLVED in the record (fast-accum requested; try/except fallback branch unrecorded).",
+    "elements": [
+     {
+      "field": "quality_passing_scheme (the variant behind +0.37%)",
+      "value": "Per-channel (per-output-channel) weight scale + per-token dynamic activation scale, rowwise FP8 E4M3, HF forward via torch._scaled_mm \u2014 the reference scheme Path B would have built; Path A per-tensor scalar FAILED at +0.567%",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality_result.json:2",
+      "verbatim": "\"method\": \"per_channel_W+per_token_A rowwise FP8 E4M3 (HF forward, all linears)\""
+     },
+     {
+      "field": "quality_passing_ppl_delta",
+      "value": "+0.37% PPL: fp16 5.352496986072249 \u2192 fp8 5.372298774989749",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality_result.json:12 (values :5,:9)",
+      "verbatim": "\"ppl_delta_pct\": 0.37"
+     },
+     {
+      "field": "quality_mmlu_and_kl",
+      "value": "MMLU \u22120.4pp (45.4\u219245.0, PASS \u22640.5pp); true full-vocab KL 0.00357 nats (within 0.01 diagnostic)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality_result.json:13-14",
+      "verbatim": "\"mmlu_delta_abs\": -0.4, \"kl_true_nats\": 0.00357"
+     },
+     {
+      "field": "pass_status_at_locked_bar (critical honesty)",
+      "value": "+0.37% FAILED the LOCKED 0.3% bar \u2014 WITHIN_BAR:false in the record JSON; it passes only the 0.37% amendment pre-authorized in the actuator charter for Path B",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality_result.json:15,18 + D9_FP8_ACTUATOR_BUILD_REPORT.md:24-26",
+      "verbatim": "\"ppl_pass(<=0.3%)\": false ... \"WITHIN_BAR\": false || \"The gate allows the 0.37% amendment (\"locked 0.3%, *or 0.37% amend if needed*\"), which the charter pre-authorized for Path B. Per-channel FP8 is recorded at **+0.37% PPL** (`d9_hf_quality_result.json`)\""
+     },
+     {
+      "field": "the +0.37% verbatim in the build report (Path B reference)",
+      "value": "Per-channel recorded at +0.37% PPL, 224 linears, lm_head excluded, MMLU \u22120.4pp \u2014 the scheme Path B would build",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_FP8_ACTUATOR_BUILD_REPORT.md:153-154",
+      "verbatim": "the recorded per-channel-W + per-token-A measurement (`d9_hf_quality_result.json`, the scheme Path B would build) is **+0.37% PPL** (224 linears, excl lm_head, MMLU \u22120.4pp)"
+     },
+     {
+      "field": "projections_quantized",
+      "value": "q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj = 224 = 32 layers \u00d7 7; lm_head EXCLUDED (code filter \"lm_head\" not in name). down_proj IS included in the +0.37% all_fp8 config; the locked-bar-passing drop_downproj config removes it (192 linears)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:66 + d9_hf_quality_result.json:3 + D9_FP8_ACTUATOR_DESIGN_MEMO.md:109-113",
+      "verbatim": "sel=[(n,mod) for n,mod in m.named_modules() if isinstance(mod,torch.nn.Linear) and \"lm_head\" not in n] || \"`224 = 32 layers \u00d7 7` linears; `192 = 32 \u00d7 6` (drops down_proj). **`lm_head` is in NEITHER set** (224 \u2260 225) \u2014 it always declines.\""
+     },
+     {
+      "field": "weight_quant_recipe",
+      "value": "Static per-output-channel: scale = amax(|W|, dim=1 [input dim], keepdim)/448.0, clamp(min=1e-12), fp32; W8 = (W/scale).to(torch.float8_e4m3fn); scale vector transposed contiguous for scale_b",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:15-16",
+      "verbatim": "wscale=(w.abs().amax(dim=1,keepdim=True)/448.0).clamp(min=1e-12).to(torch.float32)   # per-channel\\n    w8=(w/wscale).to(torch.float8_e4m3fn); bias=lin.bias; sb=wscale.t().contiguous()"
+     },
+     {
+      "field": "activation_quant_recipe",
+      "value": "Dynamic per-token, computed inline every call: x flattened to [-1,K] contiguous; scale = amax(|row|)/448.0, clamp(min=1e-12), fp32; x8 = (x/scale).to(float8_e4m3fn). 448.0 = E4M3 max",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:18-20",
+      "verbatim": "ascale=(x2.abs().amax(dim=1,keepdim=True)/448.0).clamp(min=1e-12).to(torch.float32) # per-token\\n        x8=(x2/ascale).to(torch.float8_e4m3fn)"
+     },
+     {
+      "field": "gemm_op_and_output_dtype",
+      "value": "torch._scaled_mm(x8, w8.t(), scale_a=per-token, scale_b=per-channel\u1d40, out_dtype=torch.float16, use_fast_accum=True); try/except fallback retries WITHOUT use_fast_accum; bias added post-GEMM in fp16; output reshaped to input batch shape",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:21-23",
+      "verbatim": "try: o=torch._scaled_mm(x8, w8.t(), scale_a=ascale, scale_b=sb, out_dtype=torch.float16, use_fast_accum=True)\\n        except Exception: o=torch._scaled_mm(x8, w8.t(), scale_a=ascale, scale_b=sb, out_dtype=torch.float16)\\n        if bias is not None: o=o+bias"
+     },
+     {
+      "field": "accumulation_dtype",
+      "value": "Record specifies only use_fast_accum=True requested + fp16 out_dtype; the exact accumulator precision (full FP32 vs Hopper fast-accum reduced) and whether the except-fallback (no fast accum) actually fired are NOT recorded. (Path A's FAILED CIPHER kernel separately used cuBLASLt FAST_ACCUM, D9_FP8_ACTUATOR_BUILD_REPORT.md:46-47.)",
+      "provenance": "UNRESOLVED",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:21-22",
+      "verbatim": "use_fast_accum=True (requested; accumulator precision and executed branch unrecorded)"
+     },
+     {
+      "field": "accumulation_dtype_vllm_side (MFU run)",
+      "value": "Installed vLLM's per-tensor torch._scaled_mm path passes NO use_fast_accum (defaults to standard FP32 accumulation); CUTLASS w8a8 path accumulates FP32 (C++ csrc). Caveat: installed host vLLM is 0.20.2; the D.9 run used the container vLLM of 2026-05 \u2014 semantics assumed equivalent",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/kernels/linear/scaled_mm/pytorch.py:81-83",
+      "verbatim": "output = torch._scaled_mm(\\n            A, B, out_dtype=out_dtype, scale_a=As, scale_b=Bs, bias=bias\\n        )"
+     },
+     {
+      "field": "eval_model_and_precision",
+      "value": "Mistral-7B-v0.1 (local /home/ubuntu/models/Mistral-7B-v0.1), HF AutoModelForCausalLM, torch.float16 reference, .cuda().eval(), eager forward; FP8 applied by monkeypatching module.forward of the 224 selected nn.Linear",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:9,29,66-68",
+      "verbatim": "m=AutoModelForCausalLM.from_pretrained(MODEL,dtype=torch.float16).cuda().eval()"
+     },
+     {
+      "field": "eval_protocol_ppl (dataset/seq/stride/count)",
+      "value": "WikiText-2-raw-v1 TEST split (HF datasets); non-empty lines joined with \"\\n\\n\"; whole-text tokenized; first 50 NON-OVERLAPPING windows of 2048 tokens (stride = window = 2048, no overlap) = 102,400 tokens; same windows for fp16 ref and fp8",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:10,31-34 + D9_BUILD_PREREG.md:26-28",
+      "verbatim": "PREREG: \"WikiText-2-raw-v1 **test** split, concatenated + tokenized, **first 50 non-overlapping windows of 2048 tokens = 102,400 tokens**, mean per-window NLL \u2192 perplexity\" || CODE: windows=[torch.tensor([ids[i*WIN:(i+1)*WIN]],device=\"cuda\") for i in range(NWIN)]"
+     },
+     {
+      "field": "ppl_metric_definition",
+      "value": "Teacher-forced next-token NLL: per window, logits log-softmaxed in fp32, targets = window[1:] (first token of each window unscored, 2047 targets/window), PPL = exp(\u03a3 NLL / \u03a3 target tokens) pooled over all 50 windows",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:49-52,61",
+      "verbatim": "lsm=torch.log_softmax(lg.float(),-1)\\n            tgt=w[0,1:]; lp=lsm[:-1].gather(1,tgt.unsqueeze(1)).squeeze(1)\\n            nll+=float(-lp.sum()); ntok+=tgt.numel() ... return math.exp(nll/ntok)"
+     },
+     {
+      "field": "eval_protocol_mmlu",
+      "value": "0-shot, 500 questions = first 100 each of {abstract_algebra, anatomy, astronomy, college_computer_science, high_school_mathematics} (cais/mmlu test split); prompt = question + lettered choices + \"Answer:\"; answer = argmax over the 4 last-token ids of \" A\",\" B\",\" C\",\" D\" at the final logit position. Same questions fp16 vs fp8. (Unlike the CIPHER actuator's n>64 gate, this HF path engages FP8 on ALL prompts, so the \u22120.4pp is full-FP8.)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:11,35-43,56-60 + D9_BUILD_PREREG.md:29-31",
+      "verbatim": "PREREG: \"**MMLU:** **0-shot, 500 questions** = first 100 each of {abstract_algebra, anatomy, astronomy, college_computer_science, high_school_mathematics}. Answer = argmax letter-logprob over A/B/C/D.\""
+     },
+     {
+      "field": "eval_protocol_kl",
+      "value": "True full-vocab per-token KL(p_fp16 \u2016 q_fp8), mean per token, computed on the first 10 of the 50 PPL windows (log-softmax stored fp16 on CPU, memory-bound) \u2192 0.00357 nats",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:53,72-76",
+      "verbatim": "if len(logits_store)<10: logits_store.append(lsm[:-1].half().cpu())  # KL on first 10 windows (mem bound)"
+     },
+     {
+      "field": "mfu_measured_value (full-coverage vLLM FP8 prefill)",
+      "value": "91.7\u201398.3% vs 989 (best 98.3% @ B=8,S=2048, 253.1ms, 972.4 TFLOPS; worst 91.7% @ B=16,S=4096); 45.8\u201349.1% vs FP8-native 1979; fp16 vLLM baseline ~64%",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu_result.json:9-51 + D9_BUILD_REPORT.md:16",
+      "verbatim": "\"MFU, full-coverage FP8 (vLLM, per-tensor online) | **91.7\u201398.3% vs 989** (46\u201349% vs FP8-native 1979 \u2014 700W wall); fp16 baseline ~64%\""
+     },
+     {
+      "field": "mfu_scheme_actually_executed (scheme mismatch with the +0.37%)",
+      "value": "vLLM online FP8 = per-TENSOR weight + per-token activation \u2014 NOT the per-channel scheme that produced +0.37%. The 88\u201398% per-channel band is DERIVED via a measured single-shape GEMM bridge: per-tensor 1427 vs per-channel-rowwise 1265 TFLOPS, ratio 0.886 (98.3\u00d70.886\u224887\u2192\"~88%\"). Per-channel was never run in vLLM (llm-compressor\u2194vLLM _C.abi3.so ABI conflict)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu_result.json:2-7 + d9_build_verdict_panel.json:11-12",
+      "verbatim": "\"fp8_scheme_in_vllm\": \"per_tensor_W+per_token_A(online)\", \"gemm_scheme_independence\": { \"per_tensor_TFLOPS\": 1427.0, \"per_channel_rowwise_TFLOPS\": 1265.0, \"ratio\": 0.886 } || panel: \"plus per-channel was never run in vLLM at all (env-block)\""
+     },
+     {
+      "field": "the 88-98% figure verbatim",
+      "value": "Appears as the per-channel-adjusted full-coverage band, paired with +0.37%: panel headline; D9_BUILD_REPORT confound path; delivery report's ~88% point figure",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_verdict_panel.json:17 + D9_BUILD_REPORT.md:43 + D9_CIPHER_DELIVERY_REPORT.md:46-47",
+      "verbatim": "\"full-coverage FP8 hits 88-98% MFU but at +0.37% PPL which FAILS the locked 0.3% bar\" || \"per-channel MFU 88\u201398% \u2192 **flip to REACHED**\" || \"vLLM-native FP8 = ~88% per-channel MFU vs 989 at +0.37% PPL\""
+     },
+     {
+      "field": "mfu_workload_config",
+      "value": "vLLM LLM(model=Mistral-7B-v0.1, dtype=\"float16\", quantization=\"fp8\", gpu_memory_utilization=0.9, enforce_eager=False, max_num_seqs=16, max_model_len=4200, enable_prefix_caching=False); shapes (B,S) \u2208 {(8,2048),(16,2048),(8,4096),(16,4096)}; DISTINCT synthetic prompt_token_ids per timed call ((base+i*131+j*7)%31000+1); SamplingParams(temperature=0.0, ignore_eos=True); prefill isolated = t(max_tokens=1) \u2212 (t(max_tokens=2)\u2212t(max_tokens=1)), best of 4 reps",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu.py:23-24,28,33-44,49",
+      "verbatim": "llm=LLM(model=MODEL, dtype=\"float16\", quantization=\"fp8\", gpu_memory_utilization=0.9, enforce_eager=False,\\n        max_num_seqs=16, max_model_len=4200, enable_prefix_caching=False, disable_log_stats=True)"
+     },
+     {
+      "field": "mfu_numerator_flops_model",
+      "value": "flops(B,S) = 2\u00b7P_LINEAR\u00b7B\u00b7S + 2\u00b7L\u00b7B\u00b7H\u00b7S\u00b2\u00b7HD with P_LINEAR=7.241e9 (linear-layer params), L=32, H=32, HD=128 \u2014 linear GEMMs + attention score/PV FLOPs",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu.py:9-10",
+      "verbatim": "P_LINEAR=7.241e9; L,H,HD=32,32,128\\ndef flops(B,S): T=B*S; return 2.0*P_LINEAR*T + 2.0*L*B*H*(S**2)*HD"
+     },
+     {
+      "field": "mfu_denominator",
+      "value": "989e12 = H100 bf16 dense peak @700W (the campaign's locked bf16 yardstick); dual-denominator honesty mandated: same work is 46\u201349% vs FP8-native 1979e12",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu.py:8 + D9_BUILD_PREREG.md:56-58",
+      "verbatim": "PEAK=989.0e12; PEAK_FP8=1979.0e12 || \"\u226585% is vs the 989 bf16 anchor (FP8 via a bf16 yardstick \u2014 the campaign's pre-set denominator); vs the FP8-native 1979 peak the same work is ~45% and the 700 W wall stands\""
+     },
+     {
+      "field": "mfu_power_clock_evidence",
+      "value": "Sustained (not burst): nvidia-smi sampled every 0.25s during timed prefills; medians 1485 MHz/647\u2013687 W (S=2048) and 1418 MHz/694 W (S=4096); prefix-cache OFF + distinct prompts per prereg confound control",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu_result.json:17-18,37-38,47-48 + D9_BUILD_PREREG.md:54-55",
+      "verbatim": "\"sus_clk\": 1485.0, \"med_watts\": 647.0 ... \"sus_clk\": 1418.0, \"med_watts\": 694.0 || PREREG: \"Prefix-cache OFF + distinct prompts per timed call (else MFU is a KV-cache-hit artifact).\""
+     },
+     {
+      "field": "single-config violation (record's own caveat)",
+      "value": "The +0.37%/88\u201398% pairing crosses engines and schemes: quality = HF per-channel _scaled_mm, MFU = vLLM per-tensor online; panel calls it the prereg single-engine-rule violation; the ~80\u201386% within-bar band is doubly-modeled, not gate-grade",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_verdict_panel.json:27 + D9_BUILD_REPORT.md:29-33",
+      "verbatim": "\"it violates the prereg's LOCKED single-engine rule (quality is HF/per-channel, MFU is vLLM/per-tensor)\""
+     },
+     {
+      "field": "only_config_passing_LOCKED_0.3%_bar",
+      "value": "drop_downproj per-channel: 192 linears (q,k,v,o,gate,up), 73% GEMM-time coverage, PPL +0.2465% PASS, MMLU 45.6, projMFU 85.9% (harmonic blend of measured 98.3% all-fp8 and 64% fp16 \u2014 panel-corrected to ~80% once the 0.886 per-channel rate is applied)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_perlayer_backoff_result.json:41-48,59-69 + D9_BUILD_REPORT.md:19,24-26",
+      "verbatim": "\"config\": \"drop_downproj\", \"n_linears\": 192, \"coverage_pct\": 73.0, \"ppl_delta_pct\": 0.2465, \"within_ppl_bar\": true, \"proj_MFU_vs989_at_cov\": 85.9"
+     },
+     {
+      "field": "failed_variants_for_contrast",
+      "value": "Path A CIPHER per-tensor scalar, all 225 layers INCL lm_head: +0.567% PPL / \u22121.6pp MMLU / KL 0.00429 FAIL (lm_head inclusion named as the disproportionate cost); HF per-tensor reference (excl lm_head): +0.478%; vLLM per-tensor online: +0.4443%",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_FP8_ACTUATOR_BUILD_REPORT.md:138-139 + /home/ubuntu/d9_pertensor_downproj_result.json:4 + d9_build_quality_result.json:18",
+      "verbatim": "| WikiText-2 PPL | 5.3530 | 5.3834 | **+0.567%** | \u22640.3% (\u22640.37% amended) | **FAIL** | || \"all_fp8_pertensor_delta_pct\": 0.478 || \"ppl_delta_pct\": 0.4443"
+     },
+     {
+      "field": "path_b_status (never built)",
+      "value": "Path B = CIPHER-native custom CUTLASS fused rowwise (per-channel-W + per-token-A) kernel: NEVER BUILT. Its quality was taken from the reference per-channel run (+0.37%); its CIPHER-boundary MFU was predicted unchanged ~64\u201368% (activation-quant tax + 31% non-GEMM Amdahl ceiling ~74%). Decision surfaced to Anil; close report defers it",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_FP8_ACTUATOR_BUILD_REPORT.md:214-223 + D9_FP8_ACTUATOR_CLOSE_REPORT.md:115-116",
+      "verbatim": "\"(c) **Path B (CUTLASS rowwise) would pass the amended-0.37% quality bar but would NOT move single-GPU MFU** (same activation-quant tax) \u2014 deferred.\""
+     },
+     {
+      "field": "pre-registered checkpoint recipe (blocked alternative)",
+      "value": "llm-compressor FP8_DYNAMIC checkpoint recipe (per-channel W + per-token dynamic A, ignore=[\"lm_head\"]) existed as the intended single-impl for both quality and MFU, but the llm-compressor\u2194vLLM ABI conflict env-blocked loading it into vLLM \u2014 hence the HF _scaled_mm fallback for quality",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_quantize_fp8_dynamic.py:14 + d9_build_verdict_panel.json:12",
+      "verbatim": "recipe=QuantizationModifier(targets=\"Linear\", scheme=\"FP8_DYNAMIC\", ignore=[\"lm_head\"])"
+     },
+     {
+      "field": "amendment_provenance (why +0.37% counts as passing)",
+      "value": "Locked bar: PPL \u22640.3% HARD, MMLU \u22640.5pp HARD, KL \u22640.01 diagnostic (prereg). The 0.3%\u21920.37% amendment was pre-authorized at the actuator-charter stage for Path B, basis arXiv 2411.02355 (\"essentially lossless\" per-channel/per-token E4M3); the original D9_BUILD verdict (before amendment) was FRONTIER \u2014 bar NOT relaxed there",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_BUILD_PREREG.md:15 + D9_FP8_ACTUATOR_DESIGN_MEMO.md:151-155 + D9_BUILD_REPORT.md:48-50",
+      "verbatim": "\"the literature basis cited in the prereg, arXiv 2411.02355, calls per-channel/per-token E4M3 \\\"essentially lossless\\\"; +0.37% PPL with MMLU +0.0/\u22120.4 and true-KL 0.00357 nats is within that envelope\""
+     },
+     {
+      "field": "scorecard_disclaimer (denominator honesty)",
+      "value": "V0 scorecard explicitly disclaims the 88\u201398% as vLLM-executed reachability, not CIPHER's delivered number; MFU batching report calls bf16-denominator FP8 MFU 'the wrong denominator' trap",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/V0_PRODUCT_SCORECARD.md:83 + /home/ubuntu/MFU_BATCHING_VS_SUBSTITUTION_REPORT.md:156-158",
+      "verbatim": "\"Mem #6: the FP8 88\u201398% was vLLM-exec reachability, NOT cited as CIPHER's\" || \"(Same shape as the documented \\\"vLLM 88\u201398%\\\" reachability figure that is not CIPHER's MFU.)\""
+     },
+     {
+      "field": "vllm_source_online_scheme (corroborates record)",
+      "value": "Installed vLLM 0.20.2: quantization=\"fp8\" without an fp8 checkpoint \u2192 Fp8OnlineLinearMethod; weight = per-tensor static symmetric (kFp8StaticTensorSym), quantized once at load via ops.scaled_fp8_quant(layer.weight, scale=None); activation = dynamic PER-TOKEN (kFp8DynamicTokenSym) when CUTLASS fp8 is supported (H100 yes), else dynamic per-tensor \u2014 matches the record's \"per_tensor_W+per_token_A(online)\"",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/quantization/fp8.py:303-310,538",
+      "verbatim": "self.weight_quant_key = kFp8StaticTensorSym ... elif cutlass_fp8_supported():\\n                self.activation_quant_key = kFp8DynamicTokenSym || qweight, weight_scale = ops.scaled_fp8_quant(layer.weight, scale=None)"
+     },
+     {
+      "field": "vllm_lm_head_treatment",
+      "value": "Under online fp8, vLLM leaves lm_head UNQUANTIZED: Fp8Config.get_quant_method returns an FP8 method only for LinearBase (plus FusedMoE/Attention-KV) and returns None otherwise; ParallelLMHead subclasses VocabParallelEmbedding, not LinearBase \u2014 so the vLLM MFU run's coverage is consistent with the HF 224-linear (no-lm_head) quality config",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/quantization/fp8.py:172-204 + /home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/vocab_parallel_embedding.py:503",
+      "verbatim": "def get_quant_method(...):\\n        if isinstance(layer, LinearBase): ... return None || class ParallelLMHead(VocabParallelEmbedding):"
+     },
+     {
+      "field": "reproducible_kernel_contract (synthesis of RECORD lines)",
+      "value": "For each engaged linear (q,k,v,o,gate,up,down; NOT lm_head): [static] w_scale[oc] = max|W[oc,:]|/448 (fp32, clamp 1e-12); W8 = round-to-e4m3fn(W/w_scale). [per call] x2 = x.reshape(-1,K).contiguous(); a_scale[t] = max|x2[t,:]|/448 (fp32, clamp 1e-12); X8 = e4m3fn(x2/a_scale); Y = scaled_mm(X8, W8\u1d40, scale_a=a_scale[col-vec], scale_b=w_scale\u1d40[row-vec], out=fp16, fast_accum requested) + bias(fp16). No SmoothQuant, no calibration, no block/group scaling, symmetric absmax only, fp16 I/O preserved",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:13-25 (identical recipe in d9_perlayer_backoff.py:12-22)",
+      "verbatim": "def make_rowwise_fp8_fwd(lin): ... (full function, lines 13-25)"
+     }
+    ],
+    "open_questions": [
+     "Exact accumulator precision of the +0.37% run: d9_hf_quality.py requests use_fast_accum=True with a silent try/except fallback to the non-fast-accum path; which branch executed and the resulting accumulation precision (Hopper fast-accum reduced vs full FP32) are not recorded anywhere in the D.9 artifacts.",
+     "The 88% lower bound of '88-98%' is MODELED, not measured: it is the measured per-tensor vLLM MFU (91.7-98.3%) scaled by a single-shape _scaled_mm per-channel/per-tensor GEMM ratio 0.886; a direct vLLM per-channel (FP8_DYNAMIC checkpoint) prefill MFU at 700W was env-blocked (llm-compressor breaking vLLM's _C.abi3.so) and remains the panel-named settling measurement.",
+     "The vLLM consulted at /home/ubuntu/.local/.../vllm is 0.20.2 (host install); the 2026-05-29 D.9 MFU run executed inside a container whose vLLM version is not pinned in the record \u2014 the prereg said the runtime scheme would be 'reported at runtime' and the result JSON asserts 'per_tensor_W+per_token_A(online)', but the container source itself was not preserved, so all ASSUMPTION-FROM-VLLM-SOURCE items carry a version-skew caveat.",
+     "Attention implementation in the HF quality run is not pinned in the record (HF default for Mistral fp16; the separate Path A torch-forward MFU runs note 'sdpa/flash'); attention/norms were never FP8 in any variant.",
+     "Whether '+0.37%' should be quoted as quality-PASSING at all depends on which gate document governs: the LOCKED D9_BUILD_PREREG 0.3% bar (FAIL, WITHIN_BAR=false) vs the later D9 actuator charter's pre-authorized 0.37% amendment for Path B (PASS-as-amended); the D9_BUILD_REPORT panel explicitly kept the bar unrelaxed, and Path B was never built, so no CIPHER-owned kernel ever measured +0.37%."
+    ]
+   },
+   "verdict": {
+    "confirmed": true,
+    "corrections": [
+     "quality_mmlu_and_kl: cited json:13-14 covers only -0.4 and 0.00357; the 45.4->45.0 values are at json:6 and json:10 and the PASS flags at json:16-17 (same record file). Extend citation to :6,:10,:13-14,:16-17.",
+     "quality_passing_scheme: the 'via torch._scaled_mm' clause is not in d9_hf_quality_result.json:2 (which reads 'per_channel_W+per_token_A rowwise FP8 E4M3 (HF forward, all linears)'); that detail is in d9_hf_quality.py:21. Add py:21 to the citation. Also note json:2 says 'all linears' while lm_head is excluded by the py:66 code filter -- the JSON's own phrase 'all linears' means the 224 patched set, not 225.",
+     "projections_quantized: the explicit 7-name list including down_proj ({q,k,v,o,gate,up,down}=224) appears at D9_FP8_ACTUATOR_DESIGN_MEMO.md:105 (the all_fp8 table row), one line block above the cited :109-113 (which has '224 = 32 layers x 7' and 'lm_head in NEITHER set, 224 != 225'). Extend citation to :105-113.",
+     "accumulation_dtype (UNRESOLVED, strengthening note): not only is accumulator precision unrecorded, but whether use_fast_accum=True was actually active is also unrecorded -- py:21-22 wraps it in a bare try/except whose fallback drops the flag, and the executed branch was not logged."
+    ],
+    "reason": "All 14 elements verified verbatim at cited files (READ-ONLY). RECORD items all live in CIPHER record docs (d9_hf_quality_result.json, d9_hf_quality.py, D9_FP8_ACTUATOR_BUILD_REPORT.md:24-26/152-154, D9_FP8_ACTUATOR_DESIGN_MEMO.md, D9_BUILD_PREREG.md:26-28). The ASSUMPTION item verified against installed vLLM source: pytorch.py:81-83 calls torch._scaled_mm with no use_fast_accum (live torch schema confirms default use_fast_accum=False) and can_implement at :60-68 requires per-tensor scales -- provenance label correct, not blurred. UNRESOLVED label on accumulator precision is accurate (record only shows the try/except request). Derived figures recomputed exactly: PPL delta (5.372298774989749-5.352496986072249)/5.352496986072249 = +0.36995% -> 0.37; 32x7=224; 50x2048=102,400 (= json ppl_tokens); MMLU 45.0-45.4=-0.4pp; WITHIN_BAR:false at json:15,18 confirms the critical honesty element (+0.37% fails the locked 0.3% bar, passes only the pre-authorized amendment per report :24-26). Only minor citation-line-range imprecisions found (listed in corrections); no number absent from its cited file, no provenance mislabel."
+   }
+  },
+  {
+   "hunt": "engine-source",
+   "extraction": {
+    "topic": "D.9 quality-passing FP8 recipe (+0.37% PPL @ 88-98% bf16-denominator MFU) as a reproducible kernel contract, vs the as-built CIPHER FP8 engine (per-tensor scalar), defining the Lane-2 delta",
+    "summary": "The +0.37%-PPL/88-98%-MFU record is TWO measurements bridged, never one config: (1) QUALITY = per-CHANNEL-weight + per-TOKEN-activation rowwise FP8 E4M3 on 224 Mistral-7B linears (32 layers x {q,k,v,o,gate,up,down}; lm_head EXCLUDED), executed via torch._scaled_mm(use_fast_accum=True, out_dtype=fp16) on the HF fp16 forward, scales = absmax/448 clamped min 1e-12 in fp32 (weight: amax over dim=1 per output channel, one-time; activation: amax over dim=1 per row/token, dynamic per call, no calibration), bias added in fp16 after the GEMM -> PPL 5.3525->5.3723 = +0.37% (passes only the pre-authorized 0.37% amendment, NOT the locked 0.3% bar), MMLU -0.4pp PASS, true KL 0.00357 nats. (2) MFU = vLLM-executed quantization=\"fp8\" online (per-tensor-W + per-token-A) prefill, best 98.3% vs the 989 TFLOPS bf16 peak at B=8/S=2048 (band 91.7-98.3% over {8,16}x{2048,4096}, sustained 1418-1485 MHz, 647-694 W, FLOPs=2*7.241e9*T + attention term). The 88% low end of \"88-98%\" is the per-channel derate: 1st-party _scaled_mm check per-tensor 1427 vs per-channel-rowwise 1265 TFLOPS, ratio 0.886 -> ~88% per-channel MFU. This is vLLM-executed REACHABILITY only - CIPHER's intercept cannot deliver it on vLLM (nvjet bypasses public cuBLAS symbols). Per-tensor scalar is NOT the passing scheme (+0.478% HF / +0.44% vLLM all-fp8, and +0.567% with lm_head included). The AS-BUILT engine (cipher_rt_fp8_engine.cpp + cipher_rt_fp8_actuator.c) implements per-tensor SCALAR only: one-time per-tensor weight prequant cached by w_ptr (stability=2 observations), inline per-tensor activation quant via NVRTC compute_90 kernels (atomicMax float-as-int absmax; on-device scale=amax/448 else 1.0; clamp +/-448) launched by driver-API cuLaunchKernel, then cublasLtMatmul with COMPUTE_32F/scale-type 32F, FAST_ACCUM=1, A=weight E4M3 op-T, B=act E4M3 op-N, scalar A_SCALE_PTR/B_SCALE_PTR device floats, fp16/bf16 C directly (no epilogue), 32MB workspace, per-(m,n,k,outtype) descriptor/algo/act-buffer shape cache, gate n>64 & dtypeA==B==C in {fp16,bf16} & k%16==0 & m,k>=64, ALL layers incl lm_head (no decline predicate). Lane-2 delta to close: (a) scalar -> per-channel weight-scale VECTOR + per-token activation-scale VECTOR rowwise GEMM - cuBLASLt fused rowwise is NOT_SUPPORTED on this cu13 (only SCALAR_32F passes the heuristic probe), so it needs a custom CUTLASS kernel (Path B) or a _scaled_mm-equivalent rowwise kernel; (b) lm_head must decline (m==vocab_size predicate, in the design memo but dropped under the all-layers lock); (c) keep fast-accum + fp16-out + post-GEMM bias semantics, which already match; (d) do NOT ship CIPHER_FP8_SHARE_ACT (recorded numerically broken, KL 2.06). Locked-bar (0.3%, no amendment) alternative: per-channel drop_downproj, 192 linears, 73% coverage, +0.2465% PPL, but only ~80-85.9% modeled MFU.",
+    "elements": [
+     {
+      "field": "PASSING RECIPE: scheme name",
+      "value": "per-channel weight + per-token activation rowwise FP8 E4M3, HF fp16 forward, all linears except lm_head",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality_result.json:2",
+      "verbatim": "\"method\": \"per_channel_W+per_token_A rowwise FP8 E4M3 (HF forward, all linears)\""
+     },
+     {
+      "field": "PASSING RECIPE: engaged set",
+      "value": "224 linears = 32 layers x {q,k,v,o,gate,up,down}; lm_head excluded by name filter",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:66 and d9_hf_quality_result.json:3",
+      "verbatim": "sel=[(n,mod) for n,mod in m.named_modules() if isinstance(mod,torch.nn.Linear) and \"lm_head\" not in n]  ... \"n_linears\": 224"
+     },
+     {
+      "field": "PASSING RECIPE: weight quantization",
+      "value": "per-output-channel absmax over dim=1 (keepdim), scale = amax/448.0 clamped min 1e-12, cast fp32; w8=(w/wscale) to float8_e4m3fn; scale_b passed transposed contiguous; one-time (static), no calibration",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:15-16",
+      "verbatim": "wscale=(w.abs().amax(dim=1,keepdim=True)/448.0).clamp(min=1e-12).to(torch.float32)   # per-channel\\nw8=(w/wscale).to(torch.float8_e4m3fn); bias=lin.bias; sb=wscale.t().contiguous()"
+     },
+     {
+      "field": "PASSING RECIPE: activation quantization",
+      "value": "dynamic per-token: x reshaped [-1,K] contiguous; per-row absmax over dim=1, scale=amax/448 clamp min 1e-12 fp32; x8=(x/ascale) to float8_e4m3fn; recomputed every call",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:18-20",
+      "verbatim": "ascale=(x2.abs().amax(dim=1,keepdim=True)/448.0).clamp(min=1e-12).to(torch.float32) # per-token"
+     },
+     {
+      "field": "PASSING RECIPE: GEMM call / accumulation",
+      "value": "torch._scaled_mm(x8, w8.t(), scale_a=per-token vector, scale_b=per-channel vector, out_dtype=torch.float16, use_fast_accum=True), with try/except fallback to the same call without use_fast_accum",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:21-22",
+      "verbatim": "try: o=torch._scaled_mm(x8, w8.t(), scale_a=ascale, scale_b=sb, out_dtype=torch.float16, use_fast_accum=True)\\nexcept Exception: o=torch._scaled_mm(x8, w8.t(), scale_a=ascale, scale_b=sb, out_dtype=torch.float16)"
+     },
+     {
+      "field": "PASSING RECIPE: bias and output handling",
+      "value": "bias added AFTER the GEMM in fp16; output reshaped to input leading dims; base model loaded torch.float16",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:23-24,29",
+      "verbatim": "if bias is not None: o=o+bias"
+     },
+     {
+      "field": "PASSING RECIPE: quality result",
+      "value": "WikiText-2 50x2048=102,400 tok: PPL 5.3525->5.3723 = +0.37%; MMLU 500q 45.4->45.0 = -0.4pp PASS; true full-vocab KL 0.00357 nats (first 10 windows); WITHIN_BAR=false at the locked 0.3%",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality_result.json:12-18",
+      "verbatim": "\"ppl_delta_pct\": 0.37, \"mmlu_delta_abs\": -0.4, \"kl_true_nats\": 0.00357, \"ppl_pass(<=0.3%)\": false"
+     },
+     {
+      "field": "PASSING RECIPE: the bar it passes",
+      "value": "Locked gate: PPL<=0.3% HARD, MMLU<=0.5pp HARD, KL<=0.01 diagnostic; +0.37% passes ONLY via the charter's pre-authorized 0.3%->0.37% amendment (Path B)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_BUILD_PREREG.md:15-17 and D9_FP8_ACTUATOR_BUILD_REPORT.md:24-26",
+      "verbatim": "The gate allows the 0.37% amendment (\"locked 0.3%, *or 0.37% amend if needed*\"), which the charter pre-authorized for Path B. Per-channel FP8 is recorded at **+0.37% PPL**"
+     },
+     {
+      "field": "PASSING RECIPE: MFU half - engine and config",
+      "value": "vLLM LLM(model=Mistral-7B-v0.1, dtype=float16, quantization=\"fp8\" [online], gpu_memory_utilization=0.9, enforce_eager=False, max_num_seqs=16, max_model_len=4200, enable_prefix_caching=False); fresh distinct prompts per rep; prefill time = t(max_tokens=1) minus decode delta",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu.py:23-24",
+      "verbatim": "llm=LLM(model=MODEL, dtype=\"float16\", quantization=\"fp8\", gpu_memory_utilization=0.9, enforce_eager=False, max_num_seqs=16, max_model_len=4200, enable_prefix_caching=False, ...)"
+     },
+     {
+      "field": "PASSING RECIPE: MFU result",
+      "value": "vs 989 TFLOPS bf16 peak: 98.3% (B8/S2048, 253.1ms, 972.4 TFLOPS, 1485MHz, 647W), 96.3% (B16/S2048), 93.7% (B8/S4096), 91.7% (B16/S4096, 694W); vs FP8-native 1979 peak only 45.8-49.1%; fp16 vLLM baseline ~64%; FLOPs model = 2*7.241e9*T + 2*32*B*32*S^2*128",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu_result.json:9-51 and d9_build_mfu.py:9-10",
+      "verbatim": "\"best_fp8_MFU_vs989\": 98.3"
+     },
+     {
+      "field": "PASSING RECIPE: MFU scheme actually executed by vLLM",
+      "value": "per-tensor weight + per-token activation, online quantization - NOT the per-channel quality scheme; bridged by a scheme-independence claim",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu_result.json:2",
+      "verbatim": "\"fp8_scheme_in_vllm\": \"per_tensor_W+per_token_A(online)\""
+     },
+     {
+      "field": "PASSING RECIPE: the 88% low end of '88-98%'",
+      "value": "1st-party _scaled_mm GEMM check: per-tensor 1427 TFLOPS vs per-channel rowwise 1265 TFLOPS, ratio 0.886 (-11%) -> derates 98.3% measured per-tensor MFU to ~88% per-channel; '88-98%' = [per-channel-derated, per-tensor-measured]",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu_result.json:3-7 and D9_CIPHER_DELIVERY_REPORT.md:46-47",
+      "verbatim": "\"per_tensor_TFLOPS\": 1427.0, \"per_channel_rowwise_TFLOPS\": 1265.0, \"ratio\": 0.886 ... vLLM-native FP8 = ~88% per-channel MFU vs 989 at +0.37% PPL"
+     },
+     {
+      "field": "PASSING RECIPE: single-impl checkpoint route (named, env-blocked)",
+      "value": "llm-compressor QuantizationModifier(targets=\"Linear\", scheme=\"FP8_DYNAMIC\", ignore=[\"lm_head\"]) -> compressed-tensors checkpoint vLLM loads natively; blocked in-container by llm-compressor/vLLM _C.abi3.so ABI conflict, hence the HF _scaled_mm env-forced path",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_quantize_fp8_dynamic.py:14 and D9_BUILD_REPORT.md:35-37",
+      "verbatim": "recipe=QuantizationModifier(targets=\"Linear\", scheme=\"FP8_DYNAMIC\", ignore=[\"lm_head\"])"
+     },
+     {
+      "field": "PASSING RECIPE: known caveat - quality/MFU never co-measured",
+      "value": "Panel: the recipe is doubly-modeled (quality=HF/per-channel, MFU=vLLM/per-tensor); no single config DEMONSTRATES >=85% at <=0.3%; direct vLLM per-channel mixed-config measurement env-blocked",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_BUILD_REPORT.md:29-37 and d9_build_verdict_panel.json:33",
+      "verbatim": "It is doubly-modeled (Amdahl harmonic blend x a single-shape per-tensor->per-channel GEMM ratio 0.886) and violates the prereg single-engine rule (quality = HF/per-channel, MFU = vLLM/per-tensor)"
+     },
+     {
+      "field": "PASSING RECIPE: NOT deliverable by CIPHER on vLLM",
+      "value": "vLLM prefill GEMMs dispatch via libcublas-internal nvjet, bypassing the public cublasGemmEx/cublasLtMatmul symbols CIPHER GOT-patches -> the 88-98% is vLLM-executed reachability, not CIPHER delivery",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_CIPHER_DELIVERY_REPORT.md:33-47",
+      "verbatim": "vLLM-native FP8 = ~88% per-channel MFU vs 989 at +0.37% PPL. FP8 prefill *can* deliver the MFU at the lossless-grade bar - **but vLLM executes it, not CIPHER.**"
+     },
+     {
+      "field": "COUNTERFACTUAL: per-tensor is NOT the passing scheme",
+      "value": "per-tensor scalar W + per-tensor scalar A, 224 linears: +0.478% PPL FAIL (HF); vLLM per-tensor all-fp8 +0.4443% FAIL; per-tensor drop_downproj +0.2534% PASS-at-0.3% (within-bar but only 73% coverage)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/d9_pertensor_downproj_result.json:4-7 and /home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_quality_result.json:19",
+      "verbatim": "\"all_fp8_pertensor_delta_pct\": 0.478 ... \"drop_downproj_pertensor_delta_pct\": 0.2534"
+     },
+     {
+      "field": "COUNTERFACTUAL: locked-0.3%-bar config (no amendment)",
+      "value": "per-channel drop_downproj: 192 linears, 73.0% GEMM-time coverage, +0.2465% PPL PASS, MMLU 45.6, projMFU 85.9% (harmonic-blend MODEL; per-channel-corrected ~80%, band 77-86%, not gate-grade)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_perlayer_backoff_result.json:79-92 and D9_BUILD_REPORT.md:24-26",
+      "verbatim": "\"config\": \"drop_downproj\", \"n_linears\": 192, \"coverage_pct\": 73.0, ... \"ppl_delta_pct\": 0.2465, \"within_ppl_bar\": true, \"proj_MFU_vs989_at_cov\": 85.9"
+     },
+     {
+      "field": "COUNTERFACTUAL: lm_head inclusion is disproportionately costly",
+      "value": "Path A FP8'd lm_head (225th GEMM) -> +0.567% PPL / -1.6pp MMLU FAIL even amended; recorded bar configs (224) never included lm_head; declining just lm_head is the flagged v-next quality lever",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_FP8_ACTUATOR_BUILD_REPORT.md:145-150 and D9_FP8_ACTUATOR_CLOSE_REPORT.md:106-110",
+      "verbatim": "the recorded \"all_fp8\" configs (224 linears = 32x7) **never included lm_head**. ... FP8-ing the vocab projection ... is a disproportionate quality cost"
+     },
+     {
+      "field": "AS-BUILT ENGINE: scheme (the headline limitation, verbatim)",
+      "value": "per-tensor SCALAR E4M3 only; rowwise NOT_SUPPORTED on this cu13 cuBLASLt",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_engine.cpp:5-8",
+      "verbatim": "Per-tensor scalar FP8 E4M3 (the ONLY fused path on this cu13 cuBLASLt \u2014 rowwise NOT_SUPPORTED, measured 2026-05-30). Static per-tensor weight prequant (one-time, cached by w_ptr) + inline per-tensor activation quant + cuBLASLt FP8 scalar GEMM (FAST_ACCUM) -> fp16/bf16 output DIRECTLY (no epilogue)."
+     },
+     {
+      "field": "AS-BUILT ENGINE: rowwise feasibility evidence",
+      "value": "d9fp8_scalemodes.cu probed A/B_SCALE_MODE in {SCALAR_32F, VEC16_UE4M3, VEC32_UE8M0, OUTER_VEC_32F, VEC128_32F} x fast_accum{0,1} x out{f16,bf16,f32} via cublasLtMatmulAlgoGetHeuristic; preserved log shows SCALAR_32F SUPPORTED for all 6 scalar combos; build report records all non-scalar modes NOT_SUPPORTED",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/d9fp8_scalemodes.cu:18-42, /home/ubuntu/d9_fp8_scalemodes.log:1-6, D9_FP8_ACTUATOR_BUILD_REPORT.md:53-55",
+      "verbatim": "**cuBLASLt on cu13/H100 supports ONLY per-tensor SCALAR fused FP8** \u2014 rowwise/OUTER_VEC, MXFP8 (VEC32), VEC128 all return NOT_SUPPORTED (`d9fp8_scalemodes.cu`)"
+     },
+     {
+      "field": "AS-BUILT ENGINE: cublasLtMatmul descriptor / compute & accumulation",
+      "value": "MatmulDescCreate(COMPUTE_32F=68, scaleType=R_32F); TRANSA=T (weight), TRANSB=N (activation); FAST_ACCUM=1 (int8_t fa=1); A/B layouts CUDA_R_8F_E4M3 (k x m, k x n, ld=k); C layout fp16 or bf16 matching app dtype (m x n, ld=m); alpha=1 beta=0; C used as both C and D; algo from cublasLtMatmulAlgoGetHeuristic (1 candidate)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_engine.cpp:298-316,336-339",
+      "verbatim": "if(g_lt.descCreate(&sc->desc, LT_COMPUTE_32F, LT_R_32F) != 0) return -1; int ta=LT_OP_T, tb=LT_OP_N; int8_t fa=1; ... g_lt.descSetAttr(sc->desc, LT_DESC_FAST_ACCUM, &fa, sizeof(fa));"
+     },
+     {
+      "field": "AS-BUILT ENGINE: scale handling in the GEMM",
+      "value": "scalar device-float pointers: A_SCALE_PTR = cached per-tensor weight scale, B_SCALE_PTR = per-tensor activation scale (set per call on the cached descriptor)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_engine.cpp:334-335",
+      "verbatim": "g_lt.descSetAttr(sc->desc, LT_DESC_A_SCALE_PTR, &w_scale, sizeof(void*));\\ng_lt.descSetAttr(sc->desc, LT_DESC_B_SCALE_PTR, &act_scale, sizeof(void*));"
+     },
+     {
+      "field": "AS-BUILT ENGINE: amax/scale computation",
+      "value": "NVRTC-compiled compute_90 kernels (cuModuleLoadData + cuLaunchKernel, dlsym'd driver API): absmax via shared-mem block reduce + atomicMax(__float_as_int); quant kernel computes scale on-device = amax>0 ? amax/448.0 : 1.0, writes scalar *scale, clamps values to +/-448 before E4M3 cast; absmax buffer cudaMemsetAsync(0) per quant; grid<=4096 x 256 threads",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_engine.cpp:40-73,231-246",
+      "verbatim": "float am=__int_as_float(*amx); float sc=(am>0.f)?am/E4M3_MAX:1.f; ... v=fmaxf(-E4M3_MAX,fminf(E4M3_MAX,v)); out[i]=__nv_fp8_e4m3(v);"
+     },
+     {
+      "field": "AS-BUILT ENGINE: weight cache",
+      "value": "std::unordered_map<const void*, WeightSlot> keyed on weight pointer (w_ptr); slot holds E4M3 buffer + scalar float scale + K/N/dtype; re-quant if K/N change; one-time prequant on the FP8_STABILITY=2'nd observation, cudaStreamSynchronize after; mutex-guarded; 225 weights cached in practice (~2GB one-time, flat over 30-min soak)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_engine.cpp:121-123,248-275 and cipher_rt_fp8_actuator.c:26,87-103; soak: D9_FP8_ACTUATOR_CLOSE_REPORT.md:74-76",
+      "verbatim": "struct WeightSlot { int obs=0, ready=0, K=0, N=0, dtype=0; void *e4m3=nullptr; float *scale=nullptr; }; static std::unordered_map<const void *, WeightSlot> g_weights;"
+     },
+     {
+      "field": "AS-BUILT ENGINE: workspace",
+      "value": "single 32 MB cuBLASLt workspace (LT_WS = 32u*1024*1024), cudaMalloc'd once in ensure_cuda(), passed to every matmul; heuristic preference MAX_WORKSPACE_BYTES = 32MB",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_engine.cpp:114-115,222,311,337-338",
+      "verbatim": "static const size_t LT_WS = 32u * 1024 * 1024;"
+     },
+     {
+      "field": "AS-BUILT ENGINE: shape cache + per-shape activation buffers",
+      "value": "per (m,n,k,out_dtype) packed-key cache of desc/layouts/algo + E4M3 activation buffer (n*k bytes) + scalar act scale + absmax int; activation re-quantized per call into the shape's buffer (per-tensor, whole activation)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_engine.cpp:125-131,277-279,292-317,331-332",
+      "verbatim": "struct ShapeCache { bool ready=false; void *desc...; void *act_e4m3=nullptr; float *act_scale=nullptr; int *absmax=nullptr; size_t act_bytes=0; char algo[256]; };"
+     },
+     {
+      "field": "AS-BUILT ENGINE: shared-activation-quant option (DO NOT ship)",
+      "value": "CIPHER_FP8_SHARE_ACT single-entry (ptr,nel) cache reuses one quantized activation across q/k/v and gate/up; default-OFF; recorded numerically broken in the deployed-.so quality run (KL 2.06)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_engine.cpp:135-144,321-330 and /home/ubuntu/MFU_BATCHING_VS_SUBSTITUTION_REPORT.md:179",
+      "verbatim": "fails the 0.37% bar** (per-tensor all-layers; the share-act variant is numerically broken, KL 2.06)"
+     },
+     {
+      "field": "AS-BUILT ACTUATOR: gate and engaged set",
+      "value": "priority 20 (after Marlin 10); engages call->n > 64 (FP8_MAX_M_GATE, complement of Marlin decode); requires Atype==Btype==Ctype in {CUDA_R_16F, CUDA_R_16BF}; k%16==0; m>=64, k>=64 (FP8_MIN_DIM); ALL layers incl lm_head, NO per-layer decline predicate (the design-memo down_proj/lm_head discriminators were dropped under the no-scope-down lock)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_actuator.c:5-11,23-27,61-83,125-129",
+      "verbatim": "ALL linears engaged (q,k,v,o,gate,up,down,lm_head) \u2014 NO layer dropped (Anil 2026-05-30: no scope-down)."
+     },
+     {
+      "field": "AS-BUILT ACTUATOR: axis mapping",
+      "value": "cuBLAS->actuator: weight = call->A, activation = call->B, output = call->C; batch = call->n, out_features = call->m, in_features = call->k; failure of engine matmul -> PASSTHROUGH to real cuBLAS (never a wrong answer); default-OFF env CIPHER_FP8 (on/1/ON)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_actuator.c:69-78,106-112,131-148",
+      "verbatim": "n = call->n;   /* batch (Marlin's M) */ m = call->m;   /* out_features */ k = call->k;   /* in_features  */"
+     },
+     {
+      "field": "AS-BUILT: measured quality of this engine",
+      "value": "staging build 145a8942, all-layers incl lm_head, per-tensor: PPL +0.567% / MMLU -1.6pp / KL 0.00429 FAIL both bars; deployed Jun-01 .so G-O3 re-measure: +0.72% PPL fails the 0.37% amended bar (per-tensor all-layers)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_FP8_ACTUATOR_CLOSE_REPORT.md:86-89 and /home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/V0_PRODUCT_SCORECARD.md:13",
+      "verbatim": "quality **+0.72% PPL** (fails 0.37%)"
+     },
+     {
+      "field": "AS-BUILT: measured MFU of this engine",
+      "value": "torch B=64 forward: bf16 51.5-51.7% (700W, 1530MHz) -> FP8 per-call 64.3% / shared 68.2%; 1.32x at fixed 700W, ~0.98-1.07x clock-normalized; Amdahl ceiling ~74% (31% unfused non-GEMM) + activation-quant tax - no GEMM scheme reaches 85% on this unfused forward",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_FP8_ACTUATOR_BUILD_REPORT.md:85-120",
+      "verbatim": "Even a *free, quant-free* 1.8x FP8 GEMM gives forward `= 0.675/1.8 + 0.325 = 0.70` -> 1.43x -> **51.5% x 1.43 ~ 74% MFU**"
+     },
+     {
+      "field": "LANE-2 DELTA (1): scalar -> rowwise scales",
+      "value": "Replace scalar weight scale with per-output-channel fp32 scale VECTOR (one-time, cached) and scalar activation scale with per-token fp32 scale VECTOR (inline); cuBLASLt fused rowwise is NOT_SUPPORTED on cu13 -> requires custom CUTLASS rowwise kernel (Path B, 'days of expert CUTLASS work') or dequant-epilogue fallback; quality target +0.37% known in advance, MFU unchanged (~64-68% torch path)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_FP8_ACTUATOR_DESIGN_MEMO.md:204-215,226-238 and D9_FP8_ACTUATOR_BUILD_REPORT.md:179-186",
+      "verbatim": "**The actuator MUST execute per-channel-W + per-token-A**, or its quality will not correspond to the bar \u2014 this is precisely the *\"per-tensor-MFU / per-channel-quality scheme mismatch, the apples-to-oranges trap\"* the charter forbids."
+     },
+     {
+      "field": "LANE-2 DELTA (2): lm_head decline",
+      "value": "Add per-GEMM decline: lm_head <=> call->m == vocab_size (32000), down_proj <=> call->k == intermediate_size (14336) for the locked-bar policy; predicates designed (registry/classifier/recipe-table sources) but NOT in the as-built actuator; naive k>m predicate is WRONG under GQA (k/v 4096->1024)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_FP8_ACTUATOR_DESIGN_MEMO.md:108-141",
+      "verbatim": "**down_proj** <=> `call->k == intermediate_size` (Mistral 14336...). **lm_head** <=> `call->m == vocab_size` (Mistral 32000)."
+     },
+     {
+      "field": "LANE-2 DELTA (3): unchanged contract elements",
+      "value": "Keep: E4M3 only, 448 absmax divisor with min-clamp, fast-accum ON, fp32 compute/scale type, fp16/bf16 direct output (Ctype never modified), bias outside the GEMM (intercept never sees bias), n>64 gate, one-time weight prequant keyed on w_ptr with stability re-observe, PASSTHROUGH-on-any-failure - all already match the passing recipe's semantics",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher_rt_phase4/cipher_rt_fp8_engine.cpp:298-339 vs d9_hf_quality.py:13-25",
+      "verbatim": ""
+     },
+     {
+      "field": "VLLM SOURCE: what quantization=\"fp8\" online does (corroborates the MFU run's scheme label)",
+      "value": "Weight: ops.scaled_fp8_quant(layer.weight, scale=None) at load = dynamic per-tensor weight scale (kFp8StaticTensorSym); Activation: dynamic, per-token when CUTLASS fp8 supported (kFp8DynamicTokenSym), else per-tensor",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/quantization/fp8.py:301-309,538",
+      "verbatim": "# Use per-token quantization for better perf if dynamic and cutlass ... elif cutlass_fp8_supported(): self.activation_quant_key = kFp8DynamicTokenSym ... qweight, weight_scale = ops.scaled_fp8_quant(layer.weight, scale=None)"
+     },
+     {
+      "field": "VLLM SOURCE: GEMM kernel vLLM uses for the MFU number",
+      "value": "CUTLASS w8a8 scaled_mm: ops.cutlass_scaled_mm(x_q, w_q, scale_a=x_s, scale_b=w_s, out_dtype=x.dtype, bias=bias) - fused rowwise/per-token scaling in a CUTLASS epilogue, NOT cuBLASLt; this is the native-fused path CIPHER's cuBLASLt engine cannot reproduce on cu13",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/kernels/linear/scaled_mm/cutlass.py:147-148",
+      "verbatim": "return ops.cutlass_scaled_mm(\\n    x_q, w_q, scale_a=x_s, scale_b=w_s, out_dtype=x.dtype, bias=bias\\n)"
+     },
+     {
+      "field": "VLLM SOURCE: activation quant op",
+      "value": "QuantFP8 with GroupShape.PER_TOKEN -> use_per_token_if_dynamic=True feeding ops.scaled_fp8_quant (dynamic per-token row scales); only float8_e4m3fn supported (torch._scaled_mm limitation)",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/quantization/input_quant_fp8.py:62-63,119-129 and fp8.py:260-262",
+      "verbatim": "self.use_per_token_if_dynamic = group_shape == GroupShape.PER_TOKEN"
+     },
+     {
+      "field": "VLLM SOURCE: caveat on version provenance",
+      "value": "Installed vLLM today is 0.20.2; the 2026-05-29 MFU run's in-container vLLM version is not stamped in d9_build_mfu_result.json - the cited fp8.py/cutlass.py lines are from the CURRENT install, used only to interpret the record's 'per_tensor_W+per_token_A(online)' label",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "python3 -c 'import vllm; print(vllm.__version__)' -> 0.20.2",
+      "verbatim": ""
+     },
+     {
+      "field": "UNRESOLVED: raw NOT_SUPPORTED probe rows",
+      "value": "The preserved /home/ubuntu/d9_fp8_scalemodes.log holds only the 6 SCALAR_32F SUPPORTED lines; the probe source loops 30 combos but the OUTER_VEC/VEC16/VEC32/VEC128 'no' rows are not in the on-disk log - the NOT_SUPPORTED claim rests on the build report + engine header, not a preserved raw row",
+      "provenance": "UNRESOLVED",
+      "file_line": "/home/ubuntu/d9_fp8_scalemodes.log (6 lines) vs d9fp8_scalemodes.cu:18-48",
+      "verbatim": "fast_accum=1 scale=SCALAR_32F     out=bf16 -> SUPPORTED (hs=0 got=1)"
+     },
+     {
+      "field": "UNRESOLVED: fast-accum branch actually taken in the quality run",
+      "value": "d9_hf_quality.py wraps _scaled_mm in try(use_fast_accum=True)/except(without); no log records which branch executed for the +0.37% number - if Lane 2 must match bit-behavior, re-verify whether fast-accum was active",
+      "provenance": "UNRESOLVED",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:21-22",
+      "verbatim": ""
+     }
+    ],
+    "open_questions": [
+     "The raw scalemodes probe log on disk (/home/ubuntu/d9_fp8_scalemodes.log) contains only the 6 SCALAR_32F SUPPORTED rows; the NOT_SUPPORTED rows for OUTER_VEC_32F/VEC16/VEC32/VEC128 are asserted in D9_FP8_ACTUATOR_BUILD_REPORT.md:53-55 and the engine header but not preserved as raw output - rerunning /home/ubuntu/d9fp8_scalemodes (binary present) would settle it (needs GPU; out of scope for this READ-ONLY extraction).",
+     "Which torch._scaled_mm branch (use_fast_accum=True vs the except-fallback) actually executed for the +0.37% measurement is not recorded; if Lane 2 targets numerical equivalence this should be pinned (fast-accum corresponds to the engine's cuBLASLt FAST_ACCUM=1, so the contract assumes fast-accum ON).",
+     "The vLLM version used for the 2026-05-29 MFU run is not stamped in d9_build_mfu_result.json; current install is 0.20.2 and all ASSUMPTION-FROM-VLLM-SOURCE line cites are from it.",
+     "The +0.37%-at-88-98% pairing is itself a bridge (quality on HF per-channel _scaled_mm, MFU on vLLM per-tensor CUTLASS, scheme-independence ratio 0.886); a direct vLLM per-channel (FP8_DYNAMIC checkpoint) prefill MFU at 700W was env-blocked (llm-compressor/vLLM ABI conflict) and remains the single settling measurement the record names.",
+     "True-KL 0.00357 was computed on the first 10 of 50 PPL windows (memory bound, d9_hf_quality.py:53) - the KL diagnostic is a partial-window number.",
+     "Finer down_proj treatment (DeepSeek-V3-style 128-wide block activation scaling or SmoothQuant migration) was never tested; the panel flags it as the single measurement most likely to flip the locked-0.3% verdict to REACHED at ~100% coverage (d9_build_verdict_panel.json:20)."
+    ]
+   },
+   "verdict": {
+    "confirmed": true,
+    "corrections": [
+     "E1 (scheme name): 'HF fp16 forward' and 'except lm_head' are NOT at the cited d9_hf_quality_result.json:2, which literally reads 'HF forward, all linears'. Both facts are true but live in d9_hf_quality.py:29 (dtype=torch.float16) and :66 (name filter); json:3 n_linears=224 corroborates the exclusion. Citation should add py:29,66.",
+     "E7 (quality result): raw PPL values 5.3525/5.3723 are at json lines 5/9 and ppl_tokens=102400 / mmlu_n=500 at lines 19/20 \u2014 all OUTSIDE the cited range 12-18 (which holds the deltas, KL, and pass flags). The '50x2048' factorization is from d9_hf_quality.py:10 (WIN=2048; NWIN=50) and D9_BUILD_PREREG.md:26-27. All numbers recompute: 50*2048=102,400; PPL delta +0.36995%->0.37; MMLU -0.4pp; KL 0.00357. Note the cited range also contains 'ppl_pass(<=0.3%)': false and 'WITHIN_BAR': false \u2014 consistent with E8's amendment framing but worth keeping attached.",
+     "E8 (the bar): verified verbatim \u2014 prereg:15-17 locks PPL<=0.3% HARD / MMLU<=0.5% abs HARD / KL<=0.01 diagnostic; D9_FP8_ACTUATOR_BUILD_REPORT.md:24-26 verbatim: gate 'allows the 0.37% amendment (\"locked 0.3%, or 0.37% amend if needed\"), which the charter pre-authorized for Path B'. Raw +0.36995% <= 0.37 amendment passes by 0.005pp. Caveat: the charter amendment text itself is in the actuator report, not the prereg \u2014 the prereg as written has NO amendment, and the earlier D9_BUILD_REPORT.md:50 says 'the bar is not relaxed' (FRONTIER verdict). The element's 'passes ONLY via the pre-authorized amendment' is the honest framing.",
+     "E10 (MFU result): all JSON numbers verbatim within cited lines 9-51 (98.3/253.1ms/972.4TF/1485MHz/647W; 96.3; 93.7; 91.7 best=98.3). Recompute B8/S2048: 2*7.241e9*16384 + 2*32*8*32*2048^2*128 = 246.07 TF / 0.2531s = 972.2 TFLOPS / 989 = 98.3% \u2014 checks out. Minor citation offset: the 989e12 peak constant is at d9_build_mfu.py:8, not :9-10 (lines 9-10 are P_LINEAR=7.241e9 and the FLOPs formula).",
+     "E11 (scheme executed) PROVENANCE BLUR: the string 'per_tensor_W+per_token_A(online)' at d9_build_mfu_result.json:2 is HARD-CODED in d9_build_mfu.py:56, not runtime-introspected from vLLM, despite D9_BUILD_PREREG.md:36-38 promising the scheme is 'reported at runtime'. RECORD label is technically satisfied (it is in a record doc), but the value's ultimate ground is vLLM's online-fp8 default behavior \u2014 ASSUMPTION-from-vLLM-source grade. The 'NOT the per-channel quality scheme / bridged' framing is corroborated by json:3-7 and panel caveats.",
+     "E12 (88% low end) TWO FLAGS: (a) PROVENANCE \u2014 1427/1265 TFLOPS exist only as hard-coded constants (d9_build_mfu.py:20, comment :17-19 'measured in a PRIOR run'); the JSON at the cited lines 3-7 echoes those constants; no raw log of the prior _scaled_mm run found anywhere in d_phase (grep for 1427/1265 hits only the script and its JSON echo). Ratio recomputes 1265/1427=0.8865->0.886, -11.4%~-11% OK; 1265/989=128% OK. (b) DERIVED-FIGURE \u2014 the derate 0.886 x 98.3% = 87.1%, but D9_CIPHER_DELIVERY_REPORT.md:46 says '~88%' and D9_BUILD_REPORT.md:43 says '88-98%': the record's low end is ~0.9pp generous vs strict arithmetic. Panel (d9_build_verdict_panel.json:35) itself flags the bridge as a 'single-shape ratio'. Element matches the record verbatim, but the 88 should carry the 87.1-strict note.",
+     "E5 (GEMM call) minor: d9_hf_quality.py:21-22 is a try/except where the fallback silently DROPS use_fast_accum=True; the record does not show which branch executed, so 'use_fast_accum=True' is the attempted, not proven-executed, configuration.",
+     "E13 minor: the 'compressed-tensors checkpoint' phrasing is from d9_quantize_fp8_dynamic.py comment lines 3-4, not line 14 (line 14 is the QuantizationModifier call, verbatim as claimed); env-block verbatim at D9_BUILD_REPORT.md:35-37 (llm-compressor<->vLLM _C.abi3.so ABI conflict).",
+     "Elements verified clean with no flags: E2 (224=32x7 recomputed; py:66 + json:3 verbatim), E3 (py:15-16 verbatim), E4 (py:18-20 verbatim), E6 (py:23-24,29 verbatim), E9 (py:23-24 verbatim incl. enforce_eager=False; '[online]' corroborated by json:2), E14 (D9_BUILD_REPORT.md:29-37 'doubly-modeled... violates the prereg single-engine rule (quality = HF/per-channel, MFU = vLLM/per-tensor)' + panel json:33 'No single config DEMONSTRATES >=85% MFU at <=0.3% PPL' \u2014 both verbatim at cited lines). All 14 elements labeled RECORD cite CIPHER record docs in cipher-fusion-evidence/v1_phase_b/d_phase/; no element is labeled ASSUMPTION."
+    ],
+    "reason": "All 14 recipe elements were checked against their cited files/lines (READ-ONLY). Every headline number appears in a CIPHER record doc and every derived figure recomputes correctly (224=32x7; 102,400 tok; PPL +0.36995%->0.37; MMLU -0.4pp; KL 0.00357; ratio 1265/1427=0.886/-11%; MFU 972.2 TFLOPS/989=98.3%). No fabricated numbers and no RECORD label pointing outside a record doc, so the recipe is CONFIRMED. However, 9 corrections are flagged: minor citation offsets (E1, E7, E10, E13), one execution-path ambiguity (E5 use_fast_accum fallback), and two material provenance blurs \u2014 the vLLM scheme string (E11) and the 1427/1265 GEMM-bridge TFLOPS (E12) are hard-coded constants in d9_build_mfu.py echoed into the result JSON, not measured/introspected in the recorded run (no raw log of the 'PRIOR run' exists in d_phase), and the '88%' low end is ~0.9pp generous vs the strict 0.886x98.3=87.1% arithmetic. The known caveat element (E14) correctly carries the panel's doubly-modeled/never-co-measured finding."
+   }
+  },
+  {
+   "hunt": "vllm-reference",
+   "extraction": {
+    "topic": "D.9 quality-passing FP8 recipe (+0.37% PPL @ 88\u201398% bf16-denominator MFU) \u2014 reproducible kernel contract, record vs vLLM-source assumptions",
+    "summary": "The D.9 record FULLY specifies the quality-passing recipe in executable source: /home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py. Recipe = FP8 E4M3 (torch.float8_e4m3fn), symmetric absmax scaling with FP8_MAX=448.0: per-OUTPUT-CHANNEL static weight scale (w.abs().amax(dim=1)/448, clamp min 1e-12, fp32) + per-TOKEN dynamic activation scale (row absmax/448, clamp min 1e-12, fp32), GEMM via torch._scaled_mm(x8, w8.t(), scale_a, scale_b, out_dtype=torch.float16, use_fast_accum=True), bias added post-GEMM in fp16, applied to ALL 224 nn.Linear of Mistral-7B-v0.1 fp16 (32 layers x {q,k,v,o,gate,up,down}) with lm_head ALWAYS excluded (kept fp16). Measured: PPL 5.3525->5.3723 = +0.37% (FAILS the locked 0.3% bar; passes only the pre-authorized 0.37% amendment), MMLU 45.4->45.0 (-0.4pp PASS), true KL 0.00357 nats. CRITICAL HONESTY (panel-flagged in the record): the \"88-98% MFU\" half was NEVER measured on this per-channel config. MFU 91.7-98.3% vs the 989 TFLOPS bf16 denominator was measured in vLLM with quantization=\"fp8\" ONLINE = per-TENSOR weight + per-token activation (d9_build_mfu.py, B={8,16} x S={2048,4096} prefill, 700W cap, prefix-cache OFF); the per-channel figure ~88% is a BRIDGE (measured single-shape GEMM ratio per-channel/per-tensor = 1265/1427 = 0.886); \"88-98%\" appears in the record only as the hypothetical finer-down_proj flip range (D9_BUILD_REPORT.md:43) and as \"~88% per-channel MFU vs 989 at +0.37% PPL\" (D9_CIPHER_DELIVERY_REPORT.md:46). A direct vLLM per-channel run was env-blocked (llm-compressor<->vLLM _C.abi3.so ABI conflict). The intended single-impl reproducible artifact is d9_quantize_fp8_dynamic.py: llm-compressor QuantizationModifier(targets=\"Linear\", scheme=\"FP8_DYNAMIC\", ignore=[\"lm_head\"]) -> vLLM loads via compressed-tensors. The installed vLLM 0.20.2 ships exactly this scheme as CompressedTensorsW8A8Fp8 (weight kFp8StaticChannelSym per-channel static fp32 + activation kFp8DynamicTokenSym per-token dynamic fp32, CUTLASS fused cutlass_scaled_mm, lm_head unquantized) \u2014 used below ONLY where the record is silent. Notable record-vs-vLLM delta: the record used use_fast_accum=True; vLLM 0.20.2's torch._scaled_mm calls do NOT pass use_fast_accum.",
+    "elements": [
+     {
+      "field": "model + base dtype",
+      "value": "Mistral-7B-v0.1, torch.float16 (HF AutoModelForCausalLM, .cuda().eval())",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:9,29",
+      "verbatim": "MODEL=\"/home/ubuntu/models/Mistral-7B-v0.1\" ... m=AutoModelForCausalLM.from_pretrained(MODEL,dtype=torch.float16).cuda().eval()"
+     },
+     {
+      "field": "quantization format",
+      "value": "FP8 E4M3 (torch.float8_e4m3fn), symmetric absmax scaling, FP8_MAX=448.0; scheme name as recorded: per_channel_W+per_token_A rowwise FP8 E4M3",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality_result.json:2; d9_hf_quality.py:15-20",
+      "verbatim": "\"method\": \"per_channel_W+per_token_A rowwise FP8 E4M3 (HF forward, all linears)\""
+     },
+     {
+      "field": "weight scale granularity + formula",
+      "value": "Per-OUTPUT-CHANNEL (one fp32 scale per output row): wscale = w.abs().amax(dim=1,keepdim=True)/448.0, clamp(min=1e-12), fp32; static (computed once from the fp16 weight); w8=(w/wscale).to(torch.float8_e4m3fn); scale_b passed as wscale.t().contiguous() (shape [1, out_features])",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:15-16",
+      "verbatim": "wscale=(w.abs().amax(dim=1,keepdim=True)/448.0).clamp(min=1e-12).to(torch.float32)   # per-channel"
+     },
+     {
+      "field": "activation scale granularity + formula",
+      "value": "Per-TOKEN DYNAMIC (one fp32 scale per row of x reshaped to [-1,K]): ascale = x2.abs().amax(dim=1,keepdim=True)/448.0, clamp(min=1e-12), fp32; recomputed inline on every forward; x8=(x2/ascale).to(torch.float8_e4m3fn)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:18-20",
+      "verbatim": "ascale=(x2.abs().amax(dim=1,keepdim=True)/448.0).clamp(min=1e-12).to(torch.float32) # per-token"
+     },
+     {
+      "field": "GEMM kernel + accumulation flag",
+      "value": "torch._scaled_mm(x8, w8.t(), scale_a=ascale, scale_b=sb, out_dtype=torch.float16, use_fast_accum=True), with try/except fallback to the same call WITHOUT use_fast_accum. Rescale is fused (rowwise scaled_mm), output direct to fp16",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:21-22",
+      "verbatim": "try: o=torch._scaled_mm(x8, w8.t(), scale_a=ascale, scale_b=sb, out_dtype=torch.float16, use_fast_accum=True)"
+     },
+     {
+      "field": "bias handling",
+      "value": "Bias NOT fused: added after the GEMM in fp16 (o=o+bias)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:23",
+      "verbatim": "if bias is not None: o=o+bias"
+     },
+     {
+      "field": "layer coverage (the +0.37% config = all_fp8)",
+      "value": "ALL 224 nn.Linear = 32 layers x {q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj} INCLUDING down_proj; lm_head ALWAYS excluded (stays fp16). 224 != 225: lm_head is in NEITHER recorded bar config",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:66; d9_hf_quality_result.json:3; D9_FP8_ACTUATOR_DESIGN_MEMO.md:109-113",
+      "verbatim": "sel=[(n,mod) for n,mod in m.named_modules() if isinstance(mod,torch.nn.Linear) and \"lm_head\" not in n]  /  \"`lm_head` is in NEITHER set (224 \u2260 225) \u2014 it always declines\""
+     },
+     {
+      "field": "quality result (the +0.37%)",
+      "value": "PPL 5.3525 -> 5.3723 = +0.37% (WITHIN_BAR=false vs locked 0.3%; passes the pre-authorized 0.37% amendment); MMLU 45.4 -> 45.0 = -0.4pp (PASS <=0.5); true full-vocab KL 0.00357 nats (PASS <=0.01 diagnostic)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality_result.json:12-19; D9_FP8_ACTUATOR_BUILD_REPORT.md:24-27",
+      "verbatim": "\"ppl_delta_pct\": 0.37, \"mmlu_delta_abs\": -0.4, \"kl_true_nats\": 0.00357 ... \"WITHIN_BAR\": false"
+     },
+     {
+      "field": "quality eval protocol (LOCKED prereg)",
+      "value": "WikiText-2-raw-v1 test split, first 50 non-overlapping 2048-token windows = 102,400 tokens, mean NLL -> PPL; MMLU 0-shot 500q (first 100 each of abstract_algebra/anatomy/astronomy/college_computer_science/high_school_mathematics, argmax letter-logprob A/B/C/D); KL on first 10 PPL windows",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_BUILD_PREREG.md:26-32; d9_hf_quality.py:10-11,53",
+      "verbatim": "first 50 non-overlapping windows of 2048 tokens = 102,400 tokens ... MMLU: 0-shot, 500 questions"
+     },
+     {
+      "field": "quality bar",
+      "value": "LOCKED: PPL delta <=0.3% HARD, MMLU <=0.5pp HARD, KL <=0.01 nats diagnostic non-binding; charter pre-authorized a 0.3%->0.37% amendment for Path B (\"locked 0.3%, or 0.37% amend if needed\"); +0.37% passes ONLY the amended bar",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_BUILD_PREREG.md:15-17; D9_FP8_ACTUATOR_BUILD_REPORT.md:24-26",
+      "verbatim": "The gate allows the 0.37% amendment (\"locked 0.3%, *or 0.37% amend if needed*\"), which the charter pre-authorized for Path B. Per-channel FP8 is recorded at **+0.37% PPL**"
+     },
+     {
+      "field": "MFU measurement config (the 91.7-98.3% half)",
+      "value": "vLLM LLM(model=Mistral-7B-v0.1, dtype=\"float16\", quantization=\"fp8\" [ONLINE], gpu_memory_utilization=0.9, enforce_eager=False, max_num_seqs=16, max_model_len=4200, enable_prefix_caching=False); prefill at (B,S) in {8,16}x{2048,4096}, distinct prompt_token_ids per call, sustained 700W cap, prefill time isolated as t(max_tokens=1) minus decode delta; FLOPs = 2*7.241e9*B*S + 2*32*B*32*S^2*128; denominator 989.0e12 bf16 (dual: 1979e12 FP8-native)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu.py:8-10,23-24,49",
+      "verbatim": "llm=LLM(model=MODEL, dtype=\"float16\", quantization=\"fp8\", gpu_memory_utilization=0.9, enforce_eager=False, max_num_seqs=16, max_model_len=4200, enable_prefix_caching=False, disable_log_stats=True)"
+     },
+     {
+      "field": "MFU result vs 989 bf16 denominator",
+      "value": "98.3% (B8/S2048, 972.4 TFLOPS, 1485MHz, 647W) / 96.3% (B16/S2048) / 93.7% (B8/S4096) / 91.7% (B16/S4096, 694W); = 45.8-49.1% vs FP8-native 1979; fp16 vLLM baseline ~64%",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu_result.json:14,44,51; D9_BUILD_REPORT.md:16",
+      "verbatim": "| MFU, full-coverage FP8 (vLLM, per-tensor online) | **91.7\u201398.3% vs 989** (46\u201349% vs FP8-native 1979 \u2014 700W wall); fp16 baseline ~64% |"
+     },
+     {
+      "field": "SCHEME MISMATCH between the two halves (load-bearing caveat)",
+      "value": "The MFU run used vLLM ONLINE fp8 = per-TENSOR weight + per-token activation (recorded as 'per_tensor_W+per_token_A(online)'); the +0.37% quality run used HF per-CHANNEL weight via torch._scaled_mm. The +0.37%@88-98% pairing is a BRIDGE, never one config in one engine; panel flagged it as violating the prereg single-engine rule. Direct vLLM per-channel mixed-config MFU was env-blocked (llm-compressor<->vLLM _C.abi3.so ABI conflict)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu_result.json:2; D9_BUILD_REPORT.md:29-37",
+      "verbatim": "\"fp8_scheme_in_vllm\": \"per_tensor_W+per_token_A(online)\" / \"violates the prereg single-engine rule (quality = HF/per-channel, MFU = vLLM/per-tensor)\""
+     },
+     {
+      "field": "the 88% lower bound (per-channel MFU bridge)",
+      "value": "Measured single-shape GEMM ratio: per-channel rowwise 1265 TFLOPS vs per-tensor 1427 TFLOPS = 0.886x (~11% slower) -> per-channel full-coverage MFU ~88-98% vs 989; stated as '~88% per-channel MFU vs 989 at +0.37% PPL' (delivery report) and 'per-channel MFU 88\u201398%' (build report, as the hypothetical finer-down_proj REACHED flip)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu.py:17-20; D9_BUILD_REPORT.md:20,40-43; D9_CIPHER_DELIVERY_REPORT.md:46,61",
+      "verbatim": "vLLM-native FP8 = ~88% per-channel MFU vs 989 at +0.37% PPL"
+     },
+     {
+      "field": "intended single-impl reproducible artifact (checkpoint recipe)",
+      "value": "llm-compressor: QuantizationModifier(targets=\"Linear\", scheme=\"FP8_DYNAMIC\", ignore=[\"lm_head\"]); oneshot(model=Mistral-7B-v0.1, output_dir=/home/ubuntu/models/Mistral-7B-FP8-dynamic); vLLM loads natively via compressed-tensors. FP8_DYNAMIC = per-channel weight + per-token dynamic activation, no calibration",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_quantize_fp8_dynamic.py:14-16",
+      "verbatim": "recipe=QuantizationModifier(targets=\"Linear\", scheme=\"FP8_DYNAMIC\", ignore=[\"lm_head\"])"
+     },
+     {
+      "field": "alternative configs measured (context, NOT the +0.37% recipe)",
+      "value": "drop_downproj (192 linears, 73% GEMM-time coverage): +0.2465% PPL PASSES the locked 0.3% bar but projMFU only 85.9% (later corrected to ~80% with the 0.886 per-channel rate; plausibility band 77-86%, NOT gate-grade); per-tensor all_fp8 = +0.478%; CIPHER Path-A per-tensor incl lm_head = +0.567%/-1.6pp FAIL",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_perlayer_backoff_result.json:40-66; D9_BUILD_REPORT.md:19,29-34; D9_FP8_ACTUATOR_DESIGN_MEMO.md:208-211",
+      "verbatim": "per-tensor **+0.478%** vs per-channel **+0.37%**"
+     },
+     {
+      "field": "per-layer backoff recipe code (identical quant math, policy switch)",
+      "value": "d9_perlayer_backoff.py make_fwd() is byte-equivalent quant math to d9_hf_quality.py (448.0, clamp 1e-12, _scaled_mm use_fast_accum=True, fp16 out); configs all_fp8/drop_L0/drop_L0_1/drop_L0_3/drop_downproj/drop_L0_and_downproj; GEMM-time weights: gate/up/down 27% each, q/o 7.6%, k/v 1.9% (per layer /32)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_perlayer_backoff.py:14-22,75-81",
+      "verbatim": "# GEMM-time weights (per all-layers): FFN gate/up/down 27% each; attn q/o 7.6% each, k/v 1.9% each."
+     },
+     {
+      "field": "scorecard provenance note (whose number 88-98% is)",
+      "value": "V0 scorecard explicitly marks 88-98% as vLLM-executed reachability, NOT CIPHER's delivered number (CIPHER's own compute number = 1.05x iso-clock / ~68% MFU / +0.72% PPL)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/v1_soak/V0_PRODUCT_SCORECARD.md:83",
+      "verbatim": "the FP8 88\u201398% was vLLM-exec reachability, NOT cited as CIPHER's"
+     },
+     {
+      "field": "dossier cross-reference",
+      "value": "MFU dossier carries the same pairing: 'vLLM full-coverage 91.7-98.3% MFU (reachability) but PPL +0.37% FAIL' (FAIL = vs the locked 0.3% bar, not the amendment)",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/MFU_MECHANISM_DOSSIER_2026-05-30.md:94",
+      "verbatim": "vLLM full-coverage **91.7-98.3%** MFU (reachability) but PPL +0.37% FAIL"
+     },
+     {
+      "field": "down_proj sensitivity (why +0.37% not <=0.3%)",
+      "value": "down_proj under per-token activation scaling contributes ~+0.12pp of the over-bar margin (only 0.07pp over); finer down_proj treatment (DeepSeek-V3-style 128-wide group activation scaling or SmoothQuant outlier migration) NOT tested = the single untested path to 100% coverage within 0.3% at 88-98% MFU",
+      "provenance": "RECORD",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/D9_BUILD_REPORT.md:38-44",
+      "verbatim": "could plausibly keep down_proj in FP8 within 0.3% \u2192 ~100% coverage \u2192 per-channel MFU 88\u201398% \u2192 **flip to REACHED**"
+     },
+     {
+      "field": "vLLM shipped scheme matching the record recipe (per-channel-W + per-token-A)",
+      "value": "CompressedTensorsW8A8Fp8 (what the FP8_DYNAMIC checkpoint loads as): weight = kFp8StaticChannelSym (QuantizationStrategy.CHANNEL), activation = kFp8DynamicTokenSym (dynamic input); min capability 89 (Ada+)",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/quantization/compressed_tensors/schemes/compressed_tensors_w8a8_fp8.py:45-52,76-80",
+      "verbatim": "activation_quant_key_mapping = {STATIC_QUANT: kFp8StaticTensorSym, DYNAMIC_QUANT: kFp8DynamicTokenSym}; weight_quant_key_mapping = {QuantizationStrategy.CHANNEL: kFp8StaticChannelSym, ...}"
+     },
+     {
+      "field": "vLLM online quantization=\"fp8\" scheme (what the MFU run executed)",
+      "value": "Non-block: weight ALWAYS per-tensor (kFp8StaticTensorSym; 'torch._scaled_mm needs per tensor' for online requant); activation dynamic per-token IF cutlass_fp8_supported() else dynamic per-tensor; default activation_scheme=\"dynamic\"",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/quantization/fp8.py:102,302-310,409-411",
+      "verbatim": "self.weight_quant_key = kFp8StaticTensorSym ... elif cutlass_fp8_supported(): self.activation_quant_key = kFp8DynamicTokenSym"
+     },
+     {
+      "field": "vLLM scale-granularity definitions",
+      "value": "GroupShape.PER_TENSOR=(-1,-1), PER_TOKEN=(1,-1), PER_CHANNEL=(-1,1); all FP8 quant keys use fp32 scales, symmetric=True; FP8 min/max from torch.finfo(float8_e4m3fn) = +/-448 on CUDA",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/quantization/utils/quant_utils.py:27-35,68-70,123-136",
+      "verbatim": "kStaticChannelScale = ScaleDesc(torch.float32, True, GroupShape.PER_CHANNEL); kDynamicTokenScale = ScaleDesc(torch.float32, False, GroupShape.PER_TOKEN)"
+     },
+     {
+      "field": "vLLM kernel dispatch order (CUDA, non-block FP8)",
+      "value": "Priority order: MarlinFP8 -> FlashInferFP8 -> CutlassFP8ScaledMMLinearKernel -> PerTensorTorchFP8 -> ChannelWiseTorchFP8; chosen by init_fp8_linear_kernel; on H100 with cutlass support the per-channel scheme lands on CutlassFP8ScaledMMLinearKernel",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/kernels/linear/__init__.py:161-168,365-431",
+      "verbatim": "PlatformEnum.CUDA: [MarlinFP8ScaledMMLinearKernel, FlashInferFP8ScaledMMLinearKernel, CutlassFP8ScaledMMLinearKernel, PerTensorTorchFP8ScaledMMLinearKernel, ChannelWiseTorchFP8ScaledMMLinearKernel]"
+     },
+     {
+      "field": "vLLM CUTLASS GEMM semantics (fused dequant + bias)",
+      "value": "ops.cutlass_scaled_mm = fused 'output = torch.mm((scale_a * a), (scale_b * b)).to(out_dtype)' with numpy-style broadcast; out_dtype must be fp16/bf16; bias fused (numel==N, dtype==out_dtype); out_dtype = torch.get_default_dtype() (model dtype)",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/kernels/linear/scaled_mm/cutlass.py:165-180; /home/ubuntu/.local/lib/python3.10/site-packages/vllm/_custom_ops.py:875-921; fp8.py:274",
+      "verbatim": "`cutlass_scaled_mm` implements a fused version of `output = torch.mm((scale_a * a), (scale_b * b)).to(out_dtype)`"
+     },
+     {
+      "field": "vLLM per-call activation quant kernel",
+      "value": "FP8ScaledMMLinearKernel.apply_weights: x viewed 2D, QuantFP8(static=False, group_shape=PER_TOKEN) -> ops.scaled_fp8_quant -> torch.ops._C.dynamic_per_token_scaled_fp8_quant(output, input, scale[M,1] fp32, scale_ub); native reference semantics: scale = rowwise absmax/FP8_MAX clamped min 1/(448*512), value clamped to +/-448 then cast to e4m3fn",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/kernels/linear/scaled_mm/ScaledMMLinearKernel.py:100-104,134-146; /home/ubuntu/.local/lib/python3.10/site-packages/vllm/_custom_ops.py:2057-2061; /home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/quantization/input_quant_fp8.py:23-25,197-216",
+      "verbatim": "_FP8_MIN_SCALING_FACTOR = 1.0 / (_FP8_MAX * 512.0) ... scale = (x_max / _FP8_MAX).clamp(min=_FP8_MIN_SCALING_FACTOR)"
+     },
+     {
+      "field": "vLLM lm_head exclusion (default)",
+      "value": "Two mechanisms: (1) Fp8Config.get_quant_method returns a method only for LinearBase/FusedMoE/Attention; ParallelLMHead is a VocabParallelEmbedding subclass -> returns None -> UnquantizedEmbeddingMethod; (2) checkpoint ignored_layers / modules_to_not_convert honored via is_layer_skipped -> UnquantizedLinearMethod (the FP8_DYNAMIC checkpoint carries ignore=[\"lm_head\"])",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/quantization/fp8.py:159-189; /home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/vocab_parallel_embedding.py:270-274",
+      "verbatim": "if quant_method is None: quant_method = UnquantizedEmbeddingMethod()"
+     },
+     {
+      "field": "vLLM online per-tensor weight processing (fused-shard requant)",
+      "value": "process_fp8_weight_tensor_strategy: fused modules (QKV/gate-up) requantized to a SINGLE max scale (requantize_with_max_scale), weight transposed, optionally padded; per-channel strategy passes scales through unchanged (process_fp8_weight_channel_strategy)",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/quantization/utils/fp8_utils.py:1227-1270; utils/w8a8_utils.py:76",
+      "verbatim": "# Requantize with max scale\\n weight_scale, weight = requantize_with_max_scale(...)"
+     },
+     {
+      "field": "vLLM torch._scaled_mm fallback paths (when CUTLASS unavailable)",
+      "value": "PerTensorTorch: fused _scaled_mm with scalar scales; ChannelWiseTorch: UNFUSED \u2014 _scaled_mm with dummy scales out_dtype=fp32 then C = out * x_scale * Bs.t() + bias, cast to out_dtype; tokens padded to >=17 for _scaled_mm perf (no padding under VLLM_COMPILE); NO use_fast_accum passed anywhere in vLLM 0.20.2 kernels (contrast: record used use_fast_accum=True)",
+      "provenance": "ASSUMPTION-FROM-VLLM-SOURCE",
+      "file_line": "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/kernels/linear/scaled_mm/pytorch.py:43-55,70-90,174-228",
+      "verbatim": "output = torch._scaled_mm(A, B, out_dtype=out_dtype, scale_a=As, scale_b=Bs, bias=bias)  [no use_fast_accum argument]"
+     },
+     {
+      "field": "accumulator dtype inside the FP8 GEMM",
+      "value": "Record: use_fast_accum=True implies Hopper fast-accum mode (reduced-precision accumulation) on the quality run, but the record never states the accumulator dtype. vLLM source: cutlass_scaled_mm and torch._scaled_mm accumulation dtype live in compiled kernels (torch.ops._C / libtorch), not in the Python source examined; the Python layer only fixes out_dtype fp16/bf16. Cannot be pinned to a file:line in either source",
+      "provenance": "UNRESOLVED",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_hf_quality.py:21 (record side); /home/ubuntu/.local/lib/python3.10/site-packages/vllm/_custom_ops.py:920-921 (semantics only)",
+      "verbatim": "torch.ops._C.cutlass_scaled_mm(out, a, b, scale_a, scale_b, bias)"
+     },
+     {
+      "field": "vLLM version used in the D.9 MFU run (2026-05-29)",
+      "value": "Not recorded in d9_build_mfu.py or its result JSON (run was in-container vLLM); the vLLM 0.20.2 inspected here is the host site-packages install present today. The online-fp8 scheme string the run itself recorded ('per_tensor_W+per_token_A(online)') matches 0.20.2's fp8.py logic, but version identity is not evidenced",
+      "provenance": "UNRESOLVED",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_mfu_result.json:2",
+      "verbatim": "\"fp8_scheme_in_vllm\": \"per_tensor_W+per_token_A(online)\""
+     },
+     {
+      "field": "per-channel recipe MFU measured in vLLM (the honest gap in '+0.37% at 88-98%')",
+      "value": "NEVER measured: 'a straddle that is NEVER directly measured (vLLM mixed-config env-blocked)' \u2014 the 88% is the 0.886x single-shape GEMM-ratio bridge; the settling measurement (offline per-channel weights loaded into clean vLLM, prefill MFU at 700W) was named but blocked",
+      "provenance": "UNRESOLVED",
+      "file_line": "/home/ubuntu/cipher-fusion-evidence/v1_phase_b/d_phase/d9_build_verdict_panel.json:33; D9_BUILD_REPORT.md:34-37",
+      "verbatim": "models ~82-86% MFU -- a straddle that is NEVER directly measured (vLLM mixed-config env-blocked)"
+     }
+    ],
+    "open_questions": [
+     "Accumulator dtype/precision of the FP8 GEMM in both the record (use_fast_accum=True semantics) and vLLM (compiled cutlass_scaled_mm / torch._scaled_mm internals) \u2014 not pinnable to source lines available on this host.",
+     "Exact vLLM version of the 2026-05-29 in-container MFU run (host install today is 0.20.2; the run's recorded scheme string is consistent with it but version was not stamped).",
+     "The per-channel recipe's MFU directly measured in vLLM (the 88% end of '88-98%' is a 0.886x bridge from one GEMM shape, never an end-to-end run; llm-compressor<->vLLM _C.abi3.so ABI conflict blocked it).",
+     "Whether the record's use_fast_accum=True (vs vLLM's no-fast-accum default) materially shifts the +0.37% PPL \u2014 the record's try/except means some layers may silently have run without fast accum; not instrumented.",
+     "Reproducing +0.37% requires the exact eval protocol (50x2048 WikiText-2-raw-v1 test windows, MMLU 500q 0-shot subset); a different window count/split will move the third decimal."
+    ]
+   },
+   "verdict": {
+    "confirmed": true,
+    "corrections": [
+     "Element 14: '~88% per-channel MFU' is NOT a recomputable lower bound. Naive bridge = 0.886 x 98.3 = 87.1% (best shape) to 0.886 x 91.7 = 81.2% (worst shape); '~88%' exceeds even the best-shape product. The record itself (D9_BUILD_REPORT.md:29-37) brands the bridge 'doubly-modeled... NOT gate-grade'; the '88-98%' at line 43 is a HYPOTHETICAL for an untested finer-down_proj scheme. Restate as: modeled bridge ~81-87% (best-shape ~87%), recorded rounded as '~88%' (D9_CIPHER_DELIVERY_REPORT.md:46,61), model-grade not measured.",
+     "Element 14 provenance: the 1427/1265 TFLOPS GEMM numbers exist ONLY as hardcoded constants in d9_build_mfu.py:20 with a comment 'measured in a PRIOR run'; no raw measurement artifact exists anywhere in cipher-fusion-evidence (grepped), and the json gemm_scheme_independence block is generated from those constants \u2014 RECORD label technically true but it is a transcribed constant, not a preserved measurement.",
+     "Element 8 citation precision: raw PPLs 5.352496986072249 -> 5.372298774989749 are at d9_hf_quality_result.json lines 5 and 9, OUTSIDE the cited 12-19 range (ppl_delta_pct at 12, MMLU delta at 13, WITHIN_BAR at 18 are in range). Recomputed delta = +0.36995%, rounds to +0.37% and strictly passes the <=0.37% amendment.",
+     "Element 9 caveat: the KL diagnostic is computed on the FIRST 10 of 50 windows only (d9_hf_quality.py:53, 'mem bound'), while D9_BUILD_PREREG.md:32 specifies KL over 'the WikiText-2 PPL windows'. Non-binding diagnostic only; PPL (all 50 windows) and MMLU unaffected.",
+     "Element 10 nuance: the 0.3%->0.37% amendment is NOT in D9_BUILD_PREREG.md (which locked 0.3% and was never relaxed for the D9_BUILD verdict \u2014 that verdict is FRONTIER at 0.3%); the amendment is recorded only in D9_FP8_ACTUATOR_BUILD_REPORT.md:24-26 ('which the charter pre-authorized for Path B'), and D9_FP8_ACTUATOR_DESIGN_MEMO.md:160 shows it was conditional on Anil's approval at memo time.",
+     "Element 2 nuance: no named constant FP8_MAX exists in d9_hf_quality.py; 448.0 appears as a literal divisor at lines 15 and 19 (E4M3 max \u2014 interpretation correct)."
+    ],
+    "reason": "13 of 14 elements confirmed verbatim at the cited locations with all derived figures recomputed and matching: PPL delta +0.36995%->+0.37%; 224=32x7 linears excluding lm_head; 50x2048=102,400 tokens; all four MFU shapes recompute bit-exact from prefill_ms + the flops formula (98.3/96.3/93.7/91.7 vs989, 45.8-49.1 vs1979); 1265/1427=0.886 (~11.35% slower); scheme-mismatch caveat verbatim in json:2 and BUILD_REPORT:29-37. All RECORD provenance labels correct (CIPHER evidence artifacts, none mislabeled vLLM-source). Element 14 is the one material flag: '~88%' appears verbatim at the cited delivery-report lines but does not recompute as a lower bound (naive bridge 81.2-87.1%), the record itself labels the bridge not gate-grade, and the underlying 1427/1265 TFLOPS measurement survives only as a hardcoded constant \u2014 keep the figure but reframe as a modeled ~81-87% band, not an 88% lower bound."
+   }
+  }
+ ]
+}

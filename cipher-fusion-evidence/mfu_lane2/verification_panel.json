@@ -1,0 +1,123 @@
+{
+ "panel": [
+  {
+   "dimension": "DIMENSION 1 \u2014 Is the iso-clock measurement valid (does the STOP rest on a sound number)?",
+   "findings": [
+    {
+     "severity": "note",
+     "claim_checked": "(a)/(d) 'Both arms held at iso-clock 1455 MHz ... FP8 held exactly 1455/1455/1455; vanilla ~1440 (power-limited even at the 1455 ceiling)' \u2014 i.e. genuinely iso-clock.",
+     "problem": "It is not a perfectly clean iso-clock: vanilla's clock was NOT actually pinned to 1455. isoL_vanilla median is 1440 with min dipping to 1140/1155 and throttle_reasons_or=0x4 (sw_power_cap=true) \u2014 the relock loop failed to hold vanilla at the 1455 ceiling because vanilla draws 632/633 W (power-limited). FP8 holds 1455/1455/1455 with throttle 0x0 at 548/549 W (84 W headroom). The two arms differ by 15 MHz median (1.03%) and vanilla has 21% transient dips the report does not surface. This is a real asymmetry, NOT a clean iso-clock.",
+     "evidence": "isoL_vanilla_r1.json clocks: median 1440, min 1140, throttle 0x4, sw_power_cap true, 632 W. isoL_vanilla_r2.json: median 1440, min 1155, 0x4, 633 W. isoL_fp8_r1/r2.json: 1455/1455/1455, throttle 0x0, 548/549 W. Report line 40 acknowledges vanilla '~1440 power-limited' but the section header/title 'Both arms held at iso-clock 1455 MHz' overstates.",
+     "suggested_fix": "No verdict impact \u2014 the asymmetry is CONSERVATIVE for the STOP: a power-limited (slower) vanilla inflates the measured fp8/vanilla ratio, so true iso-clock speedup <= the measured 1.32x; and the median-ratio clock-norm of fp8 down to 1440 is the standard correction. Recommend the header say 'FP8 pinned 1455; vanilla power-limited to ~1440 median (the relock loop could not hold vanilla at the ceiling)'."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "Phase 0b table default-clock FP8 column written as '0.828 / 0.826'.",
+     "problem": "The two reps are 0.8271 and 0.8282 (iso_fp8_r1/r2.json). The table rounds r1 to 0.828 and reports the second as 0.826, which matches neither rep \u2014 r1 rounds to 0.827, r2 to 0.828. A transcription slip in the per-rep display.",
+     "evidence": "iso_fp8_r1.json mfu=0.827115593983652; iso_fp8_r2.json mfu=0.8282047937029905. phase0_result.json default_clock_fp8_mfu=0.8277 (the mean) is correct. Report line 45 table cell shows '0.828 / 0.826'.",
+     "suggested_fix": "Change the cell to '0.827 / 0.828'. No verdict impact \u2014 the mean 0.8277 (~0.83) is correct and still below the 0.85 target."
+    }
+   ],
+   "checks_passed": [
+    "(a) Clock pinning confirmed: isoL_fp8_r1.json and isoL_fp8_r2.json both report sm_clock median/min/max = 1455/1455/1455 with throttle_reasons_or=0x0 (truly pinned, no throttling).",
+    "(a) Earlier non-loop iso_fp8_r1/r2.json correctly NOT pinned (sm_clock median 1695, min 1560/1575, max 1980, throttle 0x4) \u2014 these are correctly relabeled and used ONLY for the explicitly-flagged 'default-clock (power-relief)' number, properly superseded by the isoL loop runs for the iso-clock claim.",
+    "(b) vanilla iso-clock MFU mean: (0.6034+0.6018)/2 = 0.6026 \u2014 reproduces report 0.6026 and phase0_result.json iso_clock_vanilla_mfu=0.6026 exactly.",
+    "(b) fp8 iso-clock MFU mean: (0.8119+0.7996)/2 = 0.8058 \u2014 reproduces report 0.8058 / phase0_result.json exactly.",
+    "(b) clock-normalized fp8: 0.8058*1440/1455 = 0.7975 \u2014 reproduces report 0.7975 exactly.",
+    "(b) e2e compute-only speedup: 0.7975/0.6026 = 1.3234 \u2014 reproduces report/json 1.323 exactly.",
+    "(b) implied fp8 GEMM speedup: s = g/(1/e2e-(1-g)) = 0.646/(1/1.323-0.354) = 1.608 \u2014 reproduces report ~1.61 exactly.",
+    "(c) Clock-norming fp8 DOWN to vanilla's 1440 (linear compute scaling) is FAIR and CONSERVATIVE: it lowers fp8 MFU by 1.03% (the clock gap); not norming (raw 1455 vs 1440) gives e2e 1.337/s=1.64, still <1.8 needed. Linear scaling slightly over-corrects fp8 down because the ~35% non-GEMM/memory-bound share does not scale with clock \u2014 bias is against fp8, favoring the STOP.",
+    "(d) Vanilla is a genuine no-substrate control: strict grep '[cipher_v2]' = 0 lines in isoL_vanilla_r1.err AND isoL_vanilla_r2.err (the single case-insensitive match was the directory path 'cipher-fusion-evidence', not a substrate line). FP8 arms show 674/671 [cipher_v2] lines incl. 5 'FP8 ENGAGED shape' entries and 'per-tensor scalar E4M3' actuator confirmation.",
+    "(d) Vanilla 0.60 baseline is reasonable: it is the same iso_bench.py methodology (eager, fp16, prefix_caching off, identical analytic FLOP model 2*N_params) with substrate off; differs from fp8 only in the injected actuator.",
+    "(e) 2-rep sufficiency for STOP: fp8 spread 0.0123 (1.53% of mean), vanilla 0.0017 (0.28%). Even the most-favorable-to-PASS combination (highest fp8 0.8119 normed=0.8036 vs lowest vanilla 0.6018) gives e2e 1.335 / implied s=1.636 \u2014 still well below the 1.8x the closed form requires for 0.85. The 5-13 pt iso-clock / 2-7 pt default-clock gap to 0.85 exceeds the rep spread by an order of magnitude.",
+    "Amdahl table (Phase 0a) reproduces exactly: e2e MFU at s=1.4/1.6/1.8/2.0 = 0.736/0.792/0.842/0.886 (g=0.646) and 0.750/0.814/0.871/0.923 (g=0.70).",
+    "g=0.646 provenance confirmed (mfu_audit/MFU_AUDIT e3 row, \u226564.6% GEMM share, a lower bound). STOP robust to g: at measured s=1.61, e2e MFU stays below 0.85 across g=0.646..0.72; the s needed for 0.85 (1.82..1.68) exceeds measured 1.61 at every plausible g.",
+    "Frozen anchor md5 2edba0d2136f8ede4713d90a8f7cd55f claimed entry==exit; no successor artifact (no kernel built) consistent with STOP-before-Phase-3; scratch confined to mfu_lane2/.",
+    "Three independent lines (iso-clock 0.797, default-clock 0.828, closed-form needing 1.8-2.0x vs measured 1.61x) all agree the 0.85 target is missed \u2014 the STOP is over-determined and rests on a sound number."
+   ]
+  },
+  {
+   "dimension": "DIMENSION 2 \u2014 IS THE STOP VERDICT CORRECT (vs GREEN)?",
+   "findings": [
+    {
+     "severity": "note",
+     "claim_checked": "(a) rowwise is STRICTLY SLOWER than per-tensor (per-token amax prologue + per-channel scale epilogue vs per-tensor scalar)",
+     "problem": "The 'strictly slower' direction is sound but the supporting mechanism is only PARTLY load-bearing and one sub-claim is weaker than stated. cipher_rt_fp8_engine.cpp:5-8 confirms per-tensor is a fused cuBLASLt scalar GEMM with NO epilogue and that rowwise is 'NOT_SUPPORTED' on this cu13 cuBLASLt (measured 2026-05-30) \u2014 so rowwise must run on a DIFFERENT, less-vendor-tuned path (torch._scaled_mm / CUTLASS), which is the strongest reason it will not be faster. The report's cited mechanism ('per-token amax prologue') is the weak part: per-token amax reads the SAME activation tensor as the global per-tensor amax (same memory traffic), so the prologue is not clearly more expensive; the real extra cost is the per-row x per-col dequant epilogue (M*N, small vs GEMM M*N*K). Net: rowwise<=per-tensor is correct, but it leans more on 'different/less-tuned kernel + lm_head excluded' than on the prologue cost the report names.",
+     "evidence": "cipher_rt_fp8_engine.cpp:3-8 ('per-tensor scalar ... -> fp16 DIRECTLY (no epilogue)'; 'rowwise NOT_SUPPORTED, measured 2026-05-30'); LANE2_KERNEL_CONTRACT.md:23-26 (rowwise = per-channel W + per-token A via torch._scaled_mm); isoL_fp8_r1.err shows shape #4 m=32000 (lm_head) IS quantized in the per-tensor proxy but the quality contract EXCLUDES lm_head (contract:29), so the per-tensor proxy covers MORE GEMM work => an even more generous upper bound for rowwise.",
+     "suggested_fix": "Reframe the mechanism: the dominant reasons rowwise<=per-tensor are (1) rowwise falls off the fused cuBLASLt path onto a less-tuned scaled_mm/CUTLASS kernel, and (2) quality rowwise leaves lm_head in fp16 (less FP8 coverage than the proxy). Note that even the epilogue cost, while real, is second-order. This makes the bound robust regardless of the prologue argument."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "(b)/(d) Confidence 'high' and the value-only option-6 (build rowwise anyway)",
+     "problem": "The decisive robustness argument is UNDERSTATED, not wrong. The STOP does not actually require 'rowwise strictly slower': even granting the most charitable case where rowwise EQUALS per-tensor speed (zero extra cost), the default-clock (power-relief-included) ceiling is 0.828 < 0.85. So the verdict holds even if the report's (a) claim were entirely refuted. The report frames confidence around three agreeing lines but does not make this stronger 'even-if-equal' point explicit, which is the single cleanest refutation of GREEN.",
+     "evidence": "phase0_result.json default_clock_fp8_mfu=0.8277 (per-tensor, vendor cuBLASLt fast path, power-relief 1695MHz already included); 0.828 < 0.85 by 2.2 pts; rowwise can only move AWAY from 0.85 (slower), never toward it.",
+     "suggested_fix": "Add one sentence: 'Even in the charitable limit rowwise==per-tensor (zero scaling overhead), default-clock ceiling 0.828<0.85; rowwise being slower only widens the gap.' This makes the STOP independent of the (a) argument."
+    }
+   ],
+   "checks_passed": [
+    "(a) SOUND: rowwise < per-tensor is correct in direction. Source cipher_rt_fp8_engine.cpp:5-8 confirms per-tensor is the ONLY fused cuBLASLt path (no epilogue) and rowwise is NOT_SUPPORTED on cu13 cuBLASLt -> rowwise must use a different/less-tuned kernel + has per-element scale epilogue overhead. 'rowwise < per-tensor' is sound.",
+    "(b) SOUND: rowwise + power-relief does NOT plausibly clear 85%. Power-relief is ALREADY in the 0.828 default number (FP8 -90W -> 1455->1695MHz, confirmed by isoL clocks 1455 vs iso clocks 1695 and power 548W vs 632W). Best-case rowwise(=per-tensor)=0.828<0.85; rowwise is slower so it moves the wrong way. The 2.2pt default-clock margin is not 'close enough that rowwise clears' because rowwise reduces speed, not increases it. Report is right: does NOT clear.",
+    "(c) Amdahl closed form VERIFIED EXACT: 1/(0.646/1.61+0.354)=1.3241 (report 1.324); table @g=0.646 reproduces 1.4->0.736, 1.6->0.792, 1.8->0.842, 2.0->0.886 exactly; 85% needs s=1.836 (in claimed 1.8-2.0 band, ~1.73 @g=0.70); asymptote V/(1-g)=0.60/0.354=1.6949 (report 1.69), 0.60*1.69=1.014 (report 1.01). All correct.",
+    "Implied per-tensor FP8 GEMM speedup: e2e 1.323 -> gemm s=1.601 via s=g/(1/1.32-(1-g)) reproduces 1.61. Iso-clock clocknorm 0.7974 (report 0.797) = mean(0.8119,0.7996)*1440/1455; default fp8 0.8276 (report 0.828); e2e iso speedup 1.323. All MFU numbers trace to iso_*.json/isoL_*.json exactly.",
+    "g=0.646 GEMM-share VERIFIED from mfu_audit/e3_nongemm_share.json: 3 nvjet GEMM kernels (514906+400327+37045)/1473908 = 0.6461; correctly labeled a LOWER bound (sub-cutoff GEMM kernels would raise g, which only helps the lift -> conservative for the WALL framing since report uses g=0.646 as the pessimistic floor).",
+    "(d) STOP is the DISCIPLINED call. Phase 0c gate ('if iso-clock lands materially below 85% ... STOP ... do not build the kernel into a ceiling that misses') fired correctly: the FAST path (per-tensor, upper bound for rowwise) measured 0.797 iso/0.828 default, materially below 85%. Proceeding to Phase 1 to 'lock the quality config' = building the rowwise kernel into a proven-missing ceiling, which no-auto-degrade forbids. Option 6 ('build rowwise anyway for the artifact') correctly preserves that path as Anil's call. No silent scope cut.",
+    "(e) Retracted-number scan CLEAN: grep for 3.617x/14x/2.96x/7.43x/0.127%/57.3%/88-98% across LANE2_REPORT + all JSONs found only coincidental substring matches (n_params, power, tok_s) and one legitimate reference to D.9 '88-98%' in Option 3 correctly characterizing it as the SUSPECT target needing re-evidence (not used as a claim). 85% appears only as the target. No retracted number used as a result.",
+    "Anchor integrity VERIFIED: /home/ubuntu/cipher_rt_phase4/libcipher_rt.so md5 = 2edba0d2136f8ede4713d90a8f7cd55f (matches report entry==exit, byte-identical, never rebuilt). No successor artifact.",
+    "Measurement methodology SOUND (iso_bench.py): clean vLLM eager, VLLM_PLUGINS='' substrate guard, prefix-caching OFF (reps not cache-skipped), distinct random prompts, warmup excluded, trapezoid NVML power + energy-counter cross-check, clock/throttle sampled. MFU = analytic 2*N*tok/989.5TFLOP/s with attention excluded = genuine lower bound. Engagement clean: isoL_fp8_r1.err shows 5 FP8 ENGAGED shapes; isoL_vanilla_r1.err shows 0 (clean control).",
+    "Iso vs default regime correctly separated: isoL_* runs FP8 pinned at 1455/1455/1455 (throttle 0x0, sw_power_cap false) = true iso-clock; iso_* runs FP8 at 1695 median (sw_power_cap true) = power-relief/default. Both regimes reported, both below 85%, consistent across 2 reps each."
+   ]
+  },
+  {
+   "dimension": "DIMENSION 3 \u2014 HONESTY + INTEGRITY",
+   "findings": [
+    {
+     "severity": "minor",
+     "claim_checked": "Report MFU table (line 45) default-clock per-tensor FP8 column reads '0.828 / 0.826'",
+     "problem": "The second rep value '0.826' does not trace to any JSON. The two default-clock FP8 runs are iso_fp8_r1.json mfu=0.82712 and iso_fp8_r2.json mfu=0.82820, which round to 0.827/0.828 \u2014 there is no 0.826 anywhere in mfu_lane2 (grep confirms 0 hits for 0.826). The headline 0.828 is correct (matches r2/mean 0.8277), but the secondary cell shows a number that does not exist in the evidence.",
+     "evidence": "grep -rn '0.826' mfu_lane2/*.json => 0 hits. iso_fp8_r1.json mfu=0.827115593983652, iso_fp8_r2.json mfu=0.8282047937029905. phase0_result.json default_clock_fp8_mfu=0.8277. The cell should read 0.827/0.828, not 0.828/0.826.",
+     "suggested_fix": "Correct the table cell to '0.828 / 0.827' (the actual two reps). Immaterial to the verdict (both reps ~0.827-0.828, headline 0.828 stands)."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "Mechanism paragraph (lines 65-66): 'Even an infinitely fast FP8 GEMM gives e2e MFU <= V/(1-g) = 0.60/0.354 = 1.69x'",
+     "problem": "The value 1.69 (with a 'x' multiplier sign) is the asymptotic e2e SPEEDUP ceiling, not an e2e MFU. V/(1-g) = 0.60/0.354 = 1.695 evaluates to a number >1, which is impossible as an MFU (MFU is bounded by 1.0). The same sentence then correctly says 'the asymptote caps e2e speedup at 1.69x', so the prose uses 1.69 as both 'e2e MFU' (wrong) and 'e2e speedup' (right). The conclusion is unaffected \u2014 the report acknowledges '-> 1.0 only if g->1', i.e. e2e MFU = V x speedup = 0.60 x 1.69 ~ 1.0 capped at 1.0 \u2014 but the mislabel in the load-bearing mechanism paragraph is confusing.",
+     "evidence": "V/(1-g) with V=0.60, g=0.646 = 1.6949 (computed). An MFU cannot exceed 1.0. The expression V/(g/s + 1-g) as s->inf approaches V/(1-g)=1.69, which is the speedup-times-base, i.e. the speedup ceiling, not an MFU.",
+     "suggested_fix": "Reword to: 'an infinitely fast FP8 GEMM gives e2e speedup <= 1/(1-g) = 1.69x, i.e. e2e MFU -> min(1.0, V*1.69) = 1.0 only as g->1.' Do not call 1.69 an 'e2e MFU'."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Integrity (line 102-105): 'no successor artifact created ... no monkeypatch, no plugin path ... Scratch only in mfu_lane2/' and item (g) git cleanliness",
+     "problem": "The cipher_rt_phase4 repo is fully clean (no git objects newer than 11:20, HEAD b2304d3 unchanged, anchor md5 2edba0d2 unchanged). However the cipher-fusion-evidence repo has 24 loose blob objects and a touched .git/index newer than 11:20. These are NOT disclosed in the report. Investigation: they are blobs (not commits), HEAD is unchanged (a15e59b, dated 2026-06-05), no new commit, no stash (git stash list empty), and mfu_lane2/ remains untracked ('??'). The blob content is unrelated prior-session material (phase_c consumer logs '[cipher_v2] GREEN/CP54...' and a models JSON), consistent with a git add/status stat-refresh of pre-existing modified files, not a write from this run's mfu_lane2 work. No integrity violation, but it should be disclosed rather than the blanket 'Scratch only in mfu_lane2/' implying zero git-side writes.",
+     "evidence": "find .git/objects -newermt '2026-06-10 11:20' => 24 loose blobs; .git/index touched. git cat-file -t = blob for sampled objects; content = phase_c GREEN/CP54 logs (unrelated to FP8/mfu_lane2). HEAD a15e59b unchanged; anchor 2edba0d2 unchanged; no stash; mfu_lane2 untracked.",
+     "suggested_fix": "Add one sentence to Integrity: 'No new commit/stash; HEAD and anchor unchanged. (N loose objects/index touched in cipher-fusion-evidence/.git are stat-refresh of pre-existing unrelated modified files, not this run's output.)'"
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Pre-reg diffs (line 99): 'The STOP outcome itself was pre-registered as the no-auto-degrade branch' and the 'binding no-auto-degrade gate (Phase 0c)' quoted at lines 6-7",
+     "problem": "The specific Phase-0 GO/NO-GO gate structure and its numeric threshold ('if iso-clock lands materially below 85% ... STOP, surface to Anil ... do not build the kernel into a ceiling that misses') appear ONLY in the report itself and phase0_result.json \u2014 there is no independent Lane-2 PREREG artifact that pre-registers this gate before measurement. The gate-0 handoff (mfu_lane2_gate0/GATE0_REPORT line 108) named the next step as 'build the quality-passing rowwise kernel', i.e. the prior plan was to BUILD, not to run a GO/NO-GO gate. The no-auto-degrade DISCIPLINE is genuinely a long-standing, repeatedly-pre-registered campaign principle (mfu_lane1/PREREG.md, gate-0 'no silent scope cut'), so the STOP is consistent with prior commitments; but the claim that this specific numeric gate was 'pre-registered' is not independently corroborable \u2014 the gate is co-located with the result it justifies.",
+     "evidence": "grep for 'if iso-clock lands materially below 85'/'Phase 0c'/'do not build the kernel into a ceiling' outside the report => only phase0_result.json. No mfu_lane2/PREREG.md exists. mfu_lane2_gate0/GATE0_REPORT line 108: 'Next step (Lane 2 proper): build the quality-passing ... rowwise E4M3 kernel'.",
+     "suggested_fix": "Soften line 99 to: 'The STOP followed the standing no-auto-degrade discipline (mfu_lane1/PREREG.md); the specific Phase-0 GO/NO-GO threshold was a gate I imposed once the iso-clock proxy was available, not a separately pre-registered numeric trigger.' This does not weaken the STOP, which rests on direct measurement."
+    }
+   ],
+   "checks_passed": [
+    "(a) Frozen anchor md5 == 2edba0d2136f8ede4713d90a8f7cd55f confirmed NOW via md5sum on /home/ubuntu/cipher_rt_phase4/libcipher_rt.so",
+    "(a) No successor .so built: find libcipher*.so -newermt '2026-06-10 11:20' returned empty; newest libcipher_rt.so is the 2026-06-01 anchor (mtime 15:23, byte-identical md5)",
+    "(b) Both clock regimes reported on every MFU number \u2014 report table (lines 44-45) has iso-clock AND default-clock columns for both vanilla and FP8 arms; verdict cites both 0.80 iso and 0.83 default",
+    "(b) No config claimed as a target-meeting deliverable; STOP-before-quality (no PPL run) is honest because no config is asserted to pass the speed bar, so quality need not be proven",
+    "(b) Report MFU table values match JSONs: iso-clock vanilla 0.603/0.602 == isoL_vanilla, iso-clock FP8 0.812/0.800 == isoL_fp8, default vanilla 0.602/0.599 == iso_vanilla (FP8 default cell has a minor transcription error, flagged)",
+    "(c) Default-clock 0.828 power-relief framed as real-but-still-missing (line 49-51: 'a real product benefit ... but it is still below 85%, and it is the per-tensor quality-failing path'); correctly disentangles gate-0's flagged power-relief confound",
+    "(d) STOP surfaced to Anil with 6 explicit options; 'No silent scope cut' stated twice (lines 12, 74); no silent degrade",
+    "(e) Per-tensor-is-a-PROXY-for-rowwise caveat clear: per-tensor repeatedly labeled 'FAILS PPL bar'/'quality-failing'; rowwise (per-channel-W + per-token-A E4M3) confirmed as the only PPL-passing scheme per LANE2_KERNEL_CONTRACT.md; 'strictly slower' argument mechanically sound (rowwise adds per-token amax + per-channel scale epilogue)",
+    "(f) No leftover compute procs: nvidia-smi --query-compute-apps empty; no iso_bench/relock loop running (pgrep clean)",
+    "(f) Clocks reset: GPU idle (SM 345 MHz, power 71W, util 0%), applications clocks back to default 1980 MHz (not pinned) \u2014 -rgc applied",
+    "(g) cipher_rt_phase4 git clean: no objects newer than 11:20, HEAD b2304d3 unchanged, no stash",
+    "(h) Scratch confined to mfu_lane2/: find cipher-fusion-evidence -newermt '2026-06-10 11:20' -not -path mfu_lane2 -not -path .git returned only the parent dirs themselves (no stray files)",
+    "Math verification: implied per-tensor FP8 GEMM speedup 1.61x reproduces from s=g/(1/1.323-(1-g)) at g=0.646; Amdahl table 0.736/0.792/0.842/0.886 reproduces; clock-norm 0.8058*1440/1455=0.7975 reproduces; e2e speedup 1.323 reproduces",
+    "Control cleanliness: vanilla arm has 0 cipher/FP8/engage lines (only a pynvml deprecation warning); FP8 arm shows exactly 5 ENGAGED shapes matching real Mistral-7B linears (qkv 6144, o 4096, gate_up 28672, down k=14336, lm_head 32000)",
+    "gemm_share g=0.646 provenance solid: from mfu_audit/e3_nongemm_share.json top_kernels (nvjet rebucketed as GEMM, 97.8% coverage), used as a conservative LOWER bound (higher g would make 85% look more reachable, so the choice is against-interest)",
+    "Harness iso_bench.py is read-only: clean vLLM with VLLM_PLUGINS='' substrate-line guard, enforce_eager=True, no .so write, no monkeypatch, no vLLM-source edit",
+    "STOP logic robust to g uncertainty: the direct iso-clock measurement of the FAST per-tensor path (0.797 < 0.85) already misses regardless of g; the closed-form 1.61x-vs-1.8-2.0x is corroborating not load-bearing"
+   ]
+  }
+ ]
+}

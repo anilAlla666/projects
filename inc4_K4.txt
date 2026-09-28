@@ -1,0 +1,11 @@
+[inc4] loading M=4 models, K=4 resident (ALL FIT -> swap INACTIVE)
+[inc4] warm: ['qwen2', 'llama', 'llama1b', 'tiny'] resident. HBM free=40.5GB
+[inc4] trace: 100 agents, model-mix={'qwen2': 47, 'llama1b': 20, 'llama': 22, 'tiny': 11}, regimes={'short': 50, 'long': 50}
+=== INC-4 RESULT (K=4, swap INACTIVE/all-resident) ===
+  CORRECTNESS (live, all 100 served agents): exact=85 near-tie=6 FAULT=9  FAIL [(17, 'qwen2', 22, 1.359375), (49, 'qwen2', 22, 1.359375), (60, 'qwen2', 94, 1.796875), (64, 'qwen2', 22, 1.359375), (66, 'qwen2', 90, 2.0390625)]
+  MISROUTE neg-control: tie (NOT DETECTED)
+  AGENTS-PER-GPU: 100/100 served, 4 distinct models, 4 resident; HBM free=40.4GB
+  COALESCING: 27 waves, mean wave=3.70/8; SWAPS=0 (INACTIVE); re-captures=27
+  P99 LATENCY: short p50=1648ms p99=3417ms (n=50) | long p50=6160ms p99=11161ms (n=50)
+  COST: re-capture 93ms/wave; decode 863ms/wave; lockstep waste=1445/11024 (13%)
+[GATE inc4 K=4] correctness=FAIL misroute=FAIL served=100/100 -> FAIL

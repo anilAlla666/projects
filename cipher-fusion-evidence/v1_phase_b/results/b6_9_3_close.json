@@ -1,0 +1,118 @@
+{
+  "campaign": "V1 Phase B B.6''.9.3 close - Path β.3: NR 27 CIPHER_REGISTER_MODEL gated off via CDI env",
+  "date": "2026-05-26",
+  "anil_adjudication": "Path β.3 (env-gate NR 27 off; v1.x KASAN root-cause + re-enable) - selected after B.6''.9.3 architectural audit revealed NR 27 has ZERO v1 consumers (SC6 uses NRs 21-24 ARENA only; substrate has no NR 27 refs; cipher_model_uuid() accessor has no readers; CIPHER_KVDEDUP defaults off). Path Z rejected (vLLM-V1-specific detection drift); Path α deferred (KASAN out of B.6''.9 envelope, ~6-9 ED + Memory #20 regression protocol).",
+  "memory_9_moat_preservation": "Memory #9 moat is at the CUDA driver dispatch boundary: cuBLAS GOT patch + ATen SDPA dispatcher + dlsym hook + 17 cuBLAS-Lt variant trampolines + per-stream tenant resolution (NR 29) + kmod weight arena (NRs 21-24) + CUPTI launch observation. NR 27 model_uuid is NOT in the moat — it is a forward-looking cross-model dedup hash differentiator for the (default-off in v1) CIPHER_KVDEDUP path. Gating NR 27 off does not touch moat boundary; substrate remains framework-agnostic.",
+  "memory_20_abi_discipline": "cipher_kmod UNCHANGED at 8c643fc tag week-13-14-complete. cipher_rt_phase4 UNCHANGED at 78bfded tag v1-substrate-cuda13-cublaslt-coverage. cipher_vllm_kv.py UNCHANGED at md5 b89a9b6e (plugin already reads CIPHER_REGISTER_MODEL env gate; bisect Test 1B-6/1B-7 verified). Single additive change at CDI env layer only.",
+  "audit_findings": {
+    "nr27_callers_in_v1": [
+      "cipher_vllm_kv plugin _register_model_with_kmod (the ONE caller; gated off via CIPHER_REGISTER_MODEL=0)"
+    ],
+    "nr27_non_callers_verified": [
+      "SC6 producer sc6_producer.py — uses sc5_arena_ioctl (NRs 21-24 ARENA only)",
+      "SC6 consumer sc6_consumer.py — uses sc5_arena_ioctl (NRs 21-24 ARENA only)",
+      "sc5_arena_ioctl.py — exports NRs 21-24 only",
+      "substrate libcipher_rt.so — no NR 27 references",
+      "cipher_kv_bridge.cpp — no NR 27 references",
+      "cipher_rt_kv_alloc.c — model_uuid path only on CIPHER_KVDEDUP=1 (default off in v1)",
+      "cipher_model_uuid() Python accessor — no readers anywhere in plugin + substrate"
+    ],
+    "conclusion": "NR 27 model_uuid is forward-looking v1.x/Phase-E infrastructure for cross-model dedup. v1 has ZERO consumers. Gating off has zero customer-observable impact."
+  },
+  "execution": {
+    "step1_cdi_env_extension": {
+      "file_changed": "v1_phase_b/packaging/cipher_cdi_patch.py CIPHER_ENV (line 237-243 → added CIPHER_REGISTER_MODEL=0 entry; comment block expanded with B.6''.9.3 rationale)",
+      "test_added": "v1_phase_b/packaging/tests/test_cipher_cdi_patch.py case_xiv_b6_9_3_register_model_gate — asserts CIPHER_REGISTER_MODEL=0 in env on apply, removed on revert",
+      "test_suite_result": "13/13 PASS (12 pre-existing + 1 new xiv)",
+      "kmod_unchanged": true,
+      "substrate_unchanged": true,
+      "plugin_unchanged": true
+    },
+    "step2_deb_rebuild_install": {
+      "deb_path": "/tmp/cipher-deb-build/cipher-platform_2.0_amd64.deb",
+      "deb_md5_rev6": "7c7068ca7935f40b01b69326e337dacf",
+      "deb_md5_rev5_supersession": "e0439428 SUPERSEDED",
+      "install_result": "PASS - dpkg -i clean install",
+      "cipher_platform_verify_rc": 0,
+      "cdi_yaml_grep": "/var/run/cdi/nvidia.yaml contains '- CIPHER_REGISTER_MODEL=0'",
+      "changelog_entry": "B.6''.9.3 rev6 (Path β.3, 2026-05-26): CIPHER_REGISTER_MODEL=0 added to CDI env list"
+    },
+    "step3_crashfree_verify": {
+      "container": "vllm/vllm-openai:v0.21.0",
+      "test": "cipher_crash_trace.py (LLM(model=TinyLlama-1.1B, enforce_eager=True))",
+      "envs": "VLLM_ENABLE_V1_MULTIPROCESSING=0 + PYTHONFAULTHANDLER=1 (default config, no CIPHER overrides)",
+      "result": "PASS - LLM LOADED reached; clean exit 0",
+      "plugin_register_model_log": "[cipher-vllm-kv] REGISTER_MODEL gate off — uuid stays MODEL_UNKNOWN",
+      "plugin_register_streams_log": "[cipher-vllm-kv] REGISTER_STREAMS no named streams enumerated; default tenant=0 fallback",
+      "plugin_vmm_allocator_log": "[cipher-vllm-kv] VMM allocator init: VA pool 51 GiB via compute_va_gib(hf_config) (tenant=0); KV buffers owned by CIPHER VMM: 22 tensor(s), slabs_created=22, pages_mapped=18744, resident=36.61 GiB",
+      "substrate_cublas_log": "[cipher_v2] CUBLAS-SHIM: real cublasGemmEx=0x... resolved",
+      "substrate_got_patch_log": "[cipher_v2] GOT: patch applied -- 13 slot(s) across 303 module(s); 7 target(s) registered",
+      "substrate_diag": "MATMUL exit totals calls=178 passthrough=178; DIAG total_launches=974",
+      "evidence_file": "v1_phase_b/results/b6_9_3_step3_crashfree_rev6.txt"
+    },
+    "step4_sc6_regression": {
+      "model": "Mistral-7B",
+      "n_consumers": 4,
+      "container": "vllm/vllm-openai:v0.21.0",
+      "shared_phase": {
+        "arena_id": 1,
+        "fb_loaded_mib": 17632,
+        "fb_idle_mib": 0,
+        "fb_exited_mib": 0,
+        "n_consumers_post_sigkill": 4,
+        "bit_identical_pre": [true, true, true, true],
+        "bit_identical_post": [true, true, true, true],
+        "arena_backed": [true, true, true, true],
+        "all_7_checks_pass": true,
+        "PASS": true
+      },
+      "independent_phase": {
+        "n_fit": 5,
+        "oom": false,
+        "fb_loaded_mib": 73392,
+        "per_tenant_mib": 14678.4,
+        "PASS": true
+      },
+      "aggregate": {
+        "savings_mib": 55760,
+        "savings_pct_at_N4": 76.0,
+        "calculation": "(73392 - 17632) / 73392 = 75.97% → 76.0%"
+      },
+      "memory_28_baseline_match": "EXACT (76.0% == Track 2 closeout 2026-05-19 == B.6''.8 rev5 baseline)",
+      "verdict": "PASS - SC6 weight-sharing semantics unchanged under rev6 CDI env extension. NR 27 gating does not touch the ARENA NRs 21-24 path that SC6 actually uses."
+    }
+  },
+  "anchors_at_close": {
+    "cipher_rt_phase4": "78bfded UNCHANGED (tag v1-substrate-cuda13-cublaslt-coverage)",
+    "cipher_kmod": "8c643fc UNCHANGED (tag week-13-14-complete)",
+    "cipher_vllm_kv_py_md5": "b89a9b6e UNCHANGED",
+    "cipher_platform_deb": "rev5 e0439428 → rev6 7c7068ca (single CDI env entry added)",
+    "cipher_kv_bridge_so_md5": "5a3db034 UNCHANGED (CUDA 13)",
+    "libcipher_v2_so_md5": "cc0479b8 UNCHANGED",
+    "kmod_dkms_version": "0.6.5 UNCHANGED"
+  },
+  "honest_residue_for_scope_lock_section_15": [
+    "item 9 (NEW): NR 27 CIPHER_REGISTER_MODEL kmod/mmap interaction bug — v1.x KASAN root-cause + targeted kmod fix per Memory #20 regression protocol. NR 27 has zero v1 consumers (audit B.6''.9.3); gating off has no customer impact.",
+    "item 10 (NEW): cross-model KV-dedup via model_uuid differentiation deferred to v1.x (requires NR 27 re-enable per item 9 + CIPHER_KVDEDUP=1 default flip). Same-model KV-dedup (model-uuid-agnostic, Week 5 path) is unaffected and remains live."
+  ],
+  "what_did_not_change": {
+    "memory_9_moat": "framework-agnostic driver-API substrate boundary unchanged (cuBLAS GOT + dlsym hook + 17 trampolines + ATen SDPA + CUPTI + NRs 21-24 ARENA + NR 29 REGISTER_STREAMS)",
+    "memory_20_abi": "no kmod modification; NR 27 ioctl path itself preserved in kmod for v1.x re-enable",
+    "track_2_weight_sharing": "76.0% Mistral-7B N=4 baseline EXACT reproduce under rev6",
+    "substrate_kv_ownership": "VMM allocator + 22 tensor KV ownership intact under rev6 (Step 3 log)",
+    "register_streams_path": "REGISTER_STREAMS (NR 29) untouched; bisect Test 1B-7 confirmed clean",
+    "customer_facing_surface": "Goal 5 contract preserved at zero customer env vars (CDI injects all; ledger row updated)"
+  },
+  "carry_forward_for_b6_9_4_measurement": "Once Anil approves close, B.6''.9.4 re-measurement proceeds. Substrate sees vLLM workload via cipher_vllm_kv VMM allocator + KV buffer ownership + Step 4 per-token AUDIT hook on execute_model (which fires regardless of REGISTER_MODEL gate per cipher_vllm_kv.py source). H2 graph-replay blind spot (substrate's CUPTI doesn't observe graph replay) still applies; B.6''.9.8 driver-API substrate work remains the gap-closing path for that.",
+  "discipline_preserved": {
+    "memory_9": "framework-agnostic substrate — no vLLM-V1-specific code added (Path Z artifact preserved as v1.x reference)",
+    "memory_11": "no auto scope-degrade — Path β.3 IS NOT a scope-down on v1 customer functionality because NR 27 has zero v1 consumers",
+    "memory_20": "kmod ABI additive only; NR 27 path preserved; gating is env-layer not ABI-layer",
+    "cipher_proceed_not_ask": "detailed spec + explicit 'Proceed' → executed and documented without clarifying questions"
+  },
+  "preserved_artifacts_for_v1x": {
+    "path_z_subprocess_wrapper": "/tmp/cipher_vllm_kv_pathz.py + /tmp/cipher_vllm_kv_register_subproc.py (v1.x reference if KASAN root-cause prefers subprocess-pattern over targeted kmod fix)",
+    "asan_diagnostic_builds": "build_asan + build_py312_asan (v1.x KASAN follow-up audit trail; demonstrates bug is OUTSIDE userspace ASan coverage)"
+  },
+  "next_step": "B.6''.9.4 re-measurement (vLLM workload visibility under rev6) — HOLD for Anil 'proceed to B.6''.9.4' signal"
+}

@@ -1,0 +1,58 @@
+{
+ "torch_prefill": {
+  "metric": "MFU",
+  "vanilla_reps": [
+   0.4858839015592551,
+   0.485696055526236,
+   0.4858437950481229
+  ],
+  "engaged_reps": [
+   0.4771000730262471,
+   0.47765677736459755,
+   0.47991949728140215
+  ],
+  "vanilla_med": 0.4858437950481229,
+  "engaged_med": 0.47765677736459755,
+  "tax_pct": 1.69
+ },
+ "vllm_prefill": {
+  "metric": "MFU",
+  "vanilla_reps": [
+   0.6009015959980782,
+   0.5987749187591659,
+   0.6001917399775604
+  ],
+  "engaged_reps": [
+   0.5943675208082914,
+   0.5966252943548501,
+   0.5950429935692962
+  ],
+  "vanilla_med": 0.6001917399775604,
+  "engaged_med": 0.5950429935692962,
+  "tax_pct": 0.86
+ },
+ "lora_train": {
+  "metric": "s/step (+MFU)",
+  "vanilla_sstep_reps": [
+   0.13913743617013097,
+   0.14143644785508513,
+   0.14008833654224873
+  ],
+  "engaged_sstep_reps": [
+   0.3505507989320904,
+   0.3494561405386776,
+   0.3542516401503235
+  ],
+  "vanilla_sstep_med": 0.14008833654224873,
+  "engaged_sstep_med": 0.3505507989320904,
+  "tax_pct_time": 150.24,
+  "slowdown_x": 2.5,
+  "vanilla_mfu_med": 0.1069928188579305,
+  "engaged_mfu_med": 0.042756844547021625,
+  "engaged_stderr_devnull_sstep": 0.34273728844709694,
+  "logging_io_share": "negligible (0.343 file vs 0.343 /dev/null)"
+ },
+ "mechanism": "per-launch CUPTI+classify overhead; gates launch-DENSE phases (train ~2.5x like decode 1.9x), NOT launch-sparse large-GEMM prefill (~1-2%)",
+ "engagement_state": "loaded+classifying (DISPATCH LIVE=1, substrate lines>0), zero actuators (VOLT=off, FP8/MARLIN DISABLED, 0 ENGAGED/substitution/handled)",
+ "segfault_note": "engaged torch+train segfault at PROCESS TEARDOWN (anchor destructor x injection exit ordering) AFTER timed window + result JSON written; measurement unaffected; vLLM worker SIGKILLed so moot"
+}

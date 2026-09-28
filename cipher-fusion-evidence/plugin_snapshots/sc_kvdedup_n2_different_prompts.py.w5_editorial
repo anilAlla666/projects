@@ -1,0 +1,180 @@
+"""Week 5 Step 3.E — N=2 DIFFERENT-prompt false-positive guard.
+
+Per Step 1 design memo Part F.3: ensure that xxh64 + memcmp doesn't
+false-positive collide on unrelated real content. Two TinyLlama
+tenants with very different system prompts; expect ~zero hits on
+content pages (zero-page hits are allowed/expected because both
+tenants pre-allocate the same zero KV slabs).
+
+Gate: hits attributable to content pages must be ≤ 1% of content pages."""
+import json, os, signal, subprocess, sys, time
+HERE = os.path.dirname(os.path.abspath(__file__))
+OUT_DIR = "/tmp/week5_step3_4_n2_diff"
+os.makedirs(OUT_DIR, exist_ok=True)
+
+for f in os.listdir(OUT_DIR):
+    os.remove(os.path.join(OUT_DIR, f))
+for t in (1, 2):
+    for f in (f"/tmp/cipher_kvdedup_pid_t{t}.txt",
+              f"/tmp/cipher_kvdedup_result_t{t}.json"):
+        if os.path.exists(f):
+            os.remove(f)
+
+
+def gpu_mem_used_mib():
+    out = subprocess.check_output(
+        ["nvidia-smi", "--query-gpu=memory.used",
+         "--format=csv,noheader,nounits"])
+    return int(out.decode().split("\n")[0].strip())
+
+
+def wait_for(path, timeout=240):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if os.path.exists(path):
+            return True
+        time.sleep(0.2)
+    return False
+
+
+# Two very different prompts — same length to keep KV-page layout comparable.
+# Padded with content-rich material (not whitespace) to fill multiple
+# 2 MiB pages per layer.
+PROMPT_A = ("The CIPHER substrate provides cross-tenant key-value cache "
+            "deduplication via a kernel-resident refcount table and content-"
+            "addressable physical pages. Each 2 MiB page is hashed using "
+            "xxhash64; collisions are verified with full-page memcmp. " * 24)
+PROMPT_B = ("In the heart of the ancient forest stood a magnificent oak tree "
+            "whose branches reached toward the heavens like outstretched arms "
+            "of a giant. The leaves whispered secrets carried on the breeze "
+            "from distant mountains where eagles soared. " * 30)  # different cadence
+
+# Write a custom worker file that takes a prompt env var
+WORKER_SRC = '''
+import argparse, json, os, signal, sys, time
+p = argparse.ArgumentParser()
+p.add_argument("tenant_num", type=int)
+p.add_argument("out_dir")
+args = p.parse_args()
+os.environ["CIPHER_KV_ALLOC"]    = "1"
+os.environ["CIPHER_KVDEDUP"]     = "1"
+os.environ["CIPHER_TENANT_NUM"]  = str(args.tenant_num)
+prompt = os.environ["CIPHER_DIFFPROMPT_TEXT"]
+print(f"[t{args.tenant_num}] prompt[:60]={prompt[:60]!r}")
+import vllm
+llm = vllm.LLM(model="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+               max_model_len=2048, gpu_memory_utilization=0.20,
+               enforce_eager=True)
+out = llm.generate([prompt], vllm.SamplingParams(max_tokens=16, temperature=0))
+tokens = list(out[0].outputs[0].token_ids)
+with open(os.path.join(args.out_dir, f"t{args.tenant_num}_ready.txt"), "w") as f:
+    f.write(f"{os.getpid()}\\n")
+    f.write(",".join(str(t) for t in tokens) + "\\n")
+done_file = os.path.join(args.out_dir, f"t{args.tenant_num}_done.signal")
+while not os.path.exists(done_file): time.sleep(0.2)
+'''
+worker_path = os.path.join(OUT_DIR, "_diff_worker.py")
+open(worker_path, "w").write(WORKER_SRC)
+
+print(f"GPU mem pre: {gpu_mem_used_mib()} MiB")
+procs = {}
+prompts = {1: PROMPT_A, 2: PROMPT_B}
+for t in (1, 2):
+    log_path = os.path.join(OUT_DIR, f"t{t}.log")
+    log_f = open(log_path, "w")
+    env = {**os.environ, "PYTHONUNBUFFERED": "1",
+           "CIPHER_DIFFPROMPT_TEXT": prompts[t]}
+    p = subprocess.Popen(
+        ["/home/ubuntu/vllm_env/bin/python", worker_path,
+         str(t), OUT_DIR],
+        stdout=log_f, stderr=subprocess.STDOUT, env=env)
+    procs[t] = (p, log_f)
+    print(f"launched tenant {t} (prompt {chr(64+t)}) as pid {p.pid}")
+    if not wait_for(os.path.join(OUT_DIR, f"t{t}_ready.txt"), 300):
+        print(f"FAIL: t{t}_ready timeout")
+        for tt, (pp, lf) in procs.items():
+            try: pp.kill()
+            except: pass
+            lf.close()
+        subprocess.run(["pkill", "-9", "-f", "_diff_worker"], stderr=subprocess.DEVNULL)
+        subprocess.run(["pkill", "-9", "-f", "EngineCore"], stderr=subprocess.DEVNULL)
+        time.sleep(3)
+        sys.exit(1)
+    print(f"  tenant {t} ready (GPU mem: {gpu_mem_used_mib()} MiB)")
+
+# Read tokens
+t1_tokens = open(os.path.join(OUT_DIR, "t1_ready.txt")).read().splitlines()[1]
+t2_tokens = open(os.path.join(OUT_DIR, "t2_ready.txt")).read().splitlines()[1]
+print(f"\nt1 tokens: {t1_tokens[:80]}")
+print(f"t2 tokens: {t2_tokens[:80]}")
+different_decode = (t1_tokens != t2_tokens)
+print(f"decodes are different (sanity): {different_decode}")
+
+# Flush
+print("\nflushing tenants (different-prompt scenario)...")
+results = {}
+for t in (1, 2):
+    t_pid = int(open(f"/tmp/cipher_kvdedup_pid_t{t}.txt").read().strip())
+    os.kill(t_pid, signal.SIGUSR1)
+    if not wait_for(f"/tmp/cipher_kvdedup_result_t{t}.json", 240):
+        print(f"FAIL: t{t} flush timeout")
+        sys.exit(1)
+    r = json.load(open(f"/tmp/cipher_kvdedup_result_t{t}.json"))
+    results[t] = r
+    print(f"  t{t}: pages={r['pages_processed']} hits={r['hits_on_flush']} "
+          f"misses={r['misses_on_flush']} phys={r['post_physical_pages']} "
+          f"virt={r['post_virtual_pages']}")
+
+# Tell workers to exit
+for t in (1, 2):
+    open(os.path.join(OUT_DIR, f"t{t}_done.signal"), "w").write("done\n")
+for t, (p, lf) in procs.items():
+    p.wait(timeout=30); lf.close()
+
+# Week 5 editorial fix (post-3.E diagnostic, 2026-05-21):
+#
+# The previous metric `content_misses_dropped = t1_misses - t2_misses`
+# conflated **legitimate zero-page sharing** (t1 registers the all-zero
+# KV page first; t2's zero-pages dedup against it — correct, beneficial)
+# with **content false-positives** (t2's content-pages coincidentally
+# colliding with t1's content-pages — a bug if it ever happened).
+#
+# Per WEEK_5_3E_DIAGNOSTIC.md, the post-close diagnostic confirmed:
+#   - shared registered hashes (t1∩t2 reg): 0 (no cross-tenant content collision)
+#   - t1-registered hashes that t2 hit: 1 (the all-zero page only)
+#   - t2's 6512 hits ALL match a single hash: eb8a7322f88e23db = xxh64(2 MiB zeros)
+#
+# Fixed metric: net content false-positives = max(0, t2_total_hits -
+# t2_zero_page_hits). Without per-page hash visibility in the plugin
+# (the diagnostic instrumentation was reverted post-investigation),
+# the simplest valid proxy is:
+#   net_content_fp = max(0, (t1_misses - t2_misses) - zero_page_offset)
+# where zero_page_offset = 1 — accounts for the single zero-page that
+# t1 registers and t2 doesn't need to (a beneficial sharing, not a FP).
+
+ZERO_PAGE_OFFSET = 1   # the single all-zero KV physical page t1 registered first
+
+t1_misses = results[1]["misses_on_flush"]
+t2_misses = results[2]["misses_on_flush"]
+content_misses_dropped_raw = max(t1_misses - t2_misses, 0)
+content_fp_estimate = max(0, content_misses_dropped_raw - ZERO_PAGE_OFFSET)
+content_denominator = max(t1_misses - ZERO_PAGE_OFFSET, 1)  # exclude zero-page from denom too
+false_positive_rate = content_fp_estimate / content_denominator
+
+print(f"\n== Step 3.E false-positive analysis (post-diagnostic editorial) ==")
+print(f"  t1 misses (PROMPT_A unique pages registered, incl. zero-page):  {t1_misses}")
+print(f"  t2 misses (PROMPT_B unique pages registered, excl. zero-page):  {t2_misses}")
+print(f"  raw misses_dropped (= 1 zero-page + N content FPs):             {content_misses_dropped_raw}")
+print(f"  zero-page offset (constant; the all-zero KV page t1 owns):      {ZERO_PAGE_OFFSET}")
+print(f"  content FP estimate (raw - zero-page offset):                   {content_fp_estimate}")
+print(f"  content denominator (t1 content pages, excl. zero):             {content_denominator}")
+print(f"  content false-positive rate:                                    {false_positive_rate*100:.2f}%")
+
+# Gate: content FP rate <= 1% on content pages
+# Zero-page sharing is the load-bearing dedup mechanism, NOT a FP
+# (it's where ~all the cross-tenant HBM savings come from per Step 2's
+# 42 GiB measurement).
+verdict = (false_positive_rate <= 0.01 and different_decode)
+print(f"\nSTEP 3.E VERDICT: {'PASS' if verdict else 'FAIL'}  "
+      f"(content FP rate {false_positive_rate*100:.2f}% vs 1.00% threshold)")
+sys.exit(0 if verdict else 1)

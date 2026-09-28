@@ -1,0 +1,106 @@
+/home/ubuntu/.local/lib/python3.10/site-packages/torch/cuda/__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+(EngineCore pid=3304469) Loading safetensors checkpoint shards:   0% Completed | 0/2 [00:00<?, ?it/s]
+(EngineCore pid=3304469) Loading safetensors checkpoint shards:  50% Completed | 1/2 [00:02<00:02,  2.20s/it]
+(EngineCore pid=3304469) Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:03<00:00,  1.56s/it]
+(EngineCore pid=3304469) Loading safetensors checkpoint shards: 100% Completed | 2/2 [00:03<00:00,  1.66s/it]
+(EngineCore pid=3304469) 
+[probe] FINAL gemmEx=0 instantiate=0 nodes=0 kernel=0 matches=0
+[probe] instantiate #1: nodes=4 kernel_nodes=4 C-ptr-matches=0 (logged C so far=258, capturing=0)
+(EngineCore pid=3304469) Process EngineCore:
+(EngineCore pid=3304469) Traceback (most recent call last):
+(EngineCore pid=3304469)   File "/usr/lib/python3.10/multiprocessing/process.py", line 314, in _bootstrap
+(EngineCore pid=3304469)     self.run()
+(EngineCore pid=3304469)   File "/usr/lib/python3.10/multiprocessing/process.py", line 108, in run
+(EngineCore pid=3304469)     self._target(*self._args, **self._kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 1140, in run_engine_core
+(EngineCore pid=3304469)     raise e
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 1110, in run_engine_core
+(EngineCore pid=3304469)     engine_core = EngineCoreProc(*args, engine_index=dp_rank, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=3304469)     return func(*args, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 876, in __init__
+(EngineCore pid=3304469)     super().__init__(
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 128, in __init__
+(EngineCore pid=3304469)     kv_cache_config = self._initialize_kv_caches(vllm_config)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+(EngineCore pid=3304469)     return func(*args, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/engine/core.py", line 250, in _initialize_kv_caches
+(EngineCore pid=3304469)     available_gpu_memory = self.model_executor.determine_available_memory()
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/executor/abstract.py", line 147, in determine_available_memory
+(EngineCore pid=3304469)     return self.collective_rpc("determine_available_memory")
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/executor/uniproc_executor.py", line 80, in collective_rpc
+(EngineCore pid=3304469)     result = run_method(self.driver_worker, method, args, kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/serial_utils.py", line 510, in run_method
+(EngineCore pid=3304469)     return func(*args, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=3304469)     return func(*args, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/worker/gpu_worker.py", line 385, in determine_available_memory
+(EngineCore pid=3304469)     cudagraph_memory_estimate = self.model_runner.profile_cudagraph_memory()
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=3304469)     return func(*args, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/worker/gpu_model_runner.py", line 5992, in profile_cudagraph_memory
+(EngineCore pid=3304469)     self._warmup_and_capture(
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/worker/gpu_model_runner.py", line 6163, in _warmup_and_capture
+(EngineCore pid=3304469)     self._dummy_run(
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(EngineCore pid=3304469)     return func(*args, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/worker/gpu_model_runner.py", line 5537, in _dummy_run
+(EngineCore pid=3304469)     outputs = self.model(
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/compilation/cuda_graph.py", line 254, in __call__
+(EngineCore pid=3304469)     return self.runnable(*args, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+(EngineCore pid=3304469)     return self._call_impl(*args, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+(EngineCore pid=3304469)     return forward_call(*args, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/models/llama.py", line 577, in forward
+(EngineCore pid=3304469)     model_output = self.model(
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/compilation/decorators.py", line 480, in __call__
+(EngineCore pid=3304469)     return self.aot_compiled_fn(self, *args, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/torch/_dynamo/aot_compile.py", line 224, in __call__
+(EngineCore pid=3304469)     return self.fn(*args, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/models/mistral.py", line 217, in forward
+(EngineCore pid=3304469)     def forward(
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/compilation/caching.py", line 215, in __call__
+(EngineCore pid=3304469)     return self.optimized_call(*args, **kwargs)
+(EngineCore pid=3304469)   File "<string>", line 173, in execution_fn
+(EngineCore pid=3304469)   File "<string>", line 6, in __vllm_inlined_submods__1
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/torch/_ops.py", line 1269, in __call__
+(EngineCore pid=3304469)     return self._op(*args, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/attention/kv_transfer_utils.py", line 40, in wrapper
+(EngineCore pid=3304469)     return func(*args, **kwargs)
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/model_executor/layers/attention/attention.py", line 771, in unified_attention_with_output
+(EngineCore pid=3304469)     self.impl.forward(
+(EngineCore pid=3304469)   File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/attention/backends/flash_attn.py", line 720, in forward
+(EngineCore pid=3304469)     return output.fill_(0)
+(EngineCore pid=3304469) torch.AcceleratorError: CUDA error: invalid device function
+(EngineCore pid=3304469) Search for `cudaErrorInvalidDeviceFunction' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
+(EngineCore pid=3304469) CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
+(EngineCore pid=3304469) For debugging consider passing CUDA_LAUNCH_BLOCKING=1
+(EngineCore pid=3304469) Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+(EngineCore pid=3304469) 
+Traceback (most recent call last):
+  File "/home/ubuntu/cipher-fusion-evidence/ra_realvllm/vllm_decode.py", line 12, in <module>
+    llm = LLM(model=MODEL, enforce_eager=EAGER, gpu_memory_utilization=0.85, max_model_len=2048,
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/entrypoints/llm.py", line 381, in __init__
+    self.llm_engine = LLMEngine.from_engine_args(
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/engine/llm_engine.py", line 170, in from_engine_args
+    return cls(
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/engine/llm_engine.py", line 104, in __init__
+    self.engine_core = EngineCoreClient.make_client(
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/engine/core_client.py", line 101, in make_client
+    return SyncMPClient(vllm_config, executor_class, log_stats)
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/tracing/otel.py", line 178, in sync_wrapper
+    return func(*args, **kwargs)
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/engine/core_client.py", line 723, in __init__
+    super().__init__(
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/engine/core_client.py", line 535, in __init__
+    with launch_core_engines(
+  File "/usr/lib/python3.10/contextlib.py", line 142, in __exit__
+    next(self.gen)
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/engine/utils.py", line 1119, in launch_core_engines
+    wait_for_engine_startup(
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/vllm/v1/engine/utils.py", line 1178, in wait_for_engine_startup
+    raise RuntimeError(
+RuntimeError: Engine core initialization failed. See root cause above. Failed core proc(s): {}
+[probe] FINAL gemmEx=0 instantiate=0 nodes=0 kernel=0 matches=0

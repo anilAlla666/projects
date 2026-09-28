@@ -1,0 +1,179 @@
+"""Phase B Step 4+5 — continuous-batching executor, sub-component 1:
+admission control + FIFO request queue.
+
+Reads a workload JSON (list of requests: prompt_idx, gen_len). Runs a
+continuous-batch decode loop over N_SLOTS: admit from the FIFO queue whenever
+a slot is free, decode, evict finished requests, re-admit. Batch composition
+changes are handled by RE-PREFILL (rebuild the batch from each active
+request's full token sequence) — simplest-correct; no KV splicing, no paged
+attention. Efficiency optimisation (splice survivors instead of re-prefill) is
+a follow-on sub-component.
+
+Correctness: a teacher-forced B=5 forward over the prompts' clean-FP16 gold,
+per-step logit-KL; each completed request inherits its prompt's KL. Plus a
+direct free-run-output vs gold-tokens exact-match check (tests the loop).
+
+Verification artefact, not yet wired to sockets / Poisson arrival — those are
+later sub-components (stream/burst scenarios).
+"""
+import os
+import sys
+import json
+import time
+from collections import deque
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, "/home/ubuntu/cipher_workloads/launch_lib")
+import torch
+import torch.nn.functional as F
+import tenant_register
+
+MODEL = os.environ["WL_MODEL"]
+WORKLOAD = os.environ["WORKLOAD"]
+N_SLOTS = int(os.environ.get("N_SLOTS", "4"))
+GOLD_JSON = os.environ["GOLD_JSON"]
+GOLD_LOGITS = os.environ["GOLD_LOGITS"]
+RESULT = os.environ["RESULT_JSON"]
+
+PROMPTS = [
+    "The Pacific Ocean is the largest ocean on Earth, covering approximately",
+    "Sarah opened the old letter with trembling hands. The handwriting was "
+    "her grandmother's, and the date read",
+    "def quicksort(arr):\n    if len(arr) <= 1:\n        return arr\n"
+    "    pivot =",
+    "If a train leaves Chicago at 3 PM traveling east at 60 mph and another "
+    "leaves New York at 4 PM traveling west at 80 mph,",
+    "User: What are the main differences between supervised and unsupervised "
+    "learning?\nAssistant: The main differences are",
+]
+
+tenant_register.register("cb_exec")
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+tok = AutoTokenizer.from_pretrained(MODEL, trust_remote_code=False)
+if tok.pad_token is None:
+    tok.pad_token = tok.eos_token
+PAD, EOS = tok.pad_token_id, tok.eos_token_id
+m = AutoModelForCausalLM.from_pretrained(
+    MODEL, dtype=torch.float16, attn_implementation="sdpa",
+    trust_remote_code=False).cuda()
+m = m.eval()
+DEV = "cuda"
+PROMPT_TOK = [tok(p, return_tensors="pt").input_ids[0].tolist() for p in PROMPTS]
+gold_meta = {g["prompt"]: g for g in json.load(open(GOLD_JSON))["prompts"]}
+gold_logits = torch.load(GOLD_LOGITS, map_location=DEV)
+
+
+def run_continuous(requests):
+    """Continuous-batch admission loop. Returns completed requests + occupancy."""
+    queue = deque(requests)
+    active = []
+    completed = []
+    step = 0
+    occ = []
+    rebatches = 0
+    while queue or active:
+        while len(active) < N_SLOTS and queue:
+            r = dict(queue.popleft())
+            r.update(gen=[], t_admit=step, t_first=None)
+            active.append(r)
+        # rebatch: rebuild from each active request's full token sequence
+        seqs = [PROMPT_TOK[r["prompt_idx"]] + r["gen"] for r in active]
+        mx = max(len(s) for s in seqs)
+        ids = torch.tensor([[PAD] * (mx - len(s)) + s for s in seqs], device=DEV)
+        am = torch.tensor([[0] * (mx - len(s)) + [1] * len(s) for s in seqs],
+                          device=DEV)
+        rebatches += 1
+        with torch.no_grad():
+            out = m(input_ids=ids, attention_mask=am, use_cache=True)
+        past = out.past_key_values
+        nt = out.logits[:, -1, :].argmax(-1)
+        cache_len = mx
+        while True:
+            for pos, r in enumerate(active):
+                r["gen"].append(int(nt[pos]))
+                if r["t_first"] is None:
+                    r["t_first"] = step
+            step += 1
+            occ.append(len(active))
+            fin = [pos for pos, r in enumerate(active)
+                   if len(r["gen"]) >= r["gen_len"] or r["gen"][-1] == EOS]
+            if fin:
+                break
+            am = torch.cat([am, torch.ones((len(active), 1), device=DEV,
+                                            dtype=am.dtype)], dim=1)
+            with torch.no_grad():
+                out = m(input_ids=nt.unsqueeze(-1), past_key_values=past,
+                        attention_mask=am, use_cache=True,
+                        cache_position=torch.tensor([cache_len], device=DEV))
+            past = out.past_key_values
+            nt = out.logits[:, -1, :].argmax(-1)
+            cache_len += 1
+        for pos in sorted(fin, reverse=True):
+            r = active.pop(pos)
+            r["t_complete"] = step
+            completed.append(r)
+    return completed, occ, rebatches, step
+
+
+def tf_kl(prompt_idx, n):
+    """Teacher-forced per-step KL(gold||substrate) over n positions."""
+    g = gold_meta[prompt_idx]
+    full, plen = g["full_ids"], g["plen"]
+    gen_g = len(full) - plen
+    n = min(n, gen_g)
+    gb = torch.tensor([full], device=DEV)
+    with torch.no_grad():
+        o = m(input_ids=gb)
+    seg = o.logits[0, plen - 1:plen - 1 + n, :]
+    gl = gold_logits[prompt_idx][:n]
+    lp = F.log_softmax(gl.float(), -1)
+    lq = F.log_softmax(seg.float(), -1)
+    ks = (lp.exp() * (lp - lq)).sum(-1)
+    return float(ks.mean()), float(ks.max())
+
+
+wl = json.load(open(WORKLOAD))["requests"]
+t0 = time.time()
+completed, occ, rebatches, total_steps = run_continuous(wl)
+wall = time.time() - t0
+completed.sort(key=lambda r: r["id"])
+
+# correctness: free-run output vs gold tokens, + teacher-forced KL
+kl_by_prompt = {}
+rows = []
+exact_ok = 0
+for r in completed:
+    pi = r["prompt_idx"]
+    if pi not in kl_by_prompt:
+        kl_by_prompt[pi] = tf_kl(pi, 128)
+    klm, klx = kl_by_prompt[pi]
+    gold_gen = gold_meta[pi]["gen_ids"]
+    chk = min(len(r["gen"]), len(gold_gen))
+    match = sum(1 for i in range(chk) if r["gen"][i] == gold_gen[i])
+    exact = match / chk if chk else 0.0
+    if exact >= 0.99:
+        exact_ok += 1
+    rows.append({"id": r["id"], "prompt_idx": pi, "gen_len": r["gen_len"],
+                 "produced": len(r["gen"]), "t_admit": r["t_admit"],
+                 "t_first": r["t_first"], "t_complete": r["t_complete"],
+                 "ttft_steps": r["t_first"] - r["t_admit"],
+                 "exact_vs_gold": round(exact, 4),
+                 "kl_mean": round(klm, 6), "kl_max": round(klx, 6)})
+
+mean_occ = sum(occ) / len(occ) if occ else 0
+res = {"phase": "B", "step": "4+5", "subcomponent": "1-admission-control",
+       "n_slots": N_SLOTS, "n_requests": len(wl), "n_completed": len(completed),
+       "total_decode_steps": total_steps, "rebatches": rebatches,
+       "wall_s": round(wall, 2),
+       "mean_batch_occupancy": round(mean_occ, 3),
+       "occupancy_trace": occ,
+       "correctness_exact_ge99_count": exact_ok,
+       "correctness_kl_max": max(r["kl_max"] for r in rows) if rows else None,
+       "requests": rows}
+json.dump(res, open(RESULT, "w"), indent=2)
+print("CB-EXEC n_slots=%d requests=%d completed=%d rebatches=%d steps=%d "
+      "mean_occ=%.2f wall=%.1fs" % (N_SLOTS, len(wl), len(completed),
+      rebatches, total_steps, mean_occ, wall), file=sys.stderr)
+print("CORRECTNESS exact>=99%%: %d/%d   KL_max=%.6f"
+      % (exact_ok, len(rows), res["correctness_kl_max"]), file=sys.stderr)

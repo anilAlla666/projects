@@ -1,0 +1,128 @@
+"""Phase B Build Session 1 — cross-tenant batched-decode executor (N=2).
+
+Architecture Form A (Track 1 design memo): one executor process holds the
+model; tenants are clients submitting decode requests over a Unix socket.
+The executor collects one request per client per round (a static barrier —
+no scheduler yet, per scope), runs ONE B=N batched greedy generate, returns
+each client its row. This fuses N tenants' decode steps into one kernel
+launch sequence — the measured-7.7x-at-B=8 lever, at prototype N=2.
+
+Vanilla FP16 (no Marlin/substrate) — Session 1 measures the batching
+plumbing, not quantization. Correctness: per-row logit-KL vs clean-FP16 gold.
+"""
+import os
+import sys
+import json
+import time
+import socket
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, "/home/ubuntu/cipher_workloads/launch_lib")
+import torch
+import torch.nn.functional as F
+import tenant_register
+from batch_ipc import send_msg, recv_msg
+
+SOCK = os.environ.get("BATCH_SOCK", "/tmp/cipher_batch_exec.sock")
+MODEL = os.environ["WL_MODEL"]
+N_CLIENTS = int(os.environ.get("N_CLIENTS", "2"))
+MAX_NEW = int(os.environ.get("WL_MAX_NEW", "128"))
+GOLD_LOGITS = os.environ["GOLD_LOGITS"]
+RESULT = os.environ["RESULT_JSON"]
+SENTINEL = os.environ.get("SENTINEL", "/tmp/cipher_batch_exec.decode_window")
+N_PROMPTS = 5
+
+tenant_register.register("batch_exec")
+from transformers import AutoTokenizer, AutoModelForCausalLM
+
+tok = AutoTokenizer.from_pretrained(MODEL, trust_remote_code=False)
+if tok.pad_token is None:
+    tok.pad_token = tok.eos_token
+tok.padding_side = "left"          # decoder-only batched generation
+m = AutoModelForCausalLM.from_pretrained(
+    MODEL, dtype=torch.float16, attn_implementation="sdpa",
+    trust_remote_code=False).cuda()
+m = m.eval()
+gold_logits = torch.load(GOLD_LOGITS, map_location="cpu")
+
+
+def kl(gold_logit, out_logit):
+    """KL(gold || out) in nats, fp32."""
+    lp = F.log_softmax(gold_logit.float().to(out_logit.device), dim=-1)
+    lq = F.log_softmax(out_logit.float(), dim=-1)
+    return float((lp.exp() * (lp - lq)).sum())
+
+
+if os.path.exists(SOCK):
+    os.unlink(SOCK)
+srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+srv.bind(SOCK)
+srv.listen(64)
+print("LISTENING %s" % SOCK, file=sys.stderr, flush=True)
+conns = []
+for _ in range(N_CLIENTS):
+    c, _ = srv.accept()
+    conns.append(c)
+print("all %d clients connected" % N_CLIENTS, file=sys.stderr, flush=True)
+
+# warm — pay model JIT/alloc at the prototype batch width
+_w = tok(["warm up the model"] * N_CLIENTS, return_tensors="pt").to("cuda")
+with torch.no_grad():
+    m.generate(**_w, max_new_tokens=MAX_NEW, do_sample=False,
+               pad_token_id=tok.eos_token_id)
+torch.cuda.synchronize()
+
+rounds = []
+with open(SENTINEL, "w") as s:
+    s.write("DECODE_START %.3f\n" % time.time())
+
+for r in range(N_PROMPTS):
+    reqs = [(c, recv_msg(c)) for c in conns]
+    alive = [(c, msg) for (c, msg) in reqs if msg is not None]
+    if not alive:
+        break
+    texts = [msg["text"] for (_, msg) in alive]
+    enc = tok(texts, return_tensors="pt", padding=True).to("cuda")
+    plen = int(enc.input_ids.shape[-1])
+    torch.cuda.synchronize()
+    t0 = time.perf_counter()
+    with torch.no_grad():
+        out = m.generate(**enc, max_new_tokens=MAX_NEW, do_sample=False,
+                         pad_token_id=tok.eos_token_id,
+                         output_logits=True, return_dict_in_generate=True)
+    torch.cuda.synchronize()
+    dt = time.perf_counter() - t0
+    seqs = out.sequences
+    gen = int(seqs.shape[-1]) - plen
+    logits = out.logits                       # tuple(gen) of [B, vocab]
+    for i, (c, msg) in enumerate(alive):
+        oid = seqs[i, plen:].tolist()
+        gl = gold_logits.get(msg["prompt_idx"])
+        kls = []
+        if gl is not None:
+            for s in range(min(gen, int(gl.shape[0]))):
+                kls.append(kl(gl[s], logits[s][i]))
+        send_msg(c, {"output_ids": oid, "gen": gen,
+                     "kl_mean": (sum(kls) / len(kls)) if kls else None,
+                     "kl_max": max(kls) if kls else None})
+    rounds.append({"round": r, "batch": len(alive), "gen_per": gen,
+                   "tokens": gen * len(alive), "wall_s": round(dt, 4)})
+    print("ROUND %d batch=%d gen=%d wall=%.3fs" % (r, len(alive), gen, dt),
+          file=sys.stderr, flush=True)
+
+with open(SENTINEL, "a") as s:
+    s.write("DECODE_END %.3f\n" % time.time())
+
+tot_tok = sum(x["tokens"] for x in rounds)
+tot_wall = sum(x["wall_s"] for x in rounds)
+res = {"role": "executor", "n_clients": N_CLIENTS, "model": MODEL,
+       "rounds": rounds, "total_tokens": tot_tok,
+       "total_wall_s": round(tot_wall, 4),
+       "agg_tok_s": round(tot_tok / tot_wall, 3) if tot_wall else None}
+with open(RESULT, "w") as f:
+    json.dump(res, f, indent=2)
+print("wrote " + RESULT, file=sys.stderr, flush=True)
+for c in conns:
+    c.close()
+srv.close()
+os.unlink(SOCK)

@@ -1,0 +1,137 @@
+{
+ "panel": [
+  {
+   "dimension": "DIMENSION 1 \u2014 BUCKET DECOMPOSITION VALIDITY",
+   "findings": [
+    {
+     "severity": "minor",
+     "claim_checked": "(f) Reconciliation: prior e3_nongemm_share.json is a HF run and supports the 35%->16% non-GEMM narrative honestly.",
+     "problem": "e3_nongemm_share.json IS genuinely a HF-transformers/sdpa run (workload string confirms), and the qualitative HF->vLLM narrative (HF launches many small pointwise ops; vLLM fuses act_and_mul/fused_add_rms_norm + uses FA3) is sound. BUT the prior file is internally inconsistent: its own share fields sum to >100%. The report's anchor figure '35% non-GEMM / 65% GEMM' is therefore derived by rounding a self-inconsistent source into a self-consistent 65/4/31 split, which is not flagged in the report.",
+     "evidence": "e3 fields: nvjet GEMM (top-kernel sum) 64.6% + attn(sdpa) 3.94% + silu_mul 14.24% + other_elementwise 30.09% = 112.87%. The file also literally records share_gemm=0.0 (name-matcher missed nvjet, which the report does acknowledge). The report's projection.json cites prior nongemm_nonattn=0.315, but e3's own nongemm components (silu_mul+other_elementwise) sum to 0.443, not 0.315.",
+     "suggested_fix": "Add one line noting the prior e3 share fields are over-counted/over-denominated (sum >100%) so the '35%' is an approximate, reconstructed anchor; the new 16% vLLM figure stands on its own fresh trace regardless."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "P3 projection implied FP8 GEMM speedup = 1.42x, vs prior phase0 evidence which used 1.61x.",
+     "problem": "The new report's projection uses the new GEMM time-share g=0.837, which yields implied per-tensor FP8 GEMM speedup 1.42x; the same measured e2e FP8 speedup (1.32x) under the prior g=0.646 (HF-derived) gave 1.61x in lane2/phase0_result.json. Both are arithmetically correct (the implied per-kernel speedup is share-dependent), and the report's strategic conclusion ('faster FP8 GEMM is the larger lever') follows from the new higher g. This is consistent, but the report does not explicitly note that the higher measured g is what makes the GEMM lever look more attractive than phase0's STOP framing (which said 85% needs 1.8-2.0x at g=0.646).",
+     "evidence": "Solving 1/(g/s+(1-g))=0.797/0.6034=1.321: g=0.837->s=1.409 (report 1.42); g=0.646->s=1.603 (phase0 1.61). phase0_result.json verdict=STOP premised on g=0.646. All projection labels reproduce: 0.85 needs ~29% nongemm cut, 1.6x GEMM->~0.879, 1.8x->~0.961.",
+     "suggested_fix": "Optionally note that the more favorable GEMM-lever framing vs phase0's STOP comes directly from the corrected (higher) GEMM share, so phase0's Amdahl wall is relaxed, not contradicted."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Bucket split is used in a projection that mixes clocks.",
+     "problem": "The decomposition trace ran at sm_clock_med=1980 (not pinned), while the FP8/vanilla MFU bases (0.797/0.60) used in the P3 projection were measured at iso-clock 1455 (lane2 phase0). The bucket SHARES are ratio-based and ~clock-invariant, so the decomposition itself is valid; the projection chaining a 1980-clock split onto 1455-clock MFU bases is acceptable for Amdahl ratios but is an unstated cross-clock mix.",
+     "evidence": "profile_meta.json sm_clock_med=1980/min1110/max1980; phase0_result.json iso_clock_pinned_mhz=1455. GPU busy 3.851s over a 3.998s span = 96.3% (saturated steady-state), so the split is reliable.",
+     "suggested_fix": "One line noting the split is clock-invariant (ratios) so mixing the 1980-clock trace with 1455-clock MFU bases is sound for the Amdahl projection."
+    }
+   ],
+   "checks_passed": [
+    "(a) Independent re-parse of trace/rank0.*.pt.trace.json.gz: summing dur of ph=='X' & cat in {kernel,gpu_memcpy,gpu_memset} gives total = 3851099.389 us = 3851.099 ms, exactly matching total_kernel_us; n_kernels = 30 matches.",
+    "(a) All 30 per-kernel percentages reproduce bucket_decomposition.json exactly (nvjet 29.328/26.158/15.985/12.142, flash 5.943, act_and_mul 3.761, fused_add_rms_norm 2.910, rotary 1.964, reshape_and_cache 1.352, etc.).",
+    "(a) Independent bucketing reproduces GEMM 83.668%, ATTENTION 7.296%, POINTWISE ~9.00%, OTHER ~0.04% (tiny <0.01% differences only in how 2 index_elementwise/DtoD-DtoH memcpys are split between POINTWISE and OTHER; no material effect).",
+    "(b) Bucketing rule sound: all nvjet_sm90_hsh_* kernels launch under aten::mm (verified via correlation-id -> enclosing cpu_op: 1536+512+384 launches), confirming cuBLASLt prefill GEMMs, NOT attention.",
+    "(b) FA3 attention does NOT route through cuBLAS/nvjet: flash::FlashAttnFwdSm90 launches under _vllm_fa3_C::fwd (not aten::mm); no double-count between GEMM and ATTENTION buckets.",
+    "(c) reshape_and_cache_flash correctly flagged as KV-write not attention math: it launches under _C_cache_ops::reshape_and_cache_flash (a cache op), and the report explicitly notes the 'flash' in its name is incidental.",
+    "(d) Profiler window covers steady-state prefill with warmup excluded: warmup llm.generate runs BEFORE start_profile(); the timed 10-rep loop is bracketed by start_profile()/stop_profile(); flash_fwd=640 launches = 32 layers x 20 forward-passes confirms full capture; GPU busy 3.851s over 3.998s span = 96.3% saturated.",
+    "(d) profiler-cycle warning ('only events from current cycle') is benign: single cycle (no schedule set), all 20 forward-equivalents captured, no evidence of dropped reps.",
+    "(e) Buckets are exhaustive and sum to exactly 100.000%; largest OTHER-bucket member is the vectorized_gather (0.023%), so no large kernel is mis-bucketed to OTHER.",
+    "(f) e3_nongemm_share.json is confirmed a HF-transformers eager/sdpa run (workload string + cudnn sdpa kernel present), not vLLM; the HF->vLLM fusion (act_and_mul/fused_add_rms_norm) + FA3 explanation for 35%->16% non-GEMM collapse is qualitatively correct.",
+    "P2 denominator arithmetic verified: 0.797*989.5/1979 = 0.399 (report 0.40); 0.828*989.5/1979 = 0.414 (report 0.42); FP8 bases 0.797/0.828 and vanilla 0.60 reproduce lane2 phase0_result.json exactly; 989.5 BF16 / 1979 FP8 peaks are correct H100 SXM values.",
+    "P3 projection arithmetic reproduces: implied FP8 GEMM speedup 1.42x at g=0.837; post-FP8 nongemm 21.7%; 0.85 needs ~29% cut; nongemm-cut and GEMM-speedup MFU labels (0.873/0.916/0.93/0.97/asymptote) all reproduce within rounding.",
+    "Integrity: profile.err shows VLLM_PLUGINS='' with zero cipher/substrate/actuator/kmod lines (clean baseline); anchor md5 entry==exit claim is non-trace and consistent with read-only profiling."
+   ]
+  },
+  {
+   "dimension": "DIMENSION 2 \u2014 PROJECTION + DENOMINATOR ARITHMETIC",
+   "findings": [
+    {
+     "severity": "material",
+     "claim_checked": "(g) The projection base 0.797/0.80 is the per-tensor FP8 proxy that FAILS the PPL bar; is that honestly caveated, and is the quality-rowwise base (~0.75-0.79 per Lane-2) carried through?",
+     "problem": "The entire P3 projection (cut-to-0.85, asymptotes, and the 'faster FP8 GEMM -> 0.875/0.955' leverage) is anchored to the 0.80 per-tensor FP8 base. The report labels it 'per-tensor' twice (lines 40, 46) but NEVER states that per-tensor FAILS the PPL/quality bar, and never carries the quality-passing rowwise base through the projection. The parent Lane-2 report (mfu_lane2/phase0_result.json, LANE2_REPORT line 64-65) is emphatic: per-tensor 'FAILS PPL bar -- the FAST path; quality rowwise kernel is STRICTLY SLOWER', estimated ~0.75-0.79 iso-clock. At a 0.78 quality base the implied current per-GEMM speedup is ~1.38x (not the stated 1.42x), and the projected endpoints shift down. A reader of PREFILL_PROFILE alone would take 0.80/1.42x and the 0.875/0.955 projection as the deliverable path, when they are the quality-failing fast path.",
+     "evidence": "grep of PREFILL_PROFILE_2026-06-10.md shows 'per-tensor' on lines 40 and 46 only; zero hits for ppl/quality/rowwise/fail in the projection sections. phase0_result.json label field: 'per-tensor E4M3 proxy (FAILS PPL bar) -- the FAST path; quality rowwise kernel is STRICTLY SLOWER'. Recompute: quality base 0.78 -> implied per-GEMM s=1.381; base 0.75 -> 1.314.",
+     "suggested_fix": "Add a one-line caveat to P2/P3 that 0.80/0.797 is the per-tensor (PPL-failing) FAST path, that the quality rowwise base is ~0.75-0.79 (Lane-2), and that the s=1.42 'current' speedup and the 0.875/0.955 endpoints are all referenced to the quality-failing base; state the quality-adjusted endpoints or that they shift down.",
+     "severity_note": "material"
+    },
+    {
+     "severity": "material",
+     "claim_checked": "(e) 'A better FP8 GEMM has more leverage... at s=1.6 -> 0.875, s=1.8 -> 0.955' and the strategic reframing relative to the parent Lane-2 STOP verdict",
+     "problem": "The g-correction (0.646 -> 0.837, line 26) silently overturns the parent Lane-2 STOP math without saying so. Lane-2 concluded 85% needs s~1.8-2.0x => NOT reachable, using g=0.646. With the correct g=0.837 the s needed for 0.85 drops to ~1.54 (and 0.93 needs ~1.74) -- i.e. 85% becomes reachable with a modestly faster FP8 GEMM. The (e) numbers (0.875 at 1.6x) are arithmetically correct but make 85%+ look readily reachable, the opposite of the Lane-2 STOP, and the report never states that its re-profile reverses Lane-2's '85% unreachable by FP8-GEMM-substitution' conclusion. Combined with the un-caveated PPL-failing base (finding above), this presents an over-optimistic 'larger lever' story.",
+     "evidence": "Recompute at g=0.837: s needed for 0.85 = 1.542, for 0.93 = 1.736. Lane-2 LANE2_REPORT line 32/79: '85% needs fp8_speedup ~1.8-2.0x at g=0.646... 85% at quality is outside the reachable band'. New report line 55-57 frames faster-FP8 as 'the larger lever' with 0.875/0.955 endpoints but only says Lane-2 'used' 64.6% (line 26), not that the correction reverses the reachability verdict.",
+     "suggested_fix": "State explicitly that the corrected g=0.837 lowers the s required for 0.85 to ~1.5 (vs Lane-2's 1.8-2.0 at g=0.646), and that this reframes -- but does not by itself overturn at quality -- the Lane-2 STOP, since the quality base is lower. Tie the (e) endpoints to the quality caveat.",
+     "severity_note": "material"
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Integrity: anchor md5 2edba0d2... entry==exit",
+     "problem": "The on-disk /home/ubuntu/libcipher_rt.so md5 is 69c6243f... not 2edba0d2... (the claimed anchor). This is likely a different tracked anchor path (the report's claim is the substrate was never loaded for this clean profile, which holds), and md5 provenance is Dimension-3's scope, but the mismatch is worth a note for the integrity reviewer.",
+     "evidence": "md5sum /home/ubuntu/libcipher_rt.so -> 69c6243f4397a59ff63a47813f026e50. Trace contains zero cipher/abft/checksum/koopman/marlin kernels (clean baseline confirmed), so the PROFILE itself is genuinely substrate-free regardless of which file the md5 refers to.",
+     "suggested_fix": "Dimension-3 should confirm which file the 2edba0d2 anchor md5 refers to; for Dimension 2 the clean-baseline (no substrate kernels in trace) is independently verified.",
+     "severity_note": "note"
+    }
+   ],
+   "checks_passed": [
+    "(a) implied FP8 GEMM speedup s = g/(1/e2e-(1-g)) with g=0.837, e2e=0.797/0.60=1.3283 -> s=1.419 ~ 1.42 (json 1.419). VERIFIED.",
+    "(b) FP8 base V/(g/s+(1-g)) = 0.60/(0.837/1.42+0.163) = 0.7974 ~ 0.797. VERIFIED.",
+    "(c) non-GEMM cut for 0.85 = (1-0.797/0.85)/0.217 = 0.287 (29%). VERIFIED. 40% cut -> 0.8728 ~0.873; 60% cut -> 0.9163 ~0.916; 100% -> 1.0179 ~1.018 (report flags as unphysical >1.0). VERIFIED.",
+    "(c-prereq) post-FP8 non-GEMM share = (1-g)/(g/s+(1-g)) = 0.2166 ~ 0.217. VERIFIED.",
+    "(d) 93% needs cut 0.660, 97% needs 0.823 -> text '66-82%' VERIFIED (json cut_for_0.93=0.659, cut_for_0.97=0.822).",
+    "(e) faster-FP8 leverage arithmetic: s=1.6 -> 0.60/(0.837/1.6+0.163)=0.8745 ~0.875; s=1.8 -> 0.9554 ~0.955. ARITHMETIC VERIFIED (framing flagged separately).",
+    "(f) denominator both-ways: 0.797 vs 989.5 = 0.797; vs 1979 = 0.797*989.5/1979 = 0.3985 ~ 0.399 (json) / 0.40 (text); default 0.828*989.5/1979 = 0.414 ~ 0.42. VERIFIED. 1979 = 2x989.5 confirmed.",
+    "Bucket decomposition internal consistency: pct sums to 100.000, ms sums to 3851.10 = total_kernel_us/1000, every bucket pct = ms/total*100. VERIFIED.",
+    "Independent re-parse of raw trace/rank0.*.pt.trace.json.gz reproduces GEMM 83.668% / ATTENTION 7.296% / POINTWISE 9.003% / OTHER 0.033% EXACTLY; total kernel us = 3851099.389 matches meta; 30 distinct kernels matches n_kernels=30. GEMM split g=0.837 is REAL, not fabricated.",
+    "profiler_out_0.txt confirms aten::mm = 83.72% Self CUDA, consistent with GEMM bucket; all GEMM is nvjet_sm90_hsh_* (cuBLASLt prefill GEMM) - bucketing rule sound.",
+    "e2e ratio consistency: Lane-2 iso 0.7975/0.6026=1.3234 vs report 0.797/0.60=1.3283 - both ~1.32-1.33, consistent; same workload (B=8 T=2048 reps=10 eager vLLM Mistral-7B fp16) so g=0.837 legitimately applies to the 0.797 base.",
+    "(h) Retracted-number scan: NONE of 3.617x/14x/2.96x/7.43x/0.127%/unscoped-57.3% appear in report or json. '85%' and '0.85' appear ONLY as the target/yardstick and projection endpoint (legitimate). PASSED.",
+    "line-48 detail check: 29% cut of 16.33% non-GEMM = 4.69pp ~= half of 9.0% pointwise (4.50pp); '~halve the 9% pointwise' claim is fair.",
+    "Clean-baseline integrity for the profile itself: trace contains zero cipher/abft/checksum/koopman/marlin kernels; VLLM_PLUGINS='' set in profile_prefill.py. Substrate genuinely absent from the profiled run."
+   ]
+  },
+  {
+   "dimension": "DIMENSION 3 \u2014 FUSION VERDICT HONESTY + INTEGRITY",
+   "findings": [
+    {
+     "severity": "material",
+     "claim_checked": "(c) The 'bigger finding' / 'load-bearing strategic correction': 'a faster FP8 GEMM kernel (1.42x->1.6-1.8x) is the *larger* lever on 84% of the time' (lines 54-57, 65-66), presented as an open opportunity off the 0.80 FP8 base.",
+     "problem": "This headline recommendation contradicts the same-day sibling lane (mfu_lane2/LANE2_REPORT_2026-06-10.md, same frozen anchor 2edba0d2, surfaced to Anil) WITHOUT acknowledging it. LANE2 concluded a STOP: per-tensor FP8 (the FASTEST available FP8 path) already achieves only ~1.42-1.61x GEMM speedup / 0.80 iso-clock, this is the UPPER BOUND on any FP8 substitution here, the quality-passing rowwise kernel is strictly <= per-tensor, and reaching 0.85 needs 1.8-2.0x 'which FP8 GEMM substitution does not deliver here' (a measured WALL with mechanism = the GEMM-share Amdahl wall + cu13 cuBLASLt rowwise NOT_SUPPORTED as fused). The arithmetic that 'GEMM at 84% is a bigger lever than 16% fusion' is correct, but framing 1.6-1.8x FP8 GEMM as a reachable path is exactly the speedup LANE2 measured as unreachable at quality. The report never mentions LANE2, the PPL/quality constraint, per-tensor-fails-quality, or that this FP8 path is already characterized as a ceiling that misses.",
+     "evidence": "projection.json implied_fp8_gemm_speedup_at_real_gemmshare=1.419; report line 57 '1.42x->1.6-1.8x, the larger lever'. mfu_lane2/LANE2_REPORT_2026-06-10.md lines 58-79: 'fastest available FP8 path (per-tensor) already reaches only 0.80... below target', 'rowwise <= per-tensor', '85% needs ~1.8-2.0x... which FP8 GEMM substitution does not deliver here.' My recompute: g=0.646->s=1.62 (LANE2), g=0.837->s=1.42 (this report); both reconstruct measured 0.797, so 1.42 is a REFINEMENT of LANE2's 1.61, confirming this is the SAME walled FP8 path, not a fresh lever.",
+     "suggested_fix": "Add one sentence to the strategic-correction section: the FP8 GEMM lever (1.42x->1.6-1.8x) was ALREADY characterized by mfu_lane2 (same anchor, same workload) as a WALL \u2014 per-tensor FP8 ~1.42-1.61x is the upper bound, the quality-passing rowwise kernel is slower, and 1.6-1.8x is NOT reachable by FP8 substitution at <=0.3% PPL. The 0.875/0.955 GEMM-speedup projections are therefore counterfactual targets, not a reachable path; the honest framing is that BOTH the 16% fusion lever and the 84% FP8 lever are bounded, and 85% is not reachable on this workload by either alone."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "(b)/(c) P3 line 48: 'To reach 0.85 from the 0.80 FP8 base: cut ~29% of the non-GEMM (\u2248 halve the 9% pointwise). Plausible.'",
+     "problem": "The 'Plausible' hedge sits in P3 WITHOUT the temper that appears later (lines 63-67: the 9% pointwise is ALREADY vLLM-fused via act_and_mul/fused_add_rms_norm, so Liger headroom is 'not a fresh easy pass... uncertain yield'). A reader stopping at P3 gets unhedged optimism; the caveat that ~6.67 of the 9.0 pointwise points is already inside fused custom kernels (so halving it is materially harder than 'halve the 9%') is two sections away. The caveat itself IS honest and factually grounded (I confirmed act_and_mul=3.76% + fused_add_rms_norm=2.91% = 6.67% are already-fused vLLM kernels), but the 'Plausible' label is not co-located with it.",
+     "evidence": "bucket_decomposition.json: act_and_mul 3.761% + fused_add_rms_norm 2.910% = 6.671% of the 9.003% pointwise is in named vLLM FUSED kernels. Report line 48 says 'halve the 9% pointwise. Plausible' with no fused-already caveat at that point.",
+     "suggested_fix": "Move or reference the 'already-fused, uncertain yield' caveat into P3 line 48, or change 'Plausible' to 'plausible-but-uncertain (most of the 9% is already in vLLM fused kernels; see caveat).'"
+    },
+    {
+     "severity": "note",
+     "claim_checked": "(c) The report revises LANE2's implied FP8 GEMM speedup from 1.61x to 1.42x by using the corrected vLLM g=0.837 instead of the HF-prior g=0.646.",
+     "problem": "The revision is in the correct direction and both numbers reconstruct the same measured 0.797 base, but the report does not flag that its 1.42x supersedes LANE2's headline 1.61x. A reader comparing the two same-day reports sees 1.42 vs 1.61 with no note.",
+     "evidence": "My recompute: fp8_base 0.797, V 0.60 -> s=g/(0.60/0.797-(1-g)); g=0.646 gives 1.620 (LANE2), g=0.837 gives 1.419 (this report). Internally consistent given each g.",
+     "suggested_fix": "One clause: 'this 1.42x refines (supersedes) LANE2's 1.61x, which used the HF-prior g=0.646; the corrected vLLM g=0.837 implies a smaller per-GEMM speedup for the same measured e2e 0.797.'"
+    },
+    {
+     "severity": "note",
+     "claim_checked": "(a) reconciliation: prior e3_nongemm_share.json 'was HF-transformers eager, NOT vLLM' and vLLM fusion + FA3 collapses non-GEMM 35%->16%.",
+     "problem": "The prior JSON's own summary fields are internally broken (share_gemm=0.0, e3_ub=0.4433) \u2014 the report's 64.6% GEMM is a rebucketing of top_kernels (nvjet=GEMM) not the file's headline fields. The report cites the prior as '64.6% GEMM / 31.5% non-GEMM / 3.9% attn' without noting the cited file's headline fields contradict that (this same non-disclosure was flagged in mfu_audit/verification_panel.json). The numbers themselves reproduce exactly (nvjet 952278/1473908=64.61%; sdpa 3.94%; non-GEMM-non-attn 31.5%), and the prior IS HF (workload string + cuDNN-sdpa-flash kernel, not FA3), so the reconciliation is sound \u2014 but the buggy-source-field caveat is again omitted.",
+     "evidence": "e3_nongemm_share.json: share_gemm=0.0, top_kernels nvjet sum=952278us=64.61%, attn kernel=cudnn_..._sdpa_sm90_flash (3.94%, NOT FlashAttnFwdSm90). This report's trace: flash::FlashAttnFwdSm90 (FA3). So HF=cuDNN-sdpa, vLLM=FA3 \u2014 different kernels, reconciliation valid.",
+     "suggested_fix": "Note that the prior file's auto-bucket fields (share_gemm=0.0) are a known nvjet-name-match bug and the 64.6/31.5/3.9 are rebucketed from top_kernels (as already documented in mfu_audit)."
+    }
+   ],
+   "checks_passed": [
+    "(a) Pointwise 9.003% > FA3-addressable 5.943% reproduces exactly from bucket_decomposition.json and from the raw trace (recomputed independently); verdict 'Liger-pointwise leads the non-GEMM work' is numerically correct.",
+    "(a) FA3 identification CONFIRMED: raw trace kernel is 'void cutlass::device_kernel<flash::enable_sm90_or_later<flash::FlashAttnFwdSm90<flash::CollectiveMainloopFwdSm90...cutlass::arch::Sm90...VarlenDynamicPersistentTileScheduler>>>' = the FlashAttention-3 Hopper CUTLASS kernel; the HF prior used a different attn kernel (cudnn_..._sdpa_sm90_flash). 'attention already FA3, no FA3-upgrade lever' is sound reasoning.",
+    "(b) The caveat 'pointwise is ALREADY vLLM-fused (act_and_mul, fused_add_rms_norm)' is factually grounded: those two kernels = 6.671% of the 9.003% pointwise bucket are vLLM's own fused custom CUDA kernels; the caveat correctly tempers the 'Liger gets to 85%' optimism and concludes Liger-pointwise headroom is uncertain.",
+    "(c) non-GEMM = 16.33% (vLLM) vs ~35.4% (HF prior: 31.5% non-GEMM-non-attn + 3.9% attn) both reproduce exactly; the correction-of-premise is empirically backed and consistent with mfu_audit's own note that vLLM fuses these ops; not overreach as a factual claim.",
+    "(d) 85% is NOT claimed reached: P3 is explicitly labeled 'PROJECTION', the verdict claims only the measured share comparison, header states 'No kernel, no actuator, no substrate loaded'; 0.873/0.916/1.02 are labeled projected cuts and 1.02 flagged 'unphysical'.",
+    "(d) The 93-97% research projection is correctly REFUTED on the real split (needs 66-82% cut of ALL non-GEMM); cut-to-0.85=28.7%, 40%/60%/100% cuts -> 0.873/0.916/1.018 all reproduce exactly via Amdahl recompute.",
+    "All bucket arithmetic internally consistent: buckets_pct sum=100.0%, buckets_ms sum=3851.1ms=total_kernel_us, every per-bucket and per-kernel share recomputed from the raw gz trace matches (GEMM 83.668%, FA3 5.9428%, total 3,851,099.4us exact).",
+    "Denominator convention verified: 989.5 BF16-peak; FP8 0.797 vs BF16-peak, 0.797*989.5/1979=0.399 vs FP8-native peak \u2014 both reproduce; consistent with LANE2 iso-clock 0.797.",
+    "(e) Anchor md5 = 2edba0d2136f8ede4713d90a8f7cd55f present (cipher_rt_phase4 + cipher_v2_build pkgroot), matches claimed entry==exit value.",
+    "(e) grep -c cipher_v2 profile.err = 0 (the single broader 'cipher' hit is just the script's own file path in a pynvml deprecation warning, not substrate); VLLM_PLUGINS='' set at profile_prefill.py:7 with substrate-line guard comment.",
+    "(f) No leftover compute procs: nvidia-smi compute-apps empty; pgrep hits are only the grep self-matching its own command line; no real EngineCore/profile_prefill process. Apps clocks at default 1980MHz (max), current 345MHz idle \u2014 not locked to a non-default value.",
+    "(g) Git activity: the 24 git objects newer than 14:00 are all from a single 14:16:21 burst BEFORE the profile run (window started ~14:19), an unrelated R-pillar/audit commit (NEOCLOUD_SUBSTRATE_AUDIT.md etc. untracked); no stash; mfu_profile/ is untracked '??' scratch and did not touch git. Scratch confined to mfu_profile/ (only parent-dir mtime bumps appear outside it). Benign."
+   ]
+  }
+ ]
+}

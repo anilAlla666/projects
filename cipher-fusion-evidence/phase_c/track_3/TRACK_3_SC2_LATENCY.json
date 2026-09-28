@@ -1,0 +1,22 @@
+{
+  "_note": "SC2 measures kmod-side coordination latency PROPOSE(in COMPACT)->COMMIT(in ACK). Tenant-side green-ctx rebuild (~1.7ms, Step 1.5) is SC3, not included.",
+  "scenario_1_2_propose_commit": {
+    "n": 200, "misses": 0,
+    "median_us": 0.8, "p95_us": 1.1, "p99_us": 1.2,
+    "min_us": 0.8, "max_us": 1.2
+  },
+  "scenario_3_contention": {
+    "n": 50, "noise_procs": 7, "noise_op": "COMPACT_MIGRATE spin (cipher_cp54_lock contention)",
+    "median_us": 7.4, "max_us": 102.1
+  },
+  "scenario_4_slow_response": [
+    {"injected_ms": 50,  "propose_commit_us": 50067.0},
+    {"injected_ms": 200, "propose_commit_us": 200067.1},
+    {"injected_ms": 500, "propose_commit_us": 500069.9}
+  ],
+  "scenario_5_quiet_abort": {
+    "timeout_ns": 30000000000,
+    "observed_abort_s": 32.00,
+    "note": "Lazy timeout: ABORT fires on the first FREE/COMPACT after PROPOSE+30s. Under a permanently quiet ledger the latency is UNBOUNDED until the next ledger activity — the item-4 trade-off accepted at adjudication. SC6 must weigh this for the v1.5 explicit-timer decision."
+  }
+}

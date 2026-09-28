@@ -1,0 +1,43 @@
+{
+ "phase": "0 GO/NO-GO",
+ "iso_clock_pinned_mhz": 1455,
+ "iso_clock_vanilla_mfu": 0.6026,
+ "iso_clock_vanilla_clk": [
+  1440,
+  1440
+ ],
+ "iso_clock_fp8_mfu": 0.8058,
+ "iso_clock_fp8_clk": [
+  1455,
+  1455
+ ],
+ "iso_clock_fp8_mfu_clocknorm": 0.7975,
+ "iso_clock_e2e_speedup": 1.323,
+ "implied_fp8_gemm_speedup": 1.61,
+ "default_clock_vanilla_mfu": 0.6003,
+ "default_clock_fp8_mfu": 0.8277,
+ "default_clock_note": "power-relief: FP8 -90W lets clock rise ~1455->1695; default fp8 MFU is the product-realistic number",
+ "iso_clock_power_W": {
+  "vanilla": [
+   632,
+   633
+  ],
+  "fp8": [
+   549,
+   548
+  ]
+ },
+ "amdahl_closed_form": {
+  "gemm_share": 0.646,
+  "e2e_MFU at fp8_speedup": {
+   "1.4": 0.736,
+   "1.6": 0.792,
+   "1.8": 0.842,
+   "2.0": 0.886
+  },
+  "85pct_needs_fp8_speedup": "~1.8-2.0 at g=0.646"
+ },
+ "label": "per-tensor E4M3 proxy (FAILS PPL bar) \u2014 the FAST path; quality rowwise kernel is STRICTLY SLOWER (extra per-token+per-channel scale epilogue) => its iso-clock e2e MFU < these numbers",
+ "verdict": "STOP",
+ "verdict_reasoning": "Fastest (per-tensor) FP8 path: iso-clock e2e prefill MFU=0.797, default-clock(power-relief)=0.828. 85% target sits ABOVE even the fast path's default-clock number. The quality-passing rowwise kernel is strictly slower, so its ceiling is lower still. Implied per-tensor FP8 GEMM speedup ~1.61x; 85% e2e needs ~1.8-2.0x (closed form). GEMM-share Amdahl wall (g=0.646) caps FP8-GEMM-substitution e2e prefill MFU below 85% at quality. Per no-auto-degrade gate (Phase 0c): STOP, do not build the kernel into a ceiling that misses; surface to Anil."
+}

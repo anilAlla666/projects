@@ -1,0 +1,22 @@
+================ investigate: tinyllama (/home/ubuntu/models/TinyLlama-1.1B) ================
+  gold(no-substrate) exit=0
+  fullgpu B=1 rerun  exit=0
+  fullgpu B=8        exit=0
+================ investigate: mistral (/home/ubuntu/models/Mistral-7B-v0.1) ================
+  gold(no-substrate) exit=0
+  fullgpu B=1 rerun  exit=0
+  fullgpu B=8        exit=0
+
+================ TRIANGULATION ================
+--- tinyllama ---
+  partition     vs gold : agree=6/128 rate=0.0469 first_div=5
+  fullgpu(orig) vs gold : agree=4/128 rate=0.0312 first_div=4
+  fullgpu(rerun)vs gold : agree=4/128 rate=0.0312 first_div=4
+  fullgpu(B=8)  vs gold : agree=5/128 rate=0.0391 first_div=5
+  partition     vs fullgpu(B=8): agree=5/128 rate=0.0391 first_div=5
+--- mistral ---
+  partition     vs gold : agree=22/128 rate=0.1719 first_div=20
+  fullgpu(orig) vs gold : agree=4/128 rate=0.0312 first_div=4
+  fullgpu(rerun)vs gold : agree=4/128 rate=0.0312 first_div=4
+  fullgpu(B=8)  vs gold : agree=5/128 rate=0.0391 first_div=5
+  partition     vs fullgpu(B=8): agree=5/128 rate=0.0391 first_div=5

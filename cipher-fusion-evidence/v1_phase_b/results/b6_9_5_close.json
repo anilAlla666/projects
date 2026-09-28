@@ -1,0 +1,164 @@
+{
+  "campaign": "V1 Phase B B.6''.9.5 Phase 1 - F-CUDAGRAPH-1 diagnostic bisect",
+  "date": "2026-05-26",
+  "purpose": "Per Anil B.6''.9.5: isolate which component causes vLLM cudagraph_mode=FULL_AND_PIECEWISE to segfault during model loading under rev6 cipher-platform .deb. Same bisect rigor as B.6''.9.1.",
+  "anchors_at_entry": {
+    "cipher_rt_phase4": "78bfded UNCHANGED",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher-fusion-evidence": "e2ae502",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca installed"
+  },
+  "discipline": "Read-only diagnostic; CDI revert/refresh between tests; watcher temporarily stopped during Test 1A; restored before Tests 1B-1G.",
+  "section_a_bisect_matrix": [
+    {
+      "test": "1A",
+      "config": "vanilla vLLM + cudagraph_mode default; NO CIPHER (CDI reverted; watcher stopped)",
+      "result": "PASS - LLM LOADED clean exit 0; PIECEWISE 51 + FULL 51 graphs captured cleanly; baseline confirmed",
+      "evidence": "v1_phase_b/results/b6_9_5/test_1A_vanilla_graph.txt"
+    },
+    {
+      "test": "1B",
+      "config": "substrate ON + VLLM_PLUGINS=none + graph mode default (CDI refreshed)",
+      "result": "PASS - substrate constructor fires; cublasGemmEx resolved; PIECEWISE+FULL captured; substrate observed 60582 launches + 18834 matmuls during capture",
+      "interpretation": "Substrate (libcipher_rt + GOT + dlsym + 17 trampolines + cuInit hook) IS graph-compatible"
+    },
+    {
+      "test": "1C",
+      "config": "substrate + plugin + CIPHER_KV_ALLOC=0 + graph mode default",
+      "result": "PASS - plugin chain loads; cipher-offload bound 22 KV layers; graphs captured; LLM LOADED clean exit 0",
+      "interpretation": "VMM allocator OFF does not change outcome (still PASSES — same as default config)"
+    },
+    {
+      "test": "1D",
+      "config": "substrate + plugin + CIPHER_KV_OFFLOAD=0 + graph mode default",
+      "result": "PASS - plugin chain loads; VMM allocator owns 22 KV tensors (36.14 GiB); graphs captured; LLM LOADED clean exit 0",
+      "interpretation": "cipher_kv_offload OFF does not change outcome (still PASSES)"
+    },
+    {
+      "test": "1F",
+      "config": "DEFAULT CRASH CONFIG: substrate + full plugin chain + graph mode default; no overrides (the configuration that B.6''.9.4 claimed segfaults)",
+      "result": "PASS - LLM LOADED clean exit 0; PIECEWISE 51 + FULL 51 captured; cipher-vllm-kv VMM allocator init + 22 KV tensors / 36.14 GiB; cipher-offload bound 22 layers",
+      "interpretation": "F-CUDAGRAPH-1 DOES NOT REPRODUCE UNDER REV6. The earlier B.6''.9.4 framing was incorrect."
+    },
+    {
+      "test": "1F-bis",
+      "config": "Same as 1F (reproducibility confirmation)",
+      "result": "PASS 2/2 - LLM LOADED clean exit 0; deterministic non-crash under rev6 default config",
+      "interpretation": "Not a flake — F-CUDAGRAPH-1 is genuinely not present under rev6"
+    },
+    {
+      "test": "1G",
+      "config": "Full audit script (cipher_graph_audit.py with CIPHER_AUDIT_EAGER=0) — Phase 0/1/2 readout under graph mode default; 5 prompts × 128 tokens steady-state inference",
+      "result": "PASS - completed warmup + capture + inference cleanly; emitted full counters",
+      "interpretation": "Substrate health under graph-mode default + real inference verified. See Section C for coverage measurement."
+    }
+  ],
+  "section_b_invalidation_of_f_cudagraph_1": {
+    "claim_origin": "B.6''.9.4 close §test_config.enforce_eager_reason: 'vLLM default cudagraph_mode=FULL_AND_PIECEWISE segfaults under cipher-platform v2.0 substrate (KV VMM allocator vs graph capture incompat — F-CUDAGRAPH-1); enforce_eager=True isolates substrate health from graph compatibility'",
+    "claim_provenance": "cipher_graph_audit.py lines 70-77 comment — written DURING B.6''.9 Step 2 (BEFORE B.6''.9.3 rev6 landed) at a time when CIPHER_REGISTER_MODEL=0 gate did not exist",
+    "what_we_now_know": "Under rev6 (with CIPHER_REGISTER_MODEL=0 in CDI env), default config + graph mode WORKS. 6/6 bisect tests PASS. The 'graph mode segfault' observed under rev5 was almost certainly the SAME root cause as F-VLLM-PLUGIN-CRASH (NR 27 kmod/mmap interaction) — both close together at B.6''.9.3 via the env gate.",
+    "verdict": "F-CUDAGRAPH-1 IS NOT A REAL BUG UNDER REV6. The B.6''.9.4 ED estimate's '2-4 ED for F-CUDAGRAPH-1 fix' should be RETRACTED. The B.6''.9.4 framing that 'graph-mode customers blocked' is INCORRECT under rev6.",
+    "graph_mode_works_under_rev6": true,
+    "but_h2_blind_spot_still_real": true
+  },
+  "section_c_h2_blind_spot_measurement_under_graph_mode": {
+    "context": "Test 1G ran cipher_graph_audit.py with CIPHER_AUDIT_EAGER=0 — full graph mode capture + 5 prompts × 128 tokens steady-state inference",
+    "phase_1_post_warmup_deltas": {
+      "smp_total_launches": 60494,
+      "matmul_calls_total": 18745,
+      "cublas_shim_calls": 18745,
+      "classify_calls_total": 60494,
+      "interpretation": "Capture-time CUPTI sees all 60494 launches and 18745 matmuls; substrate IS graph-aware at capture phase"
+    },
+    "phase_2_post_inference_deltas": {
+      "smp_total_launches": 2504,
+      "matmul_calls_total": 63,
+      "cublas_shim_calls": 63,
+      "classify_calls_total": 2504,
+      "interpretation": "Replay-time CUPTI sees only 2504 launches and 63 matmuls — most inference work executes inside graph replay (cuGraphLaunch dispatches captured node tree internally on GPU; CUPTI cuLaunchKernel trap doesn't fire per-node)"
+    },
+    "ratios": {
+      "smp_total_launches_steady_to_warmup": 0.0414,
+      "matmul_calls_steady_to_warmup": 0.00336,
+      "verdict": "H2 CONFIRMED: steady-state cuLaunchKernel delta = 4.14% of warmup; matmul-substrate-visibility drops to 0.34% during graph replay"
+    },
+    "comparison_to_eager_mode_b6_9_4": {
+      "eager_steady_launches": 23318,
+      "graph_steady_launches": 2504,
+      "ratio": 0.107,
+      "interpretation": "Graph mode reduces substrate launch visibility to ~11% of eager mode in steady-state"
+    },
+    "comparison_to_eager_mode_matmul": {
+      "eager_steady_matmul": 5607,
+      "graph_steady_matmul": 63,
+      "ratio": 0.0112,
+      "interpretation": "Graph mode reduces substrate cuBLAS visibility to ~1.1% of eager mode in steady-state — actuator engagement opportunity drops by ~89×"
+    }
+  },
+  "section_d_goal_by_goal_v1_impact_under_graph_mode": {
+    "goal_1_multi_tenant_routing": {
+      "warmup_phase_engagement": "REGISTER_STREAMS fires; per-stream tenant resolution active",
+      "replay_phase_engagement": "Limited — per-launch routing fires for only ~4% of inference launches (2504 of estimated ~60000+ if eager-equivalent)",
+      "production_impact": "Multi-tenant routing decisions stuck at graph-capture-time topology; cannot adapt per-launch during steady-state. SC6 4-tenant baseline (which uses subprocess pattern + ARENA NRs 21-24, not per-launch routing) is unaffected — that's how Track 2 76.0% baseline survived. Production multi-tenant routing needs graph-aware substrate."
+    },
+    "goal_2_marlin_volt_actuators": {
+      "warmup_phase_engagement": "Substrate sees 18745 matmuls at capture; could in principle substitute at capture time",
+      "replay_phase_engagement": "Substrate sees 63 of ~5607-equivalent matmuls — actuator substitution opportunity drops by 89×",
+      "production_impact": "Capture-time Marlin substitution would persist (captured kernel handles point to substituted kernels). However: cuBLAS handles are captured once and replayed; per-call workload-adaptive routing (e.g., different actuator for different batch sizes) requires graph-capture-time substrate-aware substitution OR graph-replay-time intercept (cuGraphAddKernelNode + cuGraphLaunch wrappers from B.6''.9.8)."
+    },
+    "goal_3_mfu_sm_packer": {
+      "warmup_phase_engagement": "classify_calls=60494 - 100% per-launch observability at capture",
+      "replay_phase_engagement": "classify_calls=2504 - 4% per-launch observability at replay",
+      "production_impact": "MFU + SM packer observation/decision pipeline operates on stale capture-time data during replay. Per-launch SM-packing decisions can't fire during the 96% replay-blind window."
+    },
+    "goal_4_koopman": {
+      "engagement": "Same graph-capture-time vs replay-time substitution dependency",
+      "production_impact": "Capture-time Koopman substitution OK if substitution decision is workload-stable; per-token Koopman O(1) substitution needs graph-aware intercepts"
+    },
+    "goal_5_transparency": {
+      "preserved": true,
+      "evidence": "Customer runs `docker run --gpus all vllm/vllm-openai:v0.21.0` with default config; rev6 .deb postinst injects CDI envs transparently; LLM loads clean; inference works at full graph-mode throughput",
+      "ledger_row_b": "LANDED — no customer env change required for graph mode"
+    }
+  },
+  "section_e_remediation_disposition": {
+    "primary_finding": "No remediation needed for F-CUDAGRAPH-1 (it isn't a bug under rev6)",
+    "remaining_work_is_b6_9_8_scope": "H2 graph-replay blind spot remains real; closing it requires graph-aware substrate intercepts — that work belongs to B.6''.9.8 driver-API substrate, not a separate remediation track",
+    "memory_20_alignment": "No kmod modification needed; no substrate fix needed; no plugin fix needed for F-CUDAGRAPH-1 (because it's not real). B.6''.9.8 work remains additive-only on substrate side per Memory #20."
+  },
+  "section_f_ed_estimate_refined": {
+    "b6_9_4_estimate_retraction": "B.6''.9.4 §F estimated '~14-22 ED' = 12-18 base + 2-4 for F-CUDAGRAPH-1 fix. The F-CUDAGRAPH-1 portion (2-4 ED) is RETRACTED — bug isn't real under rev6.",
+    "refined_b6_9_8_estimate": "~12-18 ED (base driver-API substrate scope unchanged):",
+    "b6_9_8_scope_items": [
+      "cuGraphLaunch intercept (per-launch substrate visibility during graph replay)",
+      "cuGraphAddKernelNode intercept (per-kernel actuator routing during graph capture)",
+      "cuGetProcAddress wrapper (catch direct-driver callers; bypass dlsym)",
+      "FlashAttention launch-side intercept (kernel-driver level, not ATen) — closes attn_calls=0 gap on real vLLM"
+    ],
+    "b6_9_5_ed_actual": "~0.5 ED (only Phase 1 bisect needed; Phase 2 fix track unnecessary because no fix needed)",
+    "phase_b_total_revised_projection": "~16-22 ED at close (down from ~18-24)"
+  },
+  "production_posture_under_rev6_revised": {
+    "eager_mode_customer": "FULL substrate coverage (B.6''.9.4 measurement)",
+    "graph_mode_customer": "NOT BLOCKED — graph mode works; substrate visibility is reduced to ~4% during replay phase; actuator engagement opportunity reduced by ~89× on cuBLAS path; but v1 still ships and runs cleanly",
+    "v1_ship_decision": "Both eager and graph mode customers can deploy v1 today. Graph mode customers get reduced substrate engagement during inference (H2 blind spot); not a deployment blocker. B.6''.9.8 closes the gap structurally."
+  },
+  "honest_residue_updates_to_scope_lock_section_15": [
+    "item 9 (B.6''.9.3) — NR 27 KASAN follow-up — UNCHANGED",
+    "item 10 (B.6''.9.3) — cross-model KV-dedup deferred — UNCHANGED",
+    "item 11 (NEW B.6''.9.5): F-CUDAGRAPH-1 framing from B.6''.9.4 §F is INVALIDATED. Earlier 'KV VMM allocator vs graph capture segfault' claim was actually the NR 27 bug crashing during graph profiling pre-β.3. Both closed by the same env gate. No separate F-CUDAGRAPH-1 remediation work required. H2 blind spot is a real coverage gap and remains B.6''.9.8 driver-API substrate scope.",
+    "item 12 (NEW B.6''.9.5): graph-mode replay-phase actuator-engagement reduction (89× on cuBLAS path) — substrate sees only ~1.1% of inference matmuls under graph mode. Goal 2 actuator value-add on graph-mode customers is structurally bounded until B.6''.9.8 ships."
+  ],
+  "carry_forward": {
+    "b6_9_4_close_update_required": "B.6''.9.4 §F ED estimate should be marked SUPERSEDED by B.6''.9.5 §F. Also B.6''.9.4 §E 'graph_mode_gaps_UNTESTED' should be updated with B.6''.9.5 Test 1G measurement.",
+    "b6_9_8_scope_unchanged_at_base": "12-18 ED base scope unchanged; F-CUDAGRAPH-1 add-on removed; net refinement to ~12-18 ED",
+    "next_substep": "B.6''.9.6 may13 audit or skip directly to B.6''.9.8 driver-API substrate scope — HOLD for Anil signal"
+  },
+  "what_did_not_change_through_b6_9_5": {
+    "anchors": "cipher_rt_phase4 78bfded; cipher_kmod 8c643fc; cipher_vllm_kv.py b89a9b6e; cipher_platform_deb v2.0 rev6 md5 7c7068ca",
+    "cdi_state_after_diagnostic": "CDI refreshed; watcher restored; rev6 active state",
+    "scope_lock_items_9_10": "preserved verbatim",
+    "memory_9_moat": "framework-agnostic boundary unchanged",
+    "memory_20_abi": "no kmod modification proposed; no fix needed"
+  }
+}

@@ -1,0 +1,292 @@
+> **SUPERSEDED 2026-05-18 — active scope memo is `CP_5_4_SCOPE_V1.md`.**
+>
+> This memo's §8 (implementation surface) under-sized the kmod work as a
+> "small extension" and floated the scheduler as possibly a "libcipher_rt
+> module." Orientation on `cipher_rt_green_ctx.c` and the kmod
+> `cipher_partition_allocator.c` (2026-05-18, pre-Step-1.1) found the
+> scheduler's SM-allocation ledger is **intrinsically cross-process and must
+> be kmod-resident** — a per-process LD_PRELOAD library cannot hold the
+> `Σ SMs ≤ 132` invariant across N tenant processes — and that the deferred
+> **T4.2.4c slot→SM bridge** is the load-bearing work, not a small extension.
+> Option A (kmod-resident ledger + slot→SM bridge) was adjudicated;
+> `CP_5_4_SCOPE_V1.md` is the corrected active scope memo. This file is
+> retained for audit trail.
+>
+> ---
+>
+# CP 5.4 — Per-Tenant Arbitration — SCOPE MEMO
+
+**Date:** 2026-05-18. **Type:** design/scope, no GPU, no code. **Status:**
+scoped for adjudication — no Step 1 build until adjudicated (design-memo-first,
+per CP 5.3 STEP 2 §10). Anchor `a7ac8e97` unchanged by this memo.
+
+---
+
+## §0 — The core architectural decision (read first)
+
+CP 5.4 was framed as a scheduler that "routes per-tenant requests to one of two
+architecturally distinct modes — partition (spatial) or batch (temporal)." That
+framing is correct, but it under-states a unification that makes the whole memo
+cohere:
+
+**Both modes are already green-context SM allocations.**
+
+- **Partition mode** = a tenant gets its *own* green context of K SMs (CP 5.3
+  STEP 2A: partition-aware Marlin verified on `grid < 132`; gate C proved two
+  green contexts are provably **disjoint**).
+- **Batch mode** = N tenants share *one* green context — the **batch pool** —
+  whose cross-tenant fused decode runs partition-aware Marlin GEMMs inside it
+  (CP 5.6 / Phase B fusion + CP 5.3 partition-aware Marlin, composed).
+
+So the two modes share **one** allocation primitive — green contexts. CP 5.4's
+scheduler is therefore **one green-context SM allocator** that partitions the
+132 SMs into:
+
+```
+  132 SMs  =  Σ (per-tenant partition green contexts)  +  1 batch-pool green context
+```
+
+— all disjoint by construction (CP 5.3 gate C). The "scheduler" is: (a) an SM
+allocator maintaining `Σ SMs ≤ 132`, and (b) a batch-pool membership manager.
+This is the spine of every section below. It also degrades cleanly: zero
+partition tenants → batch pool = full 132 SMs (Phase B's exact measured case);
+zero batch tenants → batch pool not created, all SMs to partitions.
+
+**The load-bearing open question this creates** (see §11): Phase B measured the
+3.69× fusion lift on the **full GPU**. In CP 5.4 the batch pool is a *residual*
+green context (< 132 SMs whenever any partition tenant exists). CP 5.3 STEP 2A
+already proved Marlin works on `grid < 132`, so the mechanism composes — but the
+*delivered batch lift inside a confined pool* is a Step-1 measurement, not an
+assumption.
+
+## §1 — Mode-switching granularity
+
+**Recommendation: mode is per-tenant-session, set at tenant registration,
+stable for the session.** Rationale:
+
+- A mode switch = moving a tenant between green contexts = green-context
+  teardown/create. CP 5.3 / [[cipher-t424e]] measured green-context spin-up at
+  a real cost (the partition path carries a ~12× absolute-latency setup tax).
+  **Per-request switching is not feasible** at that cost — confirmed as an
+  honest unknown→resolved-no in §11.
+- Per-workload-shape switching would require re-arbitration mid-session; viable
+  only at coarse cadence.
+
+**v1: static per-session mode.** A tenant declares its QoS class at
+registration; the scheduler may *re-arbitrate the SM split* at a coarse cadence
+(e.g. a tenant joining/leaving triggers a batch-pool resize), but a tenant does
+not hop modes per request. **Dynamic per-request arbitration is explicitly a v2
+item**, deferred (§11).
+
+What triggers a re-allocation (not a per-tenant mode hop): a new partition
+tenant registers (batch pool shrinks), a partition tenant exits (batch pool
+grows), a batch tenant joins/leaves the pool (no SM change — pool membership
+only).
+
+## §2 — Decision criteria
+
+**Primary input: a declared QoS class**, not inferred workload signals (v1).
+
+| QoS class | mode | rationale |
+|---|---|---|
+| `isolated` | own partition green context | latency-SLA / variance-sensitive tenants; isolation is variance reduction ([[cipher-t424e]]) |
+| `shared` (default) | batch pool | B=1 decode tenants — the population the Phase B 3.69× fusion lever is *for* |
+
+Why declared, not inferred: workload-signal discovery (observe first N requests
+/ infer from prompt shape) is an **honest unknown** (§11) — it is not yet known
+to be cheap or reliable enough to drive allocation. v1 uses an explicit
+declaration; **observed-signal dynamic arbitration is a v2 stretch**, scoped out
+of CP 5.4 Step 1.
+
+Operator global config supplies the envelope: batch-pool minimum SM floor, max
+partition tenants, default class. Tenant declaration chooses within it.
+
+## §3 — Substrate API
+
+- **Tenant → mode preference:** a `qos_class` field on the existing tenant
+  registration path (`libcipher_v2` already owns the tenant registry —
+  `tenant_register`). Additive field; absent → default.
+- **Operator → global policy:** a scheduler policy config (env or a small
+  config file) — `batch_pool_min_sms`, `max_partition_tenants`,
+  `default_qos_class`, `partition_sms_per_tenant` (or a per-class SM size).
+- **Default if a tenant declares nothing:** `shared` → batch pool. The efficient
+  default; isolation costs SMs and is opt-in.
+
+## §4 — Composition correctness model
+
+Partition and batch **do not co-exist on the same SMs** — and **do co-exist on
+different SMs**, as disjoint green contexts. The scheduler's invariant:
+
+> Every SM belongs to exactly one green context; `Σ green-context SM counts ≤ 132`.
+
+No double-allocation by construction — green contexts are the allocation unit
+and CP 5.3 STEP 2A gate C *proved* two concurrent green contexts touch disjoint
+SM sets (`overlap=NONE`, reproduced across hash-selected groups). A partition
+tenant and a batch-pool tenant on different SMs is the **designed steady state**
+— both fine. The scheduler verifies the invariant by being the *sole* allocator
+of green contexts (no other path creates them); a Step-1 gate re-confirms
+disjointness under a mixed deployment (§7).
+
+## §5 — Resource accounting
+
+- **Partition allocations are spatial** — each `isolated` tenant costs its
+  green context's SM count out of 132.
+- **The batch pool is the residual** — one green context sized to
+  `132 − Σ(partition SMs)`, floored at `batch_pool_min_sms`.
+- **The batch pool's SM count does NOT scale with batched-tenant count.** Adding
+  a tenant to the batch pool changes pool *membership*, not pool *size* — the N
+  tenants are temporally fused within the pool's fixed SMs (that *is* Phase B's
+  mechanism). More batch tenants → more contention for the pool's throughput,
+  zero additional SM cost.
+- **Can partition and batch tenants share the GPU simultaneously? Yes** — on
+  disjoint SMs, concurrently, no temporal exclusion required. This is the §0
+  unification's payoff. (Temporal exclusion would only be forced if the two
+  modes were separate non-green-context mechanisms — they are not.)
+
+Accounting ledger the scheduler maintains: `{green_ctx_id → (sm_count, kind ∈
+{partition,batch_pool}, tenant_set)}`, invariant `Σ sm_count ≤ 132`.
+
+## §6 — Failure modes and recovery
+
+| failure | handling |
+|---|---|
+| `isolated` tenant requests a partition, no SMs free | Re-arbitrate: shrink the batch pool toward its floor to free SMs. If still short (pool at floor), the response is an **operator policy choice, not a default the memo picks** — see below. |
+| Batch-pool resize vs partition allocation conflict | Cannot occur if the invariant holds — the pool is *always* recomputed as the residual. A new partition request triggers: shrink pool (green-ctx teardown→recreate smaller) → then allocate the partition. The resize has a real cost (green-ctx recreate); the scheduler batches/debounces re-arbitration to bound it. |
+| Partition tenant crash | Free its green context — the kmod `do_exit` reaper + partition allocator (`cipher_partition_allocator.c`) already does this; the freed SMs return to the residual pool. Reuse, no new mechanism. |
+| Batch-pool tenant crash | Drop it from the fused batch — Phase B Step 4 heterogeneous eviction already implements this (the 57.7%-drain path). Pool SM count unchanged. Reuse, no new mechanism. |
+
+Both crash paths reuse verified mechanisms — this is a deliberate scoping win.
+
+**The no-SMs-free response is a QoS-contract choice the operator owns** — the
+memo does not pick a default:
+
+- **Reject registration** — *QoS-honest.* `qos_class=isolated` is a contract for
+  variance reduction; silently routing the tenant into the batch pool gives it
+  throughput interleaving instead — a QoS-contract violation dressed as a
+  warning. A paid latency-SLA tenant should be rejected, not degraded.
+- **Degrade to the batch pool with a logged warning** — *availability-honest.*
+  A best-effort / overflow tenant is better served running (degraded) than
+  refused.
+
+Different deployments choose differently; CP 5.4 exposes it as
+`isolated_overflow_policy ∈ {reject, degrade}` operator config (§3). §12.3 asks
+the operator to set the *shipped default*, not the memo.
+
+## §7 — Success criteria for CP 5.4 Step 1 verification
+
+A **mixed deployment**: e.g. 2 `isolated` tenants (own green contexts, K SMs
+each) + 6 `shared` tenants (one batch pool on the residual SMs), all decoding
+concurrently. Gates:
+
+1. **Allocation invariant** — `Σ green-ctx SMs ≤ 132`; the 2 partition contexts
+   + the batch pool touch **provably disjoint** SM sets (`%smid` instrumentation
+   from CP 5.3 STEP 2A gate C, re-run under the mixed deployment).
+2. **Partition mode preserved** — each `isolated` tenant gets its K-SM
+   allocation and runs correct decode on it (CP 5.3 Axis-A behaviour intact).
+3. **Batch mode preserved** — the 6 `shared` tenants get cross-tenant fusion;
+   measure the delivered lift inside the *confined* residual pool and compare to
+   Phase B's full-GPU 3.69× (the §11 open question — this is the headline
+   measurement, not a pass/fail unless it collapses).
+4. **Correctness** — teacher-forced logit-KL ≤ 0.1 **per tenant, per mode**
+   (cascade-free gate per [[cipher-cp56-closed]]).
+5. **Methodology** — aligned with `cp_5_6/INDUSTRY_METHODOLOGY_ALIGNMENT.md`
+   (substrate-attributable lift vs a realistic baseline; honest power
+   accounting).
+
+## §8 — Implementation surface area
+
+| component | role in CP 5.4 | change |
+|---|---|---|
+| `cipher_partition_allocator.c` (kmod) | already allocates SM slices for green contexts | likely small extension — a "residual SM set" query, batch-pool-aware accounting |
+| `cipher_rt_green_ctx.c` (libcipher_rt) | green-context create/SM-count accessors (CP 5.3) | extension — the scheduler's allocate/resize/free arbitration API |
+| `libcipher_v2` tenant registry | owns tenant identity / registration | additive `qos_class` field |
+| Phase B `cipher_batch_executor` | the batch-pool fused decode | **must bind its kernel-launch stream to the pool's green context.** Phase B measured the executor on the full GPU (primary context, *no* green-ctx binding); CP 5.3 STEP 2A made Marlin partition-aware, but whether the executor's existing launch path inherits a green-ctx binding cleanly — or needs a launch-stream wiring change — is **unverified, and is an explicit Step-1 build item**, not a free composition. |
+| **the scheduler itself** | new — SM allocator + batch-pool membership manager + policy | **new component** (a libcipher_rt module, or a libcipher_v2-side orchestrator — the layering is an adjudication question, §12) |
+
+**Anchor rotation — flagged:** the scheduler and the green-ctx arbitration API
+extend **libcipher_rt** → the Step 1 build **will rotate `a7ac8e97`**; preserve
+as `.pre_cp5_4` per phase discipline. The kmod extension (if a new ioctl is
+needed for residual-SM accounting) is additive per the ABI rule
+([[cipher-abi-rule]]) and would rotate kmod `e2f50452`. Whether the scheduler
+lives in libcipher_rt vs libcipher_v2 is an open layering decision (§12).
+
+**Estimated LOC:** scheduler core ~300–500 LOC (allocator + policy + membership),
+mostly additive; green-ctx API extension ~100 LOC; kmod residual-accounting
+~80 LOC additive; `qos_class` plumbing ~40 LOC. The bulk is *new* code; the
+green-ctx and partition-allocator changes are extensions, not rewrites.
+
+## §9 — Time estimate
+
+| phase | estimate |
+|---|---|
+| this scope memo | ~2–3 h (paperwork) |
+| Step 1 build (scheduler + green-ctx arbitration + `qos_class` + batch-pool binding) | ~3–5 days — the libcipher_rt extension is the driver |
+| Step 1 verification (mixed-deployment gates §7) | ~1–2 days |
+
+## §10 — Dependencies
+
+- **CP 5.3** — CLOSED. Partition primitive (partition-aware Marlin, green-ctx
+  SM allocation, disjointness gate) verified. Hard prerequisite — satisfied.
+- **CP 5.6 / Phase B** — CLOSED. Batch primitive (cross-tenant fusion, 3.69× /
+  3.26×, heterogeneous eviction) verified. Hard prerequisite — satisfied.
+- **Track 2 (weight-sharing)** — independent *code paths*: SC3+ and CP 5.4 do
+  not block each other and can build in parallel. Note "independent" means
+  non-blocking, not unrelated — **CP 5.5 (100-tenant soak) consumes both**
+  Track 2 weight-sharing *and* CP 5.4 arbitration. They are parallel work
+  toward the same integration gate.
+- CP 5.4 is itself a prerequisite for **CP 5.5** (100-tenant soak needs the
+  arbitration layer).
+
+## §11 — Honest unknowns
+
+1. **Per-request mode switching — resolved NO (v1).** Green-context
+   create/teardown cost ([[cipher-t424e]]'s setup tax) makes per-request mode
+   hopping infeasible. v1 is per-session static mode; this is a *decision*, not
+   an open risk. Dynamic per-request arbitration → v2.
+2. **Confined-pool batch lift — the headline open question.** Phase B's 3.69×
+   was N=8 tenants on the full 132 SMs. The CP 5.4 batch pool is a residual
+   green context. CP 5.3 STEP 2A proved partition-aware Marlin works on
+   `grid < 132`, so the mechanism composes — but *how much* of the 3.69×
+   survives confinement is unmeasured. **Step 1 §7.3 must measure the curve —
+   delivered lift vs pool SM count (e.g. 132 / 116 / 96 / 64 SMs) — not a single
+   point.** The curve is exactly what the arbitration policy needs: it prices
+   the opportunity cost of every SM moved into a partition. If lift scales
+   ~linearly with SMs (116 SMs ≈ 0.88 × 3.69 ≈ 3.25×), a partition is a modest
+   cost; if it collapses sub-linearly past some Marlin / HBM-bandwidth
+   threshold, `qos_class=isolated` becomes an expensive luxury allocation and
+   the policy must say so. This is CP 5.4's load-bearing measurement.
+3. **Workload-signal discovery — deferred.** Whether per-tenant workload
+   characteristics (B, arrival rate) are observable cheaply/reliably enough to
+   drive *dynamic* arbitration is unknown. v1 sidesteps it with a declared
+   `qos_class`; observed-signal arbitration is v2.
+4. **Batch-pool resize cost.** A new partition tenant forces a batch-pool
+   green-context teardown/recreate. The amortized cost under realistic
+   tenant-churn rates is unmeasured — Step 1 should characterize it; if high,
+   the scheduler debounces re-arbitration.
+5. **Green-context churn cost — is Marlin recompiled per green context?**
+   `isolated` tenants register/exit over a session; each cycle tears down and
+   recreates a green context. If the partition-aware Marlin cubin is recompiled
+   per green-ctx (vs cached/reused across recreates), partition mode carries a
+   hidden steady-state recompile tax that small-K `isolated` tenants cannot
+   amortize. Step 1 should sanity-check this with a green-ctx churn
+   microbenchmark (not a full gate) — and, if Marlin recompiles, add cubin
+   caching keyed on SM count.
+
+## §12 — Adjudication ask
+
+1. **Accept the §0 unification** — partition and batch are both green-context
+   allocations; the scheduler is one SM allocator; the batch pool is the
+   residual green context. This is the memo's foundational decision.
+2. **Accept v1 scoping** — static per-session `qos_class` (declared, not
+   inferred); single batch pool; dynamic/per-request arbitration and
+   observed-signal discovery deferred to v2.
+3. **Set the shipped default for `isolated_overflow_policy`** (§6) — `reject`
+   (QoS-honest: an isolation contract is not silently downgraded) vs `degrade`
+   (availability-honest: a best-effort tenant runs degraded rather than
+   refused). The memo deliberately does not pick; the operator owns this.
+4. **Decide the scheduler's layer** (§8/§12) — libcipher_rt module vs
+   libcipher_v2-side orchestrator. Affects which anchor rotates.
+5. **Confirm** the §7 success criteria and the §9 estimate; note that §11.2
+   (confined-pool batch lift) is the headline Step-1 measurement.
+
+No code until this memo is adjudicated.

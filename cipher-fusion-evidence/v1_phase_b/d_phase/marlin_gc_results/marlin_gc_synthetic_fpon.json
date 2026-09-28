@@ -1,0 +1,31 @@
+{
+  "so": "/home/ubuntu/cipher_rt_phase4/libcipher_rt.so",
+  "fp_on": true,
+  "tests": {
+    "T1_dim_mismatch": {
+      "surrogate_same_dims_nonnull": true,
+      "surrogate_diff_dims_evicted_null": true,
+      "PASS": true
+    },
+    "T2_same_shape_fingerprint": {
+      "surrogate_before_nonnull": true,
+      "surrogate_after_reuse": "null_evicted",
+      "PASS": true,
+      "note": "fp ON \u21d2 must evict; fp OFF \u21d2 informational (see T2b witness)"
+    },
+    "T3_evict_and_reclaim": {
+      "surrogate_before_nonnull": true,
+      "weights_count_before": 1,
+      "weights_count_after_evict": 0,
+      "evicted_from_count": true,
+      "surrogate_after_evict_null": true,
+      "reclaim_freed_buffers": 9,
+      "PASS": true
+    },
+    "T4_no_churn_stability": {
+      "fifty_lookups_all_valid": true,
+      "PASS": true
+    }
+  },
+  "OVERALL_PASS": true
+}

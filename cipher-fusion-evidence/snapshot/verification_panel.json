@@ -1,0 +1,308 @@
+{
+ "panel": [
+  {
+   "dimension": "DIMENSION 1 \u2014 NUMBERS (category-A traceability/recomputation, category-B verbatim citation, retracted-number scan)",
+   "findings": [
+    {
+     "severity": "minor",
+     "claim_checked": "PREREG table row 'Decode B=64 ... slightly above band \u00d73' (snapshot md line 94)",
+     "problem": "It is \u00d74, not \u00d73. The pre-registered B=64 MBU band in PREREG.md is 14\u201331%; measured MBU-LB is 31.74% (a1_decode_B64.json mbu_weight_stream_lb=0.31738), also above band. The prereg-vs-measured table silently drops the MBU column for this row, so the report's own surprise rule ('anything outside these bands is reported as a surprise') is not applied to the 4th out-of-band value.",
+     "evidence": "/home/ubuntu/cipher-fusion-evidence/snapshot/PREREG.md ('Decode B=64 ... 14\u201331 %') vs /home/ubuntu/cipher-fusion-evidence/snapshot/a1_decode_B64.json (0.31737947) vs snapshot md line 94 which lists only tok/s, MFU, TPW.",
+     "suggested_fix": "Change to 'slightly above band \u00d74' and add MBU-LB 31.7% vs band 14\u201331% to the row (same favorable-side mechanism)."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "PREREG table row 'Train MFU 15\u201345% | 10.7% | below band \u2014 the band was naive' (snapshot md line 96)",
+     "problem": "The band comparison mixes FLOP models. PREREG registered the 15\u201345% band against a '~6\u00b7N FLOPs/token fwd+bwd' model; the reported 10.7% uses the 4N frozen-base model adopted afterwards. Under the prereg's own 6N model the same step is ~16.1% \u2014 inside the band. The 4N model is the more defensible (and conservative) choice, but 'below band' is an artifact of the model change, not a measurement shortfall, and the report does not say so.",
+     "evidence": "/home/ubuntu/cipher-fusion-evidence/snapshot/PREREG.md: 'LoRA train step ... 15\u201345 % (model: ~6\u00b7N FLOPs/token fwd+bwd, stated with result)'; a1_train_B1.json mfu_median_step=0.10717 with flop_model '4*N_params per token'; 0.10717\u00d76/4=0.1608.",
+     "suggested_fix": "Add one clause: 'band was registered against a ~6N model; under that model the step is ~16.1% (in band); the honest frozen-base model is 4N, giving 10.7%.'"
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Row 4 'TPW 11.32 tok/J' (LoRA train)",
+     "problem": "Rows 1\u20133 carry the hardware-energy-counter cross-check in parentheses (0.299 / 13.29 / 60.0) but row 4 omits its counter value (20480/1836.32 = 11.15 tok/J). The value is in the JSON and the definitions section says both are reported; the table row is the one place the convention is dropped.",
+     "evidence": "/home/ubuntu/cipher-fusion-evidence/snapshot/a1_train_B1.json joules_counter=1836.32 \u21d2 11.153 tok/J; snapshot md row 4 has no parenthetical.",
+     "suggested_fix": "Add '(counter 11.15)' to row 4 for consistency."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "NO_SUBSTRATE_PROOF.txt '0 cipher_v2 lines in all 14 measured runs' (and snapshot md \u00a7Session integrity 1)",
+     "problem": "For the two R.C runs the proof file greps the monitor stderr (a2_rc/inject_mon.err, clean_mon.err \u2014 481-byte files from rc_monitor.py, not a vLLM process) instead of the vLLM driver stderr. I independently grepped a2_rc/inject_driver_p0.err and a2_rc/clean_driver_p0.err: both 0 cipher_v2 lines, so the substantive claim holds, but the proof as filed checks the wrong stderr for the R.C vLLM processes.",
+     "evidence": "NO_SUBSTRATE_PROOF.txt lists a2_rc/{inject,clean}_mon.err; verifier grep -c cipher_v2 a2_rc/inject_driver_p0.err a2_rc/clean_driver_p0.err = 0 and 0.",
+     "suggested_fix": "Regenerate the proof listing a2_rc/{inject,clean}_driver_p0.err (the vLLM processes) \u2014 values stay 0."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Cross-check 'R.B drivers: B=1 runs 66.3\u201375.5 tok/s ... Consistent'",
+     "problem": "The 75.5 endpoint (persist_N45_driver.json, detector ON at N=45) is ~11% faster than all four other B=1 runs (66.3\u201367.7) and faster than the rc_ab clean analog 67.55 \u2014 a with-detector run outrunning clean is physically odd run-to-run scatter presented under a single 'Consistent' label. No table number depends on it (row 5 overhead is the B=8 bench), but the anomaly is unremarked.",
+     "evidence": "a2_rb driver JSONs tok_s: persist_N8 67.72, persist_N45 75.49, tr_between 66.33, tr_oncheck 67.44, clean_N8 67.42; rc_ab/g_with_N8.json tok_s 67.553.",
+     "suggested_fix": "Note the 75.5 outlier explicitly (B=1 eager launch-bound jitter) rather than folding it into the range."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Cross-check 'fresh eager 80.6 \u00d7 2.05 \u2248 165 \u2248 163.3'",
+     "problem": "The 2.05\u00d7 cudagraph factor was measured at B=8/64-token decode (row 16); applying it to a B=1 number against W6's B=1 cudagraph 1024-token-prompt config is a heuristic extrapolation across batch and prompt-length. Arithmetic is right (80.63\u00d72.05=165.3) and it is labeled a cross-check, but the configs differ in two axes, so the close agreement is partly coincidental.",
+     "evidence": "tokps_result.json (batch 8, out 64) vs WEEK_6_OPTION_1_REDO.md line 12/31 (B=1, 1024-tok agentic, 256 out, vLLM 0.21.0).",
+     "suggested_fix": "Add 'factor measured at B=8' to the cross-check line."
+    }
+   ],
+   "checks_passed": [
+    "Row 1 (decode B=1): tok_s 80.632=256/3.1749 window; MFU recomputed 80.632*2*7241732096/989.5e12=0.1180% matches JSON+report 0.118%; MBU-LB (80.632/1)*14.483GB/3.35TB/s=34.86% matches 34.9%; TPW 256/794.13=0.3224 (report 0.322) and counter 256/855.943=0.2991 (report 0.299); 255W avg (255.33); clock min=med=max=1830, throttle 0x0 ('pinned') \u2014 all match a1_decode_B1.json",
+    "Row 2 (decode B=64): tok_s 4698.196; MFU recomputed 6.877% (report 6.88); MBU-LB 31.74% (report 31.7); TPW 14.462 (report 14.46) counter 16384/1232.747=13.291 (report 13.29); 332W; clock median 1830 min 1515 with sw_power_cap=true ('brief SwPowerCap dips to 1515') \u2014 all match a1_decode_B64.json",
+    "Row 3 (prefill): n_prefill_tokens 163840 = 8\u00d72048\u00d710 reps; tok/s 41426.9 (report 41,427); MFU recomputed 163840*2*N/3.95492/989.5e12=60.64% (report 60.6); TPW 65.68 (65.7) counter 163840/2731.416=59.98 (60.0); 636W (635.6); SwPowerCap active, clock median 1440 \u2014 all match a1_prefill_B8.json (decode-steps-in-window caveat carried in both JSON and report)",
+    "Row 4 (train): step median 0.139858 (report 0.1399); MFU recomputed 512*4*N/0.139858/989.5e12=10.717% (report 10.7%, 4N model); 3651.8 tok/s (report 3652); TPW 11.319 (11.32); 0 NaN steps, loss 0.1220\u21920.0142 (report 0.122\u21920.014); clock 1980 pinned \u2014 all match a1_train_B1.json",
+    "Row 5 (R.A marginal): (629.2\u2212602.3)/629.2=4.275%\u21924.28 and (629.2\u2212549.8)/629.2=12.619%\u219212.62 recomputed; bench txt values 629.2/602.3/549.8 at clocks [1830,1830,1830] traced; prior 3.1%/12.0% recomputed from 609.5/553.9 vs 629.2 and verbatim in R_A_REAL_VLLM_2026-06-08.md + tokps_result.json",
+    "Row 5 'best-of-2' claim supported: a2_ra/vllm_decode.py bench mode runs 2 timed generates in-process and reports best tps",
+    "Row 6: clean_bench4.txt decode_tok_s 629.2 == prior eager_baseline_tok_s 629.2 in ra_realvllm/tokps_result.json",
+    "Row 7 (0-FP): 640+3200+4224+2176=10240 recomputed; all four cited clean runs (a2_ra/n45 640, a2_ra/n8 3200, a2_rb/clean_N8 4224, a2_rc/clean_sdc_p0 2176) have detections=0, injected_flips=0, max_clean_residual=0; max_clean_residual=0 also in every injected run ('exactly 0 everywhere' holds); check counts internally consistent at 128 GEMMs/forward (5\u00d7128, 25\u00d7128, 33\u00d7128, 17\u00d7128)",
+    "Row 8 (latency): persist_N8_events.jsonl first is_detection=1 at step 24, onset 20 \u21d2 4 steps; persist_N45_events.jsonl first detection at step 45 \u21d2 25 steps; both \u2264N; equals prior 4/25 (a2_summary prior_latency, R_AB capstone)",
+    "Row 9 (R.B): persistent det wall-time < generate-window end verified from timestamps (N8: det 1781070650.857 < end 1781070654.222; N45: det 1781070696.077 < end 1781070698.815); 0 false quarantine 0/4224 (clean_N8_counts); transient between-checks 1 flip 0 detections; transient on-check 1 flip 1 detection (residual 79.375)",
+    "Row 10 (R.C): inject_verdict.json DEGRADED, detected step 64 / confirmed 72 (equals prior '64det/72conf'); descriptor tgid 3361722 == SDC counts pid 3361722 == nvml_compute_pids_seen, cmdline VLLM::EngineCore; persistence 9 (= 9 post-onset check steps at N=8, steps 64..128); ECC/XID deltas all 0; clean_verdict.json HEALTHY 0/2176; injected_flips 69 = steps 133\u2212onset 64 (internally consistent)",
+    "Row 11: 3.06\u00d7 verbatim at cp_5_6/TPW_RETEST_2026_05_19.md:49; 0.886/0.290 in table; JSON corroborates (0.8862, 0.2901, ratio 3.055); KL-gate sentence present in source",
+    "Row 12: 3.30\u00d7 verbatim at line 52; 3.535/1.073 in table; JSON 3.5349/1.0726 ratio 3.296",
+    "Row 13: '+57.28% \u00b1 0.32% (95% CI +56.65\u2026+57.90)' verbatim at PHASE_4_T4_3_2_REPORT.md:17 and :128; z=179.8\u2248180; n=5 confirmed in cipher-phase4-evidence/t4_3_2_npairs/summary.json (n_pairs=5, clocks 1980 vs 1005); scope caveat accurate \u2014 source line 113 confirms B=1 TinyLlama decode workload; envelope '\u22122% to \u221215% on Mistral-7B, TinyLlama-class only' verbatim at phase_audit/non_canonical/audit.md:188\u2013197",
+    "Row 14: '163.3 / 0.249 / 59.57' verbatim at WEEK_6_OPTION_1_REDO.md:68 (vanilla cache-OFF table); config claims verified (vLLM 0.21.0 CUDA graphs, BF16, 1024-tok agentic prompt at lines 12/31/33; MLPerf-v5.1 alignment in week6/bench_v2/bench_llm.py:4); result.json dir exists with matching args",
+    "Row 15: '4156.1 / 6.292 / 62.06' verbatim at line 72; CIPHER arm 4155.2 at line 106; \u22120.02% n.s. at line 176 ('no' significance)",
+    "Row 16: 629.2/1289.0 verbatim at R_A_REAL_VLLM_2026-06-08.md:70,73 (cited range 70\u201377 correct); recomputed (1289\u2212629.2)/1289=51.19%\u219251.2% and 1289/629.2=2.049\u21922.05\u00d7; tokps_result.json matches all five values",
+    "Row 17: wi4_memo/RPILLAR_GOODPUT_CLOSEOUT_MEMO_2026-06-10.md:22 carries the 'Unmeasured for the mux \u2014 WALL' + \u22650.98 single-tenant baseline sentence verbatim; WI2_SERVING_GOODPUT_2026-06-09.md:60\u201372 (mux wall mechanism) and 107\u2013110 (never relabeled SLO-goodput) verified; the 'Nebius-titled memo does not carry the mux sentence' disclosure matches partb_citations.json not_found entry",
+    "Retracted-number scan over the whole snapshot report: 3.617\u00d7, 14\u00d7, universal 85% MFU, 2.96\u00d7 stress2, 0.127% MFU, 87\u219283 tok/s, 7.43\u00d7 appear ONLY in the discipline-checklist negation line (130\u2013131); no retracted number is used as a claim",
+    "Anchor integrity: md5sum of /home/ubuntu/cipher_rt_phase4/libcipher_rt.so today = 2edba0d2136f8ede4713d90a8f7cd55f; fork1_md5_entry.txt == fork1_md5_exit.txt (diff clean), exactly 184 lines as claimed",
+    "Shim isolation: fresh ldd on det_shim.so and ab_shim.so = libc/vdso/ld only, 0 cipher strings in link deps; detector_shim.c has 0 /dev/cipher refs; ab_shim heartbeat gated behind RV_HEARTBEAT (never set); VLLM_PLUGINS='' guard present in vllm_decode.py source",
+    "Contamination story corroborated: clean_bench{1,2,3}.err contain 3542/3539/3545 cipher_v2 lines with tok_s 341.2/332.9/335.4 (629.2/335.4=1.88\u2248 the claimed ~1.9\u00d7 regression); all 14 listed measured-run .err files = 0 cipher_v2 lines (and the two R.C driver .err files = 0, checked independently)",
+    "TPW method claim '1.5\u20138.7% below counter' recomputed: train \u22121.47%, B1 \u22127.22%, B64 \u22128.10%, prefill \u22128.68% \u2014 band endpoints match",
+    "PREREG.md mtime 05:19 predates all measurement JSONs (05:30\u201305:56); PREREG bands quoted in the report match PREREG.md verbatim (B=1, prefill, R.A 2\u20135%/8\u201314%, ~6%-brief discrepancy pre-registered); in-band verdicts for rows 1/3/5 and above-band flags for B=64 tok_s/MFU/TPW all correct",
+    "W6 peak nuance verified: week6/bench_v2/bench_llm.py:35 H100_PEAK_BF16_TFLOPS=989.0 vs snapshot 989.5 (0.05% definitional, as stated)",
+    "Cross-check 'R.B drivers 66.3\u201375.5 tok/s vs rc_ab 67.55' values traced (five driver JSONs; rc_ab/g_with_N8.json tok_s 67.553)",
+    "a2_summary.json internally consistent with every per-run counts/events/verdict file it aggregates (spot-checked all fields used in table rows 5\u201310)"
+   ]
+  },
+  {
+   "dimension": "CATEGORY INTEGRITY (Dimension 2): A-vs-B labeling, substrate-not-loaded proof, /dev/cipher never opened, mux not engaged, contaminated first-pass numbers excluded",
+   "findings": [
+    {
+     "severity": "minor",
+     "claim_checked": "NO_SUBSTRATE_PROOF.txt: '0 cipher_v2 lines in all 14 measured runs' (report Session-integrity \u00a71)",
+     "problem": "For the two R.C runs, the proof file lists the MONITOR stderr (a2_rc/inject_mon.err, a2_rc/clean_mon.err \u2014 481/480 bytes, containing NO vLLM engine output) instead of the stderr of the actual vLLM-loading child processes (a2_rc/inject_driver_p0.err and a2_rc/clean_driver_p0.err, ~32 KB each, which contain the EngineCore/vLLM output). As constructed, the proof does not probe the two processes that could actually have loaded the substrate in R.C.",
+     "evidence": "a2_rc/inject_mon.err contains only '[mon] baseline \u2026 launched driver p0 pid=3361636 \u2026 driver p0 exited rc=0'; the vLLM 'Loading safetensors checkpoint shards' / EngineCore output is in a2_rc/inject_driver_p0.err, which is absent from NO_SUBSTRATE_PROOF.txt's 14-file list. I ran grep -c cipher_v2 on both driver errs myself: inject_driver_p0.err=0, clean_driver_p0.err=0 \u2014 so the underlying claim is TRUE, but the proof artifact misses the load-bearing files.",
+     "suggested_fix": "Add a2_rc/inject_driver_p0.err: 0 and a2_rc/clean_driver_p0.err: 0 to NO_SUBSTRATE_PROOF.txt (16 files, not 14), or relabel the two R.C entries as the driver errs."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "Discipline checklist: 'Shims: ldd = libc only, zero cipher strings'",
+     "problem": "'Zero cipher strings' is false as literally written: `strings a2_ra/det_shim.so | grep -i cipher` returns the baked-in default counts path '/home/ubuntu/cipher-fusion-evidence/ra_realvllm/detector_counts.\u2026', and `strings a2_rb/ab_shim.so` returns the literal string '/dev/cipher' (the compiled-in gated heartbeat) plus '/home/ubuntu/cipher-fusion-evidence/rc_ab/sdc_co\u2026'. NO_SUBSTRATE_PROOF.txt was precise ('cipher strings in shim LINK DEPS: 0'); the report dropped the 'link deps' qualifier. A partner who runs strings|grep cipher will contradict the sentence \u2014 even though the very next clause of the same bullet honestly admits the ab_shim heartbeat is 'compiled-in but gated off'.",
+     "evidence": "strings output above; NO_SUBSTRATE_PROOF.txt line 9\u201312 ('cipher strings in shim link deps \u2026 /dev/cipher refs: det_shim.c=0 ab_shim.c gated'); report line 124.",
+     "suggested_fix": "Change to 'zero cipher strings in link deps (ldd = libc only); ab_shim contains the literal /dev/cipher string for the compiled-in, env-gated, never-enabled heartbeat'."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "Pre-reg table row: 'Train MFU 15\u201345 % | 10.7 % | below band \u2014 the band was naive'",
+     "problem": "The pre-registered band was set under a DIFFERENT FLOP model than the measured number. PREREG.md row says 'LoRA train step \u2026 15\u201345 % (model: ~6\u00b7N FLOPs/token fwd+bwd)'; the report/JSON use 4\u00b7N (fwd 2N + input-grad 2N, frozen base). Under the pre-registered 6\u00b7N model the measured run is 6\u00d77.2417e9\u00d73651.8/989.5e12 = 16.1 % \u2014 INSIDE the 15\u201345 % band. The 'below band' verdict is an artifact of an undisclosed model switch, not a measurement surprise. Direction is self-deflating (it understates, not inflates), and the 4\u00b7N model is openly stated in Definitions, but the prereg-vs-measured table never discloses that the band and the number use different FLOP models \u2014 which misstates prereg compliance, a selling point of this snapshot.",
+     "evidence": "PREREG.md A1 table: 'LoRA train step (wi1 harness) | \u2014 | 15\u201345 % (model: ~6\u00b7N FLOPs/token fwd+bwd, stated with result)'. a1_train_B1.json: flop_model '4*N_params per token', mfu_median_step 0.1072. Report Definitions: 'LoRA train FLOPs/token = 4\u00b7N_params'. 10.716 % \u00d7 (6/4) = 16.07 %.",
+     "suggested_fix": "Amend the prereg row to: 'band pre-registered under ~6\u00b7N; report uses the more defensible 4\u00b7N (frozen base, no weight-grad); under the prereg 6\u00b7N model the measured step is 16.1 % = in band; under 4\u00b7N it is 10.7 %'."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Discipline checklist: 'shim counts redirected away from fork-1 paths' + det_shim default output path",
+     "problem": "detector_shim.c line 64 hard-codes a FORK-1 default counts path (/home/ubuntu/cipher-fusion-evidence/ra_realvllm/detector_counts.json), and the redirect env var RV_OUT COLLIDES with the driver: a2_ra/vllm_decode.py line 9 parses RV_OUT as int(output-tokens) \u2014 so for the a2_ra detector runs RV_OUT must have been unset or numeric ('64' per the BENCH line), and where the shim's per-step flush() actually wrote its counts file is not reconstructable from the artifacts (no file named '64' modified 2026-06-10 found anywhere; the snapshot n45/n8_counts.json match the final stderr [det-COUNTS] lines, evidently extracted from stderr). Fork-1 is nevertheless provably untouched: ra_realvllm/detector_counts.json mtime Jun 9 03:45 / 11 bytes (a ~220-byte counts line would have overwritten it), all ra_realvllm mtimes are Jun 9, the 184-file fork1 manifest diffs clean entry==exit, and I re-verified the anchor md5 2edba0d2136f8ede4713d90a8f7cd55f on disk. Outcome holds; mechanism of the 'redirect' is murky.",
+     "evidence": "detector_shim.c:64; vllm_decode.py:9 (OUT=int(os.environ.get('RV_OUT','64'))); a2_ra/n45_bench.txt shows 'out': 64; ls -la ra_realvllm/ (all Jun 9); diff fork1_md5_entry.txt fork1_md5_exit.txt clean; md5sum /home/ubuntu/cipher_rt_phase4/libcipher_rt.so = 2edba0d2\u2026",
+     "suggested_fix": "Rename the shim's counts-path env var (e.g. RV_COUNTS) and make the compiled default a snapshot/ path, or document that the a2_ra counts JSONs are extracted from the stderr [det-COUNTS] stream."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "NO_SUBSTRATE_PROOF.txt line 13\u201314: 'RV_HEARTBEAT set in any run env: NONE (never exported)' and 'proc maps/fd proof loops: \u2026:0 hits'",
+     "problem": "(1) No run-invocation or env-dump artifacts exist in snapshot/ (no runner script, and neither shim's init line prints the HEARTBEAT state), so 'never exported' rests on: compiled default 0, RV_HEARTBEAT appearing nowhere in snapshot/ except as the env-read in the shim source, the proof file, and the report \u2014 corroborating but not direct evidence. (2) The proc-maps/fd no-load proof files (a2_ra/noload_proof_n45.txt, noload_proof_n8.txt) are ZERO-BYTE; an empty file is consistent with '0 hits' but cannot distinguish a grep loop that never ran, and this fd-level proof exists only for the two a2_ra detector runs \u2014 not for the a2_rb/a2_rc runs where the /dev/cipher-capable ab_shim was loaded.",
+     "evidence": "grep -rn RV_HEARTBEAT snapshot/ \u2192 only ab_shim.c:56,124 (env read, default 0), NO_SUBSTRATE_PROOF.txt:13, report:125. ls: noload_proof_n45.txt and noload_proof_n8.txt are 0 bytes. ab_shim.c: open('/dev/cipher') only inside heartbeat(), called only if(HEARTBEAT) at line 181. a2_rc inject stderr shows the else-branch '[driver] \u2026 (W.6 heartbeat delegated to worker shim)' i.e. parent heartbeat (RV_DRIVER_HEARTBEAT) also OFF, and inject_verdict descriptor has fingerprint=null, in_w6_cohort=false \u2014 all consistent with no /dev/cipher open.",
+     "suggested_fix": "Record the exact env/command line of each run (or have the shim init line print HEARTBEAT=0) and run the fd/maps proof loop for the rb/rc workers too; put non-empty '0 hits' output in the proof files."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Pre-reg verdict 'Decode B=64 \u2026 slightly above band \u00d73' and Definitions' promise 'TPW rows quote trapezoid with counter in parentheses'",
+     "problem": "(1) The PREREG B=64 MBU band (14\u201331 %) was also exceeded (measured 31.7 %), so the favorable-side surprise is \u00d74, not \u00d73 \u2014 the report's prereg-vs-measured row silently omits the MBU column. (2) Table row 4 (LoRA train) quotes TPW 11.32 with NO counter cross-check parenthesis, unlike rows 1\u20133; the counter value is in the JSON (20480/1836.32 = 11.15, \u22121.5 %, matching \u00a74's stated train gap) but the row breaks the stated convention.",
+     "evidence": "PREREG.md A1 table: 'Decode B=64 \u2026 MBU 14\u201331 %'; a1_decode_B64.json mbu_weight_stream_lb=0.3174. Report row 2 'MBU-LB 31.7 %' and prereg table omitting MBU. Report row 4 'TPW 11.32 tok/J' with no parenthetical; a1_train_B1.json joules_counter=1836.32.",
+     "suggested_fix": "State \u00d74 including MBU 31.7 vs 14\u201331 band (edge case), and add '(11.15)' to row 4."
+    }
+   ],
+   "checks_passed": [
+    "(a) Read every table row and all prose: no category-B number is presented as freshly measured. Rows 11\u201317 are explicitly Cat. B with file:line citations; prior values inside A rows (row 5 '+3.1 %/+12.0 %', row 8 'equals prior (4/25)', row 10 'equals prior 64det/72conf', \u00a71 'prior 629.2') are all explicitly labelled 'prior'; the 2.05\u00d7 cudagraph factor in Definitions is labelled '(B row eager-vs-cudagraph)'; the \u22650.98 SLO baseline in row 17 is labelled B; the Cross-checks section explicitly frames fresh-A vs quoted-B.",
+    "(a-bonus) Spot-verified every B-row citation against its source at the cited lines: row 11 3.06\u00d7 (cp_5_6/TPW_RETEST_2026_05_19.md:49 exact), row 12 3.30\u00d7 (line 52 exact), row 13 +57.28 %\u00b10.32 CI +56.65\u2026+57.90 z=179.8 (PHASE_4_T4_3_2_REPORT.md:17,128 exact) and the \u22122 %\u2026\u221215 % Mistral envelope caveat (phase_audit/non_canonical/audit.md:188\u2013197 exact), row 14 163.3/0.249/59.57 (WEEK_6_OPTION_1_REDO.md:68 exact), row 15 4156.1/6.292/62.06 vanilla + 4155.2 CIPHER \u22120.02 % (lines 72/106/176 exact), row 16 629.2 vs 1289.0 = +51.2 %/2.05\u00d7 (R_A_REAL_VLLM_2026-06-08.md:70\u201377 exact), row 17 mux-unmeasured/partner-gated wording (wi4_memo \u2026MEMO:22 and wi2 \u2026:60\u201372,107\u2013109 exact). Cited JSON artifacts exist (cp_5_6/phase_b/session1/tpw_retest_result.json, ra_realvllm/tokps_result.json, week6/bench_v2/results/20260523_mistral7b_vanilla_\u2026_nocache).",
+    "(a-bonus) The report's own disclosure that DEVANG_NEBIUS_UPDATE.md does NOT carry the mux sentence matches partb_citations.json's not_found audit verbatim \u2014 the citation index is honest about its misses.",
+    "(b) NO_SUBSTRATE_PROOF.txt internally consistent: all 14 listed .err files re-grepped by me = 0 cipher_v2 lines each; positive control a2_ra/clean_bench3.err = 3545 exactly as claimed; I additionally grepped ALL 20 .err files in snapshot/ \u2014 the only nonzero ones are the four retained pre-guard first-pass artifacts (clean_bench 3542 / clean_bench2 3539 / clean_bench_inproc 3480 / clean_bench3 3545), consistent with the disclosed contamination story; the two unlisted R.C vLLM driver errs are also 0 (see finding).",
+    "(b) ldd run by me on a2_ra/det_shim.so and a2_rb/ab_shim.so: linux-vdso + libc + ld-linux only \u2014 matches the proof file's recorded ldd output. a2_rb/ab_shim.so and a2_rc/ab_shim.so are byte-identical (same md5) and the two ab_shim.c copies diff-identical.",
+    "(b-bonus) VLLM_PLUGINS='' guard present in all four vLLM drivers (a1_bench.py:19, a2_ra/vllm_decode.py:11, a2_rb/ab_driver.py:14, a2_rc/vllm_driver.py:23); a1 run stderr contains no shim/[det] lines (a1 rows are shim-free as claimed); decontaminated clean_bench4.txt = 629.2 tok/s exactly as in row 6, vs contaminated first-pass 332.9\u2013341.2 (the disclosed ~1.9\u00d7 regression: 629.2/332.9 = 1.89).",
+    "(c) a2_ra/detector_shim.c: zero /dev/cipher matches (only 'cipher' hit is the evidence-dir path string). a2_rb/ab_shim.c: open('/dev/cipher') exists ONLY inside heartbeat(), which is called only if(HEARTBEAT) (line 181); HEARTBEAT is static int =0 (line 56) and set only from getenv('RV_HEARTBEAT') (line 124). RV_HEARTBEAT appears nowhere in snapshot/ as set/exported \u2014 only as the env-read in the two identical ab_shim.c copies, the proof file, and the report. a2_rc/vllm_driver.py's separate parent heartbeat is gated RV_DRIVER_HEARTBEAT (default 0) and the run stderr shows the OFF branch executed ('W.6 heartbeat delegated to worker shim').",
+    "(c) a2_rc/rc_monitor.py cohort_query(): 'return None' is placed BEFORE the os.open('/dev/cipher') (dead code below), with a docstring disclosing kmod-decoupling; a2_summary.json kmod_decoupled_note and report row-10/discipline text consistently downgrade the fresh descriptor to SDC-pid==NVML-pid only, citing the full SDC==NVML==W6 triple to R_C_PERGPU_FLEET_2026-06-09.md \u2014 no fresh triple claim. inject_verdict descriptor: fingerprint=null, in_w6_cohort=false, descriptor_source='nvml_compute_procs' \u2014 consistent.",
+    "(d) Full grep of all snapshot .py/.c for 'mux' and 'cipher_platform': zero hits (rc=1). No mux or cipher_platform invocation anywhere in the snapshot harness; the only 'cipher' references in scripts are the VLLM_PLUGINS guard comments and the deliberate do-NOT-load note in vllm_driver.py.",
+    "(e) Grepped the report for every contaminated first-pass number (42.8, 42.4, 2554, 40744/40,744, 335, 341, 333, 350): ZERO matches anywhere \u2014 none appear in the results table or prose; the A-table values (80.6, 4698.2, 41427) are distinct and match their fresh JSONs to rounding (tok_s 80.632/4698.196/41426.9; MFU 0.118 %/6.88 %/60.6 %; TPW 0.322(0.299)/14.46(13.29)/65.7(60.0); clocks/SwPowerCap fields match each JSON's clocks block).",
+    "Fork-1/anchor integrity independently re-verified: fork1_md5_entry.txt == fork1_md5_exit.txt (diff clean, 184 lines as claimed); anchor /home/ubuntu/cipher_rt_phase4/libcipher_rt.so md5 recomputed by me = 2edba0d2136f8ede4713d90a8f7cd55f; ra_realvllm/ and rc_ab default-path targets untouched on 2026-06-10 (mtimes Jun 9; rc_ab/sdc_counts.json does not exist, so ab_shim's RV_OUT was redirected as claimed).",
+    "Fresh-A arithmetic and internal consistency: row 5 marginals recompute exactly ((629.2\u2212602.3)/629.2 = 4.28 %, (629.2\u2212549.8)/629.2 = 12.62 %); row 7's 10,240 = 640+3200+4224+2176 matches the four count JSONs (all detections=0, max_clean_residual=0); row 8 latencies (24\u221220=4 @N=8, 45\u221220=25 @N=45) match a2_summary and counts; row 9 0/4224 false-quarantine, between-miss 0-det/1-flip, on-check 1-det/1-flip all match tr_*/clean count files; cross-check 'R.B drivers 66.3\u201375.5 tok/s' matches the five driver JSONs (66.3/67.4/67.4/67.7/75.5); 80.6\u00d72.05=165.2\u2248163.3 as stated; PREREG.md (05:19) predates every measurement artifact (05:30\u201306:01) and run PIDs are monotonic within the session; rc inject wall-clock 2026-06-10T05:55:58Z is fresh.",
+    "Run-count audit: the 14 listed measured runs map 1:1 to the A rows' evidence (a1 \u00d74, a2_ra \u00d73, a2_rb \u00d75, a2_rc \u00d72); the retained contaminated artifacts are clearly segregated as the positive control."
+   ]
+  },
+  {
+   "checks_passed": [
+    "(a) Decode-MFU-low framed as memory-bound physics, not a defect: Definitions line 24 ('Decode MFU is expected to be low \u2014 decode is memory-bound; that is the honest physics, not a defect') and the same framing is pre-registered in PREREG.md line 32. PASS.",
+    "(b) Eager caveat present and carried: header, Definitions ('cudagraph is 2.05x eager'), and row 16 (629.2 vs 1289.0 => +51.2%, 2.05x) verified verbatim against R_A_REAL_VLLM_2026-06-08.md:70-77 and ra_realvllm/tokps_result.json (eager_baseline 629.2, cudagraph 1289.0, tax 51.2, speedup 2.05). Fresh rows 1, 2, 5 each carry an explicit 'eager' label; row 3 (prefill) is covered by the global 'vLLM 0.20.2 eager (enforce_eager=True)' declaration and a1_prefill_B8.json eager:true. PASS.",
+    "(c) Mux SLO/MFU-with-CIPHER row 17 is explicit 'NOT MEASURED \u2014 partner-gated' and 'deliberately not faked'; verified against wi4_memo close-out memo serving row ('Unmeasured for the mux \u2014 WALL', single-tenant >=0.98 attainment) and WI2_SERVING_GOODPUT_2026-06-09.md:60-72 (mechanism: mux compiled into substrate, needs vLLM-cooperating host, 'No SLO-attainment uplift is fabricated') and :107-109 ('never relabeled as SLO-goodput'). PASS.",
+    "(d) DVFS row 13 caveat verified against both cited sources: PHASE_4_T4_3_2_REPORT.md TL;DR + matched-pair table (+57.28% +/- 0.32%, 95% CI [+56.65, +57.90], n=5, z=179.8 ~ 'z~180') and phase_audit/non_canonical/audit.md lines 188-197 verbatim ('+57% tok/W reproduces (C6 +54.97%) only on TinyLlama-class memory-bound decode. On Mistral-7B ... -2% to -15% tok/W \u2014 neutral to negative'). The snapshot row carries both the TinyLlama-class scope and the Mistral -2% to -15% envelope, matching the sources. PASS.",
+    "(e) MBU labelled lower-bound with KV excluded: Definitions ('KV-cache traffic excluded => MBU is a lower bound, labelled MBU-LB'), rows 1-2 use 'MBU-LB', and every a1 JSON embeds byte_model 'KV excluded => MBU lower bound'. PASS.",
+    "(f) Train-MFU below-band miss is disclosed in the prereg-vs-measured table (not absorbed), and the brief's '~6% @N=8' is explicitly flagged as matching no prior source \u2014 pre-registered in PREREG.md line 45 BEFORE measurement. The two claimed real sources check out: 12.0% @B=8 (ra_realvllm/tokps_result.json detector_marginal_N8_pct=12.0) and 12.6% @B=1 (rc_ab/g_with_N8.json 67.553 vs g_without.json 76.068 = 1.126x). PASS on disclosure (but see the FLOP-model finding).",
+    "(g) R.C kmod-decoupling disclosed: row 10 states descriptor 'SDC-pid==NVML-pid' only; discipline bullet states cohort query disabled and the SDC==NVML==W6 triple is a citation not a fresh claim; a2_summary.json carries kmod_decoupled_note and inject_descriptor.in_w6_cohort=false; scratch a2_rc/rc_monitor.py cohort_query() returns None before any /dev/cipher open (dead code below); SDC counts pid 3361722 == descriptor tgid 3361722 (SDC-pid==NVML-pid supported by artifacts). PASS.",
+    "(h) Contamination event disclosed with effect on first-pass numbers: Session integrity #1 names the plugin auto-load path, the detection signal, the re-take guard (VLLM_PLUGINS=''), the positive control (verified: clean_bench3.err 3545 cipher_v2 lines; also clean_bench.err 3542, clean_bench2.err 3539, clean_bench_inproc.err 3480 retained), and the effect ('apparent ~1.9x eager-decode regression' \u2014 verified: contaminated benches 332.9-341.2 tok/s vs decontaminated 629.2 = 1.84-1.89x). All 14 listed measured-run stderr files re-grepped = 0 cipher_v2 lines; I additionally verified the two R.C vLLM driver stderr files (not in the list) are also 0. PASS on substance.",
+    "(i) TPW trapezoid-vs-counter gap disclosed: Definitions lines 26-29 + Session integrity #4; recomputed from JSONs: B=1 -7.2%, B=64 -8.1%, prefill -8.7%, train -1.5% \u2014 matches the stated '1.5-8.7% below' range; counter values in rows 1-3 parentheses recompute exactly (256/855.943=0.299, 16384/1232.747=13.29, 163840/2731.416=60.0). PASS (row 4 omission noted as a finding).",
+    "'Identical to the prior to the decimal' (row 6): a2_ra/clean_bench4.txt really says decode_tok_s 629.2 (clock 1830/1830/1830), and the prior ra_realvllm/tokps_result.json eager_baseline_tok_s = 629.2. Claim exactly supported at the reported precision. PASS.",
+    "'Detected before serve' (row 9): a2_summary.json detection_before_batch_serve=true for both N=8 and N=45, and independently recomputed from raw artifacts: N=8 detection wall 1781070650.857s < gen_wall_end 1781070654.222s (persist_N8_events.jsonl vs persist_N8_driver.json); N=45 detection 1781070696.077 < gen_end 1781070698.815. Timestamps exist and support the claim. PASS.",
+    "A1 table arithmetic fully recomputed from JSONs: rows 1-4 tok/s, MFU (2N decode / 4N train models), MBU-LB, TPW trapezoid+counter, avg W, and clock/SwPowerCap disclosures (B=64 dip to 1515 with throttle 0x4 disclosed; prefill median 1440 SwPowerCap disclosed; B=1/train pinned 1830/1980 with throttle 0x0). All match. PASS.",
+    "Row 7 zero-FP arithmetic: 640+3200+4224+2176 = 10,240 across exactly 4 clean runs, detections=0 and max_clean_residual=0 in every cited counts JSON. Row 5 marginals recompute: (629.2-602.3)/629.2=4.28%, (629.2-549.8)/629.2=12.62%. Row 8 latencies 4/25 <= N from events JSONLs. PASS.",
+    "'Best-of-2' (a2_summary config): supported \u2014 a2_ra/vllm_decode.py bench mode runs 2 timed generates and reports the max. PASS.",
+    "W6 rows 14/15 verified against WEEK_6_OPTION_1_REDO.md lines 66-72 + the cited result.json: B=1 163.29/0.2488%/59.57% prefill, B=64 4156.1/6.292%/62.06%, enforce_eager=false (cudagraph) in result.json args, vLLM 0.21.0 at line 33, BF16 + 1024-tok agentic prompt at line 12, '4155.2 is the CIPHER arm, -0.02%, n.s.' confirmed at the line-172 comparison table, and the 989.0-vs-989.5 peak nuance confirmed (result.json peak_bf16_tflops=989.0). PASS.",
+    "Mux rows 11/12 verified verbatim at cp_5_6/TPW_RETEST_2026_05_19.md lines 47-52 (0.886 vs 0.290 => 3.06x; 3.535 vs 1.073 => 3.30x) and cp_5_6/phase_b/session1/tpw_retest_result.json exists; cipher-phase4-evidence/t4_3_2_npairs/summary.json exists. PASS.",
+    "Fork-1 manifest: fork1_md5_entry.txt == fork1_md5_exit.txt (diff clean, 184 lines), anchor 2edba0d2... present for libcipher_rt.so. det_shim's baked-in default counts path points into fork-1 ra_realvllm/, but ra_realvllm/detector_counts.json mtime is Jun 9 (untouched this session) and fresh counts were redirected into snapshot/ via RV_OUT. PASS.",
+    "Retracted-numbers claim: grep for 3.617/7.43/2.96x-stress2/0.127%/87->83/14x in the snapshot hits only the disclosure line itself. PASS.",
+    "Reason-not-re-run footnote's self-correction verified: v1_phase_b/DEVANG_NEBIUS_UPDATE.md contains zero 'mux' mentions, exactly as the snapshot discloses. PASS.",
+    "Cross-checks section: 80.6 x 2.05 = 165.2 ~ 163.3 arithmetic correct and labelled as a consistency check; R.B driver range 66.3-75.5 verified from the five driver JSONs (66.33-75.49); rc_ab prior 67.55 located (rc_ab/g_with_N8.json = 67.5534). PASS.",
+    "Substrate-line guards re-verified independently: ldd on both shims = libc only; VLLM_PLUGINS='' set in a1_bench.py, a2_ra/vllm_decode.py, a2_rb/ab_driver.py, a2_rc/vllm_driver.py; ab_shim.c HEARTBEAT default 0 gated on RV_HEARTBEAT which no driver sets. PASS."
+   ],
+   "dimension": "DIMENSION 3 \u2014 HONESTY / FRAMING",
+   "findings": [
+    {
+     "severity": "minor",
+     "claim_checked": "Discipline checklist: 'Shims: ldd = libc only, zero cipher strings'",
+     "problem": "'Zero cipher strings' is false as written. The binaries do contain cipher-related strings: ab_shim.so contains the literal string '/dev/cipher' (the compiled-in, gated-off heartbeat path the same sentence admits to) and a '/home/ubuntu/cipher-fusion-evidence/rc_ab/sdc_co...' path; det_shim.so contains a '/home/ubuntu/cipher-fusion-evidence/ra_realvllm/detector_counts.' default path. The narrower claim actually proven in NO_SUBSTRATE_PROOF.txt is 'cipher strings in shim LINK DEPS: 0' (i.e., in the ldd output), which is true. The checklist over-generalized the proof. Substance (no substrate linked, /dev/cipher never opened) holds.",
+     "evidence": "strings a2_ra/det_shim.so | grep -i cipher -> '/home/ubuntu/cipher-fusion-evidence/ra_realvllm/detector_counts.'; strings a2_rb/ab_shim.so | grep -i cipher -> '/dev/cipher' and '/home/ubuntu/cipher-fusion-evidence/rc_ab/sdc_co'. NO_SUBSTRATE_PROOF.txt line 9-11 only claims 'cipher strings in shim link deps: 0'.",
+     "suggested_fix": "Change the checklist line to match the proof: 'ldd = libc only, zero cipher strings in link deps; /dev/cipher string present in ab_shim (heartbeat code, compiled-in but gated off and never enabled)'."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "Session integrity #1 / NO_SUBSTRATE_PROOF.txt: '0 in all 14 measured runs' (cipher_v2 contamination lines)",
+     "problem": "Coverage gap in the proof artifact: for the two R.C runs, the 14-run list audits the MONITOR stderr (inject_mon.err / clean_mon.err \u2014 the rc_monitor process, which does not run vLLM) instead of the actual vLLM driver stderr (a2_rc/inject_driver_p0.err / clean_driver_p0.err), which are the at-risk processes for plugin auto-load contamination. I verified both driver stderr files independently and they are 0 cipher_v2 lines, so the headline claim survives \u2014 but as constructed the proof file does not audit the processes that matter for R.C.",
+     "evidence": "NO_SUBSTRATE_PROOF.txt lists a2_rc/inject_mon.err and a2_rc/clean_mon.err (481/480 bytes, monitor processes) but not a2_rc/inject_driver_p0.err (32754 B) / clean_driver_p0.err (32092 B). My check: grep -c cipher_v2 on both driver .err files = 0 each.",
+     "suggested_fix": "Add the two R.C vLLM driver stderr files to the proof table (both are 0), or replace the mon entries with the driver entries."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "Pre-registration vs measured table: 'Train MFU 15-45% | 10.7% | below band \u2014 ... the band was naive, the number is the honest one'",
+     "problem": "The 15-45% band was pre-registered under a '~6*N FLOPs/token fwd+bwd' model (PREREG.md line 35), but the measured 10.7% is computed under a 4*N model (a1_train_B1.json flop_model). Under the registered 6N model the identical step time yields ~16.1% \u2014 INSIDE the band. The 'below band' verdict is therefore partly an artifact of an undisclosed post-registration FLOP-model change, not purely a workload surprise. Mitigations: the 4N model is the correct one for frozen-base LoRA (fwd 2N + input-grad 2N, no weight-grad), the change is conservative (makes the result look worse, not better), row 4 explicitly labels '(4N model)', and PREREG.md sits in the same directory \u2014 but the prereg-vs-measured table, whose whole purpose is pre-reg integrity accounting, does not mention the model swap.",
+     "evidence": "PREREG.md line 35: '15-45 % (model: ~6*N FLOPs/token fwd+bwd, stated with result)'. a1_train_B1.json: flop_model '4*N_params per token...', mfu_median_step 0.10717. Recompute: 0.10717 x 6/4 = 0.1608 -> 16.1%, within 15-45%.",
+     "suggested_fix": "Add one clause to the train row: 'band was registered under a generic ~6N model; the correct frozen-base model is 4N (used here); under the registered 6N model the same step is ~16% (in band) \u2014 the 4N number is reported because it is the honest model.'"
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Session integrity #4: 'TPW rows quote trapezoid with counter in parentheses' vs results-table row 4",
+     "problem": "Row 4 (LoRA train) quotes 'TPW 11.32 tok/J' with no counter parenthetical, contradicting the report's own stated convention; rows 1-3 all carry it. The counter value exists in the JSON (20480/1836.32 = 11.15, gap -1.5%, consistent with the disclosed train gap).",
+     "evidence": "Snapshot row 4 vs rows 1-3; a1_train_B1.json joules_counter 1836.32, joules_trapezoid 1809.33.",
+     "suggested_fix": "Add '(11.15)' to row 4."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Pre-reg table: 'Decode B=64 ... slightly above band x3'",
+     "problem": "It is above band x4 against PREREG.md: the registered B=64 MBU band was 14-31% and the measured MBU-LB is 31.7% (also above). The report's prereg-vs-measured row silently drops the MBU column from the comparison.",
+     "evidence": "PREREG.md line 33: 'Decode B=64 ... 14-31 %'; a1_decode_B64.json mbu_weight_stream_lb 0.31738; snapshot row 2 'MBU-LB 31.7 %'.",
+     "suggested_fix": "Either include MBU in the B=64 prereg row ('above band x4') or state why MBU was excluded from the band accounting."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Row 10: 'Inject -> DEGRADED (onset det step 64, confirmed 72 \u2014 equals prior \"64det/72conf\")'",
+     "problem": "The agreement with the prior is partly by construction: the injection onset is a configured parameter (inject_sdc_counts_p0.json 'onset':64) placed on an N=8 check step, so detection at step 64 and confirmation at 72 follow from the chosen config rather than being an independently reproduced outcome. The substantive fresh outcomes (detected at first check at/after onset, confirmed next check, DEGRADED verdict, persistence 9, clean HEALTHY 0/2176, ECC/XID 0) are real and artifact-backed. 'Equals prior' reads slightly stronger than 'same config re-run reproduces the same detection behavior'.",
+     "evidence": "a2_rc/inject_sdc_counts_p0.json: {'onset':64, 'N':8, ...}; a2_summary.json rc_verdicts.inject fault_onset decode_step_detected 64 / confirmed 72; prior config used the same onset (R_C_PERGPU_FLEET memory: 'step64det/72conf').",
+     "suggested_fix": "Phrase as 'same injection config reproduces det-at-first-check / confirm-at-next (64/72, matching prior)' to make the configured-onset explicit."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "NO_SUBSTRATE_PROOF.txt: 'proc maps/fd proof loops: a2_ra/noload_proof_n45.txt:0 ... 0 hits'",
+     "problem": "Both noload_proof files are zero-byte. An empty file is consistent with 'scan ran and found nothing' but also with 'scan never wrote output' \u2014 weak as standalone proof. The no-substrate-load conclusion is independently corroborated (ldd, zero cipher_v2 stderr lines, plugin guard in source), so this is an artifact-quality observation, not a substance challenge.",
+     "evidence": "ls -la a2_ra/: noload_proof_n45.txt and noload_proof_n8.txt both 0 bytes.",
+     "suggested_fix": "Have the proof loop emit an explicit 'SCANNED <n> maps, 0 hits' line so absence-of-evidence is distinguishable from evidence-of-absence."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Pre-reg table R.A row: 'prior values 3.1 %/12.0 % (single best-of-2 runs; ~1 pp run-to-run scatter)'",
+     "problem": "The '~1 pp run-to-run scatter' figure is asserted, not established by repeats in this session (one best-of-2 measurement per config), and the fresh-vs-prior N=45 delta it is explaining is 1.18 pp \u2014 slightly larger than the asserted scatter. Plausible but unevidenced as stated.",
+     "evidence": "a2_ra contains exactly one decontaminated clean run (clean_bench4) and one run each of n45/n8; fresh 4.28% vs prior 3.1% = 1.18 pp.",
+     "suggested_fix": "Either cite where the ~1 pp scatter was measured (e.g., prior session repeats) or soften to 'consistent with run-to-run scatter; not re-characterized here'."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Session integrity #3: 'Contaminated early B=1 runs at 1005 MHz were superseded by the re-measurements'",
+     "problem": "The superseded contaminated a1 B=1 artifacts are not retained in snapshot/, so the '1005 MHz' detail (which is itself an interesting tell \u2014 1005 MHz is the substrate DVFS ON-arm lock) is not independently checkable from the evidence dir. The analogous contaminated R.A artifacts ARE retained (clean_bench{1,2,3} at 332.9-341.2 tok/s, supporting the ~1.9x regression statement: 629.2/335.4 = 1.88). Disclosure is in the self-critical direction; only the audit trail is incomplete.",
+     "evidence": "snapshot/ contains only the final a1_decode_B1.{json,err}; no early contaminated B=1 artifact present. a2_ra/clean_bench3.txt 335.4 tok/s with 3545 cipher_v2 stderr lines retained as positive control.",
+     "suggested_fix": "Retain (or point to) one contaminated a1 B=1 artifact, or drop the unverifiable 1005 MHz specificity."
+    }
+   ]
+  },
+  {
+   "dimension": "DIMENSION 4 \u2014 RUN INTEGRITY",
+   "findings": [
+    {
+     "severity": "minor",
+     "claim_checked": "Discipline checklist: 'all scratch work in snapshot/'",
+     "problem": "Git metadata under /home/ubuntu/cipher-fusion-evidence/.git was written at 2026-06-10 06:02:58 \u2014 AFTER the exit manifest (06:00) and the report (06:01), outside snapshot/. Two writes: .git/index and one loose object (e69de29... = the hash-of-empty-content blob). Content-neutral (no tracked working-tree file outside snapshot/ changed after 04:02; git status shows only pre-existing ' M'/'??' entries with mtimes May-28..Jun-10 04:02), and it may have been a post-report 'git status'-style probe by the orchestrator or a sibling panel agent \u2014 but it is activity outside snapshot/ during the session window and the checklist's blanket claim is technically violated.",
+     "evidence": "stat: .git/index 2026-06-10 06:02:58.343; .git/objects/e6/9de29bb2d1d6434b8b29ae775ad8c2e48c5391 06:02:58.404; find .git -newermt '2026-06-10 05:15' returns exactly those two files; git log HEAD = a15e59b 2026-06-05 (no new commit); nothing staged.",
+     "suggested_fix": "Add one line to Session-integrity: 'post-report git-status index refresh at 06:02:58 (.git metadata only, no content objects beyond the empty blob, nothing committed/staged)' \u2014 or attribute it explicitly if the orchestrator ran it."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "Discipline checklist: 'Shims: ldd = libc only, zero cipher strings'",
+     "problem": "'Zero cipher strings' is false at the binary-strings level: ab_shim.so contains the literal strings '/dev/cipher' and '/home/ubuntu/cipher-fusion-evidence/rc_ab/sdc_co...'; det_shim.so contains '/home/ubuntu/cipher-fusion-evidence/ra_realvllm/detector_counts.' (its compiled-in default counts path). NO_SUBSTRATE_PROOF.txt correctly scopes its claim to 'cipher strings in shim LINK DEPS' (true: ldd = libc only, independently reproduced), and the same checklist bullet itself discloses the compiled-in-but-gated heartbeat \u2014 so this is internal wording inconsistency, not concealment, but a partner running `strings` will find cipher hits.",
+     "evidence": "strings snapshot/a2_rb/ab_shim.so | grep -i cipher \u2192 '/dev/cipher', '/home/ubuntu/cipher-fusion-evidence/rc_ab/sdc_co'; strings snapshot/a2_ra/det_shim.so | grep -i cipher \u2192 1 hit (the ra_realvllm default path). ldd on both .so: linux-vdso + libc + ld-linux only (reproduced).",
+     "suggested_fix": "Reword to 'zero cipher strings in link deps (ldd); /dev/cipher string present only in the gated-off heartbeat path' \u2014 matching NO_SUBSTRATE_PROOF.txt's accurate scoping."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "Header: 'scratch LD_PRELOAD cuBLAS-interception shims REBUILT in snapshot/'",
+     "problem": "All three scratch shim binaries are byte-identical (md5) to the fork-1 validated binaries, i.e. indistinguishable from copies; PREREG.md itself says 'scratch LD_PRELOAD shim COPIES in snapshot/'. Identical-to-validated-binary is fine (arguably better provenance) and sources are also byte-identical, but 'rebuilt' is asserted and not substantiated by any build log in snapshot/.",
+     "evidence": "md5sum: snapshot/a2_ra/det_shim.so == ra_realvllm/detector_shim.so == 069d8a7b912d65dc1bcf8bd22131e725; snapshot/a2_rb/ab_shim.so == snapshot/a2_rc/ab_shim.so == rc_ab/ab_shim.so == 2c8ddcfa2a0448d9d2d34d559fee4d93; diff of detector_shim.c and ab_shim.c vs fork-1 originals empty; PREREG.md line 4: 'scratch LD_PRELOAD shim copies in snapshot/'.",
+     "suggested_fix": "Say 'copied byte-identical from the validated fork-1 builds (md5s match the fork-1 manifest)' \u2014 it is the stronger statement anyway."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "Discipline checklist: 'shim counts redirected away from fork-1 paths'",
+     "problem": "True in EFFECT (fork-1 demonstrably untouched, three independent checks) but the stated mechanism cannot be confirmed for the a2_ra runs and the shim default is a fork-1-pointing footgun: det_shim's only counts-path override is env RV_OUT (detector_shim.c:64), whose compiled-in default is the fork-1 file /home/ubuntu/cipher-fusion-evidence/ra_realvllm/detector_counts.json, while the a2_ra driver vllm_decode.py:9 consumes RV_OUT as an INTEGER token count (the run printed 'out': 64, so RV_OUT was numeric or unset in that process). I could not locate any file written by the shim's fopen(OUTP,\"w\") for the n45/n8 runs anywhere on the filesystem (no '64' or detector_counts.json newer than 05:00 on the root fs). The snapshot counts JSONs match the final [det-COUNTS] stderr lines byte-for-byte, so the VALUES are genuine run output regardless of plumbing; and the identical-content fork-1 file ra_realvllm/64 (mtime 2026-06-09 03:58) shows the same collision already fired in the prior session and is covered by the clean manifest.",
+     "evidence": "detector_shim.c:64 default OUTP='/home/ubuntu/cipher-fusion-evidence/ra_realvllm/detector_counts.json' (mtime 2026-06-09 03:45, untouched); vllm_decode.py:9 OUT=int(os.environ.get(\"RV_OUT\",\"64\")); n45_bench.txt 'out': 64; last [det-COUNTS] line of n45_bench.err == snapshot/a2_ra/n45_counts.json content exactly; find / -xdev -name 64 -newermt '2026-06-10 05:00' \u2192 none; ra_realvllm/64 exists with identical deterministic content, mtime Jun-09, present in both manifests (md5 9d445c41, entry==exit).",
+     "suggested_fix": "Document how the a2_ra counts files were produced (stderr harvest or renamed OUTP) and rename the shim's path env to avoid the RV_OUT collision; note the deterministic-counters explanation for ra_realvllm/64 so an auditor doesn't mistake it for cross-session copying."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "'0 leftover compute processes after; children reaped'",
+     "problem": "Verified clean for this session, but a pre-existing cipher-named daemon `python3 cipher-exporter.py` (PID 1604693) has been running since May 18 \u2014 a partner audit of the box would spot it. It holds no GPU context (absent from nvidia-smi compute-apps), has no /dev/cipher fd (fds: /dev/null, /tmp/cipher-exporter.out, one socket), and predates the session, so it does not contaminate the runs.",
+     "evidence": "ps lstart 'Mon May 18 18:57:23 2026'; nvidia-smi --query-compute-apps empty; ls /proc/1604693/fd shows no /dev/cipher; full /proc/*/fd scan: no process on the box holds /dev/cipher open.",
+     "suggested_fix": "One-line disclosure in the checklist: 'pre-existing cipher-exporter.py telemetry daemon (no GPU, no /dev/cipher) left running'."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "'all scratch work in snapshot/' (files outside snapshot/ modified today)",
+     "problem": "Three files outside snapshot/ carry today's date but pre-date the session start (~05:15): RPILLAR_LOOP_STATUS.md (04:02:29), wi2_servinggoodput/WI2_SERVING_GOODPUT_2026-06-09.md (04:00:54), wi4_memo/RPILLAR_GOODPUT_CLOSEOUT_MEMO_2026-06-10.md (04:01:53) \u2014 artifacts of the prior R-pillar close-out session, two of which this snapshot cites (row 17). Not this session's scratch; listed for audit completeness. Note wi2_servinggoodput IS a fork-1 manifest dir and its 04:00 write pre-dates the 05:15 entry manifest, so the manifest correctly freezes the post-edit state.",
+     "evidence": "find . -newermt '2026-06-10 04:00' -not -path './snapshot/*' -type f \u2192 exactly these 3 + the 2 .git files; stat timestamps 04:00:54\u201304:02:29 vs entry manifest 05:15:52.",
+     "suggested_fix": "None required; optionally state session-start time in the report so the 04:0x mtimes are self-explanatory."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "'clock relocked 1980 per window; -rgc at session exit'",
+     "problem": "-rgc has not yet happened \u2014 applications clock is still locked at 1980 MHz (current SM 1830) at panel time. This is the expected state since the panel runs BEFORE session exit per protocol; the checklist's '-rgc at session exit' is a forward-looking claim that cannot be verified by this panel and should be confirmed by the orchestrator after exit.",
+     "evidence": "nvidia-smi: clocks.applications.graphics = 1980 MHz, clocks.current.sm = 1830 MHz, persistence Enabled, at 2026-06-10 06:04 UTC.",
+     "suggested_fix": "Orchestrator: run and log `nvidia-smi -rgc` at exit as claimed."
+    }
+   ],
+   "checks_passed": [
+    "(a) diff fork1_md5_entry.txt vs fork1_md5_exit.txt: clean (184 lines each, matching the report's '184-file manifest' = 183 fork-1 files + anchor)",
+    "(a) anchor re-md5'd fresh: /home/ubuntu/cipher_rt_phase4/libcipher_rt.so == 2edba0d2136f8ede4713d90a8f7cd55f, matches report and manifest line 1",
+    "(a) 5 randomly sampled fork-1 files re-md5'd fresh (wi1_trainingbadput/B_events.jsonl, ra_realvllm/cleanout.txt, ra_realvllm/diagerr.txt, rc_ab/ab_shim.so, ra_realvllm/detector_shim.so): all match the exit manifest \u2014 manifest not stale",
+    "(a+) manifest completeness: file list in fork1_md5_exit.txt == actual `find -type f` over all 7 fork-1 dirs (diff empty) \u2014 no unmanifested additions could hide",
+    "(b) find ra_e2e ra_realvllm rc_pergpu rc_ab wi1_trainingbadput wi2_servinggoodput wi3_fleetagg -newermt '2026-06-10 05:00' -type f: EMPTY \u2014 no fork-1 file touched during the session",
+    "(b+) same find with -type d: EMPTY, and all 7 fork-1 dir mtimes pre-date 05:00 \u2014 no file was even created-then-deleted inside fork-1 this session",
+    "(b+) the shim's compiled-in fork-1 default outputs untouched: ra_realvllm/detector_counts.json mtime 2026-06-09 03:45; rc_ab/sdc_counts.json does not exist",
+    "(c) nvidia-smi --query-compute-apps: empty; ps scan: no vllm / EngineCore / ab_driver / stray workload python (only system daemons + pre-existing cipher-exporter, see note); /proc/*/fd scan: no process holds /dev/cipher open",
+    "(d) find -newermt '2026-06-10 04:00' -not -path './snapshot/*' under cipher-fusion-evidence: only 3 pre-session (04:00\u201304:02) prior-session .md artifacts + the 06:02:58 .git metadata (flagged minor); zero working-tree content written outside snapshot/ during the session",
+    "(e) NO_SUBSTRATE_PROOF.txt independently reproduced: grep -c cipher_v2 = 3545 in positive-control a2_ra/clean_bench3.err and exactly 0 in all 14 measured .err files",
+    "(e) ldd reproduced on snapshot/a2_ra/det_shim.so and snapshot/a2_rb/ab_shim.so: libc + ld-linux + vdso only \u2014 no CUDA/cipher link deps",
+    "(e) heartbeat gating verified in source: ab_shim.c:56 HEARTBEAT=0 default, read only from RV_HEARTBEAT (line 124/181 gate); no driver script sets RV_HEARTBEAT; 0 'heartbeat/cohort_fd' lines in run .err logs",
+    "(e) R.C kmod decoupling verified: snapshot/a2_rc/rc_monitor.py cohort_query() hard `return None` before any os.open('/dev/cipher'); scratch copy diffs from fork-1 rc_pergpu/rc_monitor.py ONLY by the documented kmod-decoupling edits (sdc_shim.so\u2192ab_shim.so + disabled cohort); inject_verdict.json honestly records in_w6_cohort:false",
+    "(e) scratch shim sources byte-identical to fork-1 validated sources (diff detector_shim.c and ab_shim.c vs fork-1: empty)",
+    "(e) per-run clock/throttle recording claim verified: a1_decode_B1.json clocks{sm 1830/1830/1830, throttle 0x0, sw_power_cap false}; a1_prefill_B8.json {median 1440, min 1215, throttle 0x4 SwPowerCap} \u2014 matches the report's disclosed values including the unflattering prefill throttle",
+    "(e) clock state at panel time consistent with protocol: applications clock locked 1980, -rgc correctly still pending (scheduled after panel)",
+    "(e) single-GPU exclusivity plausible: nvidia-smi -L shows exactly 1 H100 and zero compute apps",
+    "(e) PREREG-before-measurement ordering supported by mtimes: entry manifest 05:15:52 \u2192 PREREG.md 05:19:22 \u2192 first measurement artifact a1_train_B1 05:30 \u2192 exit manifest 06:00 \u2192 report 06:01",
+    "(e) row-7 artifact consistency: the 4 clean-run counts files exist, each detections=0 and max_clean_residual=0, and gemms_checked 640+3200+4224+2176 = 10240 exactly as claimed; snapshot counts JSONs match the final [det-COUNTS] stderr lines byte-for-byte (n45 verified)"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,113 @@
+{
+  "campaign": "V1 Phase B B.6''.9.8.1 - may13 cuGetProcAddress foundation port (additive)",
+  "date": "2026-05-27",
+  "scope": "First of 9 substeps in B.6''.9.8 driver-API substrate port. Foundation = cuGetProcAddress + GOT-patcher scaffold + all cuLaunchKernel/cudaLaunchKernel variants + module/library load + graph instantiate walker.",
+  "anchors_at_entry": {
+    "cipher_rt_phase4": "78bfded tag v1-substrate-cuda13-cublaslt-coverage",
+    "cipher_kmod": "8c643fc tag week-13-14-complete",
+    "cipher_may13_evidence": "fc8a9ae",
+    "cipher-fusion-evidence": "4e18bb4",
+    "cipher-platform_deb": "v2.0 rev6 md5 7c7068ca installed"
+  },
+  "sources_ported": {
+    "cipher_intercept_cudart_cpp": {
+      "from": "cipher-may13-evidence/src/cipher_intercept_cudart.cpp",
+      "from_md5": "75c555287eac2f90ca0f17c4fe669664",
+      "to": "cipher_rt_phase4/src/may13_intercept/cipher_intercept_cudart.cpp",
+      "lines": 3006,
+      "adaptations": [
+        "Header #includes adjusted to may13/ prefix",
+        "g_patches[] entries for cublasGemmEx + cublasLtMatmul + ncclAllReduce COMMENTED OUT",
+        "PLT-exported cublasLtMatmul alias (line 1078 of original) DROPPED to avoid shadow of workload resolution",
+        "PLT-exported ncclAllReduce alias (line 1382 of original) DROPPED",
+        "__attribute__((constructor(101))) cipher_hook_init() REPLACED with extern C cipher_rt_intercept_init()",
+        "Local atomic compare_exchange_strong guards idempotency as second-layer safety beyond pthread_once in caller"
+      ]
+    },
+    "cipher_graph_inspect_cpp": {
+      "from": "cipher-may13-evidence/src/cipher_graph_inspect.cpp",
+      "from_md5": "05b9ac7171baabfcd0e872a76108b105",
+      "to": "cipher_rt_phase4/src/may13_intercept/cipher_graph_inspect.cpp",
+      "lines": 287,
+      "adaptations": ["None — wholesale copy (no cuBLAS, no constructor, no conflicts)"]
+    }
+  },
+  "headers_added": {
+    "include/may13/cipher_persist.h": "from cipher-may13-evidence",
+    "include/may13/cipher_flow_recorder.h": "from cipher-may13-evidence",
+    "include/may13/cipher_flow_patterns.h": "from cipher-may13-evidence",
+    "include/may13/cipher_flow_substitute.h": "from cipher-may13-evidence",
+    "include/may13/cipher_attn_koopman.h": "from cipher-may13-evidence",
+    "cipher_rt_intercept.h": "NEW public API header for the port; exposes cipher_rt_intercept_init + cipher_repatch + cipher_intercept_count"
+  },
+  "cipher_inject_c_change": {
+    "include_added": "#include \"cipher_rt_intercept.h\"",
+    "init_call_added": "cipher_rt_intercept_init() called from cipher_v2_init_body() AFTER cipher_rt_got_patch_init() — preserves init order so cipher_rt_phase4 GOT-patching wins on cuBLAS slots; may13 patcher only touches its own symbol set"
+  },
+  "makefile_changes": {
+    "OBJS_additions": ["cipher_rt_intercept_cudart.o", "cipher_rt_graph_inspect.o"],
+    "build_rules_added": "explicit recipes with -std=c++17 -fvisibility=default + INCLUDES"
+  },
+  "build_verification": {
+    "make_status": "SUCCESS - libcipher_rt.so linked cleanly",
+    "libcipher_rt_so_md5_new_local_build": "d470be74f6b1b795765df75829d69cb5",
+    "previous_local_build_md5": "1f305ce61e9acae65920dc8fa9474ee1",
+    "cuda_link_target": "CUDA 12 (local host); CUDA 13 container rebuild deferred to B.6''.9.8.9 .deb step per existing build_deb.sh pattern",
+    "compile_warnings": "1 unused-function warning (resolve_introspection static helper; benign)",
+    "compile_errors": "none"
+  },
+  "nm_verification": {
+    "foundation_t_symbols_exported": 27,
+    "explicit_symbols": [
+      "cuGetProcAddress", "cuGetProcAddress_v2",
+      "cuLaunchKernel", "cuLaunchKernel_ptsz",
+      "cuLaunchKernelEx", "cuLaunchKernelEx_ptsz",
+      "cudaLaunchKernel", "cudaLaunchKernel_ptsz",
+      "__cudaLaunchKernel", "__cudaLaunchKernel_ptsz",
+      "cudaLaunchKernelExC", "cudaLaunchKernelExC_ptsz",
+      "cuModuleLoadData", "cuModuleLoadDataEx", "cuModuleGetFunction",
+      "cuLibraryLoadData", "cuKernelGetFunction",
+      "cuGraphInstantiate_v2", "cuGraphInstantiateWithFlags",
+      "cudaGraphInstantiate", "cudaGraphInstantiateWithFlags",
+      "__cudaRegisterFatBinary", "__cudaRegisterFatBinaryEnd", "__cudaRegisterFunction",
+      "cudaMemcpy", "cudaMemcpyAsync",
+      "cipher_rt_intercept_init", "cipher_repatch"
+    ],
+    "cublas_t_symbols": "ZERO (correctly masked — aliases dropped)",
+    "nccl_t_symbols": "ZERO (correctly masked)",
+    "existing_substrate_preserved": "cipher_rt_* symbols (attn_calls_*, attn_register_*, etc.) all present"
+  },
+  "smoke_test": {
+    "ld_preload_true_outcome": "fails with undefined __ubsan_vptr_type_cache",
+    "regression_assessment": "NOT a regression — pre-existing UBSan-instrumentation pattern in 20+ existing cipher_rt_*.o files (cipher_cupti, cipher_rt_attn_dispatch, cipher_rt_audit, cipher_rt_classify_observer, cipher_rt_classify_substrate, cipher_rt_commit, cipher_rt_counter_dump, cipher_rt_cublas_shim, cipher_rt_cublaslt_variants, etc.). Installed rev6 .so /usr/lib/cipher/libcipher_rt.so has the same DT_NEEDED-against-libubsan; LD_PRELOAD on a non-CUDA binary fails same way. Workload load is via CUDA-bearing containers where C++ runtime supplies ubsan; functional verification at B.6''.9.8.3 Phase A regression."
+  },
+  "compliance_with_disciplines": {
+    "memory_20_abi_additive": "PRESERVED — no kmod touch; no removal/replacement of existing substrate functions; only additions (new .o files + new entry point in cipher_v2_init_body)",
+    "memory_9_framework_agnostic": "STRENGTHENED — may13 cuGetProcAddress mechanism is structurally framework-agnostic per may13 cipher_intercept.h:5-6 ('Transparent to all frameworks: PyTorch, JAX, TensorFlow, cuBLAS, cuDNN'). No vLLM-V1-specific or other framework-specific code added.",
+    "memory_11_no_scope_degrade": "PRESERVED — CUDA-13 container rebuild explicitly deferred to .8.9 rather than scoped down here. Foundation port complete; production .so rebuild is a downstream packaging step.",
+    "memory_12_md5_provenance": "PRESERVED — all source md5s verified on disk at port time (may13 75c555 / 05b9ac); recorded in commit + provenance headers in ported files."
+  },
+  "anchors_at_close": {
+    "cipher_rt_phase4_before": "78bfded",
+    "cipher_rt_phase4_after": "081e9f3 (this commit; tag candidate v1-substrate-may13-port-foundation)",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca UNCHANGED (no rebuild yet; .8.9 will rebuild)",
+    "libcipher_rt_so_local_md5": "d470be74f6b1b795765df75829d69cb5 (CUDA 12-linked)"
+  },
+  "what_did_not_change": [
+    "cipher_kmod — no touch through entire B.6''.9.8 plan",
+    "cipher_rt_phase4's cuBLAS GOT patcher (cipher_rt_cublas_shim.c + cublaslt_variants.c)",
+    "cipher_rt_phase4's dlsym hook (cipher_rt_dlsym_hook.c)",
+    "cipher_rt_phase4's CUPTI callback (cipher_cupti.c)",
+    "cipher_rt_phase4's ATen SDPA dispatcher (cipher_rt_attn_dispatch.cpp)",
+    "Phase A InitializeInjection2 entry (cipher_inject.c structure; only added one call inside cipher_v2_init_body)",
+    "All cipher_rt_phase4's T-symbol exports for the existing substrate"
+  ],
+  "carry_forward_to_next_substep": {
+    "b6_9_8_2": "Drop may13 cuBLAS shim verification: this substep already commented out g_patches[] cuBLAS entries + dropped aliases. .8.2 should confirm via counter-parity check that cipher_rt_phase4 cuBLAS GOT counters still fire as expected with may13 port loaded.",
+    "b6_9_8_3": "Phase A regression — needs CUDA-13 container rebuild to fully exercise; alternatively run against local CUDA 12 build for a partial check.",
+    "b6_9_8_4_to_7": "New work — additive shims on top of foundation",
+    "b6_9_8_9": "rev7 .deb rebuild in vllm/vllm-openai:v0.21.0 container produces CUDA-13-linked libcipher_rt.so"
+  },
+  "next": "HOLD for Anil B.6''.9.8.2 go (drop may13 cuBLAS shim verify — most of the work is done in this substep; .8.2 is a verification gate)"
+}

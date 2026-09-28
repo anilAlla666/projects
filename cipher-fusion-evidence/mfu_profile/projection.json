@@ -1,0 +1,43 @@
+{
+ "denominator": {
+  "convention": "analytic model FLOPs / 989.5 TFLOP/s (H100 BF16 dense peak)",
+  "fp8_prefill_vs_bf16_peak_989.5": 0.797,
+  "fp8_prefill_vs_fp8_peak_1979": 0.399,
+  "note": "our reports + the 85% target + the 93-97% projection ALL use the 989.5 BF16-peak denominator; FP8 measured against it = 0.80 iso / 0.83 default (== 0.40/0.42 against the FP8-native 1979 peak)"
+ },
+ "measured_split_vLLM_eager_prefill": {
+  "GEMM": 0.8366800000000001,
+  "ATTENTION": 0.07296,
+  "POINTWISE": 0.09003,
+  "OTHER": 0.00033,
+  "attention_breakdown": {
+   "FA3_fwd_addressable": 0.0594,
+   "reshape_and_cache_KVwrite_not_attn_math": 0.0135
+  }
+ },
+ "prior_HF_e3_for_contrast": {
+  "GEMM": 0.646,
+  "nongemm_nonattn": 0.315,
+  "attn": 0.039,
+  "why_different": "prior was HF-transformers eager (many small pointwise launches); vLLM fuses pointwise (act_and_mul, fused_add_rms_norm) + uses FA3 => non-GEMM collapses 35%->16%, GEMM 65%->84%"
+ },
+ "implied_fp8_gemm_speedup_at_real_gemmshare": 1.419,
+ "fp8_base_mfu_reconstructed": 0.797,
+ "projection_from_fp8_0.80_base": {
+  "nongemm_total_share_of_post_fp8_time": 0.217,
+  "cut_needed_to_reach_0.85": 0.287,
+  "mfu_at_40pct_nongemm_cut": 0.873,
+  "mfu_at_60pct_nongemm_cut": 0.916,
+  "mfu_at_100pct_nongemm_cut_asymptote": 1.018,
+  "93_97_projection_check": {
+   "cut_for_0.93": 0.659,
+   "cut_for_0.97": 0.822
+  }
+ },
+ "fusion_lead_verdict": {
+  "pointwise_share": 0.09003,
+  "attention_math_FA3_addressable": 0.0594,
+  "FA3_already_in_use": "vLLM prefill ALREADY runs FlashAttention-3 (flash::FlashAttnFwdSm90) => no FA3-upgrade lever remains; attention is already fused/optimal at ~5.9%",
+  "verdict": "Liger-pointwise leads: pointwise 9.0% > attention-math 5.94%, AND attention is already FA3 (no headroom). Liger-style fusion of act_and_mul + fused_add_rms_norm + rotary is the only non-GEMM bucket with room."
+ }
+}

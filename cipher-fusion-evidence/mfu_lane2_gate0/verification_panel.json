@@ -1,0 +1,142 @@
+{
+ "panel": [
+  {
+   "dimension": "DIMENSION 1 \u2014 THE VERDICT (handled>0 on vLLM)",
+   "findings": [
+    {
+     "severity": "note",
+     "claim_checked": "Report line 42-43: '5 FP8: ENGAGED shape lines per rep ... the exact Mistral linear projections: out(m)=6144/k4096 (fused qkv), 4096/4096 (o), 28672/4096 (gate_up), 4096/14336 (down), all batch(n)=16384.'",
+     "problem": "The prose enumerates only 4 projections and asserts 'all batch(n)=16384', but there are actually 5 ENGAGED shapes. The 5th (shape #4) is the lm_head: out(m)=32000 in(k)=4096 batch(n)=1024 \u2014 it is omitted from the list and its batch is 1024, not 16384. So 'all batch(n)=16384' is inaccurate and the enumeration undercounts. This is FAVORABLE to the verdict (more real GEMMs engaged, including lm_head), not adverse, hence note-level, but the description should be corrected for accuracy.",
+     "evidence": "grep -F 'FP8: ENGAGED shape' vllm_fp8_r1.err -> shape #0 6144/4096 n=16384, #1 4096/4096 n=16384, #2 28672/4096 n=16384, #3 4096/14336 n=16384, #4 32000/4096 n=1024. Five lines; #4 (lm_head, n=1024) absent from report's list.",
+     "suggested_fix": "Reword to '5 ENGAGED shapes: the 4 fused linear projections (qkv 6144, o 4096, gate_up 28672, down 4096/14336) at batch(n)=16384, PLUS lm_head out=32000 at batch(n)=1024.'"
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Report line 44: '129 FP8: prequantized W=... lines (r1) ... (\u224832 layers \u00d7 4 fused).'",
+     "problem": "The '\u224832 layers \u00d7 4 fused' is approximate and slightly imprecise; the exact decomposition is 32\u00d74=128 fused-projection weights PLUS 1 lm_head weight = 129. The breakdown is exactly 32\u00d7{qkv 6144, o 4096, gate_up 28672, down(in14336) 4096} + 1\u00d7lm_head(32000). Minor imprecision only.",
+     "evidence": "grep 'FP8: prequantized' vllm_fp8_r1.err | uniq -c per shape: 32\u00d7(in14336 out4096), 32\u00d7(in4096 out28672), 32\u00d7(in4096 out4096), 32\u00d7(in4096 out6144), 1\u00d7(in4096 out32000) = 129.",
+     "suggested_fix": "State '129 = 32 layers \u00d7 4 fused projections (128) + 1 lm_head' instead of '\u224832\u00d74'."
+    }
+   ],
+   "checks_passed": [
+    "(a) 5 'FP8: ENGAGED shape' lines confirmed in EVERY FP8 vLLM err (r1/r2/r3 = 5/5/5). 129 'FP8: prequantized' lines per rep. 1 \"MATMUL: actuator 'FP8_E4M3' registered at priority 20 (slot 0/1)\" per rep. 1 'FP8: engine init OK (cuBLASLt+driver+nvrtc resolved)' per rep. All present and exact.",
+    "(b) cipher_v2 lines are written directly to fd 2 by the .so (C-level), bypassing vLLM's Python multiprocessing stderr prefix; the .so's own CLASSIFY-CORES line reports peers=[3399268] via getpid(), and the only EngineCore worker pid in the file is 3399268 \u2014 proving the .so ran INSIDE the EngineCore worker, not the parent. First ENGAGED line at file line 189, AFTER checkpoint load completes at line 73 = mid-run.",
+    "(c) Vanilla control (vllm_vanilla_r1/r2/r3.err): 0 cipher_v2 lines and 0 ENGAGED lines all three reps, yet vLLM genuinely ran (model checkpoint loaded, EngineCore pid=3399094, autotuner ran). Clean negative control confirmed.",
+    "(d) cdump_vllm_fp8_r1.json/cipher_rt_3399268.json: tag=='install', pid==3399268 (== EngineCore worker pid), every counter (matmul_calls_total/handled/passthrough, koopman_*) == 0. The report HONESTLY states the exact fp8_calls_handled integer is UNRECOVERABLE via the dump (worker SIGKILLed before atexit; install-tag snapshot is pre-GEMM zero) and grounds handled>0 in the ENGAGED/prequantized/registration log lines instead. Not faked.",
+    "(e) SOURCE PROOF (cipher_rt_fp8_actuator.c): the ENGAGED log (cipher_log at line 49, invoked from fp8_log_shape at line 118) is reached ONLY after cipher_rt_fp8_engine_matmul() returns success at lines 106-112; on any decline it returns CIPHER_RT_MATMUL_PASSTHROUGH at line 111 BEFORE the shape log. handled++ (line 120) and 'return CIPHER_RT_MATMUL_HANDLED' (line 122) immediately follow the log. There is NO code path that emits ENGAGED then declines/passes through. The ENGAGED line is also NOT verbose-gated (always fires on real handle); the prequantized line IS verbose-gated and CIPHER_FP8_VERBOSE=1 was set in run_g0.sh.",
+    "(e) The substitution is a REAL cuBLASLt FP8 E4M3 GEMM (cipher_rt_fp8_engine.cpp: LT_R_8F_E4M3 layouts for A and B, descCreate LT_COMPUTE_32F, A/B scale ptrs, real g_lt.matmul, returns 0 only when rc==0) \u2014 not a stub. Reaching ENGAGED therefore requires an actual FP8 GEMM to have executed successfully.",
+    "Independent hard-counter corroboration: torch positive control reads cipher_rt_fp8_calls_handled in-process via RTLD_NOLOAD from the anchor .so (m_torch_prefill.py line 67) -> handled=1125/total=1350/skipped=225 EXACTLY across r1/r2/r3, reproducing mfu_audit. This is a hard integer counter (not just logs) directly establishing handled>0 for the actuator logic.",
+    "No FP8 failures in the vLLM run: 0 'matmul declined', 0 'prequant failed', 0 'FP8 unsupported', 0 'heuristic rc', 0 'engine init FAILED', 0 'registration FAILED' (verbose was on, so any failure would have logged).",
+    "Anchor integrity: md5(/home/ubuntu/cipher_rt_phase4/libcipher_rt.so) == 2edba0d2136f8ede4713d90a8f7cd55f, matching the report's entry==exit claim. run_g0.sh injects this exact path via CUDA_INJECTION64_PATH with CIPHER_FP8=1, VLLM_PLUGINS empty, CIPHER_VOLT=off.",
+    "Batch math consistency: RV_BATCH=8 \u00d7 RV_PLEN=2048 = 16384 == ENGAGED batch(n)=16384. Prequant 129 = 32 layers \u00d7 4 fused + 1 lm_head, matching Mistral-7B-v0.1 (32 layers). No torch leakage into vLLM err (0 'm_torch_prefill' refs).",
+    "MFU honesty: the 0.60->0.83 number is corroborated by per-run json (vanilla sm_clock_median 1470 / avg_power 638.5W; fp8 1695 / 593.7W; sw_power_cap=true, hw_slowdown=false, clocks unpinned min1155-max1980) and is explicitly and repeatedly labeled CLOCK-INFLATED, per-tensor, PPL-failing, NOT a Goal-3/deliverable result, in the verdict header, the table caption, and the Integrity section. The verdict (handled>0) does NOT rest on the MFU."
+   ]
+  },
+  {
+   "dimension": "DIMENSION 2 \u2014 NUMBERS + CONFOUND",
+   "findings": [
+    {
+     "severity": "minor",
+     "claim_checked": "Report line 42-44: '5 ENGAGED shape lines per rep \u2014 the exact Mistral linear projections: out(m)=6144/k4096 (fused qkv), 4096/4096 (o), 28672/4096 (gate_up), 4096/14336 (down), all batch(n)=16384.'",
+     "problem": "The report says '5' lines but enumerates only 4 shapes, and the qualifier 'all batch(n)=16384' is FALSE for the omitted 5th shape. The actual 5th ENGAGED line (consistent across all 3 reps) is the lm_head: out(m)=32000 in(k)=4096 batch(n)=1024 dtype=fp16. So 4 of 5 shapes are batch(n)=16384; the lm_head is batch(n)=1024 and is silently dropped from the enumeration. This does not affect the verdict (handled>0 / engagement is over-determined by registration + 129 prequantized weights + substrate lines) but the descriptive text is imprecise and the 'all' is wrong.",
+     "evidence": "vllm_fp8_r{1,2,3}.err: 'FP8: ENGAGED shape #4 out(m)=32000 in(k)=4096 batch(n)=1024 dtype=fp16' present in all three reps; shapes #0-#3 = 6144/4096, 4096/4096, 28672/4096, 4096/14336 all batch(n)=16384. grep -c 'ENGAGED shape' = 5 per rep.",
+     "suggested_fix": "Rewrite as: '5 ENGAGED shape lines per rep \u2014 4 linear projections (qkv 6144/4096, o 4096/4096, gate_up 28672/4096, down 4096/14336) at batch(n)=16384, plus lm_head (32000/4096) at batch(n)=1024.' Note lm_head inclusion is consistent with the per-tensor all-layers +0.567% PPL-failing label."
+    }
+   ],
+   "checks_passed": [
+    "(a) torch G0-A counters recompute EXACTLY from torch_fp8_r*.json: handled=1125 / total=1350 / skipped=225 for all 3 reps (1125/1350=0.8333). MFU vanilla median 0.4859320589 and fp8 median 0.5463133286 match gate0_result.json (mfu_vanilla_med/mfu_fp8_med) and the report table '0.486 -> 0.546'.",
+    "(b) vLLM MFU vanilla [0.6015,0.5994,0.6018] vs fp8 [0.8260,0.8369,0.8263] match report [.602,.599,.602] / [.826,.837,.826] (rounded). Clocks vanilla median 1470/1455/1455 vs fp8 1695/1680/1695 match report. Power vanilla 638.5/636.4/637.0 (~637) vs fp8 593.7/599.7/597.5 (~594-600) match report's '~637' / '~594-600'.",
+    "(b) Confound framing is BACKED by JSONs and NOT presented as a clean lift: mean clk 1460->1690 (+230 MHz) and mean power 637->597 (-40 W) reproduce exactly. Report explicitly states '0.60 -> 0.83 jump is CLOCK-INFLATED, not a clean FP8 efficiency number' and 'reported, not used as a Goal-3 result' (gate0_result.json mfu_confound field corroborates).",
+    "(c) Max fp8 MFU = 0.8369 (vLLM) / 0.5465 (torch), both < 0.85 \u2014 no accidental 85% claim. The report contains NO '85%' / '0.85' token at all (grep empty).",
+    "(c) The report never calls any number a Goal-3/deliverable result. All 'Goal-3' mentions are negations ('not used as a Goal-3 result', 'never as a Goal-3 result', 'no deliverable-MFU claim'); 'the deliverable' on line 38 refers to the engagement proof (registration+shapes), not an MFU number. Every MFU figure carries the clock-confounded + per-tensor + PPL-failing label.",
+    "(d) Retracted-number scan CLEAN: none of 3.617x, 14x, 85%-as-achieved, 2.96x, 7.43x, 0.127%, or unscoped 57.3% appear anywhere in the report.",
+    "(e) Every report number traces to evidence: 1125/1350/225 + torch MFU medians + 0.826/0.837 + clocks/power -> per-run JSONs and gate0_result.json; 129 prequant / 804 substrate / 5 ENGAGED -> vllm_fp8_r*.err (grep-counted, all match); PPL +0.567/+0.72% -> prior D9 / Jun-01 .so re-measure (mfu_audit, mfu_lane1 extraction.json); +0.86% hosting tax -> mfu_lane1/LANE1_REPORT (median 0.600192 vs 0.595043 = 0.858%); 989.5 TFLOP/s and n_params 7.24e9 -> per-run JSONs.",
+    "Anchor md5 entry==exit verified live: md5sum /home/ubuntu/cipher_rt_phase4/libcipher_rt.so = 2edba0d2136f8ede4713d90a8f7cd55f, matching the report's claim.",
+    "Counter-dump-unrecoverable framing honest: cdump_vllm_*.json dirs exist; report correctly states the exact fp8_calls_handled integer is unrecoverable (worker SIGKILLed pre-atexit, install-tag pre-GEMM zero dump) and rests handled>0 on registration + 5 shapes + 129 weights \u2014 over-determined, not on a single fragile counter.",
+    "'Reproduces mfu_audit exactly' (handled=1125/1350) verified against mfu_audit/part1_inventory.json:500 ('total=1350, handled=1125'). Vanilla control clean: 0 ENGAGED lines and 0 cipher_v2 substrate lines in all vanilla vLLM reps."
+   ]
+  },
+  {
+   "dimension": "DIMENSION 3 \u2014 HONESTY",
+   "findings": [
+    {
+     "severity": "material",
+     "claim_checked": "(c) Lane-1 reconciliation: 'Whatever the D.9 eager probe recorded is superseded by this direct armed measurement' and 'Lane 1's first registration awaited was simply the no-actuator-armed state, not evidence of a miss' (report lines 76-78).",
+     "problem": "The report conflates two DIFFERENT prior signals and dismisses a mechanistically-documented contradiction as 'superseded' without resolving it. Lane 1's own 'first registration awaited' genuinely WAS the no-actuator state (correct). But D.9's GemmEx=0 was NOT a no-actuator artifact: D9_DELIVERY_WORKAROUNDS.md (lines 3-14) and D10_LT_ROUTE_MEMO.md (line 24) documented it as a specific mechanism \u2014 'the driver-boundary intercept is dead... vLLM's GEMMs go via libcublas-internal nvjet, and torch caches the public cuBLAS symbol addresses before CIPHER's GOT-patch arms... CIPHER saw 0 GEMMs... provably unreachable on this stack.' The Gate-0 evidence (GOT patch on cu13 libcublasLt.so.13, 5 ENGAGED shapes) DOES contradict that prior finding, but the report neither acknowledges the nvjet-bypass mechanism nor explains why the GOT-patch now works (most likely the stack changed: cu13 packages + GOT coverage now 91 slots/366 modules vs D.9's 83/287). 'Superseded' hand-waves the real, documented prior contradiction.",
+     "evidence": "v1_phase_b/d_phase/D9_DELIVERY_WORKAROUNDS.md:3-14 ('public cuBLAS cublasGemmEx... NO \u2014 bypassed (nvjet + torch address-caching)'; 'provably unreachable on this stack'); D10_LT_ROUTE_MEMO.md:24 ('cublasLtMatmul_calls=0 (the umbrella is bypassed). The big fp16 GEMMs go [via nvjet]'). vllm_fp8_r1.err: GOT patch applied to libcublasLt.so.13/libcublas.so.13 (cu13); 'GOT: patch applied -- 91 slot(s) across 366 module(s)' vs D9 hook probe '83 slot(s) across 287 module(s)'.",
+     "suggested_fix": "Replace 'superseded' with an explicit reconciliation: state that D.9 documented a real nvjet-bypass/address-caching mechanism on the THEN stack, and that the now-working GOT-patch is most plausibly explained by the stack change (cu13 + broader GOT coverage), which this run did not characterize. Stop equating D.9's mechanistic zero with Lane 1's benign no-actuator zero."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "(e) 'the GOT-patch via CUDA_INJECTION64_PATH cleanly intercepts the V1 EngineCore worker' and verdict (i) framing 'THE SUBSTRATE INTERCEPTS EAGER vLLM PREFILL'.",
+     "problem": "handled>0 (actuator FIRES) IS established by 5 ENGAGED shapes + 129 prequantized weights + registration \u2014 verdict (i) is supported and the report correctly does NOT claim to know WHY D.9 saw 0 nor that the mechanism is fully characterized (it defers exact-count to Lane 2). So this is not overclaimed on FIRING. The minor gap: the report attributes engagement specifically to 'the GOT-patch' as if that single mechanism is proven, when the evidence shows a broader interception surface (GOT dlsym patches across 366 modules, cuGetProcAddress+cuLaunch shims, 17 LT-variant trampolines). The engaged FP8 path is not isolated to the cublasGemmEx GOT-patch that D.9 said was bypassed; the report should not pin the win on that specific patch when its own logs show multiple shim layers.",
+     "evidence": "vllm_fp8_r1.err: 'GOT: patch applied -- 91 slot(s)...', 'cuGetProcAddress + cuLaunch shims via GOT-patch', 'LT-VARIANT: 17/17 cuBLAS-Lt variant trampolines armed', then FP8 prequantize -> ENGAGED. The actuator engages but the exact symbol path (raw cublasGemmEx GOT vs LT trampoline vs cuLaunch shim) is not isolated.",
+     "suggested_fix": "Say 'the substrate's interception surface (GOT dlsym patches + LT trampolines + cuLaunch shims) reaches the worker; the exact firing symbol is not isolated this run' rather than crediting 'the GOT-patch' specifically."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "Report line 43: '5 FP8: ENGAGED shape lines per rep \u2014 the exact Mistral linear projections: out(m)=6144/k4096 (fused qkv), 4096/4096 (o), 28672/4096 (gate_up), 4096/14336 (down), all batch(n)=16384.'",
+     "problem": "Two factual errors that understate the quality risk of the engaged path: (1) only 4 of the 5 ENGAGED shapes are listed; the 5th is the lm_head (out(m)=32000, in(k)=4096), omitted. (2) 'all batch(n)=16384' is false \u2014 the lm_head ENGAGED shape has batch(n)=1024, not 16384. This is honesty-relevant because the D9 record explicitly attributes the PPL failure partly to FP8'ing the lm_head ('per-tensor +0.567% fails... partly because it FP8s lm_head'). The report's own 129-prequant arithmetic (32 layers x 4 fused + 1 lm_head = 129) confirms lm_head is engaged, yet the prose hides it from the ENGAGED-shape list.",
+     "evidence": "vllm_fp8_r{1,2,3}.err: 'FP8: ENGAGED shape #4 out(m)=32000 in(k)=4096 batch(n)=1024 dtype=fp16' (all 3 reps). v1_phase_b/d_phase/D9_FP8_ACTUATOR_BUILD_REPORT.md:27,148: lm_head FP8 is a named cause of the quality failure. 129 prequant = 128 (32x4) + 1 lm_head.",
+     "suggested_fix": "List all 5 ENGAGED shapes including lm_head out(m)=32000/batch(n)=1024; correct 'all batch(n)=16384' (only the 4 layer projections are n=16384); note explicitly that the lm_head \u2014 the documented quality-killer \u2014 is among the engaged GEMMs, reinforcing the PPL-FAIL label."
+    },
+    {
+     "severity": "minor",
+     "claim_checked": "(b) Power-relief confound disclosure scope \u2014 report quantifies it only for the vLLM table; the G0-A torch table marks MFU 'clock-confounded' but does not quantify the torch confound.",
+     "problem": "The torch G0-A confound is actually LARGER than the vLLM one and is only labeled, not quantified. Torch vanilla runs at sm_median ~1530-1620 MHz / ~665W vs fp8 ~1935-1950 MHz / ~600W (FP8 -65W -> clock +330 MHz). The report's body only quantifies the vLLM confound (-40W/+230MHz). This is a disclosure asymmetry: a reader could take the G0-A '0.486 -> 0.546' as a milder confound than it is. The confound is disclosed (row labeled 'clock-confounded'), so this is not hidden, but the asymmetric quantification is mildly misleading given the torch shift is steeper.",
+     "evidence": "torch_vanilla_r{1,2,3}.json sm_median 1620/1545/1530, avg_power ~665W; torch_fp8_r{1,2,3}.json sm_median 1950/1950/1935, avg_power 600/603/607W. Report quantifies only the vLLM -40W/+230MHz.",
+     "suggested_fix": "Add the torch confound magnitude (~-65W/+330MHz) to the G0-A note, or state both tables share the same power-relief confound with torch's being steeper."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "(g) 'Engaged runs segfault at process teardown... after the timed window + result JSON are written.'",
+     "problem": "The substantive claim (results written before any teardown crash) is fully verified \u2014 all 6 FP8 JSONs are byte-complete with valid handled/MFU values. However, no actual 'Segmentation fault' / SIGSEGV string appears in the captured torch_fp8_*.err files, so the segfault itself is asserted (cited as 'documented in Lane 1') rather than directly evidenced in this run's artifacts. Lane 1's report does independently document the same teardown segfault, so the attribution is reasonable, but the Gate-0 evidence proves only JSON-completeness, not the crash.",
+     "evidence": "torch_fp8_r{1,2,3}.json all parse with handled=1125; no 'Segmentation'/'core dumped'/'SIGSEGV' in torch_fp8_*.err. mfu_lane1/LANE1_REPORT_2026-06-10.md:57-59 documents the same teardown segfault.",
+     "suggested_fix": "Either cite the Lane 1 evidence file showing the crash, or soften to 'JSONs complete before teardown; the segfault is documented in Lane 1' (which the report already roughly does). No correction needed if the cross-reference is considered sufficient."
+    }
+   ],
+   "checks_passed": [
+    "(a) Global label box present (report lines 10-12); the one MFU figure (0.83) explicitly labeled clock-confounded + per-tensor E4M3 + PPL-failing in 3+ locations; gate0_result.json carries a 'label' field with the same caveat. PPL bar (+0.567-0.72%) provenance verified against D9_FP8_ACTUATOR_BUILD_REPORT.md (per-tensor +0.567% FAIL) and d9_hf_quality_result.json (per-channel +0.37%).",
+    "(b) Power-relief confound is surfaced, not hidden: report states '0.60 -> 0.83 jump is CLOCK-INFLATED, not a clean FP8 efficiency number... reported, not used as a Goal-3 result.' Quantified -40W/+230MHz matches raw JSONs exactly (vanilla 0.602/1470/639 vs fp8 0.826/1695/594, etc.).",
+    "(c) Lane-1 actually left it unverified: LANE1_REPORT lines 23-30 explicitly say 'substrate-side interception on eager vLLM is NOT proven this run' and set 'Lane 2's first step: arm FP8 on eager vLLM and confirm fp8_calls_handled > 0.' Gate-0's evidence (registration + 5 ENGAGED + 129 prequant) genuinely resolves that to YES. The UNVERIFIED -> VERIFIED-YES claim is honest for the Lane-1 portion (the D.9 'superseded' portion is the material finding above).",
+    "(d) Exact-handled-count-unrecoverable disclosure is honest: cdump_vllm_fp8_r1.json/cipher_rt_3399268.json is genuinely tag='install', all counters 0 (pre-GEMM); worker pid 3399268 differs from main 3399181 (forked worker, consistent with 'pid==EngineCore worker'). Report correctly states handled>0 rests on engagement lines, not a hard integer, and defers exact count to a Lane-2 SIGUSR1-before-kill.",
+    "(e) Verdict (i) 'actuator FIRES / handled>0' is supported by direct substrate self-reports (5 ENGAGED shapes + 129 prequantized weights, consistent across all 3 reps). The report does NOT claim to know WHY D.9 saw 0 and explicitly defers full mechanism + exact count to Lane 2 \u2014 so it does not over-characterize the GOT-patch mechanism (minor pinning issue noted separately).",
+    "(f) G0-C-not-run is justified: verdict is (i) (substrate already intercepts eager vLLM), so no interception-fix / LD_PRELOAD interposer is needed. Internally consistent.",
+    "(g) Segfault disclosure honesty (JSON-completeness): all 6 FP8 result JSONs (3 torch + 3 vLLM) parse and contain valid handled counts and MFU/clock/power values, confirming results were written before teardown.",
+    "Anchor integrity: md5(libcipher_rt.so) = 2edba0d2136f8ede4713d90a8f7cd55f, matches the report's claimed entry==exit value.",
+    "Clean control: vanilla vLLM = 0 [cipher_v2] substrate lines and 0 ENGAGED lines across all 3 reps; substrate-line count 804 (fp8 r1) verified = exact [cipher_v2] line count.",
+    "G0-A reproduces mfu_audit: torch FP8 handled=1125/1350, skipped=225, 5 ENGAGED shapes \u2014 matches the prior mfu_audit exactly."
+   ]
+  },
+  {
+   "dimension": "DIMENSION 4 \u2014 INTEGRITY",
+   "findings": [
+    {
+     "severity": "minor",
+     "claim_checked": "(f) git stash/dangling objects in repos during run window \u2014 disclose if present; verify HEAD+anchor unchanged. Report integrity section claims 'Read-only fork-1/snapshot/.../anchor' and 'No anchor rebuild, no new kernel, no vLLM-source edit'.",
+     "problem": "An UNDISCLOSED git stash operation occurred in the anchor repo /home/ubuntu/cipher_rt_phase4/.git during the run window. Four objects were created at 2026-06-10 10:54:58 (run start): two stash commits (cd5e7df 'index on master', ba2af42 'WIP on master'), a tree (849cb90), and a blob (a5d3e49). These are the classic git-stash commit pair; they are now dangling (git stash list is empty, git reflog stash is unknown). The stashed change is to anchor source cipher_rt_cublas_shim.c (+10 lines, D.8 FAIRNESS/SHIELD wire-up). .git/index was also touched at 11:07:53 (in/after the window). The report's integrity section does not mention any git operation in the anchor repo, and the 'Read-only ... anchor' phrasing implies the anchor repo was untouched. NOTE this is BENIGN in effect, not corruption: HEAD == b2304d3 entry==exit, refs/heads/master == b2304d3 (stash commits are NOT ancestors of HEAD), and the anchor .so was NOT rebuilt (libcipher_rt.so mtime = 2026-06-01 15:23:36, far predating the window; md5 still 2edba0d2). The stashed source content was popped back (working blob md5 cb571c8c == stashed blob a5d3e49 content). So the substrate that ran is the byte-identical anchor; the only issue is non-disclosure of a git mutation the check explicitly asked to disclose.",
+     "evidence": "find .../cipher_rt_phase4/.git/objects -newermt '2026-06-10 10:45' -> cd/5e7df, 84/9cb90, ba/2af42, a5/d3e49. git cat-file -p ba2af4 -> 'WIP on master: b2304d3' with parents b2304d3 + cd5e7df. git merge-base --is-ancestor -> 'NOT ancestor of HEAD' for both. git stash list -> empty; git reflog stash -> fatal/unknown. .so stat -> 2026-06-01 15:23:36 (NOT newer than 10:45). md5sum libcipher_rt.so -> 2edba0d2136f8ede4713d90a8f7cd55f.",
+     "suggested_fix": "Add one line to the report integrity section disclosing the start-of-run git stash/pop in the anchor repo (10:54:58, dangling objects remain), and note explicitly that HEAD/master are unchanged (b2304d3 entry==exit) and the anchor .so was never rebuilt (md5 2edba0d2, mtime 06-01). Optionally git stash clear / gc the dangling objects."
+    },
+    {
+     "severity": "note",
+     "claim_checked": "Report claim 'Read-only ... anchor' \u2014 implication that the anchor repo tree is pristine.",
+     "problem": "The anchor repo /home/ubuntu/cipher_rt_phase4 has a PRE-EXISTING dirty working tree (not caused by this run): cipher_rt_cublas_shim.c is modified (D.8 fairness, source mtime 2026-05-29), and cipher_rt_fairness.c/.h are untracked, plus several untracked test binaries. These predate the Gate-0 run window. This does not affect the shipped .so (never rebuilt, md5 intact), but the 'Read-only anchor' framing is true only for the .so artifact and the committed HEAD, not for the repo working tree which was already non-pristine going into the run.",
+     "evidence": "git status --short -> ' M cipher_rt_cublas_shim.c' + '?? cipher_rt_fairness.c/.h' + test binaries. Source mtimes 2026-05-29 (pre-window). .so mtime 2026-06-01 (built from a clean-at-build state; current dirty source NOT compiled in).",
+     "suggested_fix": "No action required for this run's integrity (anchor .so is byte-identical and was not rebuilt). For precision, future reports could state 'anchor .so byte-identical; repo tree carries pre-existing uncommitted D.8 work that is not compiled into the shipped .so.'"
+    }
+   ],
+   "checks_passed": [
+    "(a) md5sum /home/ubuntu/cipher_rt_phase4/libcipher_rt.so == 2edba0d2136f8ede4713d90a8f7cd55f NOW \u2014 PASS (byte-identical to anchor, entry==exit as claimed)",
+    "(b) No write outside mfu_lane2_gate0 since 2026-06-10 10:45 \u2014 PASS (find returned zero files; mfu_audit and mfu_lane1 specifically clean \u2014 NO Lane-1-style leak this run)",
+    "(c) No vLLM site-packages edit since 10:45 \u2014 PASS (all vllm site-packages dirs, incl vllm_env and .local and tilelang-vendored, returned zero modified files)",
+    "(d) No leftover compute procs \u2014 PASS (nvidia-smi compute-apps empty; no real m_torch/m_bench/vllm/EngineCore procs; pgrep 'hit' was the grep command matching its own pattern literal; remaining python procs are unrelated system daemons glances/jupyter/cipher-exporter)",
+    "(e) Clocks default/unlocked now \u2014 PASS (Applications Clocks 1980/2619 == Default Applications Clocks 1980/2619; current SM clock 345 MHz idle; no locked clocks; report's 'clocks DEFAULT throughout' consistent \u2014 the 1455-1695 MHz figures in gate0_result.json are runtime auto-boost, correctly flagged as the power-relief confound, not a manual lock)",
+    "(f-partial) cipher-fusion-evidence/.git had ZERO objects modified in window; its HEAD/index untouched in window \u2014 PASS (the git finding is isolated to the cipher_rt_phase4 repo and is benign per the minor finding)",
+    "(f-partial) HEAD and anchor provably unchanged across the run \u2014 PASS (HEAD/master == b2304d3 entry==exit; .so md5 2edba0d2 unchanged; .so never rebuilt \u2014 mtime 06-01 predates window)",
+    "(g) CIPHER_FP8 only actuator armed \u2014 PASS (run_g0.sh inj() sets only CIPHER_FP8=1 + CIPHER_FP8_VERBOSE=1 + CIPHER_VOLT=off; no CIPHER_MARLIN, no CIPHER_KOOPMAN in script; runtime stderr confirms 'MARLIN: actuator DISABLED (CIPHER_MARLIN not set)' and 'KOOPMAN env-gated off' in all fp8 reps)",
+    "cdump install-tag dumps honestly all-zero/pre-GEMM with pid==worker (3398290 torch, 3399268 EngineCore) \u2014 report does NOT overclaim a recovered final counter from them; consistent with stated 'UNRECOVERABLE via dump'"
+   ]
+  }
+ ]
+}

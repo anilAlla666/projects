@@ -1,0 +1,201 @@
+Processing triggers for libc-bin (2.35-0ubuntu3.11) ...
+[cipher_v2] CLASSIFY: actuator 'may13_default' registered at priority 0 (slot 0/1)
+[cipher_v2] DISPATCH: substrate registered, LIVE=1 (1 = classifier-driven routing engaged by default; set CIPHER_DISPATCH_LIVE=0 to disable)
+[cipher-vllm-kv] InitializeInjection2 returned 1 (vLLM V1 worker GOT patches installed pid=667)
+[cipher-vllm-kv] hook installed on GPUModelRunner._allocate_kv_cache_tensors (Option A)
+[cipher-vllm-kv] Step 4 per-token AUDIT hook installed on execute_model
+[cipher-offload] hooks installed: GPUModelRunner.initialize_kv_cache, Scheduler._preempt_request, Scheduler.schedule (CP 5.2 Option A)
+[cipher-vllm-kvdedup] disabled via CIPHER_KVDEDUP (default off) — kvdedup wrapper not installed; CP 5.1 / CP 5.2 unaffected
+INFO 05-26 16:42:04 [utils.py:240] non-default args: {'max_model_len': 2048, 'gpu_memory_utilization': 0.5, 'disable_log_stats': True, 'enforce_eager': True, 'model': '/home/ubuntu/models/TinyLlama-1.1B'}
+WARNING 05-26 16:42:04 [envs.py:1866] Unknown vLLM environment variable detected: VLLM_BUILD_PIPELINE
+WARNING 05-26 16:42:04 [envs.py:1866] Unknown vLLM environment variable detected: VLLM_BUILD_COMMIT
+WARNING 05-26 16:42:04 [envs.py:1866] Unknown vLLM environment variable detected: VLLM_BUILD_URL
+WARNING 05-26 16:42:04 [envs.py:1866] Unknown vLLM environment variable detected: VLLM_IMAGE_TAG
+WARNING 05-26 16:42:04 [arg_utils.py:1503] The global random seed is set to 0. Since VLLM_ENABLE_V1_MULTIPROCESSING is set to False, this may affect the random state of the Python process that launched vLLM.
+[Detaching after vfork from child process 726]
+INFO 05-26 16:42:11 [model.py:568] Resolved architecture: LlamaForCausalLM
+INFO 05-26 16:42:11 [model.py:1697] Using max model len 2048
+INFO 05-26 16:42:11 [scheduler.py:239] Chunked prefill is enabled with max_num_batched_tokens=16384.
+INFO 05-26 16:42:11 [vllm.py:886] Asynchronous scheduling is enabled.
+WARNING 05-26 16:42:11 [vllm.py:942] Enforce eager set, disabling torch.compile and CUDAGraphs. This is equivalent to setting -cc.mode=none -cc.cudagraph_mode=none
+WARNING 05-26 16:42:11 [vllm.py:960] Inductor compilation was disabled by user settings, optimizations settings that are only active during inductor compilation will be ignored.
+INFO 05-26 16:42:11 [kernel.py:212] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native'])
+INFO 05-26 16:42:11 [vllm.py:1135] Cudagraph is disabled under eager mode
+INFO 05-26 16:42:11 [compilation.py:303] Enabled custom fusions: norm_quant, act_quant
+INFO 05-26 16:42:12 [core.py:109] Initializing a V1 LLM engine (v0.21.0) with config: model='/home/ubuntu/models/TinyLlama-1.1B', speculative_config=None, tokenizer='/home/ubuntu/models/TinyLlama-1.1B', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.bfloat16, max_seq_len=2048, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=True, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=/home/ubuntu/models/TinyLlama-1.1B, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.NONE: 0>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['all'], 'ir_enable_torch_wrap': False, 'splitting_ops': [], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.NONE: 0>, 'cudagraph_num_of_warmups': 0, 'cudagraph_capture_sizes': [], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': True, 'fuse_act_quant': True, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'fuse_act_padding': False}, 'max_cudagraph_capture_size': 0, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native']), enable_flashinfer_autotune=False, moe_backend='auto')
+[New Thread 0x70b5e4dde640 (LWP 782)]
+INFO 05-26 16:42:12 [parallel_state.py:1410] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://172.17.0.2:57011 backend=nccl
+[New Thread 0x70b5e45dd640 (LWP 783)]
+[New Thread 0x70b5e3ddc640 (LWP 784)]
+[New Thread 0x70b5e35db640 (LWP 785)]
+[New Thread 0x70b5e2dda640 (LWP 786)]
+[New Thread 0x70b5e25d9640 (LWP 787)]
+[New Thread 0x70b5e1dd8640 (LWP 788)]
+[New Thread 0x70b5e15d7640 (LWP 789)]
+[New Thread 0x70b5e0dd6640 (LWP 790)]
+[New Thread 0x70b5d3fff640 (LWP 791)]
+[New Thread 0x70b5d37fe640 (LWP 792)]
+[New Thread 0x70b5d2ffd640 (LWP 793)]
+[New Thread 0x70b5d27fc640 (LWP 794)]
+[New Thread 0x70b5d1ffb640 (LWP 795)]
+[New Thread 0x70b5d17fa640 (LWP 796)]
+[New Thread 0x70b5d0ff9640 (LWP 797)]
+[New Thread 0x70b5c7fff640 (LWP 798)]
+[New Thread 0x70b5c77fe640 (LWP 799)]
+[New Thread 0x70b5c6ffd640 (LWP 800)]
+[New Thread 0x70b5c67fc640 (LWP 801)]
+[New Thread 0x70b5c5ffb640 (LWP 802)]
+[New Thread 0x70b5c57fa640 (LWP 803)]
+[New Thread 0x70b5c4ff9640 (LWP 804)]
+[New Thread 0x70b5bbfff640 (LWP 805)]
+[New Thread 0x70b5bb7fe640 (LWP 806)]
+[New Thread 0x70b5baffd640 (LWP 807)]
+[New Thread 0x70b5ba7fc640 (LWP 808)]
+[New Thread 0x70b5b9ffb640 (LWP 809)]
+[New Thread 0x70b5b97fa640 (LWP 810)]
+[New Thread 0x70b5b8ff9640 (LWP 811)]
+[New Thread 0x70b5b3fff640 (LWP 812)]
+[New Thread 0x70b5b37fe640 (LWP 813)]
+[New Thread 0x70b5b2ffd640 (LWP 814)]
+[New Thread 0x70b5b27fc640 (LWP 815)]
+INFO 05-26 16:42:12 [parallel_state.py:1723] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+[New Thread 0x70b5b1ffb640 (LWP 816)]
+[Detaching after vfork from child process 817]
+[Detaching after vfork from child process 818]
+INFO 05-26 16:42:13 [topk_topp_sampler.py:45] Using FlashInfer for top-p & top-k sampling.
+[New Thread 0x70b57c9fe640 (LWP 819)]
+[New Thread 0x70b57c1fd640 (LWP 820)]
+[New Thread 0x70b57b9fc640 (LWP 821)]
+[New Thread 0x70b57b1fb640 (LWP 822)]
+[New Thread 0x70b57a9fa640 (LWP 823)]
+[New Thread 0x70b57a1f9640 (LWP 824)]
+[New Thread 0x70b5799f8640 (LWP 825)]
+[New Thread 0x70b5791f7640 (LWP 826)]
+[New Thread 0x70b5789f6640 (LWP 827)]
+[New Thread 0x70b5781f5640 (LWP 828)]
+[New Thread 0x70b5779f4640 (LWP 829)]
+[New Thread 0x70b5771f3640 (LWP 830)]
+[cipher_v2] GREEN: CP 5.4 qos=shared — tenant owns no SM groups; no green context created (runs on primary context; pool binding lands in Step 1.3b')
+[CIPHER L3.8] Structural lookup initialized. 42 rules. Name cache pre-warmed.
+[CIPHER ORACLE] Initialized.
+  N_max:          4
+  EMA κ:          0.999
+  Divergence:     2.0σ
+  Warmup steps:   500
+  Min confidence: 60%
+[New Thread 0x70b5769f2640 (LWP 831)]
+INFO 05-26 16:42:13 [gpu_model_runner.py:4857] Starting to load model /home/ubuntu/models/TinyLlama-1.1B...
+[Detaching after vfork from child process 832]
+INFO 05-26 16:42:13 [cuda.py:372] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+INFO 05-26 16:42:13 [flash_attn.py:641] Using FlashAttention version 3
+INFO 05-26 16:42:13 [weight_utils.py:938] Filesystem type for checkpoints: EXT4. Checkpoint size: 2.05 GiB. Available RAM: 213.26 GiB.
+INFO 05-26 16:42:13 [weight_utils.py:961] Auto-prefetch is disabled because the filesystem (EXT4) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+[New Thread 0x70b574ec1640 (LWP 840)]
+Loading safetensors checkpoint shards:   0% Completed | 0/1 [00:00<?, ?it/s]
+Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  3.06it/s]
+Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  3.05it/s]
+
+INFO 05-26 16:42:14 [default_loader.py:397] Loading weights took 0.36 seconds
+INFO 05-26 16:42:14 [gpu_model_runner.py:4959] Model loading took 2.05 GiB memory and 0.536833 seconds
+[cipher_v2] CUBLAS-SHIM: real cublasGemmEx=0x70b9e0ce16d0 getStream=0x70b9e0d6e140 ltMatmul=0x70b9eaf924d0 resolved
+[Detaching after vfork from child process 842]
+[Detaching after vfork from child process 843]
+[Detaching after vfork from child process 844]
+[Detaching after vfork from child process 849]
+[Detaching after vfork from child process 850]
+[Detaching after vfork from child process 851]
+[Detaching after vfork from child process 852]
+INFO 05-26 16:42:22 [gpu_worker.py:462] Available KV cache memory: 36.58 GiB
+INFO 05-26 16:42:22 [kv_cache_utils.py:1710] GPU KV cache size: 1,743,456 tokens
+INFO 05-26 16:42:22 [kv_cache_utils.py:1711] Maximum concurrency for 2,048 tokens per request: 851.30x
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[cipher-vllm-kv] REGISTER_MODEL OK: arch=3 uuid=4b97c8ea13de88947a3e486b073fa1b9 path='/home/ubuntu/models/TinyLlama-1.1B'
+[cipher-vllm-kv] REGISTER_STREAMS no named streams enumerated; default tenant=0 fallback
+[cipher_v2] GOT: patch applied -- 13 slot(s) across 303 module(s); 7 target(s) registered
+[cipher_v2] cuinit-hook: setup complete pid=667 (force-dlopen + InitializeInjection2 + GOT-patch refresh + real_cuInit resolved)
+[cipher-kvalloc] init: pool=51.0 GiB page=2048 KiB n_pages=26112 (verified 13.0 / driver 580.105.08 / H100)
+[cipher-vllm-kv] VMM allocator init: VA pool 51 GiB via compute_va_gib(hf_config) (tenant=0)
+[cipher-vllm-kv] KV buffers owned by CIPHER VMM: 22 tensor(s), slabs_created=22, pages_mapped=18744, resident=36.61 GiB
+[cipher-offload] bound 22 KV layer tensor(s) shape=(2, 108966, 16, 4, 64) dtype=torch.bfloat16 block_dim=1 num_blocks=108966
+[Detaching after vfork from child process 857]
+INFO 05-26 16:42:23 [kernel_warmup.py:44] Skipping FlashInfer autotune because it is disabled.
+INFO 05-26 16:42:23 [jit_monitor.py:54] Kernel JIT monitor activated — Triton JIT compilations during inference will be logged as warnings.
+INFO 05-26 16:42:23 [core.py:306] init engine (profile, create kv cache, warmup model) took 8.52 s
+
+Thread 1 "python3" received signal SIGSEGV, Segmentation fault.
+0x000000000055ba1a in ?? ()
+#0  0x000000000055ba1a in ?? ()
+No symbol table info available.
+#1  0x000000000055adde in ?? ()
+No symbol table info available.
+#2  0x0000000000559eb6 in ?? ()
+No symbol table info available.
+#3  0x000000000061f8de in ?? ()
+No symbol table info available.
+#4  0x000000000068b76e in ?? ()
+No symbol table info available.
+#5  0x000000000056248c in ?? ()
+No symbol table info available.
+#6  0x0000000000562386 in PyObject_Vectorcall ()
+No symbol table info available.
+#7  0x0000000000549fe0 in _PyEval_EvalFrameDefault ()
+No symbol table info available.
+#8  0x0000000000541b48 in _PyObject_FastCallDictTstate ()
+No symbol table info available.
+#9  0x000000000057de2a in ?? ()
+No symbol table info available.
+#10 0x000000000053f714 in ?? ()
+No symbol table info available.
+#11 0x0000000000580f33 in _PyObject_Call ()
+No symbol table info available.
+#12 0x000000000054e8b7 in _PyEval_EvalFrameDefault ()
+No symbol table info available.
+#13 0x0000000000541b48 in _PyObject_FastCallDictTstate ()
+No symbol table info available.
+#14 0x000000000057de2a in ?? ()
+No symbol table info available.
+#15 0x000000000053f26b in _PyObject_MakeTpCall ()
+No symbol table info available.
+#16 0x0000000000549fe0 in _PyEval_EvalFrameDefault ()
+No symbol table info available.
+#17 0x0000000000541bc6 in _PyObject_FastCallDictTstate ()
+No symbol table info available.
+#18 0x000000000057de2a in ?? ()
+No symbol table info available.
+#19 0x000000000053f26b in _PyObject_MakeTpCall ()
+No symbol table info available.
+#20 0x0000000000549fe0 in _PyEval_EvalFrameDefault ()
+No symbol table info available.
+#21 0x0000000000541bc6 in _PyObject_FastCallDictTstate ()
+No symbol table info available.
+#22 0x000000000057de2a in ?? ()
+No symbol table info available.
+#23 0x000000000053f26b in _PyObject_MakeTpCall ()
+No symbol table info available.
+#24 0x0000000000549fe0 in _PyEval_EvalFrameDefault ()
+No symbol table info available.
+#25 0x000000000061f469 in PyEval_EvalCode ()
+No symbol table info available.
+#26 0x000000000065b0eb in ?? ()
+No symbol table info available.
+#27 0x0000000000656186 in ?? ()
+No symbol table info available.
+#28 0x0000000000652df5 in ?? ()
+No symbol table info available.
+#29 0x0000000000652ac5 in _PyRun_SimpleFileObject ()
+No symbol table info available.
+#30 0x00000000006525d7 in _PyRun_AnyFileObject ()
+No symbol table info available.
+#31 0x000000000064f285 in Py_RunMain ()
+No symbol table info available.
+#32 0x00000000006082cd in Py_BytesMain ()
+No symbol table info available.
+#33 0x000070ba16e37d90 in __libc_start_call_main (main=main@entry=0x608210, argc=argc@entry=2, argv=argv@entry=0x7fff12ae12f8) at ../sysdeps/nptl/libc_start_call_main.h:58
+        self = <optimized out>
+        result = <optimized out>
+        unwind_buf = {cancel_jmp_buf = {{jmp_buf = {0, 1362786752564587580, 140733506786040, 6324752, 10538472, 123944553865280, -1362424611054261188, -892352013953373124}, mask_was_saved = 0}}, priv = {pad = {0x0, 0x0, 0x0, 0x0}, data = {prev = 0x0, cleanup = 0x0, canceltype = 0}}}
+        not_first_call = <optimized out>
+#34 0x000070ba16e37e40 in __libc_start_main_impl (main=0x608210, argc=2, argv=0x7fff12ae12f8, init=<optimized out>, fini=<optimized out>, rtld_fini=<optimized out>, stack_end=0x7fff12ae12e8) at ../csu/libc-start.c:392
+No locals.
+#35 0x0000000000608145 in _start ()
+No symbol table info available.

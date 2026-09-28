@@ -1,0 +1,15 @@
+/* T4.5 linker version script.
+ *
+ * Tags our shim symbols with @libcublas.so.13 so PyTorch 2.11 (which
+ * looks up cublasGemmEx@libcublas.so.13 from its bundled cu13) routes
+ * to our shim via the dynamic linker.
+ *
+ * All other libcipher_rt exports remain un-versioned (CUDA driver looks
+ * up InitializeInjection un-versioned; libcipher_v2 ABI is un-versioned).
+ */
+
+libcublas.so.13 {
+  global:
+    cublasGemmEx;
+    cublasGemmStridedBatchedEx;
+};

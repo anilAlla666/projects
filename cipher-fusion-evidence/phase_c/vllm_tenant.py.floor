@@ -1,0 +1,44 @@
+"""3-arm benchmark Arm 2 — one vLLM tenant. Loads its own vLLM instance,
+runs its 5-prompt workload B=1 (one request at a time). Barrier-synced so
+all 8 tenants start the timed decode together."""
+import os, sys, time, json
+from vllm import LLM, SamplingParams
+
+TENANT = os.environ["TENANT"]
+OUT = os.environ["OUT_JSON"]
+GMU = float(os.environ.get("GMU", "0.09"))
+EAGER = os.environ.get("EAGER", "0") == "1"
+READY = "/tmp/arm2_ready_%s" % TENANT
+GO = "/tmp/arm2_go"
+
+PROMPTS = [
+    "The Pacific Ocean is the largest ocean on Earth, covering approximately",
+    "Sarah opened the old letter with trembling hands. The handwriting was "
+    "her grandmother's, and the date read",
+    "def quicksort(arr):\n    if len(arr) <= 1:\n        return arr\n"
+    "    pivot =",
+    "If a train leaves Chicago at 3 PM traveling east at 60 mph and another "
+    "leaves New York at 4 PM traveling west at 80 mph,",
+    "User: What are the main differences between supervised and unsupervised "
+    "learning?\nAssistant: The main differences are",
+]
+llm = LLM(model="/home/ubuntu/models/TinyLlama-1.1B", dtype="float16",
+          gpu_memory_utilization=GMU, enforce_eager=EAGER,
+          max_model_len=512, disable_log_stats=True)
+sp = SamplingParams(max_tokens=128, temperature=0.0)
+for p in PROMPTS:                                  # warm
+    llm.generate([p], sp, use_tqdm=False)
+open(READY, "w").write("ready")
+while not os.path.exists(GO):
+    time.sleep(0.1)
+t0 = time.time()
+outs = []
+for p in PROMPTS:                                  # B=1, one request at a time
+    o = llm.generate([p], sp, use_tqdm=False)
+    outs.append(list(o[0].outputs[0].token_ids))
+t1 = time.time()
+tot = sum(len(x) for x in outs)
+json.dump({"tenant": TENANT, "t0": t0, "t1": t1, "total_tok": tot,
+           "tok_s": tot / (t1 - t0), "outputs": outs}, open(OUT, "w"))
+print("ARM2-TENANT %s tok_s=%.1f total=%d wall=%.2f"
+      % (TENANT, tot / (t1 - t0), tot, t1 - t0), file=sys.stderr, flush=True)

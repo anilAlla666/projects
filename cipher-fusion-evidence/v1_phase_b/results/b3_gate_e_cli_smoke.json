@@ -1,0 +1,93 @@
+{
+  "campaign": "V1 Phase B B.3'' Gate E - cipher-platform CLI smoke per runbook §1-§5",
+  "date": "2026-05-26",
+  "purpose": "Per V1 Phase B scope-lock addendum B.1'' §7 Gate E + Anil 2026-05-26 'Gate E: run in parallel with B.2'' remediation work' directive. Verify operator-facing CLI works as documented; independent of container-side gates A/B/C.",
+  "anchors_at_test": {
+    "cipher_rt_phase4": "8613812e tag v1-substrate-driver-worker-init",
+    "libcipher_rt_so_md5": "1d91e7da",
+    "cipher_kmod": "8c643fc tag week-13-14-complete",
+    "cipher_platform_installed_version": "2.0 (v2 rev2 .deb installed post-R1+R2+R3 reinstall)",
+    "cipher_platform_cli_md5": "8522b37b (post UX fix at B.2'' substep 8)",
+    "cipher_fusion_evidence_at_test": "72540ee (post R1+R2+R3 commit)"
+  },
+  "steps": [
+    {
+      "step": 1,
+      "command": "sudo cipher-platform status",
+      "exit_code": 0,
+      "output": {
+        "dpkg_version": "2.0",
+        "substrate_md5": "1d91e7dabba6b3ace520d78fdb085fc3",
+        "kmod_loaded": true,
+        "kmod_version": "0.6.5",
+        "dev_cipher_present": true,
+        "cdi_applied": true,
+        "cdi_marker": true,
+        "plugin_entries": ["cipher_vllm_kv", "cipher_vllm_kvdedup"],
+        "systemd_watcher": "active"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "step": 2,
+      "command": "sudo cipher-platform verify",
+      "exit_code": 0,
+      "output": "cipher-platform verify: PASS",
+      "verdict": "PASS"
+    },
+    {
+      "step": 3,
+      "command": "cipher-platform version",
+      "exit_code": 0,
+      "output": "cipher-platform 2.0; substrate libcipher_rt.so md5 1d91e7dabba6b3ace520d78fdb085fc3; kmod version 0.6.5 srcversion C36ED68CEEDD744995C0AC4",
+      "verdict": "PASS"
+    },
+    {
+      "step": 4,
+      "command": "sudo cipher-platform refresh",
+      "exit_code": 0,
+      "output": "cipher-platform refresh: before applied=True -> after applied=True (idempotent no-op via cipher_cdi_patch.py no-write-when-unchanged guard)",
+      "verdict": "PASS"
+    },
+    {
+      "step": 5,
+      "command": "cipher-platform logs --since '1 hour ago'",
+      "exit_code": 0,
+      "output": "journalctl returned with 'No entries' (cipher-platform-watch.service has not been triggered since boot; expected on a fresh install where nvidia.yaml has not been regenerated)",
+      "verdict": "PASS - command runs successfully; empty result expected"
+    },
+    {
+      "step": 6,
+      "command": "cipher-platform --help",
+      "exit_code": 0,
+      "output": "argparse help text lists all 5 subcommands (status, verify, refresh, version, logs) + --json flag",
+      "verdict": "PASS"
+    },
+    {
+      "step": 7,
+      "command": "cipher-platform status (non-sudo)",
+      "exit_code": 0,
+      "output": "Reports CDI patch: applied=unknown marker=None per UX fix from B.2'' substep 8 (root-readable nvidia.yaml; sudo hint surfaced cleanly instead of false applied=False)",
+      "verdict": "PASS"
+    },
+    {
+      "step": 8,
+      "command": "sudo /usr/lib/cipher/health-check.sh",
+      "exit_code": 0,
+      "output": "6/6 PASS: substrate present 487744 bytes + cipher_kmod loaded 0.6.5 + /dev/cipher present + CDI patch (marker + substrate mount) detected + plugin chain present under /usr/lib/python3/dist-packages + nvidia-container-toolkit 1.18.1 (>= 1.17)",
+      "verdict": "PASS"
+    }
+  ],
+  "summary": {
+    "total_steps": 8,
+    "passed": 8,
+    "failed": 0,
+    "verdict": "ALL PASS - operator CLI works as documented in runbook"
+  },
+  "honest_residue": [
+    "1. Gate E ran on the SAME pod that hosts the cipher-platform .deb install. Verification on a CLEAN target node (no pre-CIPHER state) deferred to B.4'' uninstall test + a follow-on fresh-install cycle.",
+    "2. Step 5 (logs) returns 'No entries' because cipher-platform-watch.service has not fired since boot. Trigger behavior under real nvidia-ctk regeneration is exercised only at install time; not yet observed mid-runtime. Would surface as a Gate E++ verification on B.4''/B.5''.",
+    "3. Non-sudo step 7 returns exit 0 because the CLI gracefully handles permission-denied (returns 'applied=unknown' + hint; does not exit non-zero); this is intentional per UX fix.",
+    "4. Gate E ran in PARALLEL with B.2'' R1+R2+R3 remediation work per Anil 2026-05-26 directive; ran post-R3 reinstall to use the latest .deb-installed CLI. All 8 steps stayed PASS through the R1+R2+R3 rotation."
+  ]
+}

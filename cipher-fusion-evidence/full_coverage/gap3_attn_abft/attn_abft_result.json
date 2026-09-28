@@ -1,0 +1,105 @@
+{
+ "shapes": {
+  "HEAD_DIM": 128,
+  "N_Q_HEADS": 32,
+  "N_KV_HEADS": 8,
+  "GROUP": 4
+ },
+ "regimes": [
+  {
+   "regime": "prefill",
+   "seqq": 512,
+   "seqk": 512,
+   "causal": true,
+   "T_s_raw": 2.384185791015625e-05,
+   "T_o_raw": 3.814697265625e-06,
+   "safety": 8.0,
+   "T_s": 0.00019073486328125,
+   "T_o": 3.0517578125e-05,
+   "n_trials": 200,
+   "clean_fp_s": 0,
+   "clean_fp_o": 0,
+   "detect": {
+    "A_score_S": {
+     "caught": 200,
+     "rate": 100.0,
+     "naninf": 65,
+     "finite_min_margin": 11539.29,
+     "finite_n": 135
+    },
+    "B_pv_output_O": {
+     "caught": 200,
+     "rate": 100.0,
+     "naninf": 0,
+     "finite_min_margin": 84489.265625,
+     "finite_n": 200
+    },
+    "C_softmax_internal_P": {
+     "caught": 163,
+     "rate": 81.5,
+     "naninf": 0,
+     "finite_min_margin": 0.1,
+     "finite_n": 200
+    }
+   }
+  },
+  {
+   "regime": "decode",
+   "seqq": 1,
+   "seqk": 512,
+   "causal": false,
+   "T_s_raw": 4.00543212890625e-05,
+   "T_o_raw": 1.6689300537109375e-06,
+   "safety": 8.0,
+   "T_s": 0.0003204345703125,
+   "T_o": 1.33514404296875e-05,
+   "n_trials": 200,
+   "clean_fp_s": 0,
+   "clean_fp_o": 0,
+   "detect": {
+    "A_score_S": {
+     "caught": 200,
+     "rate": 100.0,
+     "naninf": 57,
+     "finite_min_margin": 6549.883928571428,
+     "finite_n": 143
+    },
+    "B_pv_output_O": {
+     "caught": 200,
+     "rate": 100.0,
+     "naninf": 0,
+     "finite_min_margin": 900534.3571428572,
+     "finite_n": 200
+    },
+    "C_softmax_internal_P": {
+     "caught": 176,
+     "rate": 88.0,
+     "naninf": 0,
+     "finite_min_margin": 0.036830357142857144,
+     "finite_n": 200
+    }
+   }
+  }
+ ],
+ "fa_streaming": {
+  "clean": 4.76837158203125e-07,
+  "l_fault_blind": 4.76837158203125e-07,
+  "o_wrong": 0.07242980599403381
+ },
+ "flop_floor": {
+  "prefill_seq512": {
+   "attn_flop": 134217728,
+   "o_ref_pct": 0.390625,
+   "s_ref_pct": 0.09765625,
+   "combined_check_pct": 0.48828125,
+   "with_scratch_reductions_pct": 0.68359375
+  },
+  "decode": {
+   "attn_flop": 262144,
+   "o_ref_pct": 0.390625,
+   "s_ref_pct": 0.09765625,
+   "combined_check_pct": 0.48828125,
+   "with_scratch_reductions_pct": 100.48828125
+  }
+ }
+}

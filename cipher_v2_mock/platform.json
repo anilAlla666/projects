@@ -1,0 +1,15 @@
+{
+  "_comment": "MOCK of /etc/cipher/platform.toml. Real deployable uses TOML; mock uses JSON (py3.10 has no tomllib).",
+  "so_path": "/home/ubuntu/cipher_rt_phase4/libcipher_rt.so",
+  "model_library_dir": "/home/ubuntu/models",
+  "regimes": {
+    "agent":   {"handler": "mock_handler.py", "inject": {"CIPHER_RT_DISABLE_AUTO_INIT": "1", "CIPHER_VOLT": "1", "K": "4"}, "headline": true,  "timeout": 30},
+    "density": {"handler": "mock_handler.py", "inject": {"CIPHER_RT_DISABLE_AUTO_INIT": "1", "CIPHER_VOLT": "1"},          "headline": true,  "timeout": 30},
+    "compute": {"handler": "mock_handler.py", "inject": {"CUDA_INJECTION64_PATH": "__SO__", "CIPHER_FP8": "1"},            "headline": false, "timeout": 30}
+  },
+  "gates": {
+    "off_byte_identical": true,
+    "engine_fault_max": 0,
+    "density_kl_max": 0.001
+  }
+}

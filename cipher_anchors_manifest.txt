@@ -1,0 +1,147 @@
+CIPHER campaign — anchor manifest
+Generated: 2026-05-17 12:19 UTC   (pod 192-222-53-2, pre-termination snapshot)
+
+=== Campaign anchors  (anchor id = md5 prefix of the artifact) ===
+e2f50452f668859a96b1e25a2cba4e10  cipher_kmod/cipher_kmod.ko            anchor e2f50452 — kmod 0.4.8           VERIFIED
+c2c5d313e2c24b687ba344cd9fe14a2f  cipher_rt_phase4/libcipher_rt.so      anchor c2c5d313 — libcipher_rt         VERIFIED
+86618c30896470b642fcc6985d8dc632  libcipher_v2/libcipher_v2.so.v0.2.0   anchor 86618c30 — libcipher_v2         VERIFIED
+
+All three expected anchors (kmod e2f50452, libcipher_rt c2c5d313, libcipher_v2
+86618c30) match. NOTE: the libcipher_v2 anchor is libcipher_v2.so.v0.2.0 — NOT
+libcipher_v2/libcipher_v2.so (see below). Per D6_LIBCIPHER_V2_ANCHOR_RESOLUTION.md.
+
+=== Supporting / context (not campaign anchors) ===
+6654d9e5fcbe5f605e7ded216c20c45f  /lib/modules/6.8.0-1046-nvidia/updates/dkms/cipher_kmod.ko
+    DKMS-installed module — this is the one currently LOADED. Its md5 differs
+    from the source .ko (DKMS recompiles), but srcversion is identical
+    (E427CAFA4E94D548233DC7A == source .ko) -> same source as anchor e2f50452.
+
+cc0479b836e560619e2b286ca1caecb7  libcipher_v2/libcipher_v2.so
+cc0479b836e560619e2b286ca1caecb7  libcipher_v2/libcipher_v2.so.v0.3.0-cupti.unpromoted
+    Un-promoted Phase-3 Task-5 CUPTI superset (identical bytes; the .unpromoted
+    copy is D6's preserved snapshot). NOT a campaign anchor. Not in the soak
+    runtime path. Preserved per D6, not discarded.
+
+bb92424803a04bf989e92d48d2f76336  cipher-fusion-evidence/cp_2_5/cipher-platform_1.0_amd64.deb
+    CP 2.5 shipped platform package. Bundles libcipher_v2 86618c30 at
+    usr/lib/cipher/libcipher_v2.so (verified identical to the v0.2.0 anchor).
+
+=== Tarball ===
+ea262d3dd7011ea674eb60bb51ba3fe3  cipher_campaign_state_20260517.tar.gz
+    8815605 bytes (8.4 MiB), 1137 files, gzip integrity OK.
+    Top-level members: cipher-fusion-evidence/ cipher_rt_phase4/ cipher_kmod/
+    libcipher_v2/ cipher_workloads/ cipher_measurement/ cipher_exporter/
+    cipher_gpustate/ tmp/cipher_soak_24h_20260517_111335.log
+
+=== POST-SNAPSHOT UPDATE (2026-05-18, CP 5.4 Step 1.2) ===
+kmod anchor rotated  e2f50452 -> 7f467de4  (CP 5.4 arbitration ledger +
+Step 1.2 do_exit-reaper fix; verified isolation 15/15 + Phase 3 regression
+PASS). Loaded artifact: cipher_kmod/cipher_kmod.ko (7f467de4...).
+Fallbacks: cipher_kmod_fallback/cipher_kmod.ko.cp5_4_step1 (7f467de4),
+cipher_kmod_fallback/cipher_kmod.ko.pre_cp5_4 (e2f50452 — legacy rollback).
+libcipher_rt a7ac8e97 and libcipher_v2 86618c30 unchanged.
+See cipher-fusion-evidence/cp_5_4/step1_2/CP_5_4_STEP_1_2_REATTEMPT_REPORT.md.
+
+=== POST-SNAPSHOT UPDATE (2026-05-18, CP 5.4 Step 1.3 Phase A) ===
+kmod anchor rotated  7f467de4 -> 8d777dfb  (CIPHER_CP54_NUM_GROUPS 16 -> 15:
+CP 5.4 Step 1.3a probe measured cuDevSmResourceSplitByCount(minCount=8) on
+this H100 = 15 8-SM groups + 12 remainder, not 16 + 4). Verified: isolation
+15/15 PASS (15-group assertions) + W1 regression PASS (495.3 tok/s, 3.593
+tok/W, within +-3%) + dmesg clean. Loaded artifact: cipher_kmod/cipher_kmod.ko
+(8d777dfb...). Fallbacks: cipher_kmod_fallback/cipher_kmod.ko.cp5_4_step1_15fix
+(8d777dfb), .cp5_4_step1_pre15fix (7f467de4), .pre_cp5_4 (e2f50452 — legacy).
+libcipher_rt a7ac8e97 and libcipher_v2 86618c30 unchanged.
+See cipher-fusion-evidence/cp_5_4/step1_3/PHASE_A_KMOD_15FIX.md.
+
+=== POST-SNAPSHOT UPDATE (2026-05-18, CP 5.4 Step 1.3 complete) ===
+libcipher_rt anchor rotated  a7ac8e97 -> ebc0baaa  (CP 5.4 client integration:
+green ctx is now kmod-driven — CIPHER_CP54_ALLOCATE at injection-init, variable-
+size green context from the granted grp_mask, qos via CIPHER_QOS_CLASS env;
+ARB / ioctl nr 9 retired). Verified Phases A-D: split-order determinism probe
+PASS, build clean (symbol diff = -5 ARB +1 cp54), integration tests A-F PASS
+(SHARED + PARTITION KL=0.000, reaper+disjointness, SC2 6/6, W1 regression
+within +-3%). Loaded artifact: cipher_rt_phase4/libcipher_rt.so (ebc0baaa...).
+Fallbacks: cipher_rt_phase4/libcipher_rt.so.pre_cp5_4_step3 (a7ac8e97) and
+cipher_rt_fallback/libcipher_rt.so.pre_cp5_4_step3 (a7ac8e97).
+kmod 8d777dfb and libcipher_v2 86618c30 (unchanged — qos via env, Q2) and
+cipher_kv_bridge fca6843d unchanged.
+See cipher-fusion-evidence/cp_5_4/step1_3/CP_5_4_STEP_1_3_REPORT.md.
+
+=== OPERATIONAL INVARIANT (2026-05-19, CP 5.4 Step 1.6B-1) ===
+libcipher_rt-loaded tenants (PARTITION / SHARED qos) MUST be launched via
+  CUDA_INJECTION64_PATH=<libcipher_rt.so>
+NOT plain LD_PRELOAD. The green-context init (CIPHER_CP54_ALLOCATE) runs in
+InitializeInjection/InitializeInjection2 (cipher_inject.c), which the CUDA
+driver fires only for the CUDA_INJECTION64_PATH library at cuInit. CP 2.5 made
+the substrate LD_PRELOAD-free (GOT-patched from InitializeInjection2). A tenant
+started with LD_PRELOAD alone gets NO green context — the partition is not
+enforced (Step 1.6B-1: %smid probe showed all 132 SMs). Authoritative
+allocation read = CIPHER_CP54_QUERY ioctl, not cipher_rt_green_ctx_sm_count()
+(its static state is not reliably ctypes-visible under the injection load).
+No anchor rotation — operational note only. Anchors unchanged: kmod 8d777dfb,
+libcipher_rt ebc0baaa, libcipher_v2 86618c30, cipher_kv_bridge fca6843d.
+See cipher-fusion-evidence/cp_5_4/step1_6/CP_5_4_STEP_1_6B_1_CHECKPOINT.md.
+
+=== POST-SNAPSHOT UPDATE (2026-05-19, Track 3 SC2) ===
+kmod anchor rotated  8d777dfb -> 98da2d1f  (Track 3 Dynamic SM Migration SC2:
+kmod migration state machine — ioctl nrs 16-20 SUBSCRIBE/POLL/START/ACK/
+COMPACT_MIGRATE, RSVD group state, two-cmpxchg reaper, cp54_eval_migration).
+Verified: isolation 15/15 PASS (no NR 1-15 change) + 29/29 SC2 unit assertions
++ regression smoke W1/W2/W3 PASS within +-3% + dmesg clean. Loaded artifact:
+cipher_kmod/cipher_kmod.ko (98da2d1fd906a1b58c978a6996021539).
+Fallbacks: cipher_kmod_fallback/cipher_kmod.ko.track3_sc2 (98da2d1f),
+.pre_sc2 (8d777dfb — SC2 rollback), .pre_track3 (8d777dfb — Track 3 rollback).
+Source: cipher_kmod_src_track3_sc2.tar.gz (414e6e82).
+libcipher_rt ebc0baaa, libcipher_v2 86618c30, cipher_kv_bridge fca6843d
+unchanged (SC2 is kmod-only). See cipher-fusion-evidence/phase_c/track_3/
+TRACK_3_SC2_CLOSEOUT.md and TRACK_3_ABI.md.
+
+=== POST-SNAPSHOT UPDATE (2026-05-19, Track 3 SC3) ===
+libcipher_rt anchor rotated  ebc0baaa -> 83afd1ca  (Track 3 Dynamic SM
+Migration SC3: tenant-side migration primitive — cipher_rt_green_ctx_migrate()
+drain/build/L1-verify/swap/release in cipher_rt_green_ctx.c, cipher_migrate.py
+poll-and-migrate handler, CIPHER_MIGRATABLE env -> SUBSCRIBE_MIGRATE plumbing).
+Verified: ctypes RTLD_NOLOAD reachability gate PASS, SC3 unit+e2e 7/7 PASS
+(both e2e decode tenants migrated end-to-end COMPACT->PROPOSE->START->migrate->
+ACK COMMIT, TFGATE KL gates PASS), regression smoke W1/W2/W3 within +-3% +
+dmesg clean. Loaded artifact: cipher_rt_phase4/libcipher_rt.so
+(83afd1ca4118dc651854ef751e4ef82d).
+Fallbacks: cipher_rt_fallback/libcipher_rt.so.track3_sc3 (83afd1ca),
+.pre_sc3 (ebc0baaa — SC3 rollback), .pre_track3 (ebc0baaa — Track 3 rollback).
+Source: cipher_rt_green_ctx_track3_sc3.tar.gz (bcfcbe38).
+kmod 98da2d1f, libcipher_v2 86618c30, cipher_kv_bridge fca6843d unchanged
+(SC3 is libcipher_rt-only). See cipher-fusion-evidence/phase_c/track_3/
+TRACK_3_SC3_CLOSEOUT.md.
+
+=== POST-SNAPSHOT UPDATE (2026-05-19, Track 3 SC5-2) ===
+kmod anchor rotated  98da2d1f -> 285d102e  (Track 3 SC5-2: SC4 policy build
+folded into SC5 — 4 module params at /sys/module/cipher_kmod/parameters/
+[cipher_cp54_mig_gap_min_grps=1 / sustain_ms=2000 / ratelimit_ms=10000 /
+verbose=1, mode 0644], /proc/cipher/migrations node, per-tenant migration_count
++ aggregate counters; AND cp54_pool_claim_low_prefix — the SC1 fact-2
+constrained-low-prefix POOL grant that was specified but never built). kmod-
+only, no ABI change (frozen at nrs 1-20). Verified: regression smoke PASS —
+isolation 15/15 + SC2-unit 29/29 + W1 +0.83% + W2 clause1=clause2=0 + W3
+SC2_PASS + SC3 7/7 + dmesg clean. Loaded artifact: cipher_kmod/cipher_kmod.ko
+(285d102e86eafb70e95040fd1c2d44d0).
+Fallbacks: cipher_kmod_fallback/cipher_kmod.ko.track3_sc5 (285d102e),
+.pre_sc5 (98da2d1f — SC5 rollback). Source: cipher_kmod_src_track3_sc5.tar.gz
+(e57a1a84). libcipher_rt 83afd1ca, libcipher_v2 86618c30, cipher_kv_bridge
+fca6843d unchanged. 5-partition churn harness built; SC5-3 runs the headline
+measurement. See cipher-fusion-evidence/phase_c/track_3/TRACK_3_SC5_BUILD_LOG.md.
+
+=== POST-SNAPSHOT UPDATE (2026-05-19, Track 3 CLOSED + Track 2 SC3) ===
+TRACK 3 (Dynamic SM Migration) CLOSED 2026-05-19 — all 6 SCs; final anchors
+kmod 285d102e + libcipher_rt 83afd1ca. SC6 was measurement/docs only (no
+anchor rotation). See cipher-fusion-evidence/phase_c/track_3/TRACK_3_CLOSEOUT.md.
+TRACK 2 (cross-tenant weight-sharing) SC3 COMPLETE 2026-05-19 — consumer-side
+weight-arena import (cipher_rt_weight_arena_import + WeightArena.view).
+cipher_kv_bridge anchor rotated  fca6843d -> c04b0c39  (cipher_rt_kv_alloc.c
++ cipher_kv_bridge.cpp; builds into cipher_kv_bridge.so only — NOT libcipher_rt
+or the kmod). Verified: bit-identical cross-process forward (max-abs-diff 0.0),
+consumer adds 0 MiB GPU weight memory (2 tenants share 1 physical weight copy),
+regression smoke W3 SC2_PASS/KL 0.0 + isolation 15/15 + dmesg clean.
+Fallbacks: cipher_rt_phase4/cipher_kv_bridge.so.track2_sc3 (c04b0c39),
+.pre_track2_sc3 (fca6843d). Source: cipher_kv_bridge_src_track2_sc3.tar.gz
+(5dcd92fe). kmod 285d102e, libcipher_rt 83afd1ca, libcipher_v2 86618c30
+unchanged. See cipher-fusion-evidence/phase_c/TRACK_2_SC3_CLOSEOUT.md.

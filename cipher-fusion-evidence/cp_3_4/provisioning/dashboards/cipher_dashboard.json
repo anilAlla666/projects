@@ -1,0 +1,104 @@
+{
+  "uid": "cipher-silicon",
+  "title": "CIPHER — per-tenant silicon state",
+  "tags": ["cipher", "cp-3.4"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1s",
+  "time": { "from": "now-15m", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Per-tenant MFU %",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "cipher-ch" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["last", "max"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "cipher-ch" },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "rawSql": "SELECT ts AS time, tenant, mfu_pct FROM cipher.tenant_state WHERE $__timeFilter(ts) ORDER BY ts"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Per-tenant attributed TFLOP/s",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "cipher-ch" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["last", "max"] } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "cipher-ch" },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "rawSql": "SELECT ts AS time, tenant, flops_per_s / 1e12 AS tflops_per_s FROM cipher.tenant_state WHERE $__timeFilter(ts) ORDER BY ts"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Device tensor TFLOP/s",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "cipher-ch" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "cipher-ch" },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "rawSql": "SELECT ts AS time, tensor_tflops FROM cipher.device_state WHERE $__timeFilter(ts) ORDER BY ts"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Device silicon state — clock / util / power",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "cipher-ch" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "cipher-ch" },
+          "editorType": "sql",
+          "queryType": "timeseries",
+          "rawSql": "SELECT ts AS time, sm_clock_mhz, sm_util_pct, power_w FROM cipher.device_state WHERE $__timeFilter(ts) ORDER BY ts"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Live tenant table — latest attributed state",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "cipher-ch" },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 17 },
+      "fieldConfig": { "defaults": {}, "overrides": [] },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "cipher-ch" },
+          "editorType": "sql",
+          "queryType": "table",
+          "rawSql": "SELECT tenant, round(argMax(mfu_pct, ts), 2) AS mfu_pct, round(argMax(flops_per_s, ts) / 1e12, 1) AS tflops_per_s, argMax(launch_delta, ts) AS launch_delta FROM cipher.tenant_state GROUP BY tenant ORDER BY mfu_pct DESC"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+ "verdict": "NO LIFT from the FP8 actuator AS-BUILT \u2014 net-negative training MFU (-25.0% default full-window / -23.7% steady-state / -25.5% iso-clock, inclusive of 3.1% hosting tax; actuator-only -21.3%) AND convergence FAIL. PANEL+PROBES (06-11): both walls are MEASURED implementation artifacts, NOT FP8-fundamental \u2014 (1) MFU wall = per-step 159-weight requant churn from pointer-only cache keying (reconstructs ~116 of ~150 ms/step; steady handled path ~neutral, per-call act-quant mechanism REFUTED; FP8-Lt per-shape quality mixed: gate_up fwd +82% slower, lm_head fwd -47%); (2) quality wall = WRONG-MATH backward GEMMs (engine ignores transa/lda, hardcodes T/N lda=k) \u2014 every handled bwd GEMM rel-err sqrt(2) vs fp32 ground truth (probeA), fwd handled 0.0375 = normal FP8 noise. Per-tensor-E4M3-precision + blockwise-required attributions RETRACTED (no recipe evidence in this run).",
+ "frozen_anchor_md5": "2edba0d2136f8ede4713d90a8f7cd55f (entry==exit, NEVER rebuilt; no successor \u2014 Phase 1 not needed, Phase 2 net-negative)",
+ "p0a_baseline": {
+  "config": "real LoRA-finetune Mistral-7B B=2 seq=2048, sdpa, AdamW, stable 100-step",
+  "mfu": 0.2464,
+  "flop_model": "4N (frozen base fwd 2N + input-grad 2N)",
+  "note": "the real training baseline we never had; far above toy B=1xs512 10.7%"
+ },
+ "p0b_tax_batch_dependent": {
+  "B1_s512": 1.627,
+  "B1_s2048": 0.289,
+  "B2_s2048": 0.031,
+  "finding": "Lane-1's +150% was a TOY-BATCH artifact; at realistic batch tax is 3.1% -> Phase-1 tax-fix NOT needed (frozen anchor used directly)",
+  "mechanism_note": "exposed overhead collapses 210->75->15 ms/step (measured, 14x drop) \u2014 constant-cost-amortization REFUTED; hiding-under-GPU-bound-kernels = hypothesis not isolated"
+ },
+ "p0c_gemm_share": {
+  "GEMM": 0.455,
+  "ATTENTION": 0.041,
+  "POINTWISE": 0.491,
+  "OTHER": 0.012,
+  "note": "HF-eager LoRA: 49% pointwise (fp32-cast+unfused+AdamW) -> low GEMM-share -> FP8 Amdahl-limited"
+ },
+ "p0d_reachability": {
+  "fp8_projected_net_tax": "0.267-0.281",
+  "frontier": "40-54% (optimized full-pretrain, different regime)",
+  "verdict": "GEMM-share-limited; +2-3.5pt projected, far below frontier"
+ },
+ "p2_fp8_mfu_MEASURED": {
+  "default_clock": {
+   "vanilla": 0.2464,
+   "fp8": 0.18806996759985223,
+   "delta_pct": -23.7,
+   "source": "fp8_B2_warm20.json (steady-state, longer warmup); prior draft mislabeled this as the default run"
+  },
+  "iso_clock": {
+   "vanilla": 0.2426507219784115,
+   "fp8": 0.18081017558676746,
+   "delta_pct": -25.5
+  },
+  "handled": 16638,
+  "engaged_shapes": "6 (fwd qkv/o/gate_up/down + lm_head + bwd input-grad shapes)",
+  "mechanism": "MEASURED post-panel (probeB_*.json, bottom-up per-call timing; torch.profiler under substrate returns 0 events - CUPTI client conflict): dominant cost = requant churn on 159 thrashing weight-pairs/step (2x cudaMalloc + quant + host-blocking sync + 2x cudaFree each; cache keyed on pointer only, reset on fwd/bwd (K,N) swap); steady handled square pair +0.02 ms (~neutral). Engaged set corrected: ALL 222 bwd input-grads + fwd q/o (64) + fwd layer-0 k/v (2); forward MLP/k_v(1-31)/lm_head NEVER substituted. FLOP coverage 57.5% total / 15.2% fwd-only. 'qkv 6144' deleted (vLLM shape, not training).",
+  "net_negative": true,
+  "default_clock_full_window": {
+   "vanilla": 0.2464,
+   "fp8": 0.1847,
+   "delta_pct": -25.0,
+   "source": "fp8_B2_default.json"
+  }
+ },
+ "p3_convergence_MEASURED": {
+  "baseline_loss": "0.055->0.0018 (converges)",
+  "fp8_loss": "0.065->stalls~0.065->DIVERGES 0.33 at step100",
+  "loss_gap": "+0.33",
+  "verdict": "FAIL for the actuator as-built \u2014 ROOT CAUSE MEASURED (probeA): wrong-math backward GEMMs (rel-err sqrt(2) = uncorrelated output; engine ignores transa/lda). NOT an FP8-precision result; no recipe conclusion possible.",
+  "stable_recipe": "RETRACTED ('blockwise required' was literature-imported and the measured failure is a layout bug). Recipe qualification (per-tensor delayed-scaling / blockwise / fwd-only) = unmeasured, needs layout-correct successor + real-data eval."
+ },
+ "options_for_anil": [
+  "OPTION 1 (scoped substrate-internal successor): key weight cache on (ptr,K,N) + REFUSE non-(T,N) layouts (bwd->fp16, correct by construction) + Lt algo autotune. Removes both walls' causes. NOT established to win: fwd-only coverage 15.2-39% (Amdahl +2-3.5pt ceiling) and mixed per-shape FP8 GEMM quality; expect ~neutral, decide by re-measurement.",
+  "OPTION 2: the real ceiling is the 49% POINTWISE (fp32-LoRA casts, HF-eager unfused, AdamW) -> fused training stack, OUT of GEMM-intercept substrate scope.",
+  "OPTION 3 (good news, independent): substrate HOSTING tax at realistic batch is 3.1% (not the toy 150%) \u2014 hosting is viable; the as-built FP8 actuator is the wrong tool, not the hosting.",
+  "OPTION 4: no FP8 recipe ranking possible from this run (failure was a layout bug); convergence qualification needs the fixed successor + real-data eval.",
+  "Fleet-wide adds the NCCL comms surface (W.7) \u2014 outside this single-GPU build."
+ ],
+ "panel_2026_06_11": {
+  "agents": 4,
+  "material": 12,
+  "minor": 24,
+  "all_material_applied": true,
+  "probes": {
+   "probeA_bwd_correctness": "bwd handled rel-err 1.414 (sqrt2) all shapes; fwd handled 0.0375; engagement pattern matches counter model exactly",
+   "probeB_percall_timing": "reconstructed ~116.5 ms/step of +150-176 measured; q_o steady pair +0.02ms; thrash pairs +0.1-1.2ms; profiler unusable under substrate (0 events)"
+  }
+ }
+}

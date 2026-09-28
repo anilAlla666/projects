@@ -1,0 +1,20 @@
+{
+ "frozen_graph": {
+  "measured": true,
+  "captured_op_replayed_with_new_input": true,
+  "post_capture_kernel_in_replay": false,
+  "ybuf_val": 14.0,
+  "zbuf_val": 300.0,
+  "note": "replay re-ran captured ybuf=xbuf*2 (tracks input -> 14) but did NOT re-run the post-capture zbuf=xbuf*100 (stuck at 300, not 700) => frozen captured op-set; an injected detector kernel launched after capture is never replayed"
+ },
+ "host_sync_during_capture": {
+  "raised": true,
+  "error": "AcceleratorError: CUDA error: operation failed due to a previous error during capture\nSearch for `cudaErrorStreamCaptureInvalidated' in https://docs.nvidia.com/cuda/cuda-runtime-"
+ },
+ "raw_hostalloc_during_capture": {
+  "raised": true,
+  "error": "AcceleratorError: CUDA error: operation failed due to a previous error during capture\nSearch for `cudaErrorStreamCaptureInvalidated' in https://docs.nvidia.com/cuda/cuda-runtime-",
+  "cuda_ret": 900,
+  "ret_name": "operation not permitted when stream is capturing"
+ }
+}

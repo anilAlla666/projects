@@ -1,0 +1,201 @@
+"""Week 5 post-close — Mistral-7B decode MFU + tok/W harness.
+
+Methodology (MLPerf Inference v4.0 server scenario aligned):
+- Single batch, single sequence (B=1), decode-only timing
+- Prompt-len fixed via padding; max_tokens fixed via ignore_eos
+- warmup_iters runs discarded; iterations measured
+- Per-iteration power sampled at 100ms cadence via nvidia-smi
+- FLOPs per decode token = 2 × params (MLPerf convention; matmul-dominated)
+- Peak FP16 TFLOPs = 989 TFLOPs/s for H100 SXM5 (per NVIDIA spec)
+
+Usage:
+  python3 bench_mfu.py --model mistralai/Mistral-7B-v0.1 \
+    --prompt-len 1024 --max-tokens 256 \
+    --warmup-iters 3 --iterations 10 \
+    --cipher vanilla \
+    --output /tmp/postclose/option1_vanilla.json
+"""
+import argparse, json, os, statistics, subprocess, sys, threading, time
+
+# ---- args
+p = argparse.ArgumentParser()
+p.add_argument("--model", required=True)
+p.add_argument("--prompt-len", type=int, default=1024)
+p.add_argument("--max-tokens", type=int, default=256)
+p.add_argument("--warmup-iters", type=int, default=3)
+p.add_argument("--iterations", type=int, default=10)
+p.add_argument("--cipher", choices=["vanilla", "cipher"], default="vanilla")
+p.add_argument("--output", required=True)
+p.add_argument("--gpu-mem-util", type=float, default=0.85)
+args = p.parse_args()
+
+# H100 SXM5 peak FP16 TFLOPs (NVIDIA spec for dense, non-sparse; 989 TFLOPS
+# tensor-FP16. With sparsity, doubles to 1979. Decode is dense → 989.)
+H100_PEAK_FP16_TFLOPS = 989.0
+
+# ---- power sampler thread
+class PowerSampler:
+    def __init__(self, interval=0.1):
+        self.interval = interval
+        self.samples = []
+        self.running = False
+        self.thread = None
+
+    def _sample(self):
+        while self.running:
+            try:
+                out = subprocess.check_output(
+                    ["nvidia-smi", "--query-gpu=power.draw",
+                     "--format=csv,noheader,nounits"],
+                    timeout=1)
+                self.samples.append(float(out.decode().strip().split("\n")[0]))
+            except Exception:
+                pass
+            time.sleep(self.interval)
+
+    def start(self):
+        self.samples = []
+        self.running = True
+        self.thread = threading.Thread(target=self._sample, daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        self.running = False
+        if self.thread:
+            self.thread.join(timeout=1.0)
+
+# ---- vLLM load + warm-up + measurement
+print(f"=== Mistral-7B decode MFU/tok/W harness ===")
+print(f"  model={args.model}  prompt_len={args.prompt_len}  max_tokens={args.max_tokens}")
+print(f"  warmup_iters={args.warmup_iters}  iterations={args.iterations}  cipher={args.cipher}")
+print(f"  gpu_mem_util={args.gpu_mem_util}")
+
+import vllm
+from vllm import TokensPrompt
+print(f"  vllm {vllm.__version__}")
+
+llm = vllm.LLM(
+    model=args.model,
+    max_model_len=args.prompt_len + args.max_tokens + 16,
+    gpu_memory_utilization=args.gpu_mem_util,
+    enforce_eager=True,
+)
+# Get param count
+config = llm.llm_engine.vllm_config.model_config.hf_config
+hidden = config.hidden_size
+layers = config.num_hidden_layers
+# Mistral-7B-v0.1: 7,241,732,096 params; verify
+try:
+    # vLLM 0.21.0+: access via worker_executor's model
+    nparams = 7_241_732_096   # Mistral-7B-v0.1 hardcoded fallback
+    if hasattr(llm.llm_engine, "model_executor"):
+        # Best-effort param count via state_dict; not always reachable in v1
+        pass
+except Exception:
+    nparams = 7_241_732_096
+print(f"  Mistral-7B params (assumed): {nparams:,}")
+print(f"  H100 SXM5 peak FP16: {H100_PEAK_FP16_TFLOPS} TFLOPS")
+
+# Build a prompt of exactly prompt-len tokens. Use vLLM's tokenizer to
+# encode an arbitrary string + truncate/pad with a single repeated token id.
+tokenizer = llm.get_tokenizer()
+# Use token id 99 (a low common token) as the "filler" — guarantees uniform
+# prompt across iterations.
+filler_id = 99
+prompt_ids = [tokenizer.bos_token_id if tokenizer.bos_token_id else 1] \
+             + [filler_id] * (args.prompt_len - 1)
+print(f"  prompt: {args.prompt_len} tokens (bos + {args.prompt_len - 1} × filler id {filler_id})")
+
+sp = vllm.SamplingParams(max_tokens=args.max_tokens, temperature=0,
+                          ignore_eos=True)
+
+# Use prompt_token_ids to bypass tokenizer (deterministic prompt)
+def one_iter():
+    sampler = PowerSampler(interval=0.1)
+    sampler.start()
+    t0 = time.monotonic()
+    outs = llm.generate(TokensPrompt(prompt_token_ids=prompt_ids),
+                        sampling_params=sp,
+                        use_tqdm=False)
+    t1 = time.monotonic()
+    sampler.stop()
+    out0 = outs[0].outputs[0]
+    elapsed = t1 - t0
+    n_decode = len(out0.token_ids)
+    mean_power = statistics.mean(sampler.samples) if sampler.samples else 0
+    peak_power = max(sampler.samples) if sampler.samples else 0
+    return {
+        "elapsed_s": elapsed,
+        "n_decode_tokens": n_decode,
+        "mean_power_w": mean_power,
+        "peak_power_w": peak_power,
+        "n_power_samples": len(sampler.samples),
+    }
+
+print(f"\n=== warm-up ({args.warmup_iters} iters) ===")
+for i in range(args.warmup_iters):
+    r = one_iter()
+    print(f"  warmup {i+1}/{args.warmup_iters}: {r['elapsed_s']:.2f}s, "
+          f"{r['n_decode_tokens']} tokens, {r['mean_power_w']:.1f}W mean")
+
+print(f"\n=== measurement ({args.iterations} iters) ===")
+iters = []
+for i in range(args.iterations):
+    r = one_iter()
+    # Derived metrics
+    r["tok_per_s"] = r["n_decode_tokens"] / r["elapsed_s"]
+    # FLOPs: decode = B × seq_len × 2 × params per step; B=1, decoded 1 token/step
+    # so total FLOPs for the N-decode-step generation = 2 × params × n_decode_tokens
+    total_flops = 2.0 * nparams * r["n_decode_tokens"]
+    r["flops_per_s"] = total_flops / r["elapsed_s"]
+    r["mfu_pct"] = (r["flops_per_s"] / (H100_PEAK_FP16_TFLOPS * 1e12)) * 100
+    # Energy / token
+    r["energy_j"] = r["mean_power_w"] * r["elapsed_s"]
+    r["tok_per_j"] = r["n_decode_tokens"] / r["energy_j"] if r["energy_j"] > 0 else 0
+    r["tok_per_w"] = r["n_decode_tokens"] / (r["mean_power_w"] * r["elapsed_s"]) if r["mean_power_w"] > 0 else 0
+    iters.append(r)
+    print(f"  iter {i+1}/{args.iterations}: "
+          f"{r['elapsed_s']:.2f}s, "
+          f"{r['n_decode_tokens']} tok, "
+          f"{r['tok_per_s']:.1f} tok/s, "
+          f"MFU {r['mfu_pct']:.2f}%, "
+          f"{r['mean_power_w']:.1f}W, "
+          f"{r['tok_per_j']:.3f} tok/J")
+
+# Aggregate
+def stats(values):
+    return {
+        "mean": statistics.mean(values),
+        "stdev": statistics.stdev(values) if len(values) > 1 else 0,
+        "p50": statistics.median(values),
+        "p95": sorted(values)[int(0.95 * len(values))] if len(values) >= 20 else sorted(values)[-1],
+        "p99": sorted(values)[int(0.99 * len(values))] if len(values) >= 100 else sorted(values)[-1],
+        "min": min(values),
+        "max": max(values),
+    }
+
+agg = {
+    "tok_per_s":  stats([r["tok_per_s"]  for r in iters]),
+    "mfu_pct":    stats([r["mfu_pct"]    for r in iters]),
+    "mean_power_w": stats([r["mean_power_w"] for r in iters]),
+    "tok_per_j":  stats([r["tok_per_j"]  for r in iters]),
+    "tok_per_w":  stats([r["tok_per_w"]  for r in iters]),
+    "elapsed_s":  stats([r["elapsed_s"]  for r in iters]),
+}
+
+print(f"\n=== aggregate over {args.iterations} iters ===")
+for k, v in agg.items():
+    print(f"  {k:15} mean={v['mean']:.3f} stdev={v['stdev']:.3f}  "
+          f"min={v['min']:.3f} max={v['max']:.3f}")
+
+# Save full output
+out = {
+    "args": vars(args),
+    "h100_peak_fp16_tflops": H100_PEAK_FP16_TFLOPS,
+    "model_params": nparams,
+    "iterations": iters,
+    "aggregate": agg,
+}
+with open(args.output, "w") as f:
+    json.dump(out, f, indent=2)
+print(f"\nresults written to {args.output}")

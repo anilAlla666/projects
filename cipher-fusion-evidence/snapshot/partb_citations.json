@@ -1,0 +1,349 @@
+{
+ "clusters": [
+  {
+   "cluster": "mux",
+   "items": [
+    {
+     "metric": "CROSS-TENANT MUX tok/W \u2014 Mistral-7B N=4 = 3.06x",
+     "value": "3.06\u00d7 substrate-attributable tok/W (batched 0.886 tok/W / naive 0.290 tok/W; 174.8 tok/s @197.2 W vs 81.9 tok/s @282.5 W)",
+     "file": "/home/ubuntu/cipher-fusion-evidence/cp_5_6/TPW_RETEST_2026_05_19.md",
+     "line": 49,
+     "verbatim": "| | **substrate-attributable** | | | **3.06\u00d7** |",
+     "json_artifact": "/home/ubuntu/cipher-fusion-evidence/cp_5_6/phase_b/session1/tpw_retest_result.json",
+     "notes": "Scenario row at line 47 of same table: '| **Mistral-7B-v0.1, N=4** | batched | 174.8 | 197.2 | **0.886** |'. JSON artifact records scenario 'Mistral-7B  N=4' with substrate_attributable_x=3.055 (report rounds to 3.06\u00d7). One-line restatement with explicit model attribution: /home/ubuntu/cipher-fusion-evidence/CIPHER_PLAN_EXECUTIVE_SUMMARY.md:112 '**Numbers:** 3.06\u00d7 tok/W on Mistral-7B at N=4; 3.30\u00d7 on TinyLlama-1.1B at N=8; 4.73\u00d7 at N=12; 5.98\u00d7 at N=16. ...'. Defensible-claim sentence at TPW_RETEST_2026_05_19.md:107: '> tenant density** \u2014 3.06\u00d7 at 4 concurrent tenants, **3.6\u00d7 at \u22489**, ~6\u00d7 at 16 \u2014'. Correctness gate: teacher-forced KL passed every round (kl_max 2.5e-5\u20135.5e-5, gate \u22640.1), report lines 54-56. Date of measurement: 2026-05-19.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Line 49 of /home/ubuntu/cipher-fusion-evidence/cp_5_6/TPW_RETEST_2026_05_19.md is exactly \"| | **substrate-attributable** | | | **3.06\u00d7** |\". It is the third row of the Mistral-7B-v0.1 N=4 block in the Results table (lines 47-49): batched 174.8 tok/s @ 197.2 W = 0.886 tok/W, naive 4-concurrent 81.9 tok/s @ 282.5 W = 0.290 tok/W; 0.886/0.290 = 3.055 \u2248 3.06\u00d7. The metric is defined in the file (lines 40-41) as substrate-attributable tok/W = batched tok/W / naive-N-concurrent tok/W for cross-tenant decode-step batching, matching the claim's \"CROSS-TENANT MUX tok/W\" framing, model, N=4 config, and all numeric values verbatim. Correctness-gated (teacher-forced KL gate passed). Note: the document also frames this as the conservative re-test figure (stricter naive baseline) vs Phase B's 3.26\u00d7; the 3.06\u00d7 claim as stated is accurate.",
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/cp_5_6/TPW_RETEST_2026_05_19.md",
+      "corrected_line": 49,
+      "corrected_verbatim": "| | **substrate-attributable** | | | **3.06\u00d7** |"
+     }
+    },
+    {
+     "metric": "CROSS-TENANT MUX tok/W \u2014 TinyLlama-1.1B N=8 = 3.30x",
+     "value": "3.30\u00d7 substrate-attributable tok/W (batched 3.535 tok/W / naive 1.073 tok/W; 498.1 tok/s @140.9 W vs 199.8 tok/s @186.2 W)",
+     "file": "/home/ubuntu/cipher-fusion-evidence/cp_5_6/TPW_RETEST_2026_05_19.md",
+     "line": 52,
+     "verbatim": "| | **substrate-attributable** | | | **3.30\u00d7** |",
+     "json_artifact": "/home/ubuntu/cipher-fusion-evidence/cp_5_6/phase_b/session1/tpw_retest_result.json",
+     "notes": "Scenario row at line 50: '| **TinyLlama-1.1B, N=8** | batched | 498.1 | 140.9 | **3.535** |'. Same number also appears in the scaling-curve table at line 69: '| N=8  | 3.535 | 1.073 | **3.30\u00d7** |'. JSON artifact records scenario 'TinyLlama   N=8' with substrate_attributable_x=3.296 (report rounds to 3.30\u00d7). Higher-N curve points (N=12 4.73\u00d7, N=16 5.98\u00d7) are in /home/ubuntu/cipher-fusion-evidence/cp_5_6/phase_b/session1/tpw_retest_highn_result.json. Per-model attribution confirmed in WI2_SERVING_GOODPUT_2026-06-09.md:82: '- **3.06\u20133.30\u00d7 is tok/W/density, not SLO-goodput** \u2014 explicitly not conflated. (3.06\u00d7 Mistral N=4 / 3.30\u00d7 TinyLlama N=8.)'",
+     "verdict": {
+      "confirmed": true,
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/cp_5_6/TPW_RETEST_2026_05_19.md",
+      "corrected_line": 52,
+      "corrected_verbatim": "| | **substrate-attributable** | | | **3.30\u00d7** |",
+      "reason": "Verbatim line confirmed at line 52 of TPW_RETEST_2026_05_19.md, and it is the substrate-attributable ratio row of the \"TinyLlama-1.1B, N=8\" results-table block (lines 50-52): batched 498.1 tok/s @ 140.9 W = 3.535 tok/W; naive 8-concurrent 199.8 tok/s @ 186.2 W = 1.073 tok/W; 3.535/1.073 = 3.30x. Every number, unit, model, and N in the claim matches the file exactly. Metric definition at line 41 (substrate-attributable tok/W = batched / naive-N-concurrent) matches the claim's framing of cross-tenant batching (mux), and the 3.30x figure is corroborated at lines 69, 81, and 101 of the same file. Right metric, right units, right N/config."
+     }
+    },
+    {
+     "metric": "mux-reason-not-rerun",
+     "value": "Mux SLO-goodput unmeasured \u2014 mux is compiled into the substrate and needs a vLLM-cooperating host (WALL-WITH-MECHANISM); 3.06\u20133.30\u00d7 stays in the tok/W-density lane",
+     "file": "/home/ubuntu/cipher-fusion-evidence/wi4_memo/RPILLAR_GOODPUT_CLOSEOUT_MEMO_2026-06-10.md",
+     "line": 22,
+     "verbatim": "| **SERVING (SLO-attainment rate)** \u2014 DistServe-style | **Unmeasured for the mux \u2014 WALL** | Single-tenant baseline is latency-comfortable (strict-SLO attainment **\u22650.98 across \u03bb=1\u201364** \u2014 0.988 at \u03bb=32/64, 0.995 sustained; TTFT p90 \u226476 ms, TPOT \u224814 ms; **no SLO knee reached, no sustained ceiling established** \u2014 transient runs; eager host, conservative on latency; one GPU, one model). The mux lives in the compiled substrate and needs a vLLM-cooperating host; its validated **3.06\u20133.30\u00d7** stays strictly in the **tok/W-density** lane, never relabeled SLO-goodput. |",
+     "notes": "This is the panel-verified R-pillar close-out memo (the strongest citable source). The literal 'partner-gated' phrasing appears only at /home/ubuntu/cipher-fusion-evidence/snapshot/PREREG.md:58-59: 'Reason-not-re-run (mux): engagement requires a vLLM-cooperating host = the walled, partner-gated measurement / per the Nebius memo; re-deriving it would cross the substrate line. NOT faked here by design.' The detailed mechanism is in /home/ubuntu/cipher-fusion-evidence/wi2_servinggoodput/WI2_SERVING_GOODPUT_2026-06-09.md:60-72 ('## MUX \u2014 WALL-WITH-MECHANISM ...; the mux needs a vLLM-cooperating plugin/scheduler hook that is not wired in this scratch harness') and :107-109 ('the mux is compiled into the substrate and needs a vLLM-cooperating host (WALL-WITH-MECHANISM) \u2014 and the 3.06\u20133.30\u00d7 is kept strictly in its density/tok-W lane, never relabeled as SLO-goodput'). CAUTION: the only Nebius-TITLED memo, /home/ubuntu/cipher-fusion-evidence/v1_phase_b/DEVANG_NEBIUS_UPDATE.md, contains NO mux/SLO/vLLM-cooperating sentence \u2014 see not_found.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Byte-exact match at line 22 of /home/ubuntu/cipher-fusion-evidence/wi4_memo/RPILLAR_GOODPUT_CLOSEOUT_MEMO_2026-06-10.md (unique occurrence; verified by exact string comparison). Context matches the metric: it is the SERVING (SLO-attainment rate) DistServe-style row explaining why mux SLO-goodput is unmeasured \u2014 mux lives in the compiled substrate and needs a vLLM-cooperating host; the validated 3.06\u20133.30\u00d7 is kept in the tok/W-density lane, never relabeled SLO-goodput. Numbers/config in the quote (attainment \u22650.98 across \u03bb=1\u201364, 0.988 at \u03bb=32/64, 0.995 sustained, TTFT p90 \u226476 ms, TPOT \u224814 ms, one GPU/one model, eager host) all match and are corroborated by the memo's provenance table (line 94 \u2192 wi2_servinggoodput/WI2_SERVING_GOODPUT_2026-06-09.md). Minor gloss only: the claim's summary parenthetical says \"WALL-WITH-MECHANISM\" while line 22's verdict cell says \"WALL\" (the mechanism is stated in the same sentence; the literal token \"WALL-WITH-MECHANISM\" at line 61 refers to the Path-1 cudagraph wall). This does not affect the verbatim quote, which is exact.",
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/wi4_memo/RPILLAR_GOODPUT_CLOSEOUT_MEMO_2026-06-10.md",
+      "corrected_line": 22,
+      "corrected_verbatim": "| **SERVING (SLO-attainment rate)** \u2014 DistServe-style | **Unmeasured for the mux \u2014 WALL** | Single-tenant baseline is latency-comfortable (strict-SLO attainment **\u22650.98 across \u03bb=1\u201364** \u2014 0.988 at \u03bb=32/64, 0.995 sustained; TTFT p90 \u226476 ms, TPOT \u224814 ms; **no SLO knee reached, no sustained ceiling established** \u2014 transient runs; eager host, conservative on latency; one GPU, one model). The mux lives in the compiled substrate and needs a vLLM-cooperating host; its validated **3.06\u20133.30\u00d7** stays strictly in the **tok/W-density** lane, never relabeled SLO-goodput. |"
+     }
+    }
+   ],
+   "not_found": [
+    "A Nebius-titled DESIGN-PARTNER memo that itself states the mux/SLO measurement is partner-gated: NOT FOUND. Grepped 'nebius', 'design partner', 'design-partner', 'partner-gated', 'vLLM-cooperating' across /home/ubuntu (excluding .cache/.local/site-packages). The only Nebius-titled memo (/home/ubuntu/cipher-fusion-evidence/v1_phase_b/DEVANG_NEBIUS_UPDATE.md, 71 lines) is a 2026-05-26 deployment/CDI-mechanism update with two ops questions \u2014 it contains no mux, SLO, or vLLM-cooperating sentence. The phrase 'the walled, partner-gated measurement per the Nebius memo' exists only in /home/ubuntu/cipher-fusion-evidence/snapshot/PREREG.md:58-59 (this session's own prereg); the substantive vLLM-cooperating-host statements live in wi4_memo/RPILLAR_GOODPUT_CLOSEOUT_MEMO_2026-06-10.md:22 and wi2_servinggoodput/WI2_SERVING_GOODPUT_2026-06-09.md:60-72,107-109 \u2014 returned as the mux-reason-not-rerun item. Do not cite 'the Nebius memo' as the source of the partner-gating claim; cite the WI-2/WI-4 reports."
+   ]
+  },
+  {
+   "cluster": "dvfs",
+   "items": [
+    {
+     "metric": "DVFS tok/W lift, n=5 matched pairs (TL;DR headline)",
+     "value": "+57.28% \u00b1 0.32% (95% CI: +56.65% to +57.90%)",
+     "file": "/home/ubuntu/PHASE_4_T4_3_2_REPORT.md",
+     "line": 17,
+     "verbatim": "| c. Tok/W lift over 5 matched pairs | **+57.28% \u00b1 0.32% (95% CI: +56.65% to +57.90%)** |",
+     "json_artifact": "/home/ubuntu/cipher-phase4-evidence/t4_3_2_npairs/summary.json",
+     "notes": "PRIMARY SOURCE for the snapshot's '+57.3%'. Note the source says +57.28%, not 57.3 \u2014 the snapshot rounds. JSON artifact is cited at report line 198 ('cipher-phase4-evidence/t4_3_2_npairs/summary.json | new | **5-pair statistical headline**') and contains \"n_pairs\": 5 and \"pct_delta\": 57.28 for tok_w. CAVEAT for design-partner use: workload is TinyLlama-1.1B B=1 decode (report line 113); the T4.3 envelope report shows it does NOT generalize to Mistral-7B (\u22122% to \u221215% tok/W, per /home/ubuntu/cipher-fusion-evidence/phase_audit/non_canonical/audit.md:191-196).",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Line 17 of /home/ubuntu/PHASE_4_T4_3_2_REPORT.md contains the exact claimed text verbatim: \"| c. Tok/W lift over 5 matched pairs | **+57.28% \u00b1 0.32% (95% CI: +56.65% to +57.90%)** |\". Context matches the claimed metric: it is row (c) of the table under heading \"## TL;DR (statistical headline, n=5 matched pairs)\" (line 11) in a report titled \"Phase 4.3.2 \u2014 Kmod-mediated DVFS\", so it is the DVFS tok/W lift over n=5 matched pairs as a TL;DR headline. The number is internally corroborated by the detail table at line 128 (Tok/W OFF 0.4459 \u00b1 0.0028 vs ON 0.7013 \u00b1 0.0015, \u0394 +57.28%, CI [+56.65%, +57.90%], z=179.8), the prose claim at line 145, and per-pair raw data (lines 152+). Right metric (Tok/W, not watts/tok/s), right units (%), right N (5 matched pairs, 60 s each), right config (kmod-ioctl 1000 MHz clock lock, TinyLlama B=1 decode).",
+      "corrected_file": "/home/ubuntu/PHASE_4_T4_3_2_REPORT.md",
+      "corrected_line": 17,
+      "corrected_verbatim": "| c. Tok/W lift over 5 matched pairs | **+57.28% \u00b1 0.32% (95% CI: +56.65% to +57.90%)** |"
+     }
+    },
+    {
+     "metric": "n=5 matched pairs (header establishing the n)",
+     "value": "n=5 matched pairs",
+     "file": "/home/ubuntu/PHASE_4_T4_3_2_REPORT.md",
+     "line": 11,
+     "verbatim": "## TL;DR (statistical headline, n=5 matched pairs)",
+     "json_artifact": "/home/ubuntu/cipher-phase4-evidence/t4_3_2_npairs/summary.json",
+     "notes": "Also line 117: '### Statistical headline (5 matched pairs, 60 s each)'.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Verbatim match. Line 11 of /home/ubuntu/PHASE_4_T4_3_2_REPORT.md reads exactly \"## TL;DR (statistical headline, n=5 matched pairs)\". Context confirms the claim: the TL;DR table below it reports statistics over 5 matched pairs (row c: \"Tok/W lift over 5 matched pairs: +57.28% \u00b1 0.32%\"), so n=5 matched pairs is the sample-size header for the report's statistical headline, matching the claimed metric, value, and N/config.",
+      "corrected_file": "/home/ubuntu/PHASE_4_T4_3_2_REPORT.md",
+      "corrected_line": 11,
+      "corrected_verbatim": "## TL;DR (statistical headline, n=5 matched pairs)"
+     }
+    },
+    {
+     "metric": "Tok/W lift restated with \u00b10.32% and z (Three credible claims #3)",
+     "value": "+57.28% \u00b1 0.32%, z=180",
+     "file": "/home/ubuntu/PHASE_4_T4_3_2_REPORT.md",
+     "line": 145,
+     "verbatim": "3. **Tok/W lift: +57.28% \u00b1 0.32% (95% CI: +56.7% to +57.9%).** z=180 \u2014",
+     "json_artifact": "/home/ubuntu/cipher-phase4-evidence/t4_3_2_npairs/summary.json",
+     "notes": "Line continues (146-147): 'astronomically significant. Driven entirely by watts reduction with tok/s unchanged.'",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Exact match. /home/ubuntu/PHASE_4_T4_3_2_REPORT.md line 145 reads verbatim: '3. **Tok/W lift: +57.28% \u00b1 0.32% (95% CI: +56.7% to +57.9%).** z=180 \u2014' as item #3 under the '### Three credible claims' heading (line 134). Context is the right metric/config: Tok/W lift over 5 matched pairs (n=5, 60 s each), TinyLlama B=1 decode, CIPHER_VOLT 1000 MHz kmod-ioctl lock ON vs OFF. Corroborated by the stats table at line 128 (Tok/W 0.4459\u00b10.0028 \u2192 0.7013\u00b10.0015, +57.28%, CI [+56.65%, +57.90%], z=179.8 \u2014 rounded to 180 in prose) and the summary at line 17. Per-pair raw data (lines 152-156) is consistent.",
+      "corrected_file": "/home/ubuntu/PHASE_4_T4_3_2_REPORT.md",
+      "corrected_line": 145,
+      "corrected_verbatim": "3. **Tok/W lift: +57.28% \u00b1 0.32% (95% CI: +56.7% to +57.9%).** z=180 \u2014"
+     }
+    },
+    {
+     "metric": "Tok/W stats-table row (per-arm means, CI, z)",
+     "value": "OFF 0.4459\u00b10.0028 \u2192 ON 0.7013\u00b10.0015, +57.28%, CI [+56.65%, +57.90%], z=179.8",
+     "file": "/home/ubuntu/PHASE_4_T4_3_2_REPORT.md",
+     "line": 128,
+     "verbatim": "| Tok/W | 0.4459 \u00b1 0.0028 | 0.7013 \u00b1 0.0015 | **+57.28%** | [+56.65%, +57.90%] | 179.8 |",
+     "json_artifact": "/home/ubuntu/cipher-phase4-evidence/t4_3_2_npairs/summary.json",
+     "notes": "Table header line 124 gives 'OFF mean \u00b1 \u03c3 (n=5) | ON mean \u00b1 \u03c3 (n=5)'.",
+     "verdict": {
+      "confirmed": true,
+      "corrected_file": "/home/ubuntu/PHASE_4_T4_3_2_REPORT.md",
+      "corrected_line": 128,
+      "corrected_verbatim": "| Tok/W | 0.4459 \u00b1 0.0028 | 0.7013 \u00b1 0.0015 | **+57.28%** | [+56.65%, +57.90%] | 179.8 |",
+      "reason": "Line 128 of /home/ubuntu/PHASE_4_T4_3_2_REPORT.md contains the claimed row verbatim. Context matches: table header (line 124) is 'OFF mean \u00b1 \u03c3 (n=5) | ON mean \u00b1 \u03c3 (n=5) | \u0394% | 95% CI | z', i.e. Tok/W per-arm means over 5 matched pairs (60 s each, TinyLlama decode B=1, CIPHER_VOLT on=1000MHz kmod-ioctl lock vs off=default boost), \u0394=+57.28%, 95% CI [+56.65%, +57.90%], z=179.8. Arithmetic checks (0.7013/0.4459=1.5728) and the value is corroborated at lines 17 and 145-147 and by the per-pair detail block. Minor note: per-arm '\u00b1' values are \u03c3, not CIs; the CI column is on \u0394% \u2014 consistent with the claim's intent."
+     }
+    },
+    {
+     "metric": "Rounded '+57.3%' as it appears in the snapshot prereg (citation target, not source)",
+     "value": "DVFS +57.3% tok/W",
+     "file": "/home/ubuntu/cipher-fusion-evidence/snapshot/PREREG.md",
+     "line": 56,
+     "verbatim": "Mux 3.06\u00d7/3.30\u00d7 tok/W, DVFS +57.3% tok/W, W6 MFU/MBU rows, eager-vs-cudagraph 629/1289 \u2014 each must be",
+     "notes": "Only place the literal '57.3' appears in any report. It is a rounding of the source +57.28%.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Verbatim match at /home/ubuntu/cipher-fusion-evidence/snapshot/PREREG.md line 56: \"Mux 3.06\u00d7/3.30\u00d7 tok/W, DVFS +57.3% tok/W, W6 MFU/MBU rows, eager-vs-cudagraph 629/1289 \u2014 each must be\" (continues on line 57: \"located verbatim in its prior report; anything not found is marked UNVERIFIED and excluded from the table.\"). Context matches the claim: the line is under the section \"## Part B (NOT measured; quoted with source)\" (line 54), so the +57.3% tok/W DVFS figure appears as a pre-registered citation target that must be traced to its prior report \u2014 not as a measurement sourced in this prereg. Metric (DVFS) and units (tok/W) match; no N/config is attached to the number in this file, consistent with it being a quoted-figure placeholder rather than a measured result.",
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/snapshot/PREREG.md",
+      "corrected_line": 56,
+      "corrected_verbatim": "Mux 3.06\u00d7/3.30\u00d7 tok/W, DVFS +57.3% tok/W, W6 MFU/MBU rows, eager-vs-cudagraph 629/1289 \u2014 each must be"
+     }
+    },
+    {
+     "metric": "Corroborating entry inside cipher-fusion-evidence (phase audit)",
+     "value": "+57.28% tok/W (z=180), 5 matched pairs",
+     "file": "/home/ubuntu/cipher-fusion-evidence/phase_audit/non_canonical/audit.md",
+     "line": 182,
+     "verbatim": "  **\u221236.24% watts \u00b1 0.12% (z=314), +57.28% tok/W (z=180), tok/s",
+     "json_artifact": "/home/ubuntu/cipher-phase4-evidence/t4_3_2_npairs/summary.json",
+     "notes": "Preceding line 181 ends '5 matched pairs:'. This audit entry (T4.3.2 section, lines 174-186) points to PHASE_4_T4_3_2_REPORT.md and cipher-phase4-evidence/t4_3_2_npairs/ (pair1..5 off/on + summary.json) as the evidence chain. Note: this line carries \u00b10.12% (the WATTS CI), not the tok/W \u00b10.32% \u2014 do not conflate.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Verbatim match. /home/ubuntu/cipher-fusion-evidence/phase_audit/non_canonical/audit.md line 182 reads exactly \"  **\u221236.24% watts \u00b1 0.12% (z=314), +57.28% tok/W (z=180), tok/s\" (continuing \"indistinguishable from zero.**\" on line 183). Context matches the claim: it is the T4.3.2 kmod CIPHER_SET_CLOCK_MHZ ioctl DVFS clock-lock result, line 181 ends \"5 matched pairs:\" (evidence dir t4_3_2_npairs pair1..5 off/on), so metric (+57.28% tok/W), z-score (180), and N (5 matched pairs) all line up. Caveat present in the same file (lines 188-196): the envelope section narrows the +57% tok/W to TinyLlama-class memory-bound decode (Mistral-7B is \u22122% to \u221215% tok/W), but this does not contradict the citation as stated.",
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/phase_audit/non_canonical/audit.md",
+      "corrected_line": 182,
+      "corrected_verbatim": "  **\u221236.24% watts \u00b1 0.12% (z=314), +57.28% tok/W (z=180), tok/s"
+     }
+    },
+    {
+     "metric": "Workload context for the headline (for honest citation)",
+     "value": "B=1 TinyLlama decode, kmod ioctl clock lock 1980\u21921005 MHz, no sudo",
+     "file": "/home/ubuntu/PHASE_4_T4_3_2_REPORT.md",
+     "line": 113,
+     "verbatim": "Same workload as S1.6 (B=1 TinyLlama decode), no sudo nvidia-smi.",
+     "notes": "Envelope follow-up (PHASE_4_T4_3_ENVELOPE.md, audited at /home/ubuntu/cipher-fusion-evidence/phase_audit/non_canonical/audit.md:188-197) narrows the claim: reproduces only on TinyLlama-class memory-bound decode; Mistral-7B is \u22122% to \u221215% tok/W.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Line 113 of /home/ubuntu/PHASE_4_T4_3_2_REPORT.md reads verbatim: \"Same workload as S1.6 (B=1 TinyLlama decode), no sudo nvidia-smi.\" All components of the cited value match the surrounding context: B=1 TinyLlama decode (line 113), kmod ioctl clock lock (line 114: \"libcipher_rt locks 1000 MHz via kmod ioctl\"; lines 131-132: lock holds via kmod ioctl path), 1980\u21921005 MHz (line 129 headline table: GPU SM clock steady 1980.0 MHz OFF / 1005.0 MHz ON, sigma=0 both arms; 1005 is the measured steady clock for the commanded 1000 MHz lock), and no-sudo (line 113 and TL;DR line 16 \"not sudo\"). This is the workload context for the n=5 matched-pair statistical headline (-36.24% watts, +57.28% tok/W), so the metric label is accurate.",
+      "corrected_file": "/home/ubuntu/PHASE_4_T4_3_2_REPORT.md",
+      "corrected_line": 113,
+      "corrected_verbatim": "Same workload as S1.6 (B=1 TinyLlama decode), no sudo nvidia-smi."
+     }
+    }
+   ],
+   "not_found": [
+    "Literal string '+57.3%' in any SOURCE report \u2014 the source verbatim is '+57.28% \u00b1 0.32%' (PHASE_4_T4_3_2_REPORT.md lines 17/128/145); the only '57.3' occurrence is the rounded citation in /home/ubuntu/cipher-fusion-evidence/snapshot/PREREG.md:56. If the design-partner snapshot must quote verbatim, use +57.28% \u00b1 0.32%."
+   ]
+  },
+  {
+   "cluster": "w6",
+   "items": [
+    {
+     "metric": "B=1 decode MFU \"0.25%\"",
+     "value": "0.25% (precise: 0.249%)",
+     "file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md",
+     "line": 206,
+     "verbatim": "- `mfu_decode_vs_batch.png` \u2014 both climb 0.25% \u2192 6.29%; visually indistinguishable.",
+     "json_artifact": "/home/ubuntu/cipher-fusion-evidence/week6/bench_v2/results/20260523_mistral7b_vanilla_agentic_fixed1024_nocache/result.json",
+     "notes": "Rounded \"0.25%\" appears verbatim only in this plot caption. Precise value: table line 68 (vanilla cache-OFF B=1, decode_MFU% = 0.249) and prose line 76: \"climbs from 0.249% at B=1 (memory-bandwidth-bound...)\". JSON verified: decode_mfu_pct.mean = 0.24879915971661382 (vanilla nocache B=1). CONFIG: vLLM 0.21.0 V1 engine, CUDA graphs PIECEWISE+FULL (NOT eager; enforce_eager=false in result.json args), Mistral-7B-v0.1 BF16, H100 SXM5 locked 1980/2619 MHz; MFU peak = H100_PEAK_BF16_TFLOPS = 989.0 dense BF16 no-sparsity (week6/bench_v2/bench_llm.py:35); MLPerf Inference v5.1 LLM-server-aligned harness per WEEK_6_BENCH_HARNESS_AUDIT.md:5.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Line 206 of /home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md exists verbatim: \"- `mfu_decode_vs_batch.png` \u2014 both climb 0.25% \u2192 6.29%; visually indistinguishable.\" It is the decode-MFU-vs-batch plot for the cache-OFF (clean MFU) comparison, so 0.25% is the B=1 decode MFU endpoint (6.29% is B=64). The precise value 0.249% is corroborated in the same file: line 76 (\"climbs from 0.249% at B=1\"), cache-OFF tables lines 68/102 (vanilla and CIPHER both 0.249), comparison table line 172 (0.2488/0.2493), and line 258 (\"corrected B=1 decode MFU ... is 0.249% (cache ON) / 0.249% (cache OFF)\"). Right metric (decode MFU), right units (%), right config (B=1, Mistral-7B BF16 on H100, cache-OFF, both arms).",
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md",
+      "corrected_line": 206,
+      "corrected_verbatim": "- `mfu_decode_vs_batch.png` \u2014 both climb 0.25% \u2192 6.29%; visually indistinguishable."
+     }
+    },
+    {
+     "metric": "B=1 prefill MFU \"59%\"",
+     "value": "59.57% (vanilla, cache-OFF; CIPHER arm 59.09%)",
+     "file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md",
+     "line": 68,
+     "verbatim": "| 1  | 25.2        | 25.2        | 6.05        | 6.05        | 163.3   | 0.249       | **59.57**         | 433.7  | 437.6  | 676.5    | 0.377 | 0.378 | 70046         |",
+     "json_artifact": "/home/ubuntu/cipher-fusion-evidence/week6/bench_v2/results/20260523_mistral7b_vanilla_agentic_fixed1024_nocache/result.json",
+     "notes": "Standalone rounded \"59%\" string not present; \"59%\" is a rounding of 59.57 (vanilla B=1, clean cache-OFF prefill MFU). Side-by-side at line 182: \"| 1 | 59.57 | 59.09 | \u22120.81% | YES (Cohen's d = \u22121.52) |\"; line 108 gives range \"CIPHER's clean prefill MFU is 59-66%\". JSON verified: prefill_mfu_pct.mean = 59.5719003396814. Clean MFU is the cache-OFF run (enable_prefix_caching=False); cache-ON prefill MFU is a >100% artifact (line 58).",
+     "verdict": {
+      "confirmed": true,
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md",
+      "corrected_line": 68,
+      "corrected_verbatim": "| 1  | 25.2        | 25.2        | 6.05        | 6.05        | 163.3   | 0.249       | **59.57**         | 433.7  | 437.6  | 676.5    | 0.377 | 0.378 | 70046         |",
+      "reason": "Exact match at the claimed location. Line 68 of WEEK_6_OPTION_1_REDO.md is verbatim identical to the quoted row, in Section 3 'Vanilla baseline \u2014 clean MFU (cache OFF)' (source: 20260523_mistral7b_vanilla_agentic_fixed1024_nocache/result.json). Per the table header (line 66), 59.57 is the bolded prefill_MFU% cell on the B=1 row \u2014 i.e., B=1 prefill MFU in percent, vanilla arm, prefix-cache OFF, matching the claimed metric/units/config; rounding to '59%' is accurate. The claim's parenthetical also checks out: the CIPHER arm cache-OFF table (Section 4.2, line 102) shows prefill_MFU% = 59.09 at B=1. Context is not misread: the cache-OFF table is the document's designated clean-MFU accounting (cache-ON prefill MFU is flagged as a >100% prefix-caching artifact), so citing this number as B=1 prefill MFU is correct."
+     }
+    },
+    {
+     "metric": "B=1 throughput \"163\" tok/s",
+     "value": "163.3 tok/s (vanilla, cache-OFF)",
+     "file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md",
+     "line": 68,
+     "verbatim": "| 1  | 25.2        | 25.2        | 6.05        | 6.05        | 163.3   | 0.249       | **59.57**         | 433.7  | 437.6  | 676.5    | 0.377 | 0.378 | 70046         |",
+     "json_artifact": "/home/ubuntu/cipher-fusion-evidence/week6/bench_v2/results/20260523_mistral7b_vanilla_agentic_fixed1024_nocache/result.json",
+     "notes": "Comparison row line 172: \"| 1 | 163.29 | 163.61 | +0.19% | YES ...\" (vanilla vs CIPHER); plot caption line 205: \"both climb ~163 \u2192 ~4156 tok/s\". JSON verified: aggregate_tps.mean = 163.29005002172977. Cross-confirmed as the canonical W6 baseline by WEEK_7_STEP_1_G10_ABI_SCAFFOLD.md:254: \"Mean TPS: 163.5 tok/s vs W6 baseline 163.3 \u2192 delta +0.12%\". Cache-ON B=1 is 165.3 tok/s (line 52) \u2014 the 163 figure is the cache-OFF arm.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Verbatim match. The exact quoted line appears at line 68 of /home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md, confirmed by grep -n. Context matches the claimed metric: the line is the B=1 row of Section 3 \"Vanilla baseline \u2014 clean MFU (cache OFF)\" (source result.json ..._vanilla_agentic_fixed1024_nocache), and per the table header the 163.3 value is the agg_tps column, i.e. aggregate throughput in tok/s at batch size 1, vanilla arm, prefix-cache OFF. Distinct from the nearby cache-ON vanilla B=1 value (165.3, line 52) and CIPHER cache-ON B=1 (165.76, line 90), so attribution is correct.",
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md",
+      "corrected_line": 68,
+      "corrected_verbatim": "| 1  | 25.2        | 25.2        | 6.05        | 6.05        | 163.3   | 0.249       | **59.57**         | 433.7  | 437.6  | 676.5    | 0.377 | 0.378 | 70046         |"
+     }
+    },
+    {
+     "metric": "B=64 decode MFU \"6.29%\"",
+     "value": "6.29% (precise: 6.292%)",
+     "file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md",
+     "line": 206,
+     "verbatim": "- `mfu_decode_vs_batch.png` \u2014 both climb 0.25% \u2192 6.29%; visually indistinguishable.",
+     "json_artifact": "/home/ubuntu/cipher-fusion-evidence/week6/bench_v2/results/20260523_mistral7b_vanilla_agentic_fixed1024_nocache/result.json",
+     "notes": "Precise value 6.292 in vanilla cache-OFF table line 72 and CIPHER line 106; prose line 76: \"up to 6.292% at B=64 (memory-bound \u2192 compute-bound transition partially under way...)\"; comparison line 176: \"| 64 | 4156.1 | 4155.2 | \u22120.02% | no  | 6.2916 | 6.2917 | +0.00% | no ...\". JSON verified: vanilla decode_mfu_pct.mean = 6.292235, cipher = 6.292334. NOTE: this is the cache-OFF number; cache-ON B=64 decode MFU is 10.55-10.62% (lines 56/94) \u2014 do not mix.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Line 206 of /home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md contains the exact claimed text. Context matches: it describes the decode-MFU-vs-batch plot in the cache-OFF (clean MFU) comparison, where both vanilla and CIPHER curves climb from 0.25% (B=1) to 6.29% (B=64). The precise value 6.292% is corroborated in the same file: B=64 decode_MFU% = 6.292 in both the vanilla (line 72) and CIPHER (line 106) cache-OFF tables, prose at line 76 (\"up to 6.292% at B=64\"), and the significance table at line 176 (6.2916 vanilla / 6.2917 CIPHER). Right metric (decode MFU), right units (%), right config (B=64, cache-OFF, Mistral-7B/H100). Minor note: this is the cache-OFF figure; the cache-ON analog at line 200 reaches 10.6%, so citations should retain the cache-OFF qualifier.",
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md",
+      "corrected_line": 206,
+      "corrected_verbatim": "- `mfu_decode_vs_batch.png` \u2014 both climb 0.25% \u2192 6.29%; visually indistinguishable."
+     }
+    },
+    {
+     "metric": "B=64 prefill MFU \"62%\"",
+     "value": "62.06% (vanilla, cache-OFF; CIPHER arm 62.05%)",
+     "file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md",
+     "line": 72,
+     "verbatim": "| 64 | 762.7       | 1521.6      | 11.89       | 14.24       | 4156.1  | 6.292       | **62.06**         | 651.4  | 706.4  | 2565.1   | 6.381 | 6.387 | 70214         |",
+     "json_artifact": "/home/ubuntu/cipher-fusion-evidence/week6/bench_v2/results/20260523_mistral7b_vanilla_agentic_fixed1024_nocache/result.json",
+     "notes": "Standalone rounded \"62%\" string not present; \"62%\" is a rounding of 62.06 (vanilla B=64 clean prefill MFU). Side-by-side line 186: \"| 64 | 62.06 | 62.05 | \u22120.01% | n.s. (CI [\u22120.62, +0.58]) |\". JSON verified: vanilla prefill_mfu_pct.mean = 62.05694, cipher = 62.04631. Also in artifact summary: week6/bench_v2/results/20260523_mistral7b_vanilla_agentic_fixed1024_nocache/summary.md:47.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Exact verbatim match at /home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md line 72. Context is correct: section 3 'Vanilla baseline \u2014 clean MFU (cache OFF)', table column **prefill_MFU%**, B=64 row \u2192 62.06 (%), i.e., vanilla cache-OFF B=64 prefill MFU, consistent with the claim 'B=64 prefill MFU 62%'. The parenthetical CIPHER-arm value also checks out: line 106 (section 4.2 'Cache OFF (clean MFU)', CIPHER arm) shows B=64 prefill_MFU% = **62.05**. Right metric, right units (percent MFU), right N/config (batch 64, prefix-caching disabled).",
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md",
+      "corrected_line": 72,
+      "corrected_verbatim": "| 64 | 762.7       | 1521.6      | 11.89       | 14.24       | 4156.1  | 6.292       | **62.06**         | 651.4  | 706.4  | 2565.1   | 6.381 | 6.387 | 70214         |"
+     }
+    },
+    {
+     "metric": "B=64 throughput \"4155\" tok/s",
+     "value": "4155.2 tok/s (CIPHER arm, cache-OFF; vanilla baseline = 4156.1)",
+     "file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md",
+     "line": 106,
+     "verbatim": "| 64 | 765.0       | 1522.0      | 11.89       | 14.24       | 4155.2  | 6.292       | **62.05**         | 651.9  | 703.9  | 2568.6   | 6.374 | 6.378 | 70226         |",
+     "json_artifact": "/home/ubuntu/cipher-fusion-evidence/week6/bench_v2/results/20260523_mistral7b_cipher_agentic_fixed1024_nocache/result.json",
+     "notes": "CAUTION for the snapshot: the literal \"4155\" matches the CIPHER cache-OFF arm (4155.2, JSON aggregate_tps.mean = 4155.2366543932); the VANILLA cache-OFF B=64 baseline is 4156.1 (line 72; JSON 4156.1327480714). Comparison line 176: \"| 64 | 4156.1 | 4155.2 | \u22120.02% | no ...\"; plot caption line 205 rounds to \"~163 \u2192 ~4156 tok/s\". If the snapshot row is labeled 'baseline/vanilla', cite 4156.1 instead, or label 4155 as the CIPHER arm. Cache-ON B=64 is ~6896-6900 tok/s (lines 56/94) \u2014 different config.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Verbatim line confirmed at /home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md line 106 (exact fixed-string match). Context is correct: section 4.2 \"Cache OFF (clean MFU)\" under \"## 4. CIPHER arm\", sourced from 20260523_mistral7b_cipher_agentic_fixed1024_nocache/result.json \u2014 i.e., CIPHER arm with prefix-caching OFF. The 4155.2 value is in the agg_tps (aggregate tok/s) column for the B=64 row, matching the claimed metric, units, and config. The claimed vanilla baseline 4156.1 is also corroborated: line 72 (vanilla cache-OFF, B=64, agg_tps 4156.1) and the side-by-side significance table at line 176 (4156.1 vs 4155.2, \u22120.02%, not significant), with raw backing data in week6/bench_v2/results/comparison_cache_off/comparison_table.md (4156.1327 vs 4155.2367).",
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md",
+      "corrected_line": 106,
+      "corrected_verbatim": "| 64 | 765.0       | 1522.0      | 11.89       | 14.24       | 4155.2  | 6.292       | **62.05**         | 651.9  | 703.9  | 2568.6   | 6.374 | 6.378 | 70226         |"
+     }
+    },
+    {
+     "metric": "W6 config / MLPerf v5.1 alignment (context for all rows)",
+     "value": "Single vLLM 0.21.0 process, V1 engine, CUDA graphs PIECEWISE+FULL (NOT eager), Mistral-7B-v0.1 BF16, H100 SXM5 locked 1980/2619 MHz, peak = 989 TFLOPS dense BF16",
+     "file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md",
+     "line": 12,
+     "verbatim": "At the canonical Option-1 configuration **(single vLLM process, Mistral-7B-v0.1, B = [1, 8, 16, 32, 64], 1024-token agentic prompt, 256 output tokens, BF16, H100 SXM5 locked @ 1980/2619 MHz)**:",
+     "json_artifact": "/home/ubuntu/cipher-fusion-evidence/week6/bench_v2/results/20260523_mistral7b_vanilla_agentic_fixed1024_nocache/result.json",
+     "notes": "Run-params table line 33: \"vLLM | 0.21.0 (V1 engine, CUDA graphs PIECEWISE+FULL, FlashAttention v3)\" \u2014 so cudagraph, not eager; confirmed enforce_eager=false in result.json args. MFU peak source: /home/ubuntu/cipher-fusion-evidence/week6/bench_v2/bench_llm.py:35 \"H100_PEAK_BF16_TFLOPS = 989.0\" with comment \"H100 SXM5 dense Tensor-Core BF16/FP16 peak. No sparsity.\"; result.json field peak_bf16_tflops = 989.0. MLPerf alignment: WEEK_6_BENCH_HARNESS_AUDIT.md:5 audits bench harness \"against MLPerf Inference v5.1 LLM-server scenario, Karpathy/PaLM canonical MFU, TokenPowerBench...\". Clean-MFU rows are the cache-OFF (enable_prefix_caching=False) tables; report cites /tmp/bench_v2/results/... paths (line 64, 98) but durable copies verified under /home/ubuntu/cipher-fusion-evidence/week6/bench_v2/results/.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Verbatim quote confirmed: line 12 of /home/ubuntu/cipher-fusion-evidence/WEEK_6_OPTION_1_REDO.md matches the cited sentence exactly (single vLLM process, Mistral-7B-v0.1, B=[1,8,16,32,64], 1024-token agentic prompt, 256 output tokens, BF16, H100 SXM5 locked @ 1980/2619 MHz). The remaining claimed config components are corroborated in the same file's run-parameters table: line 33 'vLLM 0.21.0 (V1 engine, CUDA graphs PIECEWISE+FULL, FlashAttention v3)' and line 32 (H100 SXM5, locked 1980/2619 MHz). '(NOT eager)' is an accurate gloss rather than verbatim text \u2014 PIECEWISE+FULL CUDA graphs implies not enforce_eager, and this report explicitly replaces the Week-5 Option-1 numbers that ran enforce_eager=True (WEEK_5_POSTCLOSE_OPTION_1_MFU.md line 23). Caveat for precision: 'peak = 989 TFLOPS dense BF16' and 'MLPerf v5.1 alignment' do NOT appear in WEEK_6_OPTION_1_REDO.md itself; they come from the companion methodology doc /home/ubuntu/cipher-fusion-evidence/WEEK_6_BENCH_HARNESS_REWRITE.md (989 BF16 peak at lines 15 and 171 as the one explicit MFU constant; MLPerf Inference v5.1 alignment at lines 14/17/21), which WEEK_6_OPTION_1_REDO.md cites at line 6 as its harness methodology. So the citation is correct for the quoted line and config; the 989-TFLOPS/MLPerf portion of the composite value should additionally cite WEEK_6_BENCH_HARNESS_REWRITE.md.",
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/WEEK_6_BENCH_HARNESS_REWRITE.md",
+      "corrected_line": 171,
+      "corrected_verbatim": "peak FLOPs is the one explicit constant (H100 SXM5 BF16 = 989 TF)"
+     }
+    }
+   ],
+   "not_found": []
+  },
+  {
+   "cluster": "eager-tax",
+   "items": [
+    {
+     "metric": "Eager baseline decode throughput (no detector), tok/s",
+     "value": "629.2 tok/s",
+     "file": "/home/ubuntu/cipher-fusion-evidence/R_A_REAL_VLLM_2026-06-08.md",
+     "line": 70,
+     "verbatim": "| **Eager baseline** (no detector) | **629.2** | \u2014 |",
+     "json_artifact": "/home/ubuntu/cipher-fusion-evidence/ra_realvllm/tokps_result.json",
+     "notes": "JSON key \"eager_baseline_tok_s\": 629.2. Artifact contents: model mistralai/Mistral-7B-v0.1, batch 8, out 64; eager 629.2, cudagraph 1289.0, eager+detector N=8 553.9 / N=45 609.5 tok/s, detector marginal 12.0% (N8) / 3.1% (N45), eager_vs_cudagraph_tax_pct 51.2, cudagraph_speedup_x 2.05, total_vs_cudagraph_N45_pct 52.7. Report cites the artifact by name at line 67: '## (4) THROUGHPUT \u2014 three numbers + the eager tax (`tokps_result.json`, Mistral-7B, batch 8, 64 decode tok)'.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Verbatim match. /home/ubuntu/cipher-fusion-evidence/R_A_REAL_VLLM_2026-06-08.md line 70 reads exactly \"| **Eager baseline** (no detector) | **629.2** | \u2014 |\". It sits in section \"(4) THROUGHPUT\" (line 67: tokps_result.json, Mistral-7B, batch 8, 64 decode tok) under table header \"| Configuration | decode tok/s | vs eager baseline |\" (line 68), so the metric is the eager-baseline decode throughput with no detector, units decode tok/s \u2014 exactly as claimed. Baseline row correctly has no N (detector off). Corroborated by lines 77 and 81 (\"cudagraph 1289 vs eager 629 tok/s\"; \"629.2/1289\").",
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/R_A_REAL_VLLM_2026-06-08.md",
+      "corrected_line": 70,
+      "corrected_verbatim": "| **Eager baseline** (no detector) | **629.2** | \u2014 |"
+     }
+    },
+    {
+     "metric": "Cudagraph baseline decode throughput (no detector), tok/s",
+     "value": "1289.0 tok/s",
+     "file": "/home/ubuntu/cipher-fusion-evidence/R_A_REAL_VLLM_2026-06-08.md",
+     "line": 73,
+     "verbatim": "| **Cudagraph baseline** (no detector) | **1289.0** | **eager tax +51.2%** (cudagraph 2.05\u00d7) |",
+     "json_artifact": "/home/ubuntu/cipher-fusion-evidence/ra_realvllm/tokps_result.json",
+     "notes": "JSON key \"cudagraph_baseline_tok_s\": 1289.0 and \"cudagraph_speedup_x\": 2.05. Same table row also carries the +51.2% tax figure. Secondary citation of the 1289-vs-629 pair appears in /home/ubuntu/cipher-fusion-evidence/R_C_PERGPU_FLEET_2026-06-09.md:223 ('**+51% eager tax** (cudagraph 1289 vs eager 629 tok/s)').",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Verbatim match at /home/ubuntu/cipher-fusion-evidence/R_A_REAL_VLLM_2026-06-08.md line 73: \"| **Cudagraph baseline** (no detector) | **1289.0** | **eager tax +51.2%** (cudagraph 2.05\u00d7) |\". The table header (line 67-69) defines the section as THROUGHPUT for Mistral-7B, batch 8, 64 decode tokens, with column \"decode tok/s\", so 1289.0 is correctly the cudagraph-baseline no-detector decode throughput in tok/s. Prose at line 77 (\"cudagraph 1289 vs eager 629 tok/s\", +51.2% eager tax) corroborates. No-detector row means no N config applies, consistent with the claim.",
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/R_A_REAL_VLLM_2026-06-08.md",
+      "corrected_line": 73,
+      "corrected_verbatim": "| **Cudagraph baseline** (no detector) | **1289.0** | **eager tax +51.2%** (cudagraph 2.05\u00d7) |"
+     }
+    },
+    {
+     "metric": "Eager-vs-cudagraph host tax, percent",
+     "value": "+51.2% (cudagraph 2.05\u00d7 eager)",
+     "file": "/home/ubuntu/cipher-fusion-evidence/R_A_REAL_VLLM_2026-06-08.md",
+     "line": 77,
+     "verbatim": "- **Eager-vs-cudagraph tax re-confirmed: +51.2%** (cudagraph 1289 vs eager 629 tok/s) \u2014 consistent with Track-B's",
+     "json_artifact": "/home/ubuntu/cipher-fusion-evidence/ra_realvllm/tokps_result.json",
+     "notes": "JSON key \"eager_vs_cudagraph_tax_pct\": 51.2. This single verbatim line carries all three target numbers (629, 1289, 51.2). Denominator caveat in the report (lines 79-81): the 51.2% tax and 52.7% total are on the cudagraph base, while the +3.1% detector-marginal is on the eager base; they compose multiplicatively (609.5/1289 = (629.2/1289)\u00d7(609.5/629.2)), not additively. Also stated in the headline at line 22: '**+3.1% @N=45 / +12.0% @N=8** measured on the eager base, on top of a **+51.2% eager tax** (cudagraph is 2.05\u00d7 eager).' Other citations: wi4_memo/RPILLAR_GOODPUT_CLOSEOUT_MEMO_2026-06-10.md:60,97; snapshot/PREREG.md:10,56; RPILLAR_LOOP_STATUS.md:21.",
+     "verdict": {
+      "confirmed": true,
+      "reason": "Line 77 of /home/ubuntu/cipher-fusion-evidence/R_A_REAL_VLLM_2026-06-08.md matches the quoted text verbatim. The metric is correct: eager-vs-cudagraph host tax with both baselines detector-free (Mistral-7B, batch 8, 64 decode tok). The \"+51.2% (cudagraph 2.05x eager)\" value appears verbatim at lines 22 and 73 of the same file, and arithmetic is consistent (1289.0/629.2 = 2.05x; 1 - 629.2/1289 = 51.2% on the cudagraph base). The claim does not conflate this with the detector-marginal (+3.1% @N=45) or the total 52.7% figure.",
+      "corrected_file": "/home/ubuntu/cipher-fusion-evidence/R_A_REAL_VLLM_2026-06-08.md",
+      "corrected_line": 77,
+      "corrected_verbatim": "- **Eager-vs-cudagraph tax re-confirmed: +51.2%** (cudagraph 1289 vs eager 629 tok/s) \u2014 consistent with Track-B's"
+     }
+    }
+   ],
+   "not_found": []
+  }
+ ]
+}

@@ -1,0 +1,80 @@
+{
+  "campaign": "V1 Phase B B.3'' Gate A RE-RUN after R1+R2 - NEW finding F-B.3.3",
+  "date": "2026-05-26",
+  "purpose": "Re-run Gate A after R1 (libcupti host bind-mount) + R2 (py312 cipher_kv_bridge build). Anil pivot guidance: 'If Gate A rerun FAIL: HARD STOP again; surface for further Anil adjudication.'",
+  "anchors_at_test": {
+    "cipher_rt_phase4": "8613812e tag v1-substrate-driver-worker-init (UNCHANGED)",
+    "libcipher_rt_so_md5": "1d91e7da (UNCHANGED)",
+    "cipher_kv_bridge_py312_md5": "00df2811bcf1f15231fd599f14a268ae (NEW; built in vllm-openai:v0.21.0 container against /usr/local/lib/python3.12/dist-packages/torch)",
+    "cipher_kmod": "8c643fc tag week-13-14-complete (UNCHANGED)",
+    "cipher_platform_deb_v2_rev2_md5": "68dc371a598687275e438a75bd64115d (rebuild with R1+R2)"
+  },
+  "r1_r2_close_status": {
+    "R1_libcupti_bind_mount": "DONE - cipher_cdi_patch.py now bind-mounts host /usr/lib/x86_64-linux-gnu/libcupti.so.12 to container /usr/lib/cipher/libcupti.so.12; 4-candidate fallback + glob search for non-standard paths; soft warning if not found; test (viii) PASS",
+    "R2_py312_kv_bridge": "DONE - cipher_kv_bridge.cpython-312-x86_64-linux-gnu.so built inside vllm-openai:v0.21.0 container against its py312+torch; verified importable in py312; .deb ships both py310 + py312 ABIs",
+    "R3_rebuild_reinstall": "DONE - cipher-platform_2.0_amd64.deb md5 68dc371a; install env 3/3 + mounts 14/14 + fully_applied=True"
+  },
+  "gate_a_rerun_command": "sudo docker run --rm --gpus all --shm-size=2g --entrypoint /usr/bin/python3 vllm/vllm-openai:v0.21.0 -c '<inline shim probe>'",
+  "gate_a_rerun_verdict": "FAIL - new finding F-B.3.3",
+  "new_failure": {
+    "error": "OSError: libcudart.so.12: cannot open shared object file: No such file or directory",
+    "stage": "ctypes.CDLL('libcipher_rt.so') in container Python 3.12",
+    "progress_since_first_attempt": "R1 fixed the libcupti.so.12 DT_NEEDED resolution; libcipher_rt.so progresses past libcupti and now fails on next DT_NEEDED: libcudart.so.12"
+  },
+  "F-B.3.3_full_dt_needed_chain": {
+    "title": "libcipher_rt.so DT_NEEDED chain spans full host CUDA 12 toolkit; container ships CUDA 13",
+    "ldd_libcipher_rt_on_host": [
+      "libcupti.so.12 (R1 handled)",
+      "libcuda.so.1 (handled by nvidia-container-toolkit --gpus all)",
+      "libcudart.so.12 (MISSING in container; container has libcudart.so.13)",
+      "libcusolver.so.11 (MISSING in container)",
+      "libnvJitLink.so.12 (MISSING in container)",
+      "libcusparse.so.12 (MISSING in container)",
+      "libcublas.so.12 (MISSING in container; CIPHER's reason-for-being substrate library)",
+      "libcublasLt.so.12 (MISSING in container)",
+      "libc10.so (handled by R0 .deb)"
+    ],
+    "host_paths_all_present": "/usr/lib/x86_64-linux-gnu/{libcudart.so.12, libcusolver.so.11, libnvJitLink.so.12, libcusparse.so.12, libcublas.so.12, libcublasLt.so.12} all present (host has nvidia-cuda-toolkit 12.8.93 + driver 580.105.08)",
+    "container_paths_cuda13": [
+      "/usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib/libcudart.so.13",
+      "/usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib/libcublas.so.13 (likely; not directly verified)",
+      "Container is CUDA 13-based; CIPHER substrate built against CUDA 12; ABI version mismatch"
+    ],
+    "root_cause": "v0.21.0 vllm-openai container ships CUDA 13 runtime libs. CIPHER substrate (Phase A close 1d91e7da) was built linking against CUDA 12 toolkit. The version skew means container's libs are not direct substitutes (libcudart.so.12 != libcudart.so.13 SONAME).",
+    "remediation_candidates": [
+      "Option 2-extended (cheapest, ~0.1 ED on top of R1): augment CIPHER_CUPTI_CANDIDATES into a generalized CIPHER_HOST_CUDA12_LIBS list including {libcudart.so.12, libcusolver.so.11, libnvJitLink.so.12, libcusparse.so.12, libcublas.so.12, libcublasLt.so.12}; CDI patch bind-mounts each at /usr/lib/cipher/<name> with same fallback discovery. 6 additional mount entries (final libs in /usr/lib/cipher/).",
+      "Option 6 (image pin): downgrade v1 target to an older vllm-openai tag that uses CUDA 12. Brittle for v1.x as vLLM ecosystem moves to CUDA 13.",
+      "Option 7 (substrate carve-out): rebuild libcipher_rt.so with dlopen-on-demand resolution for the full CUDA 12 toolkit (CP 3.3 telemetry + cublas interception both env-gated). Major substrate work; ~3-5 ED; v1.5 carry candidate."
+    ],
+    "recommendation": "Option 2-extended. ~0.1 ED extension of R1. Preserves Goal 5 verbatim (still no customer-side action; CIPHER bind-mounts more host libs via CDI). Option 7 is the right long-term answer (one-time substrate rebuild eliminates host-CUDA-12-ABI coupling) but is v1.5 scope per honest-residue discipline.",
+    "considerations": [
+      "Option 2-extended adds 6 host bind-mounts to CDI; total CIPHER mount count grows from 14 to 20. Still well under nvidia's own mount count (18+) and far under any spec limit.",
+      "Each bind-mount adds /usr/lib/cipher/<libname> to container's CIPHER lib dir; LD_LIBRARY_PATH=/usr/lib/cipher already set so they all resolve. No env change needed.",
+      "The chain is libcipher_rt -> libcublas/libcublasLt -> libnvJitLink/libcusparse/libcusolver/libcudart. All 6 are at the host's standard /usr/lib/x86_64-linux-gnu/ path on this pod (nvidia-cuda-toolkit 12.8.93 installed). On a different neocloud host with CUDA toolkit in a non-standard path, the same fallback discovery (/usr/local/cuda*/lib*/) covers most cases.",
+      "Honest residue carry to v1.5: 'v1 takes a runtime dependency on host CUDA 12 toolkit ABI (libcudart, libcusolver, libnvJitLink, libcusparse, libcublas, libcublasLt, libcupti all at major version 12); v1.5 rebuilds libcipher_rt.so with dlopen-on-demand CUDA toolkit resolution to support hosts on CUDA 13.x without explicit toolkit installation.'"
+    ]
+  },
+  "discipline_carry": {
+    "no_auto_scope_degrade": "Per discipline (e): surface this finding to Anil before silent-extending R1 from libcupti to full CUDA 12 toolkit. Picking Option 2-extended unilaterally would silently expand R1 scope from '1 lib' to '7 libs'.",
+    "natural_extension_argument": "Option 2-extended is a natural extension of Anil's Option 2 confirmation (same mechanism, same intent); not a scope expansion in the substantive sense. ~0.1 ED additional.",
+    "surface_for_anil_pick": "Anil pick: (A) extend R1 to bind-mount full CUDA 12 toolkit list (~0.1 ED), (B) Option 6 image pin, (C) Option 7 substrate carve-out, (D) other."
+  },
+  "branch_classification": {
+    "branch_a_succeeds": "NO - Gate A still fails",
+    "branch_b_partial_succeeds": "STILL PARTIAL - mechanism (CDI + bind-mount + env) works; substrate-firing inside container fails on DT_NEEDED chain (libcupti FIXED via R1; libcudart + 5 others NOW missing). Same Branch B character; new finding F-B.3.3 is the same shape as F-B.3.1 but broader scope.",
+    "branch_c_uninstall_leak": "n/a (not yet tested)",
+    "branch_d_fundamental_fail": "NO - CDI mechanism works; failure is in substrate's DT_NEEDED resolution within container env"
+  },
+  "hard_stop": {
+    "reason": "Per Anil pivot guidance verbatim 'If Gate A rerun FAIL: HARD STOP again; surface for further Anil adjudication.' + discipline (e) NO AUTO SCOPE-DEGRADE.",
+    "blocked_gates": ["B", "C"],
+    "next_step": "Anil pick remediation option for F-B.3.3."
+  },
+  "eng_day_consumed": "~1.0 ED of B.3'' budget (initial 0.5 + R1+R2+R3 0.5); ~1.0 ED remaining of original 1.5 + 0.75 remediation (total 2.25 ED projected for B.3'')",
+  "honest_residue": [
+    "1. F-B.3.3 is the same MECHANISM finding as F-B.3.1 (host-CUDA-ABI coupling) but broader scope. R1 fixed 1 lib; F-B.3.3 surfaces 6 more in the chain. Option 2-extended is the natural fix.",
+    "2. Gate E (CLI smoke) ran in parallel and PASSED all 8 steps; evidence captured separately.",
+    "3. R2 py312 cipher_kv_bridge.so was built but not yet exercised in-container (Gate B+C require Gate A PASS first). The build itself was clean; runtime test pending.",
+    "4. The pattern surfacing here is: each new CUDA-version-coupled DT_NEEDED dep that breaks resolution in container is a NEW finding requiring NEW Anil adjudication, OR Anil pre-commits to 'bind-mount whatever host CUDA 12 libs are needed' as a single decision. Latter is the cleaner pattern; recommend it explicitly."
+  ]
+}

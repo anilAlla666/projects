@@ -1,0 +1,50 @@
+#!/bin/sh
+# cipher-platform v2.0 prerm.
+#   - Disable cipher-platform-watch.path systemd unit
+#   - Revert CIPHER CDI patch from /var/run/cdi/nvidia.yaml
+#   - Unload cipher_kmod + DKMS unregister 0.6.5 (and stale 0.4.8 if present)
+#   - Remove /dev/cipher device node fallback
+set -e
+
+PKG=cipher-kmod
+VER=0.6.5
+
+case "$1" in
+  remove|upgrade|deconfigure)
+    # --- disable systemd watcher first (so it doesn't re-patch during removal) ---
+    if [ -f /lib/systemd/system/cipher-platform-watch.path ]; then
+      if command -v systemctl >/dev/null 2>&1; then
+        systemctl disable --now cipher-platform-watch.path 2>/dev/null || true
+      fi
+    fi
+
+    # --- revert CDI patch (best-effort; do not block removal on patch failure) ---
+    if [ -x /usr/lib/cipher/cipher_cdi_patch.sh ]; then
+      /usr/lib/cipher/cipher_cdi_patch.sh revert 2>&1 || \
+        echo "cipher-platform: WARNING - CDI revert failed; manually inspect" \
+             "/var/run/cdi/nvidia.yaml for stray CIPHER entries." >&2
+    fi
+
+    # --- unload module before DKMS removes the .ko ---
+    if lsmod 2>/dev/null | grep -q '^cipher_kmod'; then
+      modprobe -r cipher_kmod 2>/dev/null \
+        || rmmod cipher_kmod 2>/dev/null \
+        || echo "cipher-platform: could not unload cipher_kmod (in use?)" >&2
+    fi
+
+    # --- DKMS unregister current 0.6.5 AND any stale 0.4.8 (upgrade-from-v1 path) ---
+    if dkms status -m "$PKG" -v "$VER" 2>/dev/null | grep -q "$VER"; then
+      dkms remove -m "$PKG" -v "$VER" --all || true
+    fi
+    if dkms status -m "$PKG" -v 0.4.8 2>/dev/null | grep -q '0.4.8'; then
+      dkms remove -m "$PKG" -v 0.4.8 --all || true
+    fi
+
+    # --- /dev/cipher fallback cleanup ---
+    if [ -e /dev/cipher ]; then
+      rm -f /dev/cipher || true
+    fi
+    ;;
+esac
+
+exit 0

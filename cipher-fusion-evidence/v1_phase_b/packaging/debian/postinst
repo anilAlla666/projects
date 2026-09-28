@@ -1,0 +1,91 @@
+#!/bin/sh
+# cipher-platform v2.0 postinst.
+#   - DKMS register/build/install + modprobe cipher_kmod (0.6.5)
+#   - /dev/cipher fallback mknod (kmod 0.4.8+ creates 0666 via devnode callback)
+#   - Apply CIPHER CDI patch to /var/run/cdi/nvidia.yaml (M1 + P1 mechanism)
+#   - Enable cipher-platform-watch.path systemd unit (auto re-patch on
+#     nvidia-ctk regeneration; convenience layer)
+#   - Print operator banner with next-step pointers
+# Idempotent: safe to re-run on reinstall/upgrade.
+set -e
+
+PKG=cipher-kmod
+VER=0.6.5
+
+case "$1" in
+  configure)
+    # --- DKMS: clean prior 0.4.8 registration on upgrade, then register 0.6.5 ---
+    if dkms status -m "$PKG" -v 0.4.8 2>/dev/null | grep -q '0.4.8'; then
+      dkms remove -m "$PKG" -v 0.4.8 --all 2>/dev/null || true
+    fi
+    if ! dkms status -m "$PKG" -v "$VER" 2>/dev/null | grep -q "$VER"; then
+      dkms add -m "$PKG" -v "$VER"
+    fi
+    dkms build  -m "$PKG" -v "$VER" --force
+    dkms install -m "$PKG" -v "$VER" --force
+
+    # --- unload old module if loaded, then load new ---
+    if lsmod 2>/dev/null | grep -q '^cipher_kmod'; then
+      modprobe -r cipher_kmod 2>/dev/null || rmmod cipher_kmod 2>/dev/null || true
+    fi
+    if ! modprobe cipher_kmod 2>/dev/null; then
+      echo "cipher-platform: modprobe cipher_kmod failed - DKMS-installed but" \
+           "not loaded; load manually or reboot." >&2
+    fi
+
+    # --- /dev/cipher fallback (kmod 0.6.5 still creates 0666 via devnode) ---
+    if [ ! -e /dev/cipher ]; then
+      major=$(awk '$2=="cipher"{print $1}' /proc/devices 2>/dev/null || true)
+      if [ -n "$major" ]; then
+        mknod -m 0666 /dev/cipher c "$major" 0 || true
+      else
+        echo "cipher-platform: /dev/cipher absent and no 'cipher' char device" \
+             "registered - verify module loaded." >&2
+      fi
+    fi
+
+    # --- M1 CDI + P1 patch: apply CIPHER mounts/env to /var/run/cdi/nvidia.yaml ---
+    if [ -x /usr/lib/cipher/cipher_cdi_patch.sh ]; then
+      if /usr/lib/cipher/cipher_cdi_patch.sh apply 2>&1; then
+        echo "cipher-platform: CDI patch applied to /var/run/cdi/nvidia.yaml"
+      else
+        echo "cipher-platform: WARNING - CDI patch did not apply cleanly." \
+             "Run 'sudo cipher-platform refresh' after the issue is resolved." >&2
+      fi
+    fi
+
+    # --- systemd watcher (auto re-patch on nvidia.yaml change; convenience) ---
+    if [ -f /lib/systemd/system/cipher-platform-watch.path ]; then
+      if command -v systemctl >/dev/null 2>&1; then
+        systemctl daemon-reload 2>/dev/null || true
+        systemctl enable --now cipher-platform-watch.path 2>/dev/null || \
+          echo "cipher-platform: systemd watcher enable failed (non-fatal)." >&2
+      fi
+    fi
+
+    # --- operator banner ---
+    cat <<'BANNER'
+=== cipher-platform v2.0 installed ===
+
+Substrate: libcipher_rt.so md5 1d91e7da (Phase A v1-substrate-driver-worker-init)
+Kmod:      cipher_kmod 0.6.5 (week-13-14-complete; DKMS-built)
+Plugin:    cipher_vllm_kv 0.2.0 (KV-dedup + KV-offload + KV-bridge)
+CDI:       /var/run/cdi/nvidia.yaml patched (P1 in-place)
+
+Next steps:
+  sudo cipher-platform verify     # validate substrate health
+  sudo cipher-platform status     # snapshot state
+  cipher-platform --help          # operator runbook overview
+
+After major NVIDIA driver upgrades, run:
+  sudo cipher-platform refresh    # re-apply CDI patch
+(or rely on the cipher-platform-watch.path systemd watcher.)
+
+End-user `docker run --gpus all vllm/vllm-openai:0.21.0 ...` invocations
+transparently load the CIPHER substrate via nvidia-container-toolkit's
+CDI mechanism. No customer-side action required.
+BANNER
+    ;;
+esac
+
+exit 0

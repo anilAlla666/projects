@@ -1,0 +1,141 @@
+{
+  "campaign": "V1 Phase B B.6''.9.8.5b.2 - actuator substitution semantics audit (READ-ONLY)",
+  "date": "2026-05-27",
+  "purpose": "Determine whether Marlin/VOLT/Koopman use per-CUfunction-lifetime (static) or per-launch (dynamic) substitution. Answer dictates which fix (Option A/B/C) is correct for .8.5b SEGV.",
+  "anchors_at_entry": {
+    "cipher_rt_phase4": "959a6f5 tag v1-substrate-may13-port-pytorch-capture-substitution",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher-fusion-evidence": "2cd0516",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca UNCHANGED"
+  },
+  "section_a_marlin_substitution_semantics": {
+    "actuator_file": "cipher_rt_phase4/cipher_rt_marlin_actuator.c",
+    "registration_pattern": "cipher_rt_matmul_register_actuator(&g_marlin_actuator) — registers as cuBLAS-layer actuator on the cipher_rt_matmul_dispatch substrate",
+    "dispatch_layer": "cuBLAS shim (cipher_rt_cublasGemmEx_impl in cipher_rt_cublas_shim.c) — NOT cuLaunchKernel hook",
+    "decision_inputs": [
+      "call->Atype/Btype/Ctype (FP16 dtype gate)",
+      "call->m/n/k (M/N/K shape gates: M<=64, N/K>=1024, K%128==0, N%64==0)",
+      "weight pointer stability count (cipher_rt_marlin_engine_observe_weight, lazy quantization on first stability hit)",
+      "TLS substitute_hint from classify observer (LIVE=0 advisory, LIVE=1 binding)"
+    ],
+    "decision_classification": "PER-cublasGemmEx-CALL (per-launch within cuBLAS, but at cuBLAS layer not CUfunction layer)",
+    "substitution_target": "cipher_rt_marlin_engine_dispatch(call->B, marlin_B, marlin_S, call->C, ...) — REPLACES the cublasGemmEx call entirely with own marlin GEMM kernel dispatched via cuLaunchKernel",
+    "uses_cipher_rt_graph_substitute_decide": false,
+    "graph_mode_compose": "When PyTorch is in graph capture mode and calls cublasGemmEx, cipher_rt_phase4's GOT-patched cublasGemmEx fires → Marlin's maybe_handle decides → Marlin dispatches its kernel via cuLaunchKernel → driver records the Marlin kernel as a graph node (PyTorch's normal capture mechanism). Graph replay runs Marlin natively. NO per-launch substitution hook needed.",
+    "ed_to_support_marlin_via_option_a_b_c": "ZERO — Marlin already works under PyTorch graph mode through the cuBLAS-layer mechanism"
+  },
+  "section_b_koopman_substitution_semantics": {
+    "actuator_file": "cipher_rt_phase4/cipher_rt_koopman_engine.cpp",
+    "registration_pattern": "same as Marlin — cipher_rt_matmul_register_actuator(&g_koopman_actuator) on cuBLAS-layer substrate",
+    "dispatch_layer": "cuBLAS shim — NOT cuLaunchKernel hook",
+    "decision_inputs": [
+      "g_enabled atomic (CIPHER_KOOPMAN env gate)",
+      "call->Atype/Btype/Ctype (FP16 dtype gate)",
+      "call->m/n/k positivity",
+      "OOD detector: cipher_koopman_fp16_ood_max_residual(call->B, M, K_dim, N_dim) computes residual_ratio = ||x - V_x V_x^T x|| / ||x||",
+      "g_ood_threshold (default 0.05; CIPHER_KOOPMAN_OOD_THRESHOLD env override)",
+      "shape registry membership (cipher_koopman_fp16_launch_shape returns -1 if shape not registered)",
+      "model_uuid match (calibration is per-shape per-model)"
+    ],
+    "decision_classification": "PER-cublasGemmEx-CALL with PER-LAUNCH input-dependent β residual_ratio gate (Memory #13 OOD detector)",
+    "substitution_target": "cipher_koopman_fp16_launch_shape(call->B, call->C, M, K_dim, N_dim) — narrow-domain O(1) surrogate kernel",
+    "uses_cipher_rt_graph_substitute_decide": false,
+    "memory_13_beta_gate_per_launch": "TRUE — residual_ratio is recomputed per cublasGemmEx call on call->B input data. This is INTRINSICALLY dynamic per-launch.",
+    "graph_mode_compose": "Same as Marlin — cuBLAS-layer interception fires under graph capture; Koopman kernel dispatched via cuLaunchKernel; recorded into graph; replay runs natively. However, the OOD β gate is decided at CAPTURE TIME based on the input data at capture; replay uses captured topology regardless of new input data. This means: cross-distribution inputs at replay time bypass the OOD gate (incorrect substitution applied to OOD input). This is a SEPARATE problem not addressable by graph-time substitution shims; needs graph re-capture on OOD detection or pre-launch OOD check that triggers graph rebuild.",
+    "ed_to_support_koopman_via_option_a_b_c": "ZERO for the in-distribution capture case (works via cuBLAS layer). Cross-distribution input correctness at replay is a separate v1.x concern requiring graph invalidation logic — not Option A/B/C scope.",
+    "honest_constraint": "Koopman correctness under graph mode requires that input distributions don't drift across graph replays. If drift occurs, captured Koopman substitution may apply OOD substitution to a now-OOD input. v1.x mitigation: pre-replay OOD check + graph invalidation. Not B.6''.9.8 scope."
+  },
+  "section_c_volt_semantics": {
+    "actuator_file": "cipher_rt_phase4/cipher_rt_volt.c + .h",
+    "registration_pattern": "Init-time ONLY (cipher_rt_volt_init called from cipher_inject.c). No per-launch hook.",
+    "dispatch_layer": "NONE — VOLT is one-shot NVML clock-lock applied at libcipher_rt init",
+    "explicit_quote_from_header": "'v1 scope: env-driven static clock lock via nvmlDeviceSetGpuLockedClocks applied at libcipher_rt init, restored at exit (atexit + signal handlers). No per-launch classifier in v1; that's T4.3.2 once cuBLAS interception or kernel-name-based shape inference is in place.'",
+    "uses_cipher_rt_graph_substitute_decide": false,
+    "needs_launch_time_hook": false,
+    "graph_mode_compose": "VOLT operates orthogonally — clock lock affects all kernels including graph-captured ones. No interaction with capture/replay.",
+    "ed_to_support_volt_via_option_a_b_c": "ZERO — VOLT doesn't need launch-time hook at all"
+  },
+  "section_d_recommendation": {
+    "headline_finding": "ALL THREE CURRENT ACTUATORS (Marlin, Koopman, VOLT) do NOT use cipher_rt_graph_substitute_decide. They operate at cuBLAS-layer (Marlin/Koopman) or init-layer (VOLT). The cuLaunchKernel substitution hook the .8.5 + .8.5b substeps wired is solving a problem that does not exist in v1's actuator architecture.",
+    "implications": [
+      "B.6''.9.8.5 explicit cuGraphAddKernelNode substitution shims: still useful for direct-CUDA-API callers (raw CUDA, HPC, JAX direct) but NO v1 actuator wires them",
+      "B.6''.9.8.5b cuLaunchKernel-during-capture substitution: solves no v1 problem; the SEGV is in a code path no v1 actuator exercises",
+      "The weak hook cipher_rt_graph_substitute_decide is FUTURE-proofing for hypothetical CUfunction-level actuators (none in v1)",
+      "For FlashAttention (B.6''.9.8.6 next substep): FlashAttention calls its own kernels via cuLaunchKernel from the flash_attn Python module. Substitution there would NEED some CUfunction-level mechanism, but the actuator implementation is downstream (v1.x or later); the substrate hook should be designed when the actuator is."
+    ],
+    "options_ranked_for_the_FUTURE_per_kernel_actuator_case": [
+      {
+        "option": "C — registration-time substitution at cuModuleGetFunction / cuKernelGetFunction",
+        "mechanism": "When framework resolves a kernel handle via cuModuleGetFunction, our shim can return a substitute CUfunction. ALL subsequent uses (cuLaunchKernel, cuGraphAddKernelNode, graph capture) use the substituted handle automatically.",
+        "pros": [
+          "Zero per-launch overhead (substitution decision made once at registration)",
+          "Zero SEGV class (no cuStreamGetCaptureInfo needed; no cross-TU TLS coordination)",
+          "Framework-agnostic (works for direct CUDA, PyTorch, JAX, HPC equally)",
+          "Composes cleanly with graph capture (substitute handle gets recorded as graph node)",
+          "Memory #20 ABI-additive (existing cuModuleGetFunction shim already exists from .8.1)"
+        ],
+        "cons": [
+          "Substitution decision must be made before per-launch input data is available — rules out OOD-gated substitution like Koopman's β check (but Koopman uses cuBLAS layer anyway)",
+          "Requires substitute kernel to be ABI-compatible across ALL future calls of that kernel"
+        ],
+        "ed_to_implement": "~0.75-1 ED (extend existing cuModuleGetFunction shim with substitute decision hook; remove .8.5 + .8.5b cuGraph + cuStreamGetCaptureInfo paths)"
+      },
+      {
+        "option": "A — per-stream capture-state cache via cuStreamBeginCapture hook",
+        "mechanism": "Maintain shadow set of capturing streams; check membership instead of calling cuStreamGetCaptureInfo per launch.",
+        "pros": [
+          "Avoids SEGV-prone cuStreamGetCaptureInfo per-launch call",
+          "Per-launch input data IS available for OOD-gated decisions"
+        ],
+        "cons": [
+          "Per-launch overhead even if cheap (set membership check + branch)",
+          "Still requires substitute kernel ABI-compat per launch",
+          "More state to maintain"
+        ],
+        "ed_to_implement": "~2-3 ED"
+      },
+      {
+        "option": "B — extern __thread cipher_in_cublas_inflight cross-TU shared marker",
+        "mechanism": "Patch cipher_rt_cublas_shim.c to set TLS marker around real cuBLAS calls; may13 helper checks it.",
+        "pros": [
+          "Smallest code change",
+          "Closes the .8.5b SEGV specifically"
+        ],
+        "cons": [
+          "Tight cross-TU coupling",
+          "Doesn't generalize to OTHER SEGV sources (e.g., cuDNN-internal launches)",
+          "Still maintains per-launch overhead",
+          "v1.x carry"
+        ],
+        "ed_to_implement": "~0.5 ED but ARCHITECTURALLY WEAKEST"
+      }
+    ],
+    "recommendation": "OPTION C (registration-time substitution at cuModuleGetFunction). For v1's actuator architecture, Option C is correct because: (1) Marlin/Koopman work at cuBLAS layer — no kernel-substitution hook needed there; (2) future per-CUfunction actuators (e.g., FlashAttention substitution in v1.x) are best served by registration-time decisions, not per-launch decisions; (3) zero SEGV class; (4) zero per-launch overhead; (5) ABI-additive."
+  },
+  "section_e_refined_ed_estimate": {
+    "step_1_rollback_8_5b_cuStreamGetCaptureInfo_path": "0.25 ED — remove env-gated capture-detect helper + cuStreamGetCaptureInfo resolver from cipher_intercept_cudart.cpp. KEEP the .8.5 shims (cuGraphAddKernelNode + cuGraphExecKernelNodeSetParams + cudaGraphAddKernelNode) for direct-API callers.",
+    "step_2_extend_cuModuleGetFunction_shim_with_substitute_hook": "0.5 ED — add weak ref cipher_rt_kernel_substitute_decide(CUmodule mod, const char* name) in existing cuModuleGetFunction shim. When non-null + returns non-NULL substitute, return substitute CUfunction instead of real.",
+    "step_3_apply_same_to_cuLibraryGetKernel_cuKernelGetFunction": "0.25 ED — parallel extension for the CUDA 12+ library API",
+    "step_4_build_test_correctness_gate_commit": "0.5 ED — eager parity 12/12 EXACT preserved (since no per-launch path touched); graph mode unchanged",
+    "total_for_option_c": "~1.5 ED",
+    "comparison_to_8_5b_already_spent": "1.5 ED on .8.5b; ~0.5 ED to roll back + 1.5 ED for Option C = 2 ED net; vs Option A 2-3 ED additional with no rollback. Option C still cheaper end-to-end."
+  },
+  "section_v1_x_actuator_carries": [
+    "Marlin + Koopman already work in graph mode via cuBLAS-layer interception (no shim change needed)",
+    "VOLT operates orthogonally (no shim change needed)",
+    "Koopman OOD-gate-under-graph-replay correctness: input distribution drift at replay time defeats capture-time β gate. v1.x mitigation: pre-replay OOD check + graph invalidation. SEPARATE concern from .8.5b/.8.5b.2.",
+    "FlashAttention launch-side intercept (.8.6 next substep): substrate needs cuModuleGetFunction substitute hook — Option C lands the hook; FlashAttention actuator implementation is downstream"
+  ],
+  "compliance_with_disciplines": {
+    "memory_11_no_scope_degrade": "PRESERVED — audit surfaces honestly that current actuators don't use the hook we wired; not masking",
+    "memory_9_framework_agnostic": "STRENGTHENED — recommended Option C is more framework-agnostic than per-launch capture-detect (registration-time substitution works for ALL frameworks including direct-CUDA callers that don't use stream capture)",
+    "memory_12_md5_provenance": "PRESERVED — read-only audit; all source SHAs verified on disk",
+    "memory_13_koopman_beta_gate": "PRESERVED — audit documents Koopman's per-launch β behavior as cuBLAS-layer, separate from cuLaunchKernel-layer substitution"
+  },
+  "anchors_at_close": {
+    "cipher_rt_phase4": "959a6f5 UNCHANGED (read-only audit)",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca UNCHANGED"
+  },
+  "next": "HOLD for Anil pick. Three paths: (1) ship Option C — replace .8.5b cuStreamGetCaptureInfo path with cuModuleGetFunction registration-time substitution (~1.5 ED); (2) skip both — declare .8.5+.8.5b future-actuator-infrastructure-only and move to B.6''.9.8.6 FlashAttention; (3) ship Option B as quick patch to .8.5b SEGV (~0.5 ED, weakest)."
+}

@@ -1,0 +1,45 @@
+======================================================================
+CIPHER STRESS TEST REPORT — Llama-3.1-8B + FP8 + 1200 MHz
+======================================================================
+
+[Test 1] 10K-token endurance
+  CIPHER: gen=10000/10000 crash=None
+          tps=30.6 tok/W=0.100 W=306
+          windows_drift_W=73.5 max_mem=48086MiB growth_vs_pre=31969MiB
+  coherence@1=OK @5000=OK @10000=OK
+  tok_1   : '\xa0The future of GPU computing is to make every joule count. \xa0'
+  tok_5000: ' computing is to make every joule count. \xa0The future of GPU computing is to make every joule count. \xa0The future of GPU'
+  tok_10000:' joule count. \xa0The future of GPU computing is to make every'
+  --> FAIL
+  baseline: tps=29.5 tok/W=0.099 tok_1='\xa0The future of GPU computing is to make every joule count. \xa0'
+
+[Test 2] 8-client × 5 min sustained load
+  CIPHER: ok=8/8 cuda_errs=2 agg_tps=146.3 W=428 tok/W=0.342 coherent=6/8
+    child 0: ok=True calls=118 tokens=7552 first='\xa0The future of GPU computing is to make every joule count. \xa0The future of GPU co'
+    child 1: ok=True calls=116 tokens=7424 first='\xa0The future of GPU computing is to make every joule count. \xa0The future of GPU co'
+    child 2: ok=True calls=116 tokens=7424 first='\xa0The future of GPU computing is to make every joule count. \xa0The future of GPU co'
+  --> CIPHER FAIL
+  baseline: ok=8/8 cuda_errs=0 agg_tps=135.3 W=407 tok/W=0.333 coherent=8/8
+    child 0: ok=True calls=82 tokens=5248 first='\xa0The future of GPU computing is to make every joule count. \xa0The future of GPU co'
+    child 1: ok=True calls=81 tokens=5184 first='\xa0The future of GPU computing is to make every joule count. \xa0The future of GPU co'
+    child 2: ok=True calls=81 tokens=5184 first='\xa0The future of GPU computing is to make every joule count. \xa0The future of GPU co'
+  --> baseline PASS
+
+[Test 3] Determinism @ T=0
+  CIPHER: intra_match=100/100 unique_hashes=1 crashes=0 elapsed=213.7s
+  --> CIPHER intra-determinism PASS
+  baseline: intra_match=100/100 unique_hashes=1 crashes=0 elapsed=220.4s
+  --> baseline intra-determinism PASS
+  CIPHER vs baseline: divergent (first diff at token 18)
+    cipher first 12: [1618, 13, 578, 34661, 12175, 28298, 12175, 356, 7461, 15, 23501, 46879]
+    base   first 12: [1618, 13, 578, 34661, 12175, 28298, 12175, 356, 7461, 15, 23501, 46879]
+
+[Test 4] 1000-call memory leak
+  CIPHER: completed=200/200 crashes=0
+          nvsmi 17003MiB -> 23715MiB  growth=6712MiB  rate~0.00 MiB/call
+  --> CIPHER FAIL
+  baseline: completed=200/200 crashes=0
+          nvsmi 17003MiB -> 17017MiB  growth=14MiB  rate~0.00 MiB/call
+  --> baseline PASS
+
+======================================================================

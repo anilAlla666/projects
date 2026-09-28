@@ -1,0 +1,154 @@
+{
+  "campaign": "V1 Phase B B.6''.9.4 - substrate coverage re-measurement under crash-free rev6 .deb",
+  "date": "2026-05-26",
+  "purpose": "Quantify substrate visibility on real vLLM steady-state inference under stable rev6 cipher-platform .deb (CIPHER_REGISTER_MODEL=0 gate landed at B.6''.9.3); refine B.6''.9.8 driver-API substrate scope.",
+  "anchors": {
+    "cipher_rt_phase4": "78bfded UNCHANGED",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher-fusion-evidence_entry": "0e373d2 tag v1-cdi-rev6-register-model-gated",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca installed"
+  },
+  "test_config": {
+    "container": "vllm/vllm-openai:v0.21.0",
+    "model": "TinyLlama-1.1B",
+    "max_model_len": 2048,
+    "gpu_memory_utilization": 0.5,
+    "enforce_eager": true,
+    "enforce_eager_reason": "vLLM default cudagraph_mode=FULL_AND_PIECEWISE segfaults under cipher-platform v2.0 substrate (KV VMM allocator vs graph capture incompat — F-CUDAGRAPH-1); enforce_eager=True isolates substrate health from graph compatibility per cipher_graph_audit.py lines 70-77",
+    "prompts": "5x 'Tell me a story about'",
+    "max_tokens_per_prompt": 128,
+    "envs": {"VLLM_ENABLE_V1_MULTIPROCESSING": "0"}
+  },
+  "section_a_phase_readouts": {
+    "phase_1_post_warmup_t_seconds": 19.2,
+    "phase_1_counters": {
+      "cipher_rt_smp_total_launches": 974,
+      "cipher_rt_smp_small_launches": 400,
+      "cipher_rt_matmul_calls_total": 89,
+      "cipher_rt_matmul_calls_handled": 0,
+      "cipher_rt_matmul_calls_passthrough": 89,
+      "cipher_rt_classify_calls_total": 974,
+      "cipher_rt_attn_calls_total": 0,
+      "cipher_rt_attn_tramp_calls": 0,
+      "cipher_rt_cublas_shim_calls": 89,
+      "cipher_rt_cublaslt_shim_calls": 0,
+      "cipher_rt_cublaslt_variants_aggregate": 0,
+      "cipher_rt_dlsym_intercepts": 0,
+      "cipher_rt_dlsym_passthrough": 367,
+      "cipher_rt_got_slots_patched": 96,
+      "cipher_rt_got_modules_scanned": 303
+    },
+    "phase_2_post_inference_t_seconds": 1.2,
+    "phase_2_tokens_generated": 160,
+    "phase_2_tok_per_sec": 131.4,
+    "phase_2_counters": {
+      "cipher_rt_smp_total_launches": 24292,
+      "cipher_rt_smp_small_launches": 17210,
+      "cipher_rt_matmul_calls_total": 5696,
+      "cipher_rt_matmul_calls_handled": 0,
+      "cipher_rt_matmul_calls_passthrough": 5696,
+      "cipher_rt_classify_calls_total": 24292,
+      "cipher_rt_attn_calls_total": 0,
+      "cipher_rt_attn_tramp_calls": 0,
+      "cipher_rt_cublas_shim_calls": 5696,
+      "cipher_rt_cublaslt_shim_calls": 0,
+      "cipher_rt_cublaslt_variants_aggregate": 0,
+      "cipher_rt_dlsym_intercepts": 0,
+      "cipher_rt_dlsym_passthrough": 386,
+      "cipher_rt_got_slots_patched": 96,
+      "cipher_rt_got_modules_scanned": 303
+    }
+  },
+  "section_b_deltas_table": [
+    {"counter": "cipher_rt_smp_total_launches",     "warmup_delta": 974,  "steady_delta": 23318, "steady_to_warmup_ratio": 23.94, "interpretation": "CUPTI launch trap — substrate sees ~24x more launches in steady-state than warmup (5 prompts x ~128 tokens x ~36 launches/token)"},
+    {"counter": "cipher_rt_smp_small_launches",     "warmup_delta": 400,  "steady_delta": 16810, "steady_to_warmup_ratio": 42.03, "interpretation": "Small-launch subset; decode is small-launch-heavy"},
+    {"counter": "cipher_rt_matmul_calls_total",     "warmup_delta": 89,   "steady_delta": 5607,  "steady_to_warmup_ratio": 63.0,  "interpretation": "cuBLAS dispatch — substrate observes every GEMM call during steady-state decode"},
+    {"counter": "cipher_rt_matmul_calls_handled",   "warmup_delta": 0,    "steady_delta": 0,     "steady_to_warmup_ratio": null,  "interpretation": "Actuators (Marlin INT4, etc.) DO NOT ENGAGE on TinyLlama bf16 default config — designed for INT4/FP8 quantized models"},
+    {"counter": "cipher_rt_matmul_calls_passthrough","warmup_delta": 89,  "steady_delta": 5607,  "steady_to_warmup_ratio": 63.0,  "interpretation": "All matmuls pass through to real cublasGemmEx — substrate visibility 100% on cuBLAS path, actuator engagement 0% on this workload"},
+    {"counter": "cipher_rt_classify_calls_total",   "warmup_delta": 974,  "steady_delta": 23318, "steady_to_warmup_ratio": 23.94, "interpretation": "Classify route observer — 100% coverage at launch boundary (matches smp_total_launches identically)"},
+    {"counter": "cipher_rt_attn_calls_total",       "warmup_delta": 0,    "steady_delta": 0,     "steady_to_warmup_ratio": null,  "interpretation": "ATen SDPA dispatcher trampolines NOT FIRED — vLLM uses FLASH_ATTN backend (logged), which bypasses ATen SDPA path (this is the cuDNN/FlashAttention gap noted in B.6''.8 v1_substrate_coverage_status item: customer raw CUDA kernels = GAP)"},
+    {"counter": "cipher_rt_attn_tramp_calls",       "warmup_delta": 0,    "steady_delta": 0,     "steady_to_warmup_ratio": null,  "interpretation": "Confirms SDPA path bypassed; FlashAttention v3 reached directly via flash_attn module not via ATen dispatcher"},
+    {"counter": "cipher_rt_cublas_shim_calls",      "warmup_delta": 89,   "steady_delta": 5607,  "steady_to_warmup_ratio": 63.0,  "interpretation": "GOT-patched cublasGemmEx — full coverage on bf16/fp16 vLLM"},
+    {"counter": "cipher_rt_cublaslt_shim_calls",    "warmup_delta": 0,    "steady_delta": 0,     "steady_to_warmup_ratio": null,  "interpretation": "Umbrella cublasLtMatmul NOT EXERCISED — vLLM bf16 routes through cublasGemmEx not cublasLt (matches Gate A finding); cublasLt path is fp32 default torch which is suppressed via TORCH_CUBLASLT_DISABLE=1 env"},
+    {"counter": "cipher_rt_cublaslt_variants_aggregate","warmup_delta": 0,"steady_delta": 0,     "steady_to_warmup_ratio": null,  "interpretation": "17 LT variant trampolines NOT EXERCISED — defense-in-depth coverage for cublasLt callers; not on hot path for vLLM bf16"},
+    {"counter": "cipher_rt_dlsym_intercepts",       "warmup_delta": 0,    "steady_delta": 0,     "steady_to_warmup_ratio": null,  "interpretation": "Substrate's own dlsym hook did NOT redirect any call — confirms vLLM/PyTorch resolve cuBLAS via direct DT_NEEDED, not via dlsym, on this workload"},
+    {"counter": "cipher_rt_dlsym_passthrough",      "warmup_delta": 354,  "steady_delta": 19,    "steady_to_warmup_ratio": 0.054, "interpretation": "Substrate's own dlsym fall-through — fires mostly during library load (warmup), nearly idle in steady-state (19 calls). Workload itself does not invoke dlsym during decode."},
+    {"counter": "cipher_rt_got_slots_patched",      "warmup_delta": 71,   "steady_delta": 0,     "steady_to_warmup_ratio": 0.0,   "interpretation": "GOT patches applied at substrate init + final lib-load; steady-state shows 0 new slots → patching converged at warmup"},
+    {"counter": "cipher_rt_got_modules_scanned",    "warmup_delta": 275,  "steady_delta": 0,     "steady_to_warmup_ratio": 0.0,   "interpretation": "All 303 modules scanned by end of warmup; no new modules loaded during steady-state"}
+  ],
+  "section_c_honest_steady_state_coverage_pct": {
+    "cuLaunchKernel_via_CUPTI": {"steady_delta": 23318, "warmup_delta": 974, "ratio": 23.94, "verdict": "FULL COVERAGE on eager path — CUPTI traps every launch"},
+    "cublasGemmEx_GOT_path": {"steady_delta": 5607, "warmup_delta": 89, "ratio": 63.0, "verdict": "FULL COVERAGE on vLLM bf16/fp16 — every GEMM observed; passthrough 100% because no actuator engages for bf16 TinyLlama default"},
+    "cublasLtMatmul_umbrella": {"steady_delta": 0, "warmup_delta": 0, "ratio": null, "verdict": "NOT EXERCISED — bf16 vLLM bypasses Lt path; TORCH_CUBLASLT_DISABLE=1 suppresses fp32 Lt path; defense-in-depth coverage only"},
+    "cublasLt_17_variant_trampolines": {"steady_delta": 0, "warmup_delta": 0, "ratio": null, "verdict": "NOT EXERCISED on this workload — designed for documented-API Lt callers; not on bf16 vLLM hot path"},
+    "ATen_SDPA_dispatcher": {"steady_delta": 0, "warmup_delta": 0, "ratio": null, "verdict": "NOT EXERCISED — vLLM uses FLASH_ATTN backend which bypasses ATen SDPA dispatcher entirely (logged: 'Using FLASH_ATTN attention backend')"},
+    "dlsym_intercepts_workload": {"steady_delta": 0, "warmup_delta": 0, "ratio": null, "verdict": "ZERO workload-side dlsym redirection — vLLM/PyTorch use DT_NEEDED direct binding for cuBLAS, not dlsym"},
+    "substrate_own_dlsym_passthrough": {"steady_delta": 19, "warmup_delta": 354, "ratio": 0.054, "verdict": "Substrate's own dlsym hook fires mostly at lib-load; idle in steady-state"}
+  },
+  "section_d_goal_by_goal_engagement_on_real_vllm": {
+    "goal_1_multi_tenant_routing": {
+      "infrastructure": "REGISTER_STREAMS (NR 29) gate fires per plugin init logs — REGISTER_STREAMS active but 'no named streams enumerated; default tenant=0 fallback' on single-tenant test",
+      "engagement_observed": "streams_observed=0, ctx_swaps_to_green=0, on_our_green=0, on_other_green=0, on_primary=0, on_null_stream=24292",
+      "verdict": "Multi-tenant routing infrastructure present and ready; not exercised on this single-tenant TinyLlama eager workload. SC6 4-tenant Mistral-7B path validated separately at B.6''.9.3 Step 4 (76.0% baseline match)."
+    },
+    "goal_2_marlin_volt_actuators": {
+      "infrastructure": "cuBLAS shim observed 5607/5607 matmuls (100% visibility); matmul_handled=0 (zero actuator dispatches)",
+      "engagement_observed": "MATMUL exit totals: calls=5696 handled=0 passthrough=5696 (actuators=0)",
+      "verdict": "Substrate SEES every matmul but actuators DO NOT ENGAGE on TinyLlama bf16 default config. Marlin is INT4-quantization-gated (Track 4); VOLT is workload-class-gated. Not a gap — by design for this workload."
+    },
+    "goal_3_sm_packer_mfu": {
+      "infrastructure": "cipher_rt_smp_observe / classify_calls fires on every CUPTI launch",
+      "engagement_observed": "classify_calls=23318 = total_launches; FULL coverage at launch boundary",
+      "verdict": "Full SM packer / MFU observability on eager path. Per-launch classify + observe events available for downstream MFU and SM-packer actuator decisions."
+    },
+    "goal_4_koopman": {
+      "infrastructure": "Koopman engine substrate (cipher_rt_koopman_engine.cpp); CIPHER_KOOPMAN env not set in this run",
+      "engagement_observed": "n/a",
+      "verdict": "Not exercised in this measurement — by directive (Goal 4 measurement is its own gate)."
+    }
+  },
+  "section_e_coverage_gap_quantification_for_b6_9_8": {
+    "eager_path_gaps": {
+      "cuLaunchKernel_intercept": "NOT A GAP — CUPTI traps all 23318 launches in steady-state (ratio 23.94x warmup)",
+      "cuLaunchKernelEx_intercept": "NOT A GAP — CUPTI traps both forms",
+      "cublasGemmEx_intercept": "NOT A GAP — GOT-patched, 100% coverage (5607/5607)",
+      "ATen_SDPA_dispatcher": "PARTIAL GAP — substrate has trampolines but vLLM uses FlashAttention (flash_attn module direct, not via ATen). Closing requires intercepting flash_attn's CUDA-side entry points (cuda::launch or direct kernel-driver calls)."
+    },
+    "graph_mode_gaps_UNTESTED": {
+      "reason": "vLLM default cudagraph_mode=FULL_AND_PIECEWISE SEGFAULTS under cipher-platform v2.0 substrate (F-CUDAGRAPH-1: KV VMM allocator vs graph capture incompat). enforce_eager=True was set to isolate substrate health from graph compatibility. THIS MEANS: H2 (graph blind spot) is UNANSWERED by this measurement; production customers using cipher-platform .deb today are FORCED to eager mode (or hit F-CUDAGRAPH-1).",
+      "cuGraphLaunch_intercept": "PRESUMED GAP — substrate's cuLaunchKernel CUPTI trap does NOT fire when graph is replayed via cuGraphLaunch (graph nodes execute internally on GPU). Production impact: eager mode customers OK (this measurement); graph mode customers blocked by F-CUDAGRAPH-1 today.",
+      "cuGraphAddKernelNode_intercept": "PRESUMED GAP — per-kernel actuator routing decisions during graph capture cannot fire without intercepting node addition.",
+      "cuGetProcAddress_intercept": "GAP — substrate dlsym_intercepts=0 throughout. Modern CUDA uses cuGetProcAddress lazy resolution which bypasses both LD_PRELOAD constructor and dlsym hook (R-A.1 finding at Phase A; CUDA_INJECTION64_PATH path used as workaround). v2 driver-API substrate needs explicit cuGetProcAddress wrapper to catch direct-driver callers."
+    },
+    "v1_production_disposition": {
+      "eager_mode_customer": "FULL substrate coverage on cuBLAS + CUPTI launches; actuator engagement gated by workload-class predicates not coverage",
+      "graph_mode_customer": "BLOCKED by F-CUDAGRAPH-1 (segfault) — needs either (a) graph-compat VMM allocator OR (b) graph capture path through plugin/substrate"
+    }
+  },
+  "section_f_b6_9_8_ed_estimate_refined": {
+    "original_estimate": "~12-18 ED (driver-API substrate per B.6''.8 v1_substrate_coverage_status items)",
+    "f_cudagraph_1_separate_finding": "F-CUDAGRAPH-1 (KV VMM allocator vs graph capture segfault) adds ~2-4 ED for VMM/graph compat investigation + fix; could be (a) graph-aware VMM allocator, (b) graph-capture detection + fall back to torch native KV during capture, or (c) substrate-side graph node patching",
+    "primary_b6_9_8_scope_items": [
+      "cuGraphLaunch intercept (per-launch substrate visibility during graph replay)",
+      "cuGraphAddKernelNode intercept (per-kernel actuator routing during graph capture)",
+      "cuGetProcAddress wrapper (catch direct-driver callers that bypass dlsym + LD_PRELOAD constructor)",
+      "FlashAttention launch-side intercept (kernel-driver level, not ATen) — closes attn_calls=0 gap on real vLLM",
+      "F-CUDAGRAPH-1 VMM/graph compat fix (2-4 ED sub-investigation)"
+    ],
+    "refined_b6_9_8_ed_estimate": "~14-22 ED (12-18 base + 2-4 F-CUDAGRAPH-1 fix). Lower bound assumes F-CUDAGRAPH-1 root-caused at cipher-rt-only VMM layer; upper bound assumes graph-compat allocator rewrite.",
+    "v1_ship_decision_input": "If graph mode customer is gating B.6''.9 close, F-CUDAGRAPH-1 fix must precede B.6''.9.8. If eager mode is acceptable v1 deployment posture (with throughput cost), B.6''.9.8 can defer F-CUDAGRAPH-1 and prioritize cuGraph* + cuGetProcAddress + FlashAttn intercepts."
+  },
+  "honest_residue_carried_forward": [
+    "F-CUDAGRAPH-1 (KV VMM allocator vs vLLM default cudagraph_mode segfault) — not in B.6''.9.3 scope-lock §15 yet; surface to Anil for item 11 addition or B.6''.9.8 sub-scope fold",
+    "H2 graph blind spot UNANSWERED — only eager path measured here; graph-mode coverage measurement gated on F-CUDAGRAPH-1 fix",
+    "Actuator engagement on real workloads is workload-class-gated not coverage-gated — Marlin INT4 / VOLT / Koopman gates require their own measurement campaigns",
+    "FlashAttention vs ATen SDPA gap: vLLM uses flash_attn module direct; ATen SDPA trampolines designed pre-vLLM-v0.21.0 don't see real production attention path",
+    "Multi-tenant routing (Goal 1) infrastructure verified live but not exercised here; SC6 4-tenant baseline (B.6''.9.3 Step 4) is the existing multi-tenant evidence anchor"
+  ],
+  "verdict_summary": {
+    "h1_or_h2": "H1 CONFIRMED ON EAGER PATH (ratio 23.94x; substrate full visibility); H2 graph blind spot UNTESTED (F-CUDAGRAPH-1 segfault blocks measurement)",
+    "substrate_health_under_rev6": "VERIFIED — substrate constructor fires; cuBLAS shim resolves; GOT patches converge at 96 slots; KV VMM allocator owns 22 tensors (36.61 GiB); plugin chain loads cleanly; clean exit",
+    "b6_9_8_scope": "REFINED — primary blind spots are cuGraph* + cuGetProcAddress + FlashAttention (estimated ~12-18 ED) plus F-CUDAGRAPH-1 fix (2-4 ED). Refined estimate ~14-22 ED.",
+    "production_disposition": "Eager-mode customers get FULL substrate coverage today on rev6; graph-mode customers blocked by F-CUDAGRAPH-1. v1 ship decision needs Anil pick on eager-acceptable-or-not."
+  }
+}

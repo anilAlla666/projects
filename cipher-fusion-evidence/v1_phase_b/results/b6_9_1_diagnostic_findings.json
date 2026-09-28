@@ -1,0 +1,108 @@
+{
+  "campaign": "V1 Phase B B.6''.9.1 - F-VLLM-PLUGIN-CRASH bisect diagnostic",
+  "date": "2026-05-26",
+  "purpose": "Per Anil B.6''.9.1: identify root-cause of vLLM segfault during model loading under installed cipher-platform v2.0 rev5 .deb. Read-only diagnostic; no substrate code changes.",
+  "method": "Bisect ownership via CDI patch revert / env-gate matrix. systemd watcher temporarily disabled during CDI revert; restored at end of substep.",
+  "anchors_unchanged": {
+    "cipher_rt_phase4": "78bfded tag v1-substrate-cuda13-cublaslt-coverage",
+    "cipher_kmod": "8c643fc tag week-13-14-complete",
+    "cipher-fusion-evidence": "82d8fcf (entry)",
+    "cipher_platform_deb": "v2.0 rev5 md5 e0439428 installed"
+  },
+  "bisect_test_matrix": [
+    {
+      "test": "1A",
+      "description": "vLLM in container WITHOUT any CIPHER (CDI patch reverted; watcher disabled)",
+      "result": "PASS - WARMUP_OK 34.4s INFERENCE_OK 0.7s tok/s=252.3",
+      "interpretation": "Baseline confirmed. vLLM v0.21.0 works on this pod without CIPHER. Crash IS caused by something CIPHER adds."
+    },
+    {
+      "test": "1B (substrate ON + plugin OFF via VLLM_PLUGINS=none)",
+      "description": "Full CIPHER CDI applied; substrate libs + env in container; VLLM_PLUGINS=none gates plugin entry-points from loading",
+      "result": "PASS - substrate constructor fires; WARMUP_OK 34.9s INFERENCE_OK 0.7s tok/s=245.1",
+      "interpretation": "Substrate (libcipher_rt.so + libc10 + libcipher_v2 + cuInit hook + GOT patcher + dlsym hook + 17 trampolines) IS compatible with vLLM v0.21.0. Crash is in the PLUGIN CHAIN, not substrate."
+    },
+    {
+      "test": "1B-2 (substrate ON + plugin loaded + CIPHER_KV_ALLOC=0 + CIPHER_KV_OFFLOAD=0)",
+      "description": "Substrate + plugin chain loaded; both master-disabled via env gates",
+      "result": "PASS - both plugins log 'disabled via CIPHER_KV_*' + vLLM works",
+      "interpretation": "Plugin chain DISCOVERY works (entry-points load fine); active hooks are what crashes."
+    },
+    {
+      "test": "1B-3 (offload OFF, KV_ALLOC ON)",
+      "description": "Suppress cipher_kv_offload; keep cipher_vllm_kv hooks active",
+      "result": "CRASH - KV buffers owned by CIPHER VMM (22 tensors, 88 pages, 0.17 GiB); segfault",
+      "interpretation": "Crash narrowed to cipher_vllm_kv. cipher_kv_offload is NOT culprit."
+    },
+    {
+      "test": "1B-4 (KV_ALLOC OFF, offload ON)",
+      "description": "Suppress cipher_vllm_kv; keep cipher_kv_offload hooks active",
+      "result": "PASS - vLLM works with cipher_kv_offload active",
+      "interpretation": "Confirms cipher_kv_offload not culprit. cipher_vllm_kv is the suspect."
+    },
+    {
+      "test": "1B-5 (REGISTER_MODEL=0 + REGISTER_STREAMS=0; rest of cipher_vllm_kv ON)",
+      "description": "cipher_vllm_kv VMM allocator + KV ownership hooks active; kmod IOCTL chain suppressed",
+      "result": "PASS - VMM allocator works (KV buffers owned 36.14 GiB), vLLM runs through warmup + inference",
+      "interpretation": "VMM allocator + KV buffer ownership are NOT culprit. Crash is in the kmod IOCTL chain (REGISTER_MODEL or REGISTER_STREAMS)."
+    },
+    {
+      "test": "1B-6 (REGISTER_MODEL ON, REGISTER_STREAMS OFF)",
+      "description": "Suppress REGISTER_STREAMS but allow REGISTER_MODEL",
+      "result": "CRASH - REGISTER_MODEL OK uuid=4b97c8ea13de88947a3e486b073fa1b9; segfault later",
+      "interpretation": "CRASH IS IN REGISTER_MODEL CODE PATH."
+    },
+    {
+      "test": "1B-7 (REGISTER_MODEL OFF, REGISTER_STREAMS ON)",
+      "description": "Suppress REGISTER_MODEL but allow REGISTER_STREAMS",
+      "result": "PASS - REGISTER_MODEL gate off, uuid stays MODEL_UNKNOWN; WARMUP+INFERENCE PASS tok/s=248.0",
+      "interpretation": "REGISTER_STREAMS is fine. REGISTER_MODEL IS the crash component."
+    }
+  ],
+  "root_cause": {
+    "component": "cipher_vllm_kv plugin's CIPHER_REGISTER_MODEL ioctl (NR 27) downstream code path",
+    "specific_finding": "REGISTER_MODEL ioctl ITSELF returns OK (logged as 'REGISTER_MODEL OK: arch=3 uuid=4b97c8ea13de88947a3e486b073fa1b9 path=...'); crash happens AFTER, in code that uses the returned model_uuid.",
+    "downstream_path_under_suspicion": "Likely paths that read model_uuid after REGISTER_MODEL returns: per-tenant per-token AUDIT hook on execute_model, or KV-cache tensor metadata tagging with uuid, or any plugin/substrate code that branches on model_uuid != MODEL_UNKNOWN.",
+    "evidence_files": [
+      "v1_phase_b/results/b6_9_1_test_1A_no_cipher.txt (1A PASS baseline)",
+      "v1_phase_b/results/b6_9_1_test_1B_substrate_no_plugin.txt (1B PASS substrate-only)",
+      "v1_phase_b/results/b6_9_1_test_1B2_kv_alloc_off.txt (1B-2 PASS both off)",
+      "v1_phase_b/results/b6_9_1_test_1B3_offload_off.txt (1B-3 CRASH)",
+      "v1_phase_b/results/b6_9_1_test_1E_faulthandler.txt (faulthandler trace)"
+    ],
+    "memory_29_g10_abi_context": "Per memory g10-abi-scaffold: CIPHER_REGISTER_MODEL ioctl NR 27 + model_registry shipped at W7-9 Step 1; test_register_model 5/5 PASS at that era. v0.21.0 vLLM is significantly newer than W7-9 vLLM context; some downstream code path that uses model_uuid is incompatible with v0.21.0 internals."
+  },
+  "remediation_options_for_anil_pick": [
+    {
+      "option": "A (cheapest, fast path)",
+      "description": "Inject CIPHER_REGISTER_MODEL=0 via CIPHER CDI env. Plugin loads but G10 ioctl is gated off; model_uuid stays MODEL_UNKNOWN; downstream crash never triggers.",
+      "effort": "~0.1 ED (cipher_cdi_patch.py CIPHER_ENV extension + test case + .deb rebuild)",
+      "trade": "Goal 1 (multi-tenant per-model routing) capability degraded — model_uuid is the per-tenant model fingerprint used for cross-tenant weight sharing inferred at routing time. Without REGISTER_MODEL, substrate cannot distinguish 'tenant A using Mistral-7B' from 'tenant B using Llama-3-8B' beyond what stream-resolver provides. Track 2 weight-sharing (Memory #28 76% baseline) DOES NOT depend on REGISTER_MODEL (it uses the kmod weight arena directly via sc5_arena_ioctl), so the SC6 result holds. Goal 4 (Koopman) doesn't depend on model_uuid. Real impact: substrate-level model identification is degraded; observability + per-model actuator-routing in v2 architecture is delayed",
+      "honest_residue": "v1 ships with model_uuid=MODEL_UNKNOWN; v1.x or v2 fixes the downstream path"
+    },
+    {
+      "option": "B (proper fix)",
+      "description": "Inspect cipher_vllm_kv source for code paths that branch on model_uuid; identify which path crashes under vLLM v0.21.0; fix the crash trigger source-side",
+      "effort": "~1-3 ED depending on root cause (could be a few lines or a structural refactor)",
+      "trade": "Goal 1 capability preserved fully; fix is structurally clean for v1",
+      "risk": "May discover additional v0.21.0-specific incompatibilities once the first one is fixed (kvdedup hook, model_fingerprint tag, AUDIT chain per-tenant routing)"
+    },
+    {
+      "option": "C (carve-out)",
+      "description": "Ship .deb without cipher_vllm_kv plugin file; ship only cipher_kv_offload + cipher_vllm_kvdedup + substrate. Substrate visibility + KV-offload still work; CIPHER's KV ownership + REGISTER_MODEL path disabled",
+      "effort": "~0.25 ED (PLUGIN_MANIFEST.md update + cipher_cdi_patch.py mount list update + .deb rebuild)",
+      "trade": "Loses both Goal 1 model fingerprinting AND the cipher_vllm_kv KV ownership hook (VMM allocator); cipher-vllm-kvdedup also depends on cipher_vllm_kv VMM allocator so it would also need to be disabled. Substantial v1 scope-down."
+    }
+  ],
+  "recommendation": "Option A (env-gate REGISTER_MODEL=0 via CDI) for v1 fast path; v1.x picks up Option B with source-level fix. Track 2 weight-sharing (76% baseline) preserved; substrate visibility (cublasGemmEx + Path B' + dlsym hook + 17 trampolines) preserved; KV-cache buffer ownership (Option A KV path) preserved. Only model_uuid-tagged paths are downgraded to MODEL_UNKNOWN.",
+  "implications_for_b6_9_4_measurement": "Once Option A lands at B.6''.9.3, B.6''.9.4 re-measurement can proceed: substrate sees vLLM workload via the cipher_vllm_kv VMM allocator + KV buffer ownership + Step 4 per-token AUDIT hook on execute_model (which fires regardless of REGISTER_MODEL state per cipher_vllm_kv.py source). The H2 graph-replay blind spot still applies (substrate's CUPTI doesn't observe graph replay); B.6''.9.8 driver-API substrate is still needed for that gap.",
+  "anchors_at_close": {
+    "cipher_rt_phase4": "78bfded UNCHANGED",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev5 md5 e0439428 STILL installed (CDI restored)",
+    "cipher-fusion-evidence_pending_commit": "diagnostic evidence files staged for commit"
+  },
+  "honest_residue_for_b5_close_section_15": [
+    "F-VLLM-PLUGIN-CRASH root-caused at B.6''.9.1: cipher_vllm_kv CIPHER_REGISTER_MODEL post-success downstream path crashes vLLM v0.21.0 under default config. Anil-adjudicated remediation (option A/B/C) lands in v1.x or as carry to v2."
+  ]
+}

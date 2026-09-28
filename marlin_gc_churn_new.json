@@ -1,0 +1,170 @@
+{
+  "so": "/home/ubuntu/cipher_rt_phase4/libcipher_rt.so",
+  "has_evict": true,
+  "has_reclaim": true,
+  "cycles": 12,
+  "parts": {
+    "A_solo_sub": {
+      "mistral": 3600,
+      "llama8b": 3584,
+      "qwen2": 1792,
+      "tinyllama": 1776,
+      "llama32_1b": 1280
+    },
+    "B_bound": {
+      "all_kl0": true,
+      "no_allzero": true,
+      "n_cycles": 12,
+      "oom": null,
+      "base_free_mib": 80330.3,
+      "final_free_mib": 80330.3,
+      "net_leak_mib": 0.0,
+      "flat_mem": true,
+      "PASS": true,
+      "note": "12 big-model cycles completing on 80GB without OOM \u21d2 evict+reclaim bounds the fp16 surrogate",
+      "cycles": [
+        {
+          "cycle": 0,
+          "fam": "mistral",
+          "match": 16,
+          "tot": 16,
+          "sub": 3600,
+          "kl0": true,
+          "allzero_corrupt": false,
+          "free_mib": 49326.3
+        },
+        {
+          "cycle": 1,
+          "fam": "llama8b",
+          "match": 16,
+          "tot": 16,
+          "sub": 3584,
+          "kl0": true,
+          "allzero_corrupt": false,
+          "free_mib": 46874.3
+        },
+        {
+          "cycle": 2,
+          "fam": "qwen2",
+          "match": 16,
+          "tot": 16,
+          "sub": 1792,
+          "kl0": true,
+          "allzero_corrupt": false,
+          "free_mib": 49426.3
+        },
+        {
+          "cycle": 3,
+          "fam": "mistral",
+          "match": 16,
+          "tot": 16,
+          "sub": 3600,
+          "kl0": true,
+          "allzero_corrupt": false,
+          "free_mib": 49326.3
+        },
+        {
+          "cycle": 4,
+          "fam": "tinyllama",
+          "match": 16,
+          "tot": 16,
+          "sub": 1776,
+          "kl0": true,
+          "allzero_corrupt": false,
+          "free_mib": 75680.3
+        },
+        {
+          "cycle": 5,
+          "fam": "llama8b",
+          "match": 16,
+          "tot": 16,
+          "sub": 3584,
+          "kl0": true,
+          "allzero_corrupt": false,
+          "free_mib": 46874.3
+        },
+        {
+          "cycle": 6,
+          "fam": "mistral",
+          "match": 16,
+          "tot": 16,
+          "sub": 3600,
+          "kl0": true,
+          "allzero_corrupt": false,
+          "free_mib": 49326.3
+        },
+        {
+          "cycle": 7,
+          "fam": "llama8b",
+          "match": 16,
+          "tot": 16,
+          "sub": 3584,
+          "kl0": true,
+          "allzero_corrupt": false,
+          "free_mib": 46874.3
+        },
+        {
+          "cycle": 8,
+          "fam": "qwen2",
+          "match": 16,
+          "tot": 16,
+          "sub": 1792,
+          "kl0": true,
+          "allzero_corrupt": false,
+          "free_mib": 49426.3
+        },
+        {
+          "cycle": 9,
+          "fam": "mistral",
+          "match": 16,
+          "tot": 16,
+          "sub": 3600,
+          "kl0": true,
+          "allzero_corrupt": false,
+          "free_mib": 49326.3
+        },
+        {
+          "cycle": 10,
+          "fam": "tinyllama",
+          "match": 16,
+          "tot": 16,
+          "sub": 1776,
+          "kl0": true,
+          "allzero_corrupt": false,
+          "free_mib": 75680.3
+        },
+        {
+          "cycle": 11,
+          "fam": "llama8b",
+          "match": 16,
+          "tot": 16,
+          "sub": 3584,
+          "kl0": true,
+          "allzero_corrupt": false,
+          "free_mib": 46874.3
+        }
+      ]
+    },
+    "C_unbound": {
+      "all_kl0": true,
+      "no_allzero": true,
+      "n_cycles": 8,
+      "oom": null,
+      "base_free_mib": 80330.3,
+      "final_free_mib": 69280.3,
+      "recorded_leak_mib": 11050.0,
+      "note": "correctness-only (fingerprint, no evict); leak EXPECTED+documented (v-next evict-on-free wiring bounds it)",
+      "PASS": true
+    },
+    "D_concurrent": {
+      "ran": 2,
+      "mismatch": 0,
+      "errors": [
+        "w0: NotImplementedError('Cannot copy out of meta tensor; no data!')",
+        "w1: NotImplementedError('Cannot copy out of meta tensor; no data!')"
+      ],
+      "PASS": false
+    }
+  },
+  "OVERALL_PASS": false
+}

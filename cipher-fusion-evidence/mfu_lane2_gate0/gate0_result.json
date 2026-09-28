@@ -1,0 +1,72 @@
+{
+ "verdict": "(i) SUBSTRATE INTERCEPTS EAGER vLLM PREFILL \u2014 Lane 2 host = eager vLLM prefill",
+ "label": "engagement-demo, per-tensor E4M3 path, FAILS PPL bar (+0.567-0.72%), NOT a Goal-3/deliverable-MFU result",
+ "g0a_torch_positive_control": {
+  "handled": [
+   1125,
+   1125,
+   1125
+  ],
+  "total": [
+   1350,
+   1350,
+   1350
+  ],
+  "skipped": [
+   225,
+   225,
+   225
+  ],
+  "engaged_shape_lines_r1": 5,
+  "reproduces_mfu_audit": "YES (handled=1125/1350 exact)",
+  "mfu_vanilla_med": 0.4859320589484887,
+  "mfu_fp8_med": 0.5463133285536331
+ },
+ "g0b_vllm_decider": {
+  "engaged_shape_lines": [
+   5,
+   5,
+   5
+  ],
+  "prequantized_weight_lines_r1": 129,
+  "actuator_registered": "MATMUL: actuator 'FP8_E4M3' registered at priority 20 (slot 0/1)",
+  "engine_init": "FP8: engine init OK (cuBLASLt+driver+nvrtc resolved)",
+  "substrate_lines_fp8_r1": 804,
+  "substrate_lines_vanilla_r1": 0,
+  "vanilla_engaged_lines": 0,
+  "hard_final_counter": "UNRECOVERABLE via dump \u2014 worker SIGKILLed before atexit; install-tag dump is pre-GEMM zero (pid==EngineCore worker). handled>0 proven by 5 ENGAGED shapes + 129 prequantized weights + registration. Exact count recoverable via SIGUSR1-before-kill in Lane 2.",
+  "mfu_vanilla": [
+   0.6015198253130731,
+   0.5994435209988109,
+   0.6017967790351516
+  ],
+  "mfu_fp8": [
+   0.8260335639974259,
+   0.8369072222153564,
+   0.8263425189075029
+  ],
+  "clk_vanilla": [
+   1470,
+   1455,
+   1455
+  ],
+  "clk_fp8": [
+   1695,
+   1680,
+   1695
+  ],
+  "pw_vanilla": [
+   639,
+   636,
+   637
+  ],
+  "pw_fp8": [
+   594,
+   600,
+   597
+  ],
+  "mfu_confound": "FP8 -40W -> SwPowerCap eases -> clock +230MHz (1460->1690); MFU 0.60->0.83 is CLOCK-INFLATED, not clean iso-conditions; engagement signal = ENGAGED lines NOT the MFU number"
+ },
+ "g0c": "NOT RUN \u2014 verdict is (i), not (ii); no interception fix needed",
+ "lane1_reconciliation": "Lane 1 (FP8 OFF) saw 'MATMUL first registration awaited' and inferred GOT-patch MIGHT miss vLLM (citing D.9 eager telemetry). With FP8 ARMED, the GOT-patch via CUDA_INJECTION64_PATH clearly intercepts the V1 EngineCore worker. Lane 1's 'substrate-intercept UNVERIFIED' -> now VERIFIED YES. Whatever D.9's eager probe saw is superseded by this direct armed measurement."
+}

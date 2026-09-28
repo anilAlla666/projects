@@ -1,0 +1,173 @@
+[a2-regression] env: CIPHER_RT_COUNTER_DUMP_PATH=/tmp/a2_dump_dir VLLM_PLUGINS=none
+INFO 05-27 01:45:02 [utils.py:240] non-default args: {'dtype': 'float16', 'max_model_len': 2048, 'gpu_memory_utilization': 0.5, 'disable_log_stats': True, 'model': '/root/.cache/huggingface/hub/models--TinyLlama--TinyLlama-1.1B-Chat-v1.0/snapshots/fe8a4ea1ffedaf415f4da2f062534de366a451e6'}
+WARNING 05-27 01:45:02 [envs.py:1866] Unknown vLLM environment variable detected: VLLM_BUILD_COMMIT
+WARNING 05-27 01:45:02 [envs.py:1866] Unknown vLLM environment variable detected: VLLM_BUILD_PIPELINE
+WARNING 05-27 01:45:02 [envs.py:1866] Unknown vLLM environment variable detected: VLLM_BUILD_URL
+WARNING 05-27 01:45:02 [envs.py:1866] Unknown vLLM environment variable detected: VLLM_IMAGE_TAG
+WARNING 05-27 01:45:02 [arg_utils.py:1503] The global random seed is set to 0. Since VLLM_ENABLE_V1_MULTIPROCESSING is set to False, this may affect the random state of the Python process that launched vLLM.
+INFO 05-27 01:45:09 [model.py:568] Resolved architecture: LlamaForCausalLM
+WARNING 05-27 01:45:09 [model.py:2035] Casting torch.bfloat16 to torch.float16.
+INFO 05-27 01:45:09 [model.py:1697] Using max model len 2048
+INFO 05-27 01:45:09 [scheduler.py:239] Chunked prefill is enabled with max_num_batched_tokens=16384.
+INFO 05-27 01:45:09 [vllm.py:886] Asynchronous scheduling is enabled.
+INFO 05-27 01:45:09 [kernel.py:212] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 05-27 01:45:09 [core.py:109] Initializing a V1 LLM engine (v0.21.0) with config: model='/root/.cache/huggingface/hub/models--TinyLlama--TinyLlama-1.1B-Chat-v1.0/snapshots/fe8a4ea1ffedaf415f4da2f062534de366a451e6', speculative_config=None, tokenizer='/root/.cache/huggingface/hub/models--TinyLlama--TinyLlama-1.1B-Chat-v1.0/snapshots/fe8a4ea1ffedaf415f4da2f062534de366a451e6', skip_tokenizer_init=False, tokenizer_mode=auto, revision=None, tokenizer_revision=None, trust_remote_code=False, dtype=torch.float16, max_seq_len=2048, download_dir=None, load_format=auto, tensor_parallel_size=1, pipeline_parallel_size=1, data_parallel_size=1, decode_context_parallel_size=1, dcp_comm_backend=ag_rs, disable_custom_all_reduce=False, quantization=None, quantization_config=None, enforce_eager=False, enable_return_routed_experts=False, kv_cache_dtype=auto, device_config=cuda, structured_outputs_config=StructuredOutputsConfig(backend='auto', disable_any_whitespace=False, disable_additional_properties=False, reasoning_parser='', reasoning_parser_plugin='', enable_in_reasoning=False), observability_config=ObservabilityConfig(show_hidden_metrics_for_version=None, otlp_traces_endpoint=None, collect_detailed_traces=None, kv_cache_metrics=False, kv_cache_metrics_sample=0.01, cudagraph_metrics=False, enable_layerwise_nvtx_tracing=False, enable_mfu_metrics=False, enable_mm_processor_stats=False, enable_logging_iteration_details=False), seed=0, served_model_name=/root/.cache/huggingface/hub/models--TinyLlama--TinyLlama-1.1B-Chat-v1.0/snapshots/fe8a4ea1ffedaf415f4da2f062534de366a451e6, enable_prefix_caching=True, enable_chunked_prefill=True, pooler_config=None, compilation_config={'mode': <CompilationMode.VLLM_COMPILE: 3>, 'debug_dump_path': None, 'cache_dir': '', 'compile_cache_save_format': 'binary', 'backend': 'inductor', 'custom_ops': ['none'], 'ir_enable_torch_wrap': True, 'splitting_ops': ['vllm::unified_attention_with_output', 'vllm::unified_mla_attention_with_output', 'vllm::mamba_mixer2', 'vllm::mamba_mixer', 'vllm::short_conv', 'vllm::linear_attention', 'vllm::plamo2_mamba_mixer', 'vllm::gdn_attention_core', 'vllm::gdn_attention_core_xpu', 'vllm::olmo_hybrid_gdn_full_forward', 'vllm::kda_attention', 'vllm::sparse_attn_indexer', 'vllm::rocm_aiter_sparse_attn_indexer', 'vllm::deepseek_v4_attention', 'vllm::unified_kv_cache_update', 'vllm::unified_mla_kv_cache_update'], 'compile_mm_encoder': False, 'cudagraph_mm_encoder': False, 'encoder_cudagraph_token_budgets': [], 'encoder_cudagraph_max_vision_items_per_batch': 0, 'encoder_cudagraph_max_frames_per_batch': None, 'compile_sizes': [], 'compile_ranges_endpoints': [16384], 'inductor_compile_config': {'enable_auto_functionalized_v2': False, 'size_asserts': False, 'alignment_asserts': False, 'scalar_asserts': False, 'combo_kernels': True, 'benchmark_combo_kernel': True}, 'inductor_passes': {}, 'cudagraph_mode': <CUDAGraphMode.FULL_AND_PIECEWISE: (2, 1)>, 'cudagraph_num_of_warmups': 1, 'cudagraph_capture_sizes': [1, 2, 4, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104, 112, 120, 128, 136, 144, 152, 160, 168, 176, 184, 192, 200, 208, 216, 224, 232, 240, 248, 256, 272, 288, 304, 320, 336, 352, 368, 384, 400, 416, 432, 448, 464, 480, 496, 512], 'cudagraph_copy_inputs': False, 'cudagraph_specialize_lora': True, 'use_inductor_graph_partition': False, 'pass_config': {'fuse_norm_quant': False, 'fuse_act_quant': False, 'fuse_attn_quant': False, 'enable_sp': False, 'fuse_gemm_comms': False, 'fuse_allreduce_rms': False, 'fuse_act_padding': False}, 'max_cudagraph_capture_size': 512, 'dynamic_shapes_config': {'type': <DynamicShapesType.BACKED: 'backed'>, 'evaluate_guards': False, 'assume_32_bit_indexing': False}, 'local_cache_dir': None, 'fast_moe_cold_start': False, 'static_all_moe_layers': []}, kernel_config=KernelConfig(ir_op_priority=IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native']), enable_flashinfer_autotune=False, moe_backend='auto')
+[cipher_v2] GREEN/CP54: ALLOCATE ok — qos=1 sm_count=0 -> grp_mask=0x0000 grp_count=0
+[cipher_v2] SMP: sm_packer initialized (threshold=4096 threads, 32 stream slots)
+[cipher_v2] PR: cipher_rt_pr_init entered
+[cipher_v2] PR: partition router initialized (cache=256 slots, tenant_handle=0x00000000)
+[cipher_v2] CUPTI subscribed: kernel launch callbacks active (flush every 256 launches); cuStreamCreate hooks armed
+[cipher_v2] MATMUL: substrate initialized (max 16 actuators; first registration awaited)
+[cipher_v2] MARLIN: actuator DISABLED (CIPHER_MARLIN not set)
+[CIPHER KOOPMAN] env-gated off (CIPHER_KOOPMAN!=1)
+[cipher-attn] substrate active (torch verified 2.11.0+cu130); symbol resolution is lazy per-call
+[cipher-attn-test] disabled (CIPHER_ATTN_TEST unset)
+[cipher-audit] disabled (CIPHER_AUDIT unset)
+[CIPHER REMEMBER] env-gated off (CIPHER_REMEMBER!=1)
+[cipher_v2] counter-dump: installed at CIPHER_RT_COUNTER_DUMP_PATH (atexit + SIGUSR1)
+[cipher_v2] LT-VARIANT: 17/17 cuBLAS-Lt variant trampolines armed
+[cipher_v2] DLSYM-HOOK: registered (real dlsym=0x76dd22954740 dlvsym=0x76dd22954840; 17 shims in registry)
+[cipher_v2] GOT: patch applied -- 85 slot(s) across 290 module(s); 7 target(s) registered
+[CIPHER MAY13-INTERCEPT] Init — cuGetProcAddress + cuLaunch shims via GOT-patch (B.6''.9.8.1)
+[CIPHER HOOK]   patched dlsym GOT in /usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib/libcublasLt.so.13 (was 0x76dafde16580)
+[CIPHER HOOK]   patched dlsym GOT in /usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib/libcublas.so.13 (was 0x76dafde16580)
+[CIPHER HOOK]   patched dlsym GOT in /usr/local/lib/python3.12/dist-packages/nvidia/cudnn/lib/libcudnn.so.9 (was 0x76dafde16580)
+[CIPHER HOOK]   patched dlsym GOT in /usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib/libcufft.so.12 (was 0x76dafde16580)
+[CIPHER HOOK]   patched dlsym GOT in /usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib/libcurand.so.10 (was 0x76dafde16580)
+[CIPHER HOOK]   patched dlsym GOT in /usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib/libcusparse.so.12 (was 0x76dafde16580)
+[CIPHER HOOK]   patched dlsym GOT in /usr/local/lib/python3.12/dist-packages/nvidia/cusparselt/lib/libcusparseLt.so.0 (was 0x76dafde16580)
+[CIPHER HOOK]   patched dlsym GOT in /usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib/libcusolver.so.12 (was 0x76dafde16580)
+[CIPHER HOOK]   patched dlsym GOT in /usr/local/lib/python3.12/dist-packages/torch/lib/libtorch_cuda.so (was 0x76dafde16580)
+[CIPHER HOOK]   patched cuGetProcAddress_v2          in /usr/local/lib/python3.12/dist-packages/vllm/_C.abi3.so (was 0x76dcf5f7dd70)
+[CIPHER HOOK]   patched dlsym GOT in /usr/local/cuda/targets/x86_64-linux/lib/libcublas.so (was 0x76dafde16580)
+[cipher_v2] auto-init: V1 Phase A constructor complete pid=1
+[cipher_v2] CLASSIFY: actuator 'may13_default' registered at priority 0 (slot 0/1)
+[cipher_v2] DISPATCH: substrate registered, LIVE=1 (1 = classifier-driven routing engaged by default; set CIPHER_DISPATCH_LIVE=0 to disable)
+INFO 05-27 01:45:10 [parallel_state.py:1410] world_size=1 rank=0 local_rank=0 distributed_init_method=tcp://172.17.0.2:32917 backend=nccl
+INFO 05-27 01:45:10 [parallel_state.py:1723] rank 0 in world size 1 is assigned as DP rank 0, PP rank 0, PCP rank 0, TP rank 0, EP rank N/A, EPLB rank N/A
+INFO 05-27 01:45:11 [topk_topp_sampler.py:45] Using FlashInfer for top-p & top-k sampling.
+[cipher_v2] GREEN: CP 5.4 qos=shared — tenant owns no SM groups; no green context created (runs on primary context; pool binding lands in Step 1.3b')
+[CIPHER L3.8] Structural lookup initialized. 42 rules. Name cache pre-warmed.
+[CIPHER ORACLE] Initialized.
+  N_max:          4
+  EMA κ:          0.999
+  Divergence:     2.0σ
+  Warmup steps:   500
+  Min confidence: 60%
+INFO 05-27 01:45:11 [gpu_model_runner.py:4857] Starting to load model /root/.cache/huggingface/hub/models--TinyLlama--TinyLlama-1.1B-Chat-v1.0/snapshots/fe8a4ea1ffedaf415f4da2f062534de366a451e6...
+INFO 05-27 01:45:11 [cuda.py:372] Using FLASH_ATTN attention backend out of potential backends: ['FLASH_ATTN', 'FLASHINFER', 'TRITON_ATTN', 'FLEX_ATTENTION'].
+INFO 05-27 01:45:11 [flash_attn.py:641] Using FlashAttention version 3
+INFO 05-27 01:45:11 [weight_utils.py:938] Filesystem type for checkpoints: EXT4. Checkpoint size: 2.05 GiB. Available RAM: 214.83 GiB.
+INFO 05-27 01:45:11 [weight_utils.py:961] Auto-prefetch is disabled because the filesystem (EXT4) is not a recognized network FS (NFS/Lustre). If you want to force prefetching, start vLLM with --safetensors-load-strategy=prefetch.
+Loading safetensors checkpoint shards:   0% Completed | 0/1 [00:00<?, ?it/s]
+Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  2.15it/s]
+Loading safetensors checkpoint shards: 100% Completed | 1/1 [00:00<00:00,  2.15it/s]
+
+INFO 05-27 01:45:12 [default_loader.py:397] Loading weights took 0.50 seconds
+INFO 05-27 01:45:12 [gpu_model_runner.py:4959] Model loading took 2.05 GiB memory and 0.837882 seconds
+INFO 05-27 01:45:16 [backends.py:1089] Using cache directory: /root/.cache/vllm/torch_compile_cache/ed0467761a/rank_0_0/backbone for vLLM's torch.compile
+INFO 05-27 01:45:16 [backends.py:1148] Dynamo bytecode transform time: 3.78 s
+INFO 05-27 01:45:20 [backends.py:378] Cache the graph of compile range (1, 16384) for later use
+INFO 05-27 01:45:23 [backends.py:393] Compiling a graph for compile range (1, 16384) takes 6.38 s
+INFO 05-27 01:45:25 [decorators.py:708] saved AOT compiled function to /root/.cache/vllm/torch_compile_cache/torch_aot_compile/88c61c23f6823b614e66610ac465ec98522422e791d69641463be9643f734206/rank_0_0/model
+INFO 05-27 01:45:25 [monitor.py:53] torch.compile took 12.23 s in total
+[CIPHER LIBLOAD-ENTRY] #0 image=0x76dd15a171a8
+[CIPHER HOOK]   patched dlsym GOT in /usr/local/lib/python3.12/dist-packages/cudnn/_compiled_module.cpython-312-x86_64-linux-gnu.so (was 0x76dd22954740)
+[CIPHER HOOK]   patched cuModuleGetFunction          in /root/.triton/cache/77NNNEUZ3IJOQFHAPQOAH2TMPI6XDVGAVLSETB3SUTUUIDAWX3OA/cuda_utils.cpython-312-x86_64-linux-gnu.so (was 0x76dcf5f2b560)
+[CIPHER HOOK]   patched cuModuleLoadData             in /root/.triton/cache/77NNNEUZ3IJOQFHAPQOAH2TMPI6XDVGAVLSETB3SUTUUIDAWX3OA/cuda_utils.cpython-312-x86_64-linux-gnu.so (was 0x76dcf5f2b1a0)
+[CIPHER LIBGETKER] #0 ker=0x4f26b130 name=_ZN6cublas8internal23nopClusterDiscoveryToolEv
+[CIPHER KERGETFN] #0 ker=0x4f26b130 func=0x4f9c97a0 name=_ZN6cublas8internal23nopClusterDiscoveryToolEv
+[CIPHER KERGETFN] #1 ker=0x4f26b130 func=0x4f9c97a0 name=_ZN6cublas8internal23nopClusterDiscoveryToolEv
+[CIPHER LIBLOAD-ENTRY] #1 image=0x76dd15a17190
+[cipher_v2] CUBLAS-SHIM: real cublasGemmEx=0x76dcf26e16d0 getStream=0x76dcf276e140 ltMatmul=0x76dcfc9924d0 resolved
+[CIPHER LIBLOAD-ENTRY] #2 image=0x505d3a40
+[CIPHER LIBGETKER] #1 ker=0x4e982010 name=_ZN7cutlass7Kernel2I53cutlass_75_tensorop_f16_s1688gemm_f16_64x64_nn_align1EEvNT_6ParamsE
+[CIPHER LIBLOAD-ENTRY] #3 image=0x500d1590
+[CIPHER LIBGETKER] #2 ker=0x4fa2da30 name=_ZN7cutlass7Kernel2I58cutlass_75_tensorop_f16_s1688gemm_relu_f16_64x64_nn_align8EEvNT_6ParamsE
+[CIPHER LIBLOAD-ENTRY] #4 image=0x50d91d60
+[CIPHER LIBGETKER] #3 ker=0x50238840 name=_ZN7cutlass7Kernel2I58cutlass_75_tensorop_f16_s1688gemm_gelu_f16_64x64_nn_align8EEvNT_6ParamsE
+[CIPHER LIBGETKER] #4 ker=0x50d52e10 name=_ZN7cutlass7Kernel2I59cutlass_75_tensorop_f16_s1688gemm_drelu_f16_64x64_nn_align8EEvNT_6ParamsE
+[CIPHER L1.3] Registry initialized: 42 entries (day-one).
+[CIPHER L3.8] Structural lookup initialized. 42 rules. Name cache pre-warmed.
+[CIPHER ORACLE] Initialized.
+  N_max:          4
+  EMA κ:          0.999
+  Divergence:     2.0σ
+  Warmup steps:   500
+  Min confidence: 60%
+[CIPHER] kernel #1 fn=0x56df3a00 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #2 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #3 fn=0x5b09d320 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #4 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #5 fn=0x56df3a00 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #6 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #7 fn=0x5b09d320 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #8 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #9 fn=0x56df3a00 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #10 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #11 fn=0x5b09d320 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #12 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #13 fn=0x56df3a00 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #14 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #15 fn=0x5b09d320 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #16 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #17 fn=0x56df3a00 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #18 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #19 fn=0x5b09d320 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #20 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #21 fn=0x56df3a00 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #22 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #23 fn=0x5b09d320 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #24 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #25 fn=0x56df3a00 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #26 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #27 fn=0x5b09d320 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #28 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #29 fn=0x56df3a00 class=GEMM conf=85 decision=PASS
+[CIPHER] kernel #30 fn=0x5913d090 class=GEMM conf=85 decision=PASS
+[CIPHER L3.9] Topological phase: inference mode (64+ kernels, only GEMM/ELEMENTWISE/REDUCTION). Phase → CONVERGENCE. Substitution ENABLED.
+INFO 05-27 01:45:25 [monitor.py:81] Initial profiling/warmup run took 0.74 s
+[CIPHER MODLOAD-ENTRY] #0 image=0x67ca9130
+[CIPHER HOOK]   patched cudaLaunchKernelExC          in /usr/local/lib/python3.12/dist-packages/flashinfer_jit_cache/jit_cache/sampling/sampling.so (was 0x76d71aa8c596)
+[CIPHER HOOK]   patched __cudaLaunchKernel           in /usr/local/lib/python3.12/dist-packages/flashinfer_jit_cache/jit_cache/sampling/sampling.so (was 0x76d71aa8c8b6)
+INFO 05-27 01:45:32 [gpu_model_runner.py:6063] Profiling CUDA graph memory: PIECEWISE=51 (largest=512), FULL=51 (largest=512)
+INFO 05-27 01:45:33 [gpu_model_runner.py:6142] Estimated CUDA graph memory: 0.42 GiB total
+INFO 05-27 01:45:33 [gpu_worker.py:462] Available KV cache memory: 36.1 GiB
+INFO 05-27 01:45:33 [gpu_worker.py:477] CUDA graph memory profiling is enabled (default since v0.21.0). The current --gpu-memory-utilization=0.5000 is equivalent to --gpu-memory-utilization=0.4947 without CUDA graph memory profiling. To maintain the same effective KV cache size as before, increase --gpu-memory-utilization to 0.5053. To disable, set VLLM_MEMORY_PROFILER_ESTIMATE_CUDAGRAPHS=0.
+INFO 05-27 01:45:33 [kv_cache_utils.py:1710] GPU KV cache size: 1,720,832 tokens
+INFO 05-27 01:45:33 [kv_cache_utils.py:1711] Maximum concurrency for 2,048 tokens per request: 840.25x
+INFO 05-27 01:45:33 [kernel_warmup.py:44] Skipping FlashInfer autotune because it is disabled.
+Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):   6%|▌         | 3/51 [00:00<00:02, 18.92it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  10%|▉         | 5/51 [00:00<00:02, 15.62it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  14%|█▎        | 7/51 [00:00<00:03, 13.56it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  18%|█▊        | 9/51 [00:00<00:03, 13.27it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  24%|██▎       | 12/51 [00:00<00:02, 15.80it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  27%|██▋       | 14/51 [00:00<00:02, 15.07it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  31%|███▏      | 16/51 [00:01<00:02, 15.35it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  35%|███▌      | 18/51 [00:01<00:02, 16.49it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  39%|███▉      | 20/51 [00:01<00:01, 17.30it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  43%|████▎     | 22/51 [00:01<00:01, 16.74it/s][CIPHER] kernel #5000 fn=0x69dc2d30 class=GEMM conf=85 decision=PASS
+Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  47%|████▋     | 24/51 [00:01<00:01, 16.45it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  51%|█████     | 26/51 [00:01<00:01, 15.07it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  55%|█████▍    | 28/51 [00:01<00:01, 15.31it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  59%|█████▉    | 30/51 [00:01<00:01, 14.66it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  63%|██████▎   | 32/51 [00:02<00:01, 15.08it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  67%|██████▋   | 34/51 [00:02<00:01, 13.72it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  71%|███████   | 36/51 [00:02<00:01, 14.34it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  75%|███████▍  | 38/51 [00:02<00:00, 13.96it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  78%|███████▊  | 40/51 [00:02<00:00, 12.60it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  82%|████████▏ | 42/51 [00:02<00:00, 11.49it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  86%|████████▋ | 44/51 [00:03<00:00, 11.40it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  90%|█████████ | 46/51 [00:03<00:00, 10.46it/s]Capturing CUDA graphs (mixed prefill-decode, PIECEWISE):  94%|█████████▍| 48/51 [00:03<00:00, 10.60it/s][CIPHER] kernel #10000 fn=0x6e9eaf30 class=GEMM conf=85 decision=PASS
+Capturing CUDA graphs (mixed prefill-decode, PIECEWISE): 100%|██████████| 51/51 [00:03<00:00, 14.16it/s]
+Capturing CUDA graphs (decode, FULL):   0%|          | 0/51 [00:00<?, ?it/s]Capturing CUDA graphs (decode, FULL):  14%|█▎        | 7/51 [00:00<00:00, 60.72it/s]Capturing CUDA graphs (decode, FULL):  27%|██▋       | 14/51 [00:00<00:00, 61.05it/s]Capturing CUDA graphs (decode, FULL):  41%|████      | 21/51 [00:00<00:00, 61.30it/s][CIPHER] kernel #15000 fn=0x6a59ace0 class=GEMM conf=85 decision=PASS
+Capturing CUDA graphs (decode, FULL):  55%|█████▍    | 28/51 [00:00<00:00, 61.10it/s]Capturing CUDA graphs (decode, FULL):  69%|██████▊   | 35/51 [00:00<00:00, 61.58it/s]Capturing CUDA graphs (decode, FULL):  82%|████████▏ | 42/51 [00:00<00:00, 61.57it/s]Capturing CUDA graphs (decode, FULL):  96%|█████████▌| 49/51 [00:00<00:00, 61.80it/s]Capturing CUDA graphs (decode, FULL): 100%|██████████| 51/51 [00:00<00:00, 61.51it/s]
+INFO 05-27 01:45:39 [gpu_model_runner.py:6243] Graph capturing finished in 5 secs, took 0.39 GiB
+INFO 05-27 01:45:39 [gpu_worker.py:621] CUDA graph pool memory: 0.39 GiB (actual), 0.42 GiB (estimated), difference: 0.02 GiB (5.9%).
+INFO 05-27 01:45:39 [jit_monitor.py:54] Kernel JIT monitor activated — Triton JIT compilations during inference will be logged as warnings.
+INFO 05-27 01:45:39 [core.py:299] init engine (profile, create kv cache, warmup model) took 26.41 s (compilation: 12.23 s)
+WARNING 05-27 01:45:39 [jit_monitor.py:103] Triton kernel JIT compilation during inference: _compute_slot_mapping_kernel. This causes a latency spike; consider extending warmup to cover this shape/config.
+[CIPHER MODLOAD-ENTRY] #1 image=0x78fef7a0
+[CIPHER MODLOAD-ENTRY] #2 image=0x78f51f10
+[CIPHER] kernel #20000 fn=0x78d952b0 class=GEMM conf=85 decision=PASS
+[a2-regression] rep=0 elapsed=0.8652 n_gen=128
+[a2-regression] rep=1 elapsed=0.2018 n_gen=128
+[a2-regression] ctypes snapshot failed: module 'ctypes' has no attribute 'RTLD_LAZY'
+[rank0]:[W527 01:45:40.940938186 ProcessGroupNCCL.cpp:1575] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[cipher_v2] MATMUL: exit totals — calls=19090 handled=0 passthrough=19090 (actuators=0)
+[cipher_v2] DIAG-T4.2.4d: total_launches=69514 streams_observed=0 ctx_swaps_to_green=0
+[cipher_v2] DIAG-T4.2.4d: on_our_green=0 on_other_green=0 on_primary=47272 on_null_stream=22242
+[CIPHER HOOK] Teardown. Intercepts: 20146 | ProcAddr: 883 | GOT patches: 16
+
+[CIPHER BILLING] ════════════════════════════════════════
+  GEMM dispatches:       18379
+    substituted (O(1)):  0  (0.0%)
+    passthrough (cuBLAS):18379  (100.0%)
+  FLOPs substituted:     0.00e+00  (0.0% of total)
+  FLOPs passthrough:     0.00e+00
+  Non-GEMM dispatches:   0
+    substituted:         0
+  MFU (last observed):   0.0%
+  Oracle confidence adj: +0
+════════════════════════════════════════════════════════
+[cipher-attn] exit totals - tramp_calls=0 tramp_fake=0 observed=0 handled=0 passthrough=0 redirected=0 (flash=0 eff=0 cudnn=0)

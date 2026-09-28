@@ -1,0 +1,90 @@
+{
+  "campaign": "V1 Phase B B.3'' Gate A - cuBLAS shim count under vanilla vLLM container",
+  "date": "2026-05-26",
+  "purpose": "Per V1 Phase B scope-lock addendum B.1'' §7 sub-step 3 Gate A: prove substrate fires inside vanilla vLLM container without ANY customer-side CIPHER reference.",
+  "anchors_at_gate": {
+    "cipher_rt_phase4": "8613812e tag v1-substrate-driver-worker-init",
+    "libcipher_rt_so_md5": "1d91e7da",
+    "cipher_kmod": "8c643fc tag week-13-14-complete",
+    "cipher_platform_deb": "cipher-platform_2.0_amd64.deb md5 d7eb6223 (installed via apt)",
+    "cipher_fusion_evidence": "d4f235c (B.2'' substep 8 commit; this Gate A lands at next commit)"
+  },
+  "pre_conditions_check": {
+    "cipher_platform_v2_installed": "PASS (dpkg -s cipher-platform Version 2.0)",
+    "sudo_verify": "PASS (rc=0)",
+    "sudo_health_check": "PASS (rc=0)",
+    "cdi_marker_in_nvidia_yaml": "PASS (grep -c CIPHER_CDI_MARKER = 1)",
+    "vllm_image": "DEVIATION accepted - vllm/vllm-openai:v0.21.0 (not 0.21.0; tag has v-prefix; pulled successfully)",
+    "docker_perm": "DEVIATION accepted - docker requires sudo (ubuntu not in docker group); using sudo docker as standard ops pattern",
+    "host_python_cipher_vllm_kv_uninstalled": "DEVIATION accepted - cipher-vllm-kv still pip-installed in host /home/ubuntu/cipher_vllm_plugin (via .pth) AND in vllm_env; however gate runs in container which only sees CDI-bind-mounted /usr/lib/python3/dist-packages/; host-Python state is isolated by container boundary"
+  },
+  "gate_a_command": "sudo docker run --rm --gpus all --shm-size=2g --entrypoint /usr/bin/python3 vllm/vllm-openai:v0.21.0 -c '<inline shim probe>'",
+  "verdict": "FAIL - mechanism finding Branch B",
+  "primary_failure": {
+    "error": "OSError: libcupti.so.12: cannot open shared object file: No such file or directory",
+    "stage": "ctypes.CDLL('libcipher_rt.so') in container Python 3.12",
+    "root_cause": "libcipher_rt.so has DT_NEEDED libcupti.so.12 (built against host CUPTI at Phase A close); container's dynamic linker cannot resolve libcupti.so.12 because it is not on any LD_LIBRARY_PATH (the CDI patch sets LD_LIBRARY_PATH=/usr/lib/cipher only; CIPHER substrate dir has libcipher_rt + libcipher_v2 + libc10 but no libcupti)"
+  },
+  "diagnostic_results": {
+    "(a) CDI patch in nvidia-ctk list": "PASS - nvidia-ctk cdi list reports 3 devices including nvidia.com/gpu=all; CIPHER patch is honored by toolkit",
+    "(b) cipher substrate libs in container": "PASS - /usr/lib/cipher/ in container contains libc10.so + libcipher_rt.so + libcipher_v2.so (all 3 bind-mounted by CDI)",
+    "(c) CUDA_INJECTION env in container": "PASS - container env shows CIPHER_CDI_MARKER=v1 + CUDA_INJECTION64_PATH=/usr/lib/cipher/libcipher_rt.so + LD_LIBRARY_PATH=/usr/lib/cipher (all 3 CIPHER env entries set by CDI)",
+    "(d) substrate cuBLAS GOT patch fire under containerized PyTorch": "NOT REACHED - substrate fails at DT_NEEDED resolution before GOT patcher can run"
+  },
+  "additional_findings": {
+    "F-B.3.1": {
+      "title": "libcupti.so.12 not on container dynamic linker path",
+      "host_paths": [
+        "/usr/lib/x86_64-linux-gnu/libcupti.so.12 (system path)",
+        "/home/ubuntu/.local/lib/python3.10/site-packages/triton/backends/nvidia/lib/cupti/libcupti.so.12 (bundled)",
+        "/home/ubuntu/vllm_env/lib/python3.10/site-packages/triton/backends/nvidia/lib/cupti/libcupti.so.12 (bundled)"
+      ],
+      "container_paths": [
+        "/usr/local/lib/python3.12/dist-packages/triton/backends/nvidia/lib/cupti/libcupti.so.12 (bundled with triton; NOT on LD_LIBRARY_PATH)",
+        "/usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib/libcupti.so.13 (CUDA 13 version; not 12)"
+      ],
+      "remediation_candidates": [
+        "Option 2 (deployment-layer): augment cipher_cdi_patch to also bind-mount /usr/lib/x86_64-linux-gnu/libcupti.so.12 from host into container; ~0.25 ED B.2'' revisit",
+        "Option 3 (deployment-layer): augment cipher_cdi_patch's LD_LIBRARY_PATH env to include /usr/local/lib/python3.12/dist-packages/triton/backends/nvidia/lib/cupti/ (uses container's bundled CUPTI); ~0.1 ED but Python-version-coupled path",
+        "Option 1 (substrate-layer): rebuild libcipher_rt.so without CUPTI dependency, OR with dlopen-on-demand for CUPTI symbols (libcipher's CUPTI usage is for FLOP telemetry per CP 3.3; could be guarded behind env var); substrate rebuild = Phase B scope expansion or carve-out"
+      ]
+    },
+    "F-B.3.2": {
+      "title": "Python ABI mismatch: plugin py310, container py312",
+      "plugin_so_in_deb": "cipher_kv_bridge.cpython-310-x86_64-linux-gnu.so (tagged Python 3.10)",
+      "container_python": "Python 3.12.13 (vllm/vllm-openai:v0.21.0 default)",
+      "impact": "cipher_kv_bridge.so will NOT import in container's Python 3.12; affects Gate B (Week 5 KV-dedup uses cipher_kv_bridge weight arena access)",
+      "interesting_observation": "Pure-Python plugin (cipher_vllm_kv.py via dist-info entry_points) DID load in container's Python 3.12 (visible in first run's [cipher-vllm-kv] hook installed prints); the entry-points discovery mechanism works across Python versions; the C-extension ABI is what mismatches",
+      "remediation_candidates": [
+        "Option 4 (.deb scope expansion): build cipher_kv_bridge.cpython-312-x86_64-linux-gnu.so as well; ship both ABIs in dist-packages; ~0.5 ED if cipher_kv_bridge build is straightforward (depends on whether build deps are in place)",
+        "Option 5 (image pin): pin Phase B to a vLLM image that uses Python 3.10; v0.21.0 uses py312; would need to investigate which vLLM versions are py310-compatible (this approach is brittle for v1.x as vLLM upgrades Python)"
+      ]
+    }
+  },
+  "positive_findings_preserved_for_audit_trail": {
+    "P1": "CIPHER's CDI patch IS honored by nvidia-container-toolkit (P1 mechanism works at the CDI consumption layer)",
+    "P2": "CIPHER substrate libs ARE bind-mounted into container at expected /usr/lib/cipher/ path",
+    "P3": "CIPHER env vars ARE set in container (CUDA_INJECTION64_PATH + LD_LIBRARY_PATH + CIPHER_CDI_MARKER all visible)",
+    "P4": "CIPHER plugin entry-points discovery (cipher_vllm_kv.py + cipher_vllm_kvdedup.py) DOES fire inside container's Python 3.12 via importlib.metadata - dist-info bind-mount + entry_points.txt mechanism works ACROSS Python versions for pure-Python modules",
+    "P5": "vLLM serve in container imports cipher_vllm_kv:register and runs the hook installation code (visible from first run prints before the entrypoint error)"
+  },
+  "branch_classification": {
+    "branch_a_succeeds": "NO - Gate A fails",
+    "branch_b_partial_succeeds": "PARTIAL - mechanism (CDI + bind-mount + env) works; substrate-firing inside container fails on DT_NEEDED + ABI",
+    "branch_c_uninstall_leak": "n/a (not yet tested)",
+    "branch_d_fundamental_fail": "NO - CDI mechanism works; failure is in substrate's DT_NEEDED resolution within container env, NOT in the deployment-injection mechanism"
+  },
+  "hard_stop": {
+    "reason": "Per V1 Phase B scope-lock addendum B.1'' §9 R-B.8'' R-A.1-equivalent caveat carry + discipline note (e) NO AUTO SCOPE-DEGRADE: surface mechanism findings F-B.3.1 + F-B.3.2 immediately; do NOT pick remediation option unilaterally; do NOT proceed to Gate B/C/E which will fail at same DT_NEEDED + ABI issues; Anil adjudication required.",
+    "blocked_gates": ["B", "C", "E (independent of mechanism; CAN run; covered separately)"],
+    "next_step": "Anil pick remediation option from F-B.3.1 (Options 1/2/3) + F-B.3.2 (Options 4/5); B.3'' resumes after fix lands."
+  },
+  "eng_day_consumed": "~0.5 ED of the ~1.5 ED B.3'' budget; remainder reserved post-remediation",
+  "honest_residue": [
+    "1. Diagnostics under sudo docker (ubuntu not in docker group); standard B2B ops pattern; not a contract issue but documented as a DEVIATION above.",
+    "2. Pre-condition 6 (host-Python cipher-vllm-kv uninstall) not enforced; container boundary makes this irrelevant for gate behavior but is a documented deviation.",
+    "3. Gate A's micro-workload (100 matmuls 1024x1024) would have produced shim_calls much lower than the 11000 production threshold even on PASS; the micro-workload was intended to prove mechanism only (any positive count = PASS). PASS-threshold semantics for this micro-workload were ambiguous; n/a here since gate fails before counter is even read.",
+    "4. CIPHER plugin's own substrate-discovery probe also failed in pre-entrypoint vllm serve run (printed '[cipher-vllm-kv] libcipher_rt.so not resolvable; worker GOT patches NOT installed'); same root cause as Gate A primary failure (DT_NEEDED libcupti).",
+    "5. Recommendation surface (not a unilateral pick): Option 2 (CDI bind-mount host libcupti.so.12 from /usr/lib/x86_64-linux-gnu/) is the cheapest fix for F-B.3.1; ~0.25 ED B.2'' revisit. Option 4 (build py312 cipher_kv_bridge.so) is the cheapest fix for F-B.3.2; depends on availability of build deps. Both remediations preserve Goal 5 verbatim (still no customer-side action; CIPHER ops team gets a different .deb)."
+  ]
+}

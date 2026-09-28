@@ -1,0 +1,81 @@
+{
+  "campaign": "V1 Phase B B.6''.3-7-merged - A.2 regression + Gate A 4th attempt under CUDA 13 substrate",
+  "date": "2026-05-26",
+  "purpose": "Per Anil B.6''.3-7-merged scope-lock: A.2 regression and Gate A 4th attempt collapsed into one substep inside vanilla vLLM container; threshold shim_calls > 0 (~100 for the 100-matmul micro-workload). Tag rotation 176c4b2 -> v1-substrate-cuda13-driver-worker-init on PASS.",
+  "anchors_at_test": {
+    "cipher_rt_phase4_head": "176c4b2 (source patch commit; no tag yet)",
+    "libcipher_rt_so_cuda13_md5": "befbe3ecb72e898e77fb57ad93f3abab (preserved at /home/ubuntu/cipher_rt_phase4/build_cuda13/)",
+    "cipher_kmod": "8c643fc tag week-13-14-complete (UNCHANGED)",
+    "cipher_platform_deb_installed_substrate_md5": "1d91e7da (CUDA 12; intentionally bypassed via direct bind-mount for this pre-deb verification)",
+    "container_image": "vllm/vllm-openai:v0.21.0 (CUDA 13, torch 2.11.0+cu130, Python 3.12.13)"
+  },
+  "execution": {
+    "command_shape": "sudo docker run --rm --gpus all + direct bind-mount of build_cuda13/libcipher_rt.so + plugin chain + CUDA_INJECTION64_PATH env + LD_LIBRARY_PATH=/usr/lib/cipher:/usr/local/lib/python3.12/dist-packages/nvidia/cu13/lib",
+    "workload": "torch fp16 randn 1024x1024 + 100x matmul under TORCH_CUBLASLT_DISABLE=1 + allow_tf32=False (forces cublasGemmEx path)"
+  },
+  "result": {
+    "GATE_A4_SHIM_CALLS": 100,
+    "substrate_constructor_fired": true,
+    "got_patch_applied": "8 slot(s) across 68 module(s); 4 target(s) registered (cublasGemmEx + 3 SDPA mangled)",
+    "cublas_shim_resolver_fired": true,
+    "cublas_shim_resolver_message": "CUBLAS-SHIM: real cublasGemmEx=0x7cf3b3ce16d0 getStream=0x7cf3b3d6e140 resolved",
+    "matmul_telemetry": {"calls": 100, "handled": 0, "passthrough": 100, "actuators": 0},
+    "verdict": "PASS - substrate semantic equivalence under CUDA 13 verified; mechanism fires; A.2 PASS threshold met"
+  },
+  "tag_rotation": {
+    "from": "cipher_rt_phase4 8613812e tag v1-substrate-driver-worker-init",
+    "to": "cipher_rt_phase4 176c4b2 tag v1-substrate-cuda13-driver-worker-init",
+    "trigger": "GATE_A4_SHIM_CALLS=100 > 0 PASS verdict per scope-lock B.6''.3-7-merged"
+  },
+  "expected_failures_observed_and_carried": {
+    "dev_cipher_open_failed": "Per F-B.3.5 carry: substrate components (GREEN/CP54, tenant, CUPTI) log open(/dev/cipher) failures inside container; fall back gracefully; cipher_v2 hash-pick green ctx + CUPTI no-fill. Fix lands at B.6''.5 (CDI deviceNode entry).",
+    "ld_library_path_via_e_flag_bug": "Pre-flight test: docker run -e LD_LIBRARY_PATH=path1:path2 truncated value at first colon. Workaround: set inside --entrypoint /bin/sh -c wrapper. To carry forward into B.6''.5 cipher_cdi_patch.py env entry (CDI env is structured, not -e shell parse, so should not hit this bug)."
+  },
+  "f_b_3_6_NEW_finding": {
+    "title": "torch cublasLtMatmul bypasses CIPHER's cublasGemmEx GOT-patch",
+    "description": "Modern torch (2.11.0+cu130) defaults to cublasLtMatmul for fp32/tf32 matmul; CIPHER's substrate GOT-patches only cublasGemmEx (single cuBLAS target; cipher_rt_cublas_shim.c). To force the cublasGemmEx code path, this test set TORCH_CUBLASLT_DISABLE=1 + dtype=fp16 + allow_tf32=False. Under default torch settings, shim_calls=0 (substrate intact, mechanism healthy, just bypassed).",
+    "scope_implications": [
+      "Gate A under default torch settings would FAIL (shim_calls=0)",
+      "Customer vLLM workloads using default torch hot path -> CIPHER's interception layer never fires; capability claims about cuBLAS routing/actuation don't fire either",
+      "Gate B + Gate C are downstream of Gate A; same bypass concern applies"
+    ],
+    "remediation_candidates_for_anil_pick": [
+      {
+        "option": "F-B.3.6 Option 1 (recommended for v1)",
+        "description": "Extend cipher_rt_cublas_shim to also intercept cublasLtMatmul + cublasLtMatmulInit + a few additional cuBLAS-Lt entry points. Substrate source addition; same pattern as existing cublasGemmEx shim. ~1-2 ED substrate work + Phase A regression re-run.",
+        "trade": "Closes the gap for default torch hot path; v1 ships with broader cuBLAS coverage."
+      },
+      {
+        "option": "F-B.3.6 Option 2 (deferred carve-out)",
+        "description": "Ship v1 with cublasGemmEx-only coverage; document in scope-lock §15 honest residue + runbook §6. Customers wanting CIPHER interception must set TORCH_CUBLASLT_DISABLE=1 in their vLLM container start command - violates Goal 5 verbatim (customer-side env var requirement).",
+        "trade": "Fast path but compromises Goal 5; not recommended"
+      },
+      {
+        "option": "F-B.3.6 Option 3",
+        "description": "Set TORCH_CUBLASLT_DISABLE=1 via CIPHER's CDI env entry (host-deploys this env into every container). Customer container default sees this and routes through cublasGemmEx; CIPHER's intercept fires.",
+        "trade": "Preserves Goal 5 verbatim (customer command unchanged). Side effect: may reduce torch performance on shapes where cublasLt would otherwise be faster than classic cuBLAS. Trade investigation needed."
+      },
+      {
+        "option": "F-B.3.6 Option 4",
+        "description": "Customer-side TORCH_CUBLASLT_DISABLE injection via wrapper script in CDI hook (nvidia-cdi-hook prestart). Programmatic injection; container env reflects it.",
+        "trade": "Same as Option 3 but more invasive; not preferable"
+      }
+    ],
+    "recommendation": "Option 1 (substrate extension to cublasLt). v1 ships with broader cuBLAS coverage that matches torch's default hot path. ~1-2 ED additive substrate work. Not a v1.5 carry; the cuBLAS coverage gap would surface immediately on real customer workloads."
+  },
+  "phase_e_pre_flight_carry": {
+    "koopman_device_stub_delta": "Per B.6''.2 surface: 12 nvcc-emitted Koopman tier device-stubs differ between CUDA 12 and CUDA 13 builds. CIPHER_KOOPMAN env-gated OFF; A.2/Gate B/Gate C don't exercise. Phase E CP 5.5 100-agent demo MAY exercise. Phase E pre-flight gate: validate Koopman tier under CUDA 13 with CIPHER_KOOPMAN=1 (Pass I >= 0.9000, Pass II KL=0) before CP 5.5 runs."
+  },
+  "next_steps_per_scope_lock": [
+    "1. Commit this evidence JSON at cipher-fusion-evidence",
+    "2. Tag rotation at cipher_rt_phase4 176c4b2 -> v1-substrate-cuda13-driver-worker-init",
+    "3. Surface F-B.3.6 to Anil for cuBLAS coverage adjudication before B.6''.4",
+    "4. Hold for Anil F-B.3.6 disposition + 'proceed to B.6''.4' signal"
+  ],
+  "anchors_at_pass": {
+    "cipher_rt_phase4": "176c4b2 (will receive tag v1-substrate-cuda13-driver-worker-init at this commit)",
+    "libcipher_rt_so_cuda13_md5": "befbe3ecb72e898e77fb57ad93f3abab",
+    "cipher_kmod": "8c643fc tag week-13-14-complete (UNCHANGED)",
+    "cipher-fusion-evidence": "bb44f13 (will increment with this commit)"
+  }
+}

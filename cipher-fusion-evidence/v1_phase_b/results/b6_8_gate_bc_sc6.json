@@ -1,0 +1,129 @@
+{
+  "campaign": "V1 Phase B B.6''.8 - Gate B + Gate C inside vanilla vLLM container under installed cipher-platform v2.0 rev5 .deb",
+  "date": "2026-05-26",
+  "purpose": "Per Anil B.6''.8 scope: validate Track 2 SC6 substrate semantics inside vanilla vllm/vllm-openai:v0.21.0 container with cipher-platform v2.0 rev5 installed on host. No direct bind-mounts of substrate libs or plugins; pure CDI-mechanism delivery.",
+  "harness_scope_finding": {
+    "anil_prompt_referenced": "sc6_run.py or equivalent Week 5 harness from cipher-fusion-evidence/phase_c/",
+    "harness_audit": "Active harness: cipher-fusion-evidence/phase_c/sc6_run.py (Track 2 SC6 weight-sharing; Memory #28 anchor). Week 5 KV-dedup harness (Memory week5-step3-n4-pass; TinyLlama N=4 45.8 GiB anchor) exists only as historical snapshots at plugin_snapshots/sc_kvdedup_*.py.w5_step3 — not currently runnable as live harness.",
+    "scope_decision": "SC6 substrate weight-sharing harness used for Gate B + Gate C combined (it's the live harness for substrate semantic validation). Week 5 KV-dedup harness reactivation deferred to v1.x test-infrastructure item in scope-lock §15.",
+    "validation_coverage": "Gate B + Gate C both measure Track 2 SC6 substrate weight-sharing semantics across TinyLlama (1.1B regime) + Mistral-7B (production-representative regime). Mistral 76.0% savings is the v1 substrate anchor (Memory #28 baseline match)."
+  },
+  "anchors_at_test": {
+    "cipher_rt_phase4": "78bfded tag v1-substrate-cuda13-cublaslt-coverage",
+    "libcipher_rt_so_md5": "1f305ce6 (CUDA 13 build_cuda13/)",
+    "cipher_kmod": "8c643fc tag week-13-14-complete",
+    "cipher_platform_deb_v2_rev5_md5": "e0439428",
+    "cipher_fusion_evidence_at_test": "8fb28fe"
+  },
+  "pre_conditions_check": {
+    "cipher_platform_v2_installed": "PASS",
+    "sudo_verify_rc_0": "PASS (post-CLI file-sanity fix)",
+    "sudo_health_check_6_of_6_pass": "PASS",
+    "cdi_yaml_marker_present": "PASS",
+    "cdi_yaml_torch_cublaslt_disable_present": "PASS",
+    "cdi_yaml_dev_cipher_devnode_present": "PASS",
+    "docker_image_v0_21_0_present": "PASS",
+    "cipher_fusion_evidence_head": "8fb28fe"
+  },
+  "execution": {
+    "command_shape": "sudo docker run --rm --gpus all --shm-size=4g + bind-mount /home/ubuntu/cipher-fusion-evidence at absolute-path + bind-mount /home/ubuntu/models at absolute-path + --entrypoint python3 + /home/ubuntu/cipher-fusion-evidence/phase_c/sc6_run.py <model> <phase>",
+    "no_explicit_substrate_bind_mount": "true; substrate + plugin chain delivered via installed v2.0 .deb's CDI patch",
+    "container_python": "Python 3.12.13 (vllm-openai:v0.21.0 default)",
+    "container_torch": "torch 2.11.0+cu130 (CUDA 13)"
+  },
+  "gate_b_tinyllama": {
+    "shared_phase": {
+      "arena_id": 1,
+      "fb_mib": {"idle": 0, "loaded": 5908, "exited": 0},
+      "bit_identical_pre_post": [true, true, true, true],
+      "arena_backed": [true, true, true, true],
+      "checks": {
+        "all4_fwd1_bit_identical": true,
+        "all4_fwd2_bit_identical_after_producer_death": true,
+        "all4_arena_backed": true,
+        "arena_survived_producer_sigkill": true,
+        "producer_pid_cleared": true,
+        "all4_consumers_held_arena": true,
+        "arena_reaped_after_last_participant": true
+      },
+      "PASS": true
+    },
+    "independent_phase": {
+      "n_fit": 5,
+      "oom": false,
+      "fb_mib": {"idle": 0, "loaded": 14632, "exited": 0},
+      "per_tenant_mib": 2926.4,
+      "PASS": true
+    },
+    "aggregate": {
+      "est_weights_W_mib": 2181.0,
+      "est_context_C_mib": 745.4,
+      "fb_shared_loaded_mib": 5908,
+      "fb_independent_loaded_mib": 14632,
+      "savings_mib": 8724,
+      "savings_pct_at_N4": 59.6,
+      "asymptote_pct_large_N": 74.5,
+      "teardown_clean_shared": true,
+      "teardown_clean_independent": true
+    },
+    "verdict_tinyllama": "PASS - bit-identity + clean-teardown 7/7 + 5/5-fit + 59.6% savings on 1.1B-regime model (consistent with sub-asymptote regime where C is non-trivial fraction)"
+  },
+  "gate_c_mistral_7b": {
+    "shared_phase": {
+      "bit_identical_pre_post": [true, true, true, true],
+      "arena_backed": [true, true, true, true],
+      "all_7_checks_pass": true,
+      "PASS": true
+    },
+    "independent_phase": {
+      "n_fit": 5,
+      "oom": false,
+      "fb_mib": {"idle": 0, "loaded": 73392, "exited": 0},
+      "per_tenant_mib": 14678.4,
+      "PASS": true
+    },
+    "aggregate": {
+      "est_weights_W_mib": 13940.0,
+      "est_context_C_mib": 738.4,
+      "fb_shared_loaded_mib": 17632,
+      "fb_independent_loaded_mib": 73392,
+      "savings_mib": 55760,
+      "savings_pct_at_N4": 76.0,
+      "asymptote_pct_large_N": 95.0,
+      "teardown_clean_shared": true,
+      "teardown_clean_independent": true
+    },
+    "threshold_check": "76.0% >= 75% threshold from Memory #28 baseline -> PASS",
+    "memory_28_baseline_match": "EXACT (76.0% == 76.0% Track 2 closeout 2026-05-19)",
+    "verdict_mistral": "PASS - Track 2 SC6 weight-sharing substrate semantics reproduce EXACTLY under CUDA 13 substrate + Path B' + CDI deployment + installed v2.0 .deb"
+  },
+  "substrate_mechanism_validation_end_to_end": {
+    "no_explicit_bind_mounts": "Container received NOTHING substrate-related via docker -v except cipher-fusion-evidence + models; substrate libs + plugin chain delivered via CDI patch from installed v2.0 .deb",
+    "substrate_constructor_in_container": "Inferred fires per substrate logs in earlier Gate A 5th attempt (logged: cipher_v2 LT-VARIANT 17/17 trampolines armed + DLSYM-HOOK 17 shims + GOT 53 slots/67 modules/7 targets + auto-init complete pid=N)",
+    "plugin_chain_in_container": "cipher_vllm_kv + cipher_vllm_kvdedup + cipher_kv_offload + cipher_model_fingerprint + cipher_kv_bridge.cpython-312 imported from CDI-bind-mounted /usr/lib/python3/dist-packages/",
+    "dev_cipher_in_container": "ioctl chain via /dev/cipher works (sc6 producer/consumer use sc5_arena_ioctl for kmod arena REGISTER/IMPORT/LEAVE/QUERY operations; substrate-allocated arenas across processes; arena_id=1 reproduced bit-identical results)",
+    "verdict": "M1 nvidia-container-toolkit CDI + P1 in-place patch mechanism is end-to-end validated. Substrate fires + plugin chain loads + kmod ioctls work + Track 2 weight-sharing reproduces baseline. v1 deployment mechanism PASS."
+  },
+  "v1_substrate_coverage_status": {
+    "vllm_bf16_workloads": "covered (cublasGemmEx; Gate A 5th)",
+    "vllm_fp16_workloads": "covered (cublasGemmEx; Gate A 5th)",
+    "track_2_weight_sharing_via_kmod_arena": "covered (Gate B Mistral 76.0% baseline match)",
+    "documented_cublaslt_api_callers_dlsym_path": "covered (17 variant trampolines + dlsym hook; defense-in-depth)",
+    "cublasgemmex_phase_a_path": "covered (Phase A close)",
+    "fp32_default_torch_cublasltSSSmatmul_via_algo_fnpointer": "GAP (item 13; v2 driver-API resolution)",
+    "cutlass_kernels_outside_cublas": "GAP (v2 driver-API)",
+    "cudnn_workloads": "GAP (v2 driver-API; v1 vLLM inference doesn't use cuDNN)",
+    "customer_raw_cuda_kernels": "GAP (v2 driver-API)"
+  },
+  "summary": {
+    "gate_b_verdict": "PASS - TinyLlama SC6 weight-sharing semantics reproduce under v1 deployment",
+    "gate_c_verdict": "PASS - Mistral-7B SC6 76.0% savings EXACT MATCH to Memory #28 baseline",
+    "v1_deployment_mechanism": "VALIDATED end-to-end via CDI delivery (no direct bind-mounts of substrate)",
+    "honest_residue_carried_to_scope_lock_section_15": [
+      "Week 5 KV-dedup harness reactivation deferred to v1.x test-infrastructure",
+      "item 13 fp32 cublasLtSSSMatmul gap (v2 driver-API resolution)",
+      "item 12 cuBLAS-Lt actuator dispatch on documented-API callers (telemetry only in v1)",
+      "v2 substrate roadmap: driver-API-level interception with proper test infrastructure (~12-18 ED)"
+    ]
+  }
+}

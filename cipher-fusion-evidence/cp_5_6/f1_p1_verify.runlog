@@ -1,0 +1,70 @@
+CP 5.6 Priority 1 — full-GPU-path cross-context exposure: verify + fix
+======================================================================
+Harness: f1_p1_verify.cpp  (Mistral-7B L0 q_proj [4096,4096], M=1)
+Caller context: a RAW driver-API green-derived CUcontext (cuGreenCtxCreate,
+  NOT cipher_rt_green_ctx_ensure) — so the library's g_green_sm_count stays
+  0 and dispatch is forced down the full-GPU / PrimaryCtxGuard branch, while
+  the caller still runs on a non-primary context.
+Per iter: memset(C,0) on caller ctx ; dispatch ; cuMemcpyDtoH(C) on caller
+  ctx — NO cross-context synchronisation.
+degenerate gate: nan|inf | cos<0.85 | rel>0.35   (correct = rel~0.140)
+
+----- BASELINE: dc804eb3 (libcipher_rt.so.pre_cp56), pre-fix -----
+[ctx] raw green-derived caller ctx created (!= primary)
+[ctx] cipher_rt_green_ctx_sm_count() = 0  -> dispatch takes FULL-GPU path
+    iter 0    nan=0 inf=0 zeros=0    rel=0.1400 cos=0.9905   ok
+    iter 1..99  nan=0 inf=0 zeros=4096 rel=1.0000 cos=0.0000  <<< DEGENERATE
+    control (after primary-context drain): rel=0.1400 cos=0.9905  ok
+    degenerate iters: 99 / 100
+    RESULT: BROKE — full-GPU-path cross-context race reproduced
+
+  => Confirms the Priority 1 exposure: dc804eb3's STEP 2 fix only scoped the
+     guard out for the LIBRARY's green ctx. The full-GPU path still wraps the
+     GEMM in PrimaryCtxGuard unconditionally; any caller on a non-primary
+     context races exactly as finding F1 describes.
+
+----- FIXED: a7ac8e97 (libcipher_rt.so, CP 5.6 P1) -----
+[ctx] raw green-derived caller ctx created (!= primary)
+[ctx] cipher_rt_green_ctx_sm_count() = 0  -> dispatch takes FULL-GPU path
+    iter 0    nan=0 inf=0 zeros=0    rel=0.1400 cos=0.9905   ok
+    iter 99   nan=0 inf=0 zeros=0    rel=0.1400 cos=0.9905   ok
+    last iter first 10:  engine = -0.286, 0.174, 0.325, ... | ref = -0.261, ...
+    control (after primary-context drain): rel=0.1400 cos=0.9905  ok
+    degenerate iters: 0 / 100
+    RESULT: PASS — full-GPU path is cross-context safe
+
+----- REGRESSION: Variant F green path on a7ac8e97 -----
+    (f1_variantF_crossctx, library green ctx active, sm_count=8)
+    degenerate iters: 0 / 100   RESULT: PASS — green path unchanged, no regression
+
+----- REGRESSION: full-GPU + caller-on-primary on a7ac8e97 -----
+    (f1_p1_regr_primary = Step 1 harness repointed at the fixed build; the
+     common path — no green ctx, caller already on primary. The fix records
+     the event + issues a same-stream self-wait on the primary NULL stream.)
+    single-GEMM: nan=0 inf=0 rel_err=0.140021 cos=0.990536
+    RESULT: PASS — self-wait is harmless; no crash/hang/error/numeric change
+
+======================================================================
+THE FIX (cipher_rt_marlin_engine.cpp, cipher_rt_marlin_engine_dispatch,
+no-green / full-GPU branch):
+
+  After marlin_gemm_launch, while the PrimaryCtxGuard still holds the
+  primary context current, record a CU_EVENT_DISABLE_TIMING completion
+  event on the GEMM's launch stream. After the guard destructor restores
+  the caller's context, cuStreamWaitEvent(stream, event) enqueues a wait on
+  the caller's stream (a NULL stream resolves to the caller context's
+  default stream — the F1 race case). cuStreamWaitEvent honours an event
+  recorded in a different context, so this is the cross-context ordering
+  primitive. Non-blocking: the host does not stall; the producer/consumer
+  dependency is enforced GPU-side. Per-call event create/record/destroy;
+  an event pool is a Phase-5 perf concern, not correctness.
+
+  Added to the engine's g_api: cuEventCreate / cuEventRecord /
+  cuEventDestroy_v2 / cuStreamWaitEvent (4 dlsyms). Green path UNCHANGED.
+
+ANCHOR ROTATION: dc804eb3 -> a7ac8e97
+  libcipher_rt.so                  md5 a7ac8e979c9c20c914e87d7c8509665a  (CP 5.6 P1)
+  libcipher_rt.so.pre_cp56         md5 dc804eb3b2796652342852f75763d5ed  (preserved dc804eb3)
+
+Priority 1 COMPLETE. Evidence: f1_p1_verify.cpp, f1_p1_verify.runlog,
+cp56_p1_build.log.

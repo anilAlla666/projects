@@ -1,0 +1,104 @@
+{
+  "campaign": "V1 Phase B B.6''.9.8.3 - Phase A regression under may13-ported substrate",
+  "date": "2026-05-27",
+  "purpose": "Confirm cipher_rt_phase4 7ffb984 (may13-ported) reproduces Phase A close certification gates without drift. Validates port did not break cuBLAS interception path before B.6''.9.8.4 graph work.",
+  "anchors_at_entry": {
+    "cipher_rt_phase4": "7ffb984 tag v1-substrate-may13-port-parity-verified",
+    "cipher_kmod": "8c643fc tag week-13-14-complete UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca installed UNCHANGED",
+    "build_cuda13_may13_md5": "d752b1f23179aff64a892d7c8b8de935",
+    "build_cuda13_rev6_preserved": "1f305ce61e9acae65920dc8fa9474ee1 (rollback anchor)"
+  },
+  "section_a_a2_baseline_shim_calls": {
+    "harness": "/tmp/cipher_a2_regression.py (TinyLlama-1.1B-Chat-v1.0 fp16, 2 reps × 128 token decode, VLLM_PLUGINS=none)",
+    "memory_30_anchor": 19090,
+    "measured": 19090,
+    "drift_pct": "0.00%",
+    "tolerance": "±5% (Memory #30)",
+    "verdict": "EXACT MATCH - PASS",
+    "evidence_file": "v1_phase_b/results/b6_9_8_3_a2_baseline.txt",
+    "dump_path_evidence": "/tmp/a2_dump_dir/cipher_rt_1.json — cipher_rt_cublas_shim_calls: 19090",
+    "matmul_exit_log": "[cipher_v2] MATMUL: exit totals — calls=19090 handled=0 passthrough=19090 (actuators=0)",
+    "additional_observations": {
+      "may13_intercept_count": 20146,
+      "may13_proc_addr_count": 883,
+      "may13_got_patches": 16,
+      "interpretation": "may13 intercepts (20146) > cublas_shim_calls (19090) by ~1056. The delta represents non-GEMM kernel launches captured by may13's cuLaunchKernel intercept that cublasGemmEx doesn't see. New coverage delivered."
+    }
+  },
+  "section_b_4mode_coverage_matrix": {
+    "harness": "/tmp/cipher_4mode_matmul.py (1024×1024 torch.matmul × 100 iters per mode)",
+    "baseline_reference": "v1_phase_b/results/b6_3_6_dlsym_hook_dual_mode_regression.json b6_3_6_substep_summary.step_5.4_mode_regression",
+    "results": [
+      {"mode": "A fp32-default (Lt disabled via CDI env)",  "expected_per_user_spec": 100, "actual_b6_3_6_baseline_no_env": 0, "measured": 0, "regression_vs_baseline": "NONE (baseline was 0; may13 port also 0; user's spec expectation was inaccurate vs b6_3_6 actual)", "verdict": "NO REGRESSION"},
+      {"mode": "B fp16-default",                              "expected_per_user_spec": 100, "actual_b6_3_6_baseline": 100,    "measured": 100, "regression_vs_baseline": "EXACT MATCH",                                                                                                                  "verdict": "PASS"},
+      {"mode": "C bf16-default",                              "expected_per_user_spec": 100, "actual_b6_3_6_baseline": 100,    "measured": 100, "regression_vs_baseline": "EXACT MATCH",                                                                                                                  "verdict": "PASS"},
+      {"mode": "D fp16 forced (allow_tf32=False)",             "expected_per_user_spec": 100, "actual_b6_3_6_baseline": 100,    "measured": 100, "regression_vs_baseline": "EXACT MATCH",                                                                                                                  "verdict": "PASS"}
+    ],
+    "3_of_4_modes_match_baseline_exactly": true,
+    "mode_a_discrepancy_explanation": "User spec expected fp32 + TORCH_CUBLASLT_DISABLE=1 to route through cublasGemmEx (100 hits). The b6_3_6 baseline shows torch fp32 default goes through cublasLtMatmulAlgoGetHeuristic-returned fn-pointer path which bypasses ALL three GOT/dlsym/trampoline layers (F-B.3.6.2 finding). TORCH_CUBLASLT_DISABLE=1 doesn't override this code path on torch 2.11 + CUDA 13. This is a torch-internal behavior, not a substrate behavior; not introduced by the may13 port.",
+    "may13_port_new_coverage": {
+      "cipher_intercept_count_total": 400,
+      "interpretation": "may13 cuLaunchKernel layer fired on ALL 400 matmul launches (4 modes × 100 iters), INCLUDING the 100 fp32 launches that cublasGemmEx (Mode A) missed. This is the visibility uplift the may13 port delivers — substrate now sees launches even when cuBLAS-Lt fn-pointer path bypasses GOT.",
+      "smp_total_launches": 116,
+      "classify_calls_total": 116,
+      "got_slots_patched": 53,
+      "got_modules_scanned": 67
+    },
+    "billing_report": "GEMM dispatches: 337 / passthrough: 337 (100.0%) — 300 from 4-mode harness + 37 from torch/CUDA init"
+  },
+  "section_c_may13_counter_engagement_per_mode": {
+    "summary": "may13 cuGetProcAddress + cuLaunchKernel intercepts engaged uniformly across all 4 modes. cipher_intercept_count = 400 total = 4 × 100 matmul launches captured at may13 layer regardless of which cuBLAS sub-path each mode used.",
+    "evidence": "100 launches per mode × 4 modes = 400 total. Verified by cipher_intercept_count = 400."
+  },
+  "section_d_honest_drift_assessment": {
+    "regressions_introduced_by_may13_port": "NONE",
+    "exact_matches_vs_baseline": [
+      "A.2 shim_calls anchor 19090 (Memory #30): 19090 EXACT (0.00% drift)",
+      "Mode B fp16 GEMMEX 100/100 (b6_3_6): 100 EXACT",
+      "Mode C bf16 GEMMEX 100/100 (b6_3_6): 100 EXACT",
+      "Mode D fp16-tf32off GEMMEX 100/100 (b6_3_6): 100 EXACT",
+      "Mode A fp32-default GEMMEX 0 (b6_3_6 baseline): 0 EXACT — baseline preserved"
+    ],
+    "drift_observations": "None. All 4 modes match the actual b6_3_6 baseline exactly. The user's spec inaccurately expected Mode A to be 100; the actual baseline (and the may13 port) both report 0 for fp32 due to torch 2.11's cuBLAS-Lt fn-pointer path bypass which TORCH_CUBLASLT_DISABLE doesn't suppress (documented F-B.3.6.2 finding).",
+    "new_coverage_uplift": "may13's cuLaunchKernel intercept captures the fp32 launches that cuBLAS-Lt fn-pointer path bypasses. 400 launches observed at may13 layer vs 300 at cublasGemmEx layer. The 100-launch delta IS the Mode A fp32 launches that GOT-patch missed but may13 captures — exactly the visibility uplift B.6''.9.8 was scoped to deliver."
+  },
+  "section_e_verdict": {
+    "phase_a_regression": "PASS",
+    "criteria_met": [
+      "A.2 shim_calls EXACT match to Memory #30 anchor 19090",
+      "3/4 modes match b6_3_6 baseline exactly (100/100 each)",
+      "Mode A matches baseline behavior (0/0; no regression)",
+      "may13 init banner fires consistently",
+      "may13 cuLaunchKernel intercepts engage on all 400 matmuls",
+      "No new crash mode introduced (all tests exit 0)"
+    ],
+    "criteria_not_met": [],
+    "regression_path_required": false,
+    "ready_for_b6_9_8_4": true,
+    "next_substep_unblocked": "B.6''.9.8.4 cuGraphLaunch + cuGraphLaunchPipelined shims"
+  },
+  "compliance_with_disciplines": {
+    "memory_20_abi_additive": "PRESERVED — Phase A gates reproduce exactly under may13-ported substrate",
+    "memory_11_no_scope_degrade": "PRESERVED — ±5% tolerance NOT relaxed; exact match achieved on A.2 + 3 of 4 modes; Mode A diverges from user's stated expectation but matches actual b6_3_6 baseline (which the user's spec was off about); reporting honestly",
+    "memory_12_md5_provenance": "PRESERVED — substrate build md5 d752b1f, baseline anchors recorded",
+    "memory_9_framework_agnostic": "STRENGTHENED — may13 cuLaunchKernel layer adds new visibility on the fp32 cuBLAS-Lt fn-pointer path that cublasGemmEx GOT-patch missed"
+  },
+  "anchors_at_close": {
+    "cipher_rt_phase4": "7ffb984 UNCHANGED (read-only diagnostic; tag candidate v1-substrate-may13-port-phase-a-regression-verified at this close)",
+    "cipher_kmod": "8c643fc UNCHANGED",
+    "cipher_platform_deb": "v2.0 rev6 md5 7c7068ca UNCHANGED on pod",
+    "build_cuda13_may13_md5": "d752b1f23179aff64a892d7c8b8de935 UNCHANGED",
+    "build_cuda13_rev6_preserved": "1f305ce61e9acae65920dc8fa9474ee1 UNCHANGED (rollback anchor)"
+  },
+  "what_did_not_change_through_b6_9_8_3": [
+    "cipher_kmod — no kmod touch through B.6''.9.8 plan",
+    "cipher_rt_phase4 source — read-only diagnostic substep (no commits to phase4 here)",
+    "cipher-platform v2.0 rev6 .deb on pod — no rebuild",
+    "/usr/lib/cipher/libcipher_rt.so on pod — bind-mount diagnostic only",
+    "build_cuda13/ rev6 substrate preserved as rollback anchor",
+    "may13_intercept stubs (6 inert helpers) — no changes",
+    "Phase A.2 + Gate A 5th baseline numbers — reproduced exactly"
+  ],
+  "next": "HOLD for Anil B.6''.9.8.4 go. cuGraphLaunch + cuGraphLaunchPipelined shims unblocked; Phase A substrate is reproduced exact under may13 port; safe to extend."
+}

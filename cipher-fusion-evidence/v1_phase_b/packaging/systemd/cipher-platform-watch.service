@@ -1,0 +1,18 @@
+[Unit]
+Description=CIPHER CDI patch re-applier (driven by cipher-platform-watch.path)
+Documentation=file:///usr/lib/cipher/runbook.md
+
+# Burst-rate-limit: avoid storms if upstream tooling rewrites nvidia.yaml in
+# tight succession. Combined with cipher_cdi_patch.py no-write-when-unchanged
+# guard, this prevents a feedback loop on the path-watcher.
+StartLimitIntervalSec=10
+StartLimitBurst=5
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/cipher/cipher_cdi_patch.sh apply
+SyslogIdentifier=cipher-platform-watch
+# Best-effort: do not fail the service if patch cannot apply (e.g.,
+# nvidia.yaml temporarily missing during a regeneration cycle). Operator
+# sees failure in `cipher-platform status` / `cipher-platform logs`.
+SuccessExitStatus=0 1

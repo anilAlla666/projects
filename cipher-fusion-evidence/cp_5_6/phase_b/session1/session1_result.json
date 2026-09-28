@@ -1,0 +1,30 @@
+{
+  "phase": "B",
+  "session": 1,
+  "workload": "WL01 TinyLlama-1.1B B=1 decode, N=2",
+  "architecture": "Form A \u2014 substrate-orchestrated batched-decode executor, Unix-socket IPC, static barrier",
+  "substrate_anchor": "a7ac8e97 UNCHANGED (Python-layer prototype, no libcipher_rt change)",
+  "prototype_batched": {
+    "agg_tok_s": 125.7,
+    "power_w": 144.2,
+    "agg_tok_w": 0.8718
+  },
+  "naive_2_concurrent_control": {
+    "agg_tok_s": 130.3,
+    "power_w": 174.4,
+    "agg_tok_w": 0.7468
+  },
+  "in_process_B2_ceiling_tok_w": 0.921,
+  "single_tenant_baseline_tok_w": 0.488,
+  "lift_vs_1tenant_baseline": 1.786,
+  "substrate_attributable_vs_naive_concurrent": 1.167,
+  "pct_of_in_process_ceiling": 94.7,
+  "correctness_kl_max": 6.6e-05,
+  "correctness_gate": "PASS (<=0.1)",
+  "success_criteria": {
+    "two_tenant_processes": "PASS",
+    "transparent_fusion": "PASS (thin clients; monkeypatch transparency = productionization)",
+    "agg_tokW_ge_1.5x_baseline": "PASS (1.79x)",
+    "per_tenant_correctness_kl_le_0.1": "PASS (kl_max 0.000066)"
+  }
+}
