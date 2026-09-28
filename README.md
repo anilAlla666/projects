@@ -50,9 +50,6 @@ All my code. One branch per project.
 | `soma` / `tirusoma` | SOMA: `~/Desktop/TIRUSOMA-MPC`, the v7 SDK, and every SOMA file in `~/Downloads` |
 | `website/horizons-export` | `~/Downloads/horizons-export-b870d9c0-abdd-4eca-b97f-879c84367732` |
 | `neural-dynamics` | `~/neural-dynamics` |
-| `ml/ann-classification` | `~/Downloads/annclassification` |
-| `ml/lstm-rnn` | `~/Downloads/LSTM RNN` |
-| `ml/simple-rnn-imdb` | `~/Downloads/simple_rnn_imdb` |
 | `ml/openai-ollama` | `~/Downloads/1.1-openai` |
 | `ml/langchain` | `~/Langchain` |
 | `ml/antigravity-transformer` | `~/Desktop/antigravity` |
