@@ -1,0 +1,4 @@
+- [CIPHER v2 cached output success](cipher_v2_cached_output.md) — Path 1 shipped: 1.57x-4.60x speedup via pointer-identity cache, 7/7 validation still passing
+- [CIPHER v2 session complete record](project_cipher_v2_session.md) — 8-phase build on H100, all 12 ops wired, Koopman mechanism proven 20/20
+- [CIPHER v2 next session pickup](cipher_v2_continuation.md) — where to resume, pending decisions, current state
+- [MFU baseline is hardware-limited](feedback_mfu_baseline.md) — H100 sustains ~700 TFLOPS, 989 is boost spec not target
