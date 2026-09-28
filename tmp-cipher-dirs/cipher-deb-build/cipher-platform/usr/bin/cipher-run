@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# cipher-run — launch a tenant workload under the CIPHER platform runtime.
+#
+# CP 2.5 deployment model: CUDA_INJECTION64_PATH only, NO LD_PRELOAD. The
+# CUDA driver dlopen's libcipher_rt.so via CUDA_INJECTION64_PATH; the GOT
+# patcher (installed from InitializeInjection2) re-targets the cuBLAS GEMM
+# and ATen SDPA call sites without link-order interposition.
+#
+# LD_LIBRARY_PATH is prepended with /usr/lib/cipher so libcipher_rt.so's
+# DT_NEEDED libc10.so resolves to the bundled copy — the node is NOT
+# required to have PyTorch installed.
+#
+# Usage:  cipher-run <command> [args...]
+#   e.g.  cipher-run python3 my_inference.py
+set -u
+
+CIPHER_LIB=/usr/lib/cipher
+RT="${CIPHER_LIB}/libcipher_rt.so"
+
+if [ ! -e "$RT" ]; then
+    echo "cipher-run: ${RT} not found — is cipher-platform installed?" >&2
+    exit 1
+fi
+if [ "$#" -eq 0 ]; then
+    echo "usage: cipher-run <command> [args...]" >&2
+    exit 2
+fi
+if [ ! -e /dev/cipher ]; then
+    echo "cipher-run: warning — /dev/cipher absent; is the cipher_kmod" \
+         "module loaded? (modprobe cipher_kmod)" >&2
+fi
+
+export CUDA_INJECTION64_PATH="$RT"
+export LD_LIBRARY_PATH="${CIPHER_LIB}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+
+exec "$@"

@@ -1,0 +1,20 @@
+# CIPHER kernel module — out-of-tree build configuration.
+#
+# Module name (cipher_kmod) must NOT match any .c file's basename here, hence
+# the init file is cipher_main.c rather than cipher_kmod.c.
+obj-m := cipher_kmod.o
+
+cipher_kmod-y := cipher_main.o \
+                 cipher_probe.o \
+                 cipher_ioctl_decode.o \
+                 cipher_proc.o \
+                 cipher_dev.o \
+                 cipher_bar0.o \
+                 cipher_tenant_snapshot.o \
+                 cipher_state_updater.o \
+                 cipher_partition_allocator.o \
+                 cipher_clock.o \
+                 cipher_kvdedup.o \
+                 cipher_flops.o
+
+ccflags-y := -Wall

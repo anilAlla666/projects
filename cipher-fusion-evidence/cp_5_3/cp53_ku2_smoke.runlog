@@ -1,0 +1,14 @@
+CP 5.3 STEP 2 item 2 — KU2 smoke check
+question: primary-loaded module + primary-allocated memory, launched on a green-ctx stream
+=========================================================
+[1] primary context retained + current
+[2] NVRTC kernel compiled + module loaded under PRIMARY ctx
+[3] device has 132 SMs
+[3] green context created — VERIFIED 8 SMs (device has 132)
+[4] 512-elem input + output + smid buffers allocated under PRIMARY ctx
+[5] stream created with green ctx current — stream ctx == green cuctx
+[6] launch grid=8 block=64 : primary module, primary memory, green stream ...
+[6] launch + sync OK
+[7] output: 512/512 elements correct ; distinct smids touched=8 (<=8 => confined)
+    smids: 0 1 16 17 32 33 48 49
+RESULT status=KU2_PASS — primary-loaded module + primary-allocated memory execute correctly on a green-ctx stream; distinct_smids=8

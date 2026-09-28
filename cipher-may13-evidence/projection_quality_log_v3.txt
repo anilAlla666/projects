@@ -1,0 +1,235 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[load] mistralai/Mistral-7B-v0.1 fp16 -> cuda
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   3%|▎         | 10/291 [00:00<00:02, 99.16it/s]Loading weights:   8%|▊         | 24/291 [00:00<00:02, 117.72it/s]Loading weights:  14%|█▎        | 40/291 [00:00<00:01, 129.80it/s]Loading weights:  20%|█▉        | 58/291 [00:00<00:01, 128.41it/s]Loading weights:  26%|██▌       | 76/291 [00:00<00:01, 143.77it/s]Loading weights:  32%|███▏      | 94/291 [00:00<00:01, 134.62it/s]Loading weights:  38%|███▊      | 112/291 [00:00<00:01, 137.71it/s]Loading weights:  45%|████▍     | 130/291 [00:00<00:01, 148.32it/s]Loading weights:  51%|█████     | 148/291 [00:01<00:00, 153.34it/s]Loading weights:  57%|█████▋    | 166/291 [00:01<00:00, 151.94it/s]Loading weights:  63%|██████▎   | 184/291 [00:01<00:00, 149.89it/s]Loading weights:  69%|██████▉   | 202/291 [00:01<00:00, 148.50it/s]Loading weights:  76%|███████▌  | 220/291 [00:01<00:00, 145.31it/s]Loading weights:  82%|████████▏ | 238/291 [00:01<00:00, 145.53it/s]Loading weights:  88%|████████▊ | 256/291 [00:01<00:00, 137.51it/s]Loading weights:  94%|█████████▍| 274/291 [00:01<00:00, 143.07it/s]Loading weights: 100%|██████████| 291/291 [00:02<00:00, 144.75it/s]
+[load] done in 3.3s
+[sanity] testing ProjectedLinear math
+[sanity]   k=  4  cum_var=0.188668  ||err||/||y||=0.899191  expected~0.900740
+[sanity]   k=  8  cum_var=0.350098  ||err||/||y||=0.802366  expected~0.806165
+[sanity]   k= 16  cum_var=0.623337  ||err||/||y||=0.610976  expected~0.613729
+[sanity]   k= 32  cum_var=1.000000  ||err||/||y||=0.000520  expected~0.000000+0.000345j
+[sanity]   k= 64  cum_var=1.000000  ||err||/||y||=0.000515  expected~0.000000+0.000345j
+[sanity]   full rank err=4.93e-04  (should be ~0 — input lies in row span of Vh)
+[calib] hooks=128; running 5 prompts x 100 decode tokens
+[calib]   prompt 1/5 done
+[calib]   prompt 2/5 done
+[calib]   prompt 3/5 done
+[calib]   prompt 4/5 done
+[calib]   prompt 5/5 done
+[calib] capture counts min=500 max=500 elapsed=14.0s
+[svd] computing top-499 singular vectors (uncentered) for 128 (layer, point) pairs
+[svd] done in 4.1s
+
+========== Baseline (full W) ==========
+[baseline] prompt='Explain how a CPU executes instructions step by step' prompt_len=12
+[baseline] generated 201 tokens in 4.2s
+[baseline] free-running text:
+    '.\n\nThe CPU is the brain of the computer. It is the part of the computer that executes instructions. The CPU is made up of a control unit and an arithmetic logic unit. The control unit is responsible for fetching instructions from memory and decoding them. The arithmetic logic unit is responsible for executing the instructions.\n\nThe CPU executes instructions in a step-by-step process. First, the control unit fetches an instruction from memory. The instruction is then decoded by the control unit. The arithmetic logic unit then executes the instruction. Finally, the results of the instruction are stored in memory.\n\nThe CPU executes instructions in a step-by-step process. First, the control unit fetches an instruction from memory. The instruction is then decoded by the control unit. The arithmetic logic unit then executes the instruction. Finally, the results of the instruction are stored in memory.\n\n## Other'
+
+========== Projected v1 ==========
+[v1] patched 224 linears. Per-linear cum-variance at chosen k:
+[v1] 5 worst (layer, linear) by cum-var:
+           layer  2 down_proj  k= 16 cum_var=0.2335
+           layer  3 down_proj  k= 16 cum_var=0.2394
+           layer  2 gate_proj  k= 16 cum_var=0.2532
+           layer  2 up_proj    k= 16 cum_var=0.2532
+           layer 13 down_proj  k= 16 cum_var=0.2624
+
+[v1] === metrics over 200 decode steps ===
+[v1] top-1 match rate: 0.0950
+[v1] mean KL(base||proj): 9.7884
+[v1] p99 KL:              22.1911
+[v1] per-layer residual cosine sim (and k):
+           layer  0  k=256  cum_var_avg=0.9879  cos_sim=1.0000
+           layer  1  k=256  cum_var_avg=0.9783  cos_sim=0.9628
+           layer  2  k= 16  cum_var_avg=0.4409  cos_sim=0.8701
+           layer  3  k= 16  cum_var_avg=0.5013  cos_sim=0.7671
+           layer  4  k= 16  cum_var_avg=0.5039  cos_sim=0.7060
+           layer  5  k= 16  cum_var_avg=0.5256  cos_sim=0.6642
+           layer  6  k= 16  cum_var_avg=0.5344  cos_sim=0.6111
+           layer  7  k= 16  cum_var_avg=0.5308  cos_sim=0.5680
+           layer  8  k= 16  cum_var_avg=0.5511  cos_sim=0.5546
+           layer  9  k= 16  cum_var_avg=0.5508  cos_sim=0.5264
+           layer 10  k= 16  cum_var_avg=0.5687  cos_sim=0.5067
+           layer 11  k= 16  cum_var_avg=0.5310  cos_sim=0.5340
+           layer 12  k= 16  cum_var_avg=0.5302  cos_sim=0.5182
+           layer 13  k= 16  cum_var_avg=0.5231  cos_sim=0.5155
+           layer 14  k= 16  cum_var_avg=0.5684  cos_sim=0.5179
+           layer 15  k= 16  cum_var_avg=0.5603  cos_sim=0.5389
+           layer 16  k= 16  cum_var_avg=0.5641  cos_sim=0.5364
+           layer 17  k= 16  cum_var_avg=0.5243  cos_sim=0.5309
+           layer 18  k= 16  cum_var_avg=0.5498  cos_sim=0.5137
+           layer 19  k= 16  cum_var_avg=0.5387  cos_sim=0.5029
+           layer 20  k= 16  cum_var_avg=0.5200  cos_sim=0.5195
+           layer 21  k= 16  cum_var_avg=0.5088  cos_sim=0.5236
+           layer 22  k= 16  cum_var_avg=0.4954  cos_sim=0.5312
+           layer 23  k= 64  cum_var_avg=0.7337  cos_sim=0.5420
+           layer 24  k= 64  cum_var_avg=0.7177  cos_sim=0.5485
+           layer 25  k= 64  cum_var_avg=0.7182  cos_sim=0.5578
+           layer 26  k= 64  cum_var_avg=0.7190  cos_sim=0.5522
+           layer 27  k= 64  cum_var_avg=0.7132  cos_sim=0.5585
+           layer 28  k= 64  cum_var_avg=0.7098  cos_sim=0.5646
+           layer 29  k= 64  cum_var_avg=0.7163  cos_sim=0.5517
+           layer 30  k=256  cum_var_avg=0.9562  cos_sim=0.5688
+           layer 31  k=256  cum_var_avg=0.9551  cos_sim=0.5810
+
+[v1] free-running projected text (first 80 decoded tokens):
+    '\n\n the the the the the the the the the the the.. the the the the.. the the the.. the the\n the the\n\n the the the the the the the the.. the the\n the the\n\n the the the the the the the the\n\n the the\n the the the the the\n the the the the\n\n\n the the the the the'
+
+========== Projected v2 ==========
+[v2] patched 224 linears. Per-linear cum-variance at chosen k:
+[v2] 5 worst (layer, linear) by cum-var:
+           layer  3 down_proj  k= 32 cum_var=0.3485
+           layer  2 down_proj  k= 32 cum_var=0.3540
+           layer  2 gate_proj  k= 32 cum_var=0.3665
+           layer  2 up_proj    k= 32 cum_var=0.3665
+           layer 13 down_proj  k= 32 cum_var=0.3723
+
+[v2] === metrics over 200 decode steps ===
+[v2] top-1 match rate: 0.0600
+[v2] mean KL(base||proj): 10.8276
+[v2] p99 KL:              25.8031
+[v2] per-layer residual cosine sim (and k):
+           layer  0  k=256  cum_var_avg=0.9879  cos_sim=1.0000
+           layer  1  k=256  cum_var_avg=0.9783  cos_sim=0.9628
+           layer  2  k= 32  cum_var_avg=0.5495  cos_sim=0.8701
+           layer  3  k= 32  cum_var_avg=0.5963  cos_sim=0.7844
+           layer  4  k= 32  cum_var_avg=0.6012  cos_sim=0.7237
+           layer  5  k= 32  cum_var_avg=0.6231  cos_sim=0.6849
+           layer  6  k= 32  cum_var_avg=0.6342  cos_sim=0.6377
+           layer  7  k= 32  cum_var_avg=0.6387  cos_sim=0.5956
+           layer  8  k= 32  cum_var_avg=0.6525  cos_sim=0.5699
+           layer  9  k= 32  cum_var_avg=0.6546  cos_sim=0.5340
+           layer 10  k= 32  cum_var_avg=0.6660  cos_sim=0.5052
+           layer 11  k= 32  cum_var_avg=0.6357  cos_sim=0.5320
+           layer 12  k= 32  cum_var_avg=0.6333  cos_sim=0.5171
+           layer 13  k= 32  cum_var_avg=0.6263  cos_sim=0.5150
+           layer 14  k= 32  cum_var_avg=0.6661  cos_sim=0.5187
+           layer 15  k= 32  cum_var_avg=0.6608  cos_sim=0.5358
+           layer 16  k= 32  cum_var_avg=0.6657  cos_sim=0.5351
+           layer 17  k= 32  cum_var_avg=0.6338  cos_sim=0.5292
+           layer 18  k= 32  cum_var_avg=0.6526  cos_sim=0.5133
+           layer 19  k= 32  cum_var_avg=0.6442  cos_sim=0.5024
+           layer 20  k= 32  cum_var_avg=0.6280  cos_sim=0.5206
+           layer 21  k= 32  cum_var_avg=0.6171  cos_sim=0.5251
+           layer 22  k= 32  cum_var_avg=0.6075  cos_sim=0.5326
+           layer 23  k=128  cum_var_avg=0.8520  cos_sim=0.5437
+           layer 24  k=128  cum_var_avg=0.8419  cos_sim=0.5557
+           layer 25  k=128  cum_var_avg=0.8413  cos_sim=0.5653
+           layer 26  k=128  cum_var_avg=0.8412  cos_sim=0.5651
+           layer 27  k=128  cum_var_avg=0.8363  cos_sim=0.5722
+           layer 28  k=128  cum_var_avg=0.8361  cos_sim=0.5816
+           layer 29  k=128  cum_var_avg=0.8396  cos_sim=0.5699
+           layer 30  k=256  cum_var_avg=0.9562  cos_sim=0.5898
+           layer 31  k=256  cum_var_avg=0.9551  cos_sim=0.6066
+
+[v2] free-running projected text (first 80 decoded tokens):
+    '\n\n the the the the the the the the the the the the the the the the the the the the the\n the\n the\n\n the the\n the the the the the the the the the the the the\n the the\n the\n the\n the the\n the the the the the the the the\n the the\n the\n the the\n the the\n the the the\n the the'
+
+========== Projected v3_uniform_256 ==========
+[v3_uniform_256] patched 224 linears. Per-linear cum-variance at chosen k:
+[v3_uniform_256] 5 worst (layer, linear) by cum-var:
+           layer 13 down_proj  k=256 cum_var=0.8662
+           layer 12 down_proj  k=256 cum_var=0.8784
+           layer 11 down_proj  k=256 cum_var=0.8796
+           layer 10 down_proj  k=256 cum_var=0.8876
+           layer  3 down_proj  k=256 cum_var=0.8941
+
+[v3_uniform_256] === metrics over 200 decode steps ===
+[v3_uniform_256] top-1 match rate: 0.1700
+[v3_uniform_256] mean KL(base||proj): 9.2636
+[v3_uniform_256] p99 KL:              23.9180
+[v3_uniform_256] per-layer residual cosine sim (and k):
+           layer  0  k=256  cum_var_avg=0.9879  cos_sim=1.0000
+           layer  1  k=256  cum_var_avg=0.9783  cos_sim=0.9628
+           layer  2  k=256  cum_var_avg=0.9534  cos_sim=0.8701
+           layer  3  k=256  cum_var_avg=0.9518  cos_sim=0.8049
+           layer  4  k=256  cum_var_avg=0.9500  cos_sim=0.7988
+           layer  5  k=256  cum_var_avg=0.9527  cos_sim=0.7959
+           layer  6  k=256  cum_var_avg=0.9535  cos_sim=0.7875
+           layer  7  k=256  cum_var_avg=0.9539  cos_sim=0.7597
+           layer  8  k=256  cum_var_avg=0.9527  cos_sim=0.7378
+           layer  9  k=256  cum_var_avg=0.9528  cos_sim=0.7144
+           layer 10  k=256  cum_var_avg=0.9522  cos_sim=0.6976
+           layer 11  k=256  cum_var_avg=0.9470  cos_sim=0.7089
+           layer 12  k=256  cum_var_avg=0.9458  cos_sim=0.6946
+           layer 13  k=256  cum_var_avg=0.9424  cos_sim=0.6819
+           layer 14  k=256  cum_var_avg=0.9512  cos_sim=0.6794
+           layer 15  k=256  cum_var_avg=0.9527  cos_sim=0.6858
+           layer 16  k=256  cum_var_avg=0.9547  cos_sim=0.6800
+           layer 17  k=256  cum_var_avg=0.9525  cos_sim=0.6815
+           layer 18  k=256  cum_var_avg=0.9552  cos_sim=0.6727
+           layer 19  k=256  cum_var_avg=0.9556  cos_sim=0.6576
+           layer 20  k=256  cum_var_avg=0.9541  cos_sim=0.6592
+           layer 21  k=256  cum_var_avg=0.9531  cos_sim=0.6631
+           layer 22  k=256  cum_var_avg=0.9517  cos_sim=0.6690
+           layer 23  k=256  cum_var_avg=0.9522  cos_sim=0.6713
+           layer 24  k=256  cum_var_avg=0.9486  cos_sim=0.6635
+           layer 25  k=256  cum_var_avg=0.9479  cos_sim=0.6680
+           layer 26  k=256  cum_var_avg=0.9476  cos_sim=0.6650
+           layer 27  k=256  cum_var_avg=0.9452  cos_sim=0.6658
+           layer 28  k=256  cum_var_avg=0.9458  cos_sim=0.6654
+           layer 29  k=256  cum_var_avg=0.9468  cos_sim=0.6519
+           layer 30  k=256  cum_var_avg=0.9562  cos_sim=0.6533
+           layer 31  k=256  cum_var_avg=0.9551  cos_sim=0.6620
+
+[v3_uniform_256] free-running projected text (first 80 decoded tokens):
+    '\n.\n\nThe first, the\n\n\n the\n\n\n the\n\n the\n\n the\n\n the\n\n the\n\n the\n the\n\n the\n\n the\n\n the\n\n the\n the\n\n the\n\n the\n\n the\n\n the\n the\n\n the\n\n the\n the\n\n the\n\n the\n the\n\n the\n'
+
+========== Projected v4_uniform_499 ==========
+[v4_uniform_499] patched 224 linears. Per-linear cum-variance at chosen k:
+[v4_uniform_499] 5 worst (layer, linear) by cum-var:
+           layer 31 gate_proj  k=499 cum_var=1.0000
+           layer 31 up_proj    k=499 cum_var=1.0000
+           layer 27 o_proj     k=499 cum_var=1.0000
+           layer 31 down_proj  k=499 cum_var=1.0000
+           layer 28 o_proj     k=499 cum_var=1.0000
+
+[v4_uniform_499] === metrics over 200 decode steps ===
+[v4_uniform_499] top-1 match rate: 0.2900
+[v4_uniform_499] mean KL(base||proj): 6.3182
+[v4_uniform_499] p99 KL:              21.8599
+[v4_uniform_499] per-layer residual cosine sim (and k):
+           layer  0  k=499  cum_var_avg=1.0000  cos_sim=1.0000
+           layer  1  k=499  cum_var_avg=1.0000  cos_sim=0.9714
+           layer  2  k=499  cum_var_avg=1.0000  cos_sim=0.8767
+           layer  3  k=499  cum_var_avg=1.0000  cos_sim=0.8564
+           layer  4  k=499  cum_var_avg=1.0000  cos_sim=0.8484
+           layer  5  k=499  cum_var_avg=1.0000  cos_sim=0.8340
+           layer  6  k=499  cum_var_avg=1.0000  cos_sim=0.8225
+           layer  7  k=499  cum_var_avg=1.0000  cos_sim=0.7957
+           layer  8  k=499  cum_var_avg=1.0000  cos_sim=0.7738
+           layer  9  k=499  cum_var_avg=1.0000  cos_sim=0.7498
+           layer 10  k=499  cum_var_avg=1.0000  cos_sim=0.7330
+           layer 11  k=499  cum_var_avg=1.0000  cos_sim=0.7403
+           layer 12  k=499  cum_var_avg=1.0000  cos_sim=0.7286
+           layer 13  k=499  cum_var_avg=1.0000  cos_sim=0.7177
+           layer 14  k=499  cum_var_avg=1.0000  cos_sim=0.7120
+           layer 15  k=499  cum_var_avg=1.0000  cos_sim=0.7166
+           layer 16  k=499  cum_var_avg=1.0000  cos_sim=0.7156
+           layer 17  k=499  cum_var_avg=1.0000  cos_sim=0.7221
+           layer 18  k=499  cum_var_avg=1.0000  cos_sim=0.7160
+           layer 19  k=499  cum_var_avg=1.0000  cos_sim=0.7076
+           layer 20  k=499  cum_var_avg=1.0000  cos_sim=0.7146
+           layer 21  k=499  cum_var_avg=1.0000  cos_sim=0.7213
+           layer 22  k=499  cum_var_avg=1.0000  cos_sim=0.7292
+           layer 23  k=499  cum_var_avg=1.0000  cos_sim=0.7320
+           layer 24  k=499  cum_var_avg=1.0000  cos_sim=0.7290
+           layer 25  k=499  cum_var_avg=1.0000  cos_sim=0.7333
+           layer 26  k=499  cum_var_avg=1.0000  cos_sim=0.7317
+           layer 27  k=499  cum_var_avg=1.0000  cos_sim=0.7327
+           layer 28  k=499  cum_var_avg=1.0000  cos_sim=0.7318
+           layer 29  k=499  cum_var_avg=1.0000  cos_sim=0.7207
+           layer 30  k=499  cum_var_avg=1.0000  cos_sim=0.7218
+           layer 31  k=499  cum_var_avg=1.0000  cos_sim=0.7290
+
+[v4_uniform_499] free-running projected text (first 80 decoded tokens):
+    '..\n\n\n\n\n\n\n\n the first of of the\n,, the\n,\n\n the\n\n the\n\n the\n\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the the\n the the\n the the\n the the\n the the. the the\n the'
+
+========== VERDICT ==========
+  v1: top1=0.0950  mean_kl=9.7884  -> FAIL
+  v2: top1=0.0600  mean_kl=10.8276  -> FAIL
+  v3_uniform_256: top1=0.1700  mean_kl=9.2636  -> FAIL
+  v4_uniform_499: top1=0.2900  mean_kl=6.3182  -> FAIL
+
+[save] results -> /home/ubuntu/op31-prod-fix/projection_quality_results.json

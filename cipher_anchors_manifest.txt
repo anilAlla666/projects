@@ -1,0 +1,34 @@
+CIPHER campaign — anchor manifest
+Generated: 2026-05-17 12:19 UTC   (pod 192-222-53-2, pre-termination snapshot)
+
+=== Campaign anchors  (anchor id = md5 prefix of the artifact) ===
+e2f50452f668859a96b1e25a2cba4e10  cipher_kmod/cipher_kmod.ko            anchor e2f50452 — kmod 0.4.8           VERIFIED
+c2c5d313e2c24b687ba344cd9fe14a2f  cipher_rt_phase4/libcipher_rt.so      anchor c2c5d313 — libcipher_rt         VERIFIED
+86618c30896470b642fcc6985d8dc632  libcipher_v2/libcipher_v2.so.v0.2.0   anchor 86618c30 — libcipher_v2         VERIFIED
+
+All three expected anchors (kmod e2f50452, libcipher_rt c2c5d313, libcipher_v2
+86618c30) match. NOTE: the libcipher_v2 anchor is libcipher_v2.so.v0.2.0 — NOT
+libcipher_v2/libcipher_v2.so (see below). Per D6_LIBCIPHER_V2_ANCHOR_RESOLUTION.md.
+
+=== Supporting / context (not campaign anchors) ===
+6654d9e5fcbe5f605e7ded216c20c45f  /lib/modules/6.8.0-1046-nvidia/updates/dkms/cipher_kmod.ko
+    DKMS-installed module — this is the one currently LOADED. Its md5 differs
+    from the source .ko (DKMS recompiles), but srcversion is identical
+    (E427CAFA4E94D548233DC7A == source .ko) -> same source as anchor e2f50452.
+
+cc0479b836e560619e2b286ca1caecb7  libcipher_v2/libcipher_v2.so
+cc0479b836e560619e2b286ca1caecb7  libcipher_v2/libcipher_v2.so.v0.3.0-cupti.unpromoted
+    Un-promoted Phase-3 Task-5 CUPTI superset (identical bytes; the .unpromoted
+    copy is D6's preserved snapshot). NOT a campaign anchor. Not in the soak
+    runtime path. Preserved per D6, not discarded.
+
+bb92424803a04bf989e92d48d2f76336  cipher-fusion-evidence/cp_2_5/cipher-platform_1.0_amd64.deb
+    CP 2.5 shipped platform package. Bundles libcipher_v2 86618c30 at
+    usr/lib/cipher/libcipher_v2.so (verified identical to the v0.2.0 anchor).
+
+=== Tarball ===
+ea262d3dd7011ea674eb60bb51ba3fe3  cipher_campaign_state_20260517.tar.gz
+    8815605 bytes (8.4 MiB), 1137 files, gzip integrity OK.
+    Top-level members: cipher-fusion-evidence/ cipher_rt_phase4/ cipher_kmod/
+    libcipher_v2/ cipher_workloads/ cipher_measurement/ cipher_exporter/
+    cipher_gpustate/ tmp/cipher_soak_24h_20260517_111335.log

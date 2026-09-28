@@ -1,0 +1,30 @@
+#!/bin/sh
+# cipher-platform prerm — unload the module and deregister it from DKMS
+# before the package files are removed.
+set -e
+
+PKG=cipher-kmod
+VER=0.4.8
+
+case "$1" in
+  remove|upgrade|deconfigure)
+    # unload first so the .ko is not in use when DKMS removes it
+    if lsmod 2>/dev/null | grep -q '^cipher_kmod'; then
+      modprobe -r cipher_kmod 2>/dev/null \
+        || rmmod cipher_kmod 2>/dev/null \
+        || echo "cipher-platform: could not unload cipher_kmod (in use?)" >&2
+    fi
+
+    # deregister from DKMS (removes built modules for all kernels)
+    if dkms status -m "$PKG" -v "$VER" 2>/dev/null | grep -q "$VER"; then
+      dkms remove -m "$PKG" -v "$VER" --all || true
+    fi
+
+    # remove the device node if it survived module unload
+    if [ -e /dev/cipher ]; then
+      rm -f /dev/cipher || true
+    fi
+    ;;
+esac
+
+exit 0

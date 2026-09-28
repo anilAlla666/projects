@@ -1,0 +1,41 @@
+cipher_kmod 0.3.1  uptime=4006134 jiffies (4006.13 s)
+nvidia_unlocked_ioctl @ 0xffffffffc0b3b300 [hooked]
+total_observed=6305  total_errors=0  alloc_failures=0  reaped=30
+
+Frontend ioctls (nr 200..218):
+  nr   name                              count        errors     
+  ---  --------------------------------  -----------  -----------
+  200  NV_ESC_CARD_INFO                           46            0
+  201  NV_ESC_REGISTER_FD                        165            0
+  206  NV_ESC_ALLOC_OS_EVENT                      81            0
+  210  NV_ESC_CHECK_VERSION_STR                   23            0
+  214  NV_ESC_SYS_PARAMS                          46            0
+  215  NV_ESC_NUMA_INFO                           32            0
+  218  NV_ESC_WAIT_OPEN_COMPLETE                  23            0
+  ---                                            416            0  (subtotal)
+
+RM ioctls (nr 0x27..0x5e):
+  nr    name                                  count        errors     
+  ----  ------------------------------------  -----------  -----------
+  0x27  NV_ESC_RM_ALLOC_MEMORY                         63            0
+  0x29  NV_ESC_RM_FREE                                 79            0
+  0x2a  NV_ESC_RM_CONTROL                            4132            0  *dominant*
+  0x2b  NV_ESC_RM_ALLOC                              1314            0
+  0x4e  NV_ESC_RM_MAP_MEMORY                          283            0
+  0x5e  NV_ESC_RM_UPDATE_DEVICE_MAPPING_INFO           18            0
+  ----                                               5889            0  (subtotal)
+
+OTHER (cmd outside known NV_ESC ranges):
+                                                        0            0
+
+Per-PID summary (top 16 by total, 3 PIDs total):
+  PID      TGID     COMM             TENANT          TOTAL    RM_CTRL  RM_ALLOC  RM_FREE  MAP_MEM  OTHER    ERR    AGE_S   SM%  MEM%  LAUNCHES    AGE_TM
+  27580    27580    cipher-gpustate  -               0        0        0         0        0        0        0      1650.45    20     1  0           1650.45
+  27347    27347    cipher-gpustate  -               0        0        0         0        0        0        0      1939.82     1     0  0           1939.82
+  28474    28474    cipher-gpustate  -               0        0        0         0        0        0        0      497.87    40     3  0           497.87
+
+Per-TGID summary (top 16 by total, 3 TGIDs total):
+  TGID     COMM             TENANT          THR  TOTAL    RM_CTRL  RM_ALLOC  RM_FREE  MAP_MEM  OTHER    ERR    LAUNCHES    MAX_SM%
+  27347    cipher-gpustate  -               1    0        0        0         0        0        0        0      0             1
+  28474    cipher-gpustate  -               1    0        0        0         0        0        0        0      0             40
+  27580    cipher-gpustate  -               1    0        0        0         0        0        0        0      0             20

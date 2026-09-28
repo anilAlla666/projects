@@ -1,0 +1,45 @@
+{
+  "cp": "4.8",
+  "check": "section-3 FLOP cross-check spot-check",
+  "method": "independent count via torch FlopCounterMode (ATen op-graph trace)",
+  "tolerance_pct": 5.0,
+  "all_within_tolerance": true,
+  "results": [
+    {
+      "wl": "WL01",
+      "measured_flops": 2093350976,
+      "analytical_flops": 2091996672.0,
+      "rel_delta": 0.0006473738788050998,
+      "agree": true,
+      "params": {
+        "units": 1,
+        "mean_context": 128
+      }
+    },
+    {
+      "wl": "WL17",
+      "measured_flops": 1624302960640,
+      "analytical_flops": 1606653444096.0,
+      "rel_delta": 0.010985266678920096,
+      "agree": true,
+      "params": {
+        "units": 256,
+        "mean_context": 128.0
+      }
+    },
+    {
+      "wl": "WL13",
+      "measured_flops": 149533844570112,
+      "analytical_flops": 151657048440832.0,
+      "rel_delta": 0.014000034238753855,
+      "agree": true,
+      "params": {
+        "units": 8192,
+        "crosscheck": "dense (matches FlopCounterMode)",
+        "analytical_causal_gate_value": 134064862396416.0,
+        "note": "gate uses causal-half; FlopCounterMode validates dense geometry"
+      }
+    }
+  ],
+  "note": "cipher_flopd not deployed -- live PMU path unavailable; this is the representative-sample cross-check (Option C)."
+}

@@ -1,0 +1,80 @@
+=== ACTION 1: fp32-inner ProjectedLinear, k=499, decode-only ===
+baseline (fp16-inner) result from prior run: top1=0.7750  mean_kl=1.2827
+hypothesis: fp32 inner accumulation closes the 22.5% gap if it was numerics, not algorithm
+
+[load] mistralai/Mistral-7B-v0.1 fp16 -> cuda
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   4%|▍         | 13/291 [00:00<00:02, 117.85it/s]Loading weights:   9%|▊         | 25/291 [00:00<00:02, 117.48it/s]Loading weights:  14%|█▎        | 40/291 [00:00<00:01, 128.69it/s]Loading weights:  20%|█▉        | 58/291 [00:00<00:01, 138.13it/s]Loading weights:  26%|██▌       | 76/291 [00:00<00:01, 138.96it/s]Loading weights:  32%|███▏      | 94/291 [00:00<00:01, 141.05it/s]Loading weights:  38%|███▊      | 112/291 [00:00<00:01, 134.43it/s]Loading weights:  45%|████▍     | 130/291 [00:00<00:01, 137.74it/s]Loading weights:  51%|█████     | 148/291 [00:01<00:01, 140.42it/s]Loading weights:  57%|█████▋    | 166/291 [00:01<00:00, 139.69it/s]Loading weights:  63%|██████▎   | 184/291 [00:01<00:00, 147.77it/s]Loading weights:  69%|██████▉   | 202/291 [00:01<00:00, 144.29it/s]Loading weights:  76%|███████▌  | 220/291 [00:01<00:00, 135.43it/s]Loading weights:  82%|████████▏ | 238/291 [00:01<00:00, 140.87it/s]Loading weights:  88%|████████▊ | 256/291 [00:01<00:00, 142.11it/s]Loading weights:  94%|█████████▍| 274/291 [00:01<00:00, 146.94it/s]Loading weights: 100%|██████████| 291/291 [00:02<00:00, 142.51it/s]
+[load] done in 3.4s
+[sanity] verify ProjectedLinearFp32 matches dense W@x at full rank (small test)
+[sanity]   full-rank rel_err vs dense: 3.31e-04  (was ~5e-4 in fp16)
+[calib] hooks=128; running 5 prompts x 100 decode tokens
+[calib]   prompt 1/5 done
+[calib]   prompt 2/5 done
+[calib]   prompt 3/5 done
+[calib]   prompt 4/5 done
+[calib]   prompt 5/5 done
+[calib] capture counts min=500 max=500 elapsed=14.2s
+[svd] computing top-499 singular vectors (uncentered) for 128 (layer, point) pairs
+[svd] done in 4.1s
+
+[baseline] eval prompt='Explain how a CPU executes instructions step by step' prompt_len=12
+[baseline] free-running text: '.\n\nThe CPU is the brain of the computer. It is the part of the computer that executes instructions. The CPU is made up of a control unit and an arithmetic logic unit. The control unit is responsible f'
+
+========== Projected diag_k499_fp32_decode_only [decode-only] ==========
+[diag_k499_fp32_decode_only] prefill done with full W; KV cache saved
+[diag_k499_fp32_decode_only] patched 224 linears. Per-linear cum-variance at chosen k:
+[diag_k499_fp32_decode_only] 5 worst (layer, linear) by cum-var:
+           layer 31 gate_proj  k=499 cum_var=1.0000
+           layer 31 up_proj    k=499 cum_var=1.0000
+           layer 27 o_proj     k=499 cum_var=1.0000
+           layer 31 down_proj  k=499 cum_var=1.0000
+           layer 28 o_proj     k=499 cum_var=1.0000
+
+[diag_k499_fp32_decode_only] === metrics over 200 decode steps ===
+[diag_k499_fp32_decode_only] top-1 match rate: 0.7750
+[diag_k499_fp32_decode_only] mean KL(base||proj): 1.2824
+[diag_k499_fp32_decode_only] p99 KL:              15.6150
+[diag_k499_fp32_decode_only] per-layer residual cosine sim (and k):
+           layer  0  k=499  cum_var_avg=1.0000  cos_sim=1.0000
+           layer  1  k=499  cum_var_avg=1.0000  cos_sim=0.9855
+           layer  2  k=499  cum_var_avg=1.0000  cos_sim=0.9683
+           layer  3  k=499  cum_var_avg=1.0000  cos_sim=0.9577
+           layer  4  k=499  cum_var_avg=1.0000  cos_sim=0.9427
+           layer  5  k=499  cum_var_avg=1.0000  cos_sim=0.9313
+           layer  6  k=499  cum_var_avg=1.0000  cos_sim=0.9221
+           layer  7  k=499  cum_var_avg=1.0000  cos_sim=0.9090
+           layer  8  k=499  cum_var_avg=1.0000  cos_sim=0.8990
+           layer  9  k=499  cum_var_avg=1.0000  cos_sim=0.8813
+           layer 10  k=499  cum_var_avg=1.0000  cos_sim=0.8730
+           layer 11  k=499  cum_var_avg=1.0000  cos_sim=0.8801
+           layer 12  k=499  cum_var_avg=1.0000  cos_sim=0.8735
+           layer 13  k=499  cum_var_avg=1.0000  cos_sim=0.8700
+           layer 14  k=499  cum_var_avg=1.0000  cos_sim=0.8616
+           layer 15  k=499  cum_var_avg=1.0000  cos_sim=0.8653
+           layer 16  k=499  cum_var_avg=1.0000  cos_sim=0.8706
+           layer 17  k=499  cum_var_avg=1.0000  cos_sim=0.8756
+           layer 18  k=499  cum_var_avg=1.0000  cos_sim=0.8704
+           layer 19  k=499  cum_var_avg=1.0000  cos_sim=0.8725
+           layer 20  k=499  cum_var_avg=1.0000  cos_sim=0.8826
+           layer 21  k=499  cum_var_avg=1.0000  cos_sim=0.8850
+           layer 22  k=499  cum_var_avg=1.0000  cos_sim=0.8893
+           layer 23  k=499  cum_var_avg=1.0000  cos_sim=0.8944
+           layer 24  k=499  cum_var_avg=1.0000  cos_sim=0.8991
+           layer 25  k=499  cum_var_avg=1.0000  cos_sim=0.9020
+           layer 26  k=499  cum_var_avg=1.0000  cos_sim=0.9027
+           layer 27  k=499  cum_var_avg=1.0000  cos_sim=0.9060
+           layer 28  k=499  cum_var_avg=1.0000  cos_sim=0.9072
+           layer 29  k=499  cum_var_avg=1.0000  cos_sim=0.9052
+           layer 30  k=499  cum_var_avg=1.0000  cos_sim=0.9107
+           layer 31  k=499  cum_var_avg=1.0000  cos_sim=0.9164
+
+[diag_k499_fp32_decode_only] free-running projected text (first 80 decoded tokens):
+    '..\n\n\n\n\n\n\n\n the first of of the\n,, the\n,\n\n the\n\n the\n\n the\n\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the the\n the the\n the the\n the the\n the the. the the\n the'
+
+=== RESULT ===
+  fp16-inner (prior run): top1=0.7750  mean_kl=1.2827  p99_kl=15.6
+  fp32-inner (this run):  top1=0.7750  mean_kl=1.2824  p99_kl=15.6150
+
+  --> Algorithm doesn't compose at 224-linear chain even in fp32.

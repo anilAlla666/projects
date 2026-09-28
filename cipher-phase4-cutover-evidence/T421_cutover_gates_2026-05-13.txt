@@ -1,0 +1,77 @@
+=== Phase 4 T4.2.1 cutover gate results — 2026-05-13 ===
+Loaded module:
+cipher_kmod            53248  2
+srcversion: FED7A35396FBD80CDDC2D4A
+Fallback md5s (must be unchanged):
+55ab8c0cd8309ca7cc0fc40fe556aa19  /tmp/cipher-phase3-evidence/fallback/cipher_kmod.ko.v0.2.0
+86618c30896470b642fcc6985d8dc632  /tmp/cipher-phase3-evidence/fallback/libcipher_v2.so.v0.2.0
+
+=== Phase 3 ABI happy ===
+PASS  open /dev/cipher fd=3 uid=1000 tid=87649 pid=87649
+PASS  CIPHER_REGISTER_TENANT pid=87649 tgid=87649 tenant=happy-test-tenant
+PASS  CIPHER_SUBMIT_LAUNCH_STATS launches=1000 grid_ops=50000
+happy: all PASS
+=== Phase 3 ABI negative ===
+=== negative tests (uid=1000 pid=87650) ===
+PASS  Test 1  SUBMIT_GPU_STATE as non-root                 (got errno=1 Operation not permitted)
+PASS  Test 2  SUBMIT_PROCESS_UTIL as non-root              (got errno=1 Operation not permitted)
+PASS  Test 3  SUBMIT_LAUNCH_STATS pid+1 spoof              (got errno=1 Operation not permitted)
+PASS  Test 4  SUBMIT_LAUNCH_STATS tgid+99 spoof            (got errno=1 Operation not permitted)
+PASS  Test 5  CIPHER_SNAPSHOT reserved nr 2                (got errno=38 Function not implemented)
+PASS  Test 6  unknown ioctl _IO('C',99)                    (got errno=25 Inappropriate ioctl for device)
+negative: all PASS
+=== Phase 3 ABI root ===
+PASS  open /dev/cipher fd=3 uid=0 pid=87652
+PASS  CIPHER_SUBMIT_GPU_STATE power=350000 mW temp=65 C sm=75% mem=40%
+PASS  CIPHER_SUBMIT_PROCESS_UTIL pid=87652 sm=60% mem=30% fb=4096 MB
+root: all PASS
+
+=== Phase 4.1 snapshot (10/10) ===
+PASS  Test 1  by pid: ioctl rc==0
+PASS  Test 1  tenant_id_str matches
+PASS  Test 1  snapshot.pid == target_pid
+PASS  Test 1  tenant_session_fp non-zero
+PASS  Test 1  tenant_handle_u32 non-zero
+PASS  Test 2  by id: ioctl rc==0
+PASS  Test 2  snapshot.pid matches our pid
+PASS  Test 3  unknown pid -> ENOENT                      (errno=2 No such file or directory)
+PASS  Test 4  no selector -> ENOENT                      (errno=2 No such file or directory)
+PASS  Test 5  unknown tenant_id -> ENOENT                (errno=2 No such file or directory)
+snapshot: all PASS
+
+=== Phase 4.2 partition allocator (8/8) ===
+PASS  Test 1  request 4: rc==0
+PASS  Test 1  popcount(mask) == 4
+  (mask=0x0000000f count=4)
+PASS  Test 2  request 8 after 4: rc==0
+PASS  Test 2  popcount(mask) == 8 (cap)
+  (mask=0x000000ff count=8)
+PASS  Test 3  union of 11 simultaneously-alive tenant masks <= 33 slots
+PASS  Test 3  at least 5 children granted >0 slots
+  (union_mask=0xffffffff union_popcount=32 sum_of_counts=40)
+PASS  Test 4  after ephemeral exit: still able to request
+  (post-reap free pool granted us 8 slots)
+PASS  Test 5  hint=0 clamps to 1+, rc==0
+PASS  Test 5  hint=99 clamps to <=8
+
+Test 7  CIPHER_REQUEST_SM_PARTITION perf (N=1000000):
+  p50   248 ns
+  p90   253 ns
+  p99   260 ns
+  max   20675 ns
+
+partition: all PASS
+
+=== Phase 4.2 contention (gate: p99 contended <= 10x single-thread) ===
+CIPHER_REQUEST_SM_PARTITION contended  (threads=33, iters/thread=30000, total=990000)
+  wall_time    1.03 s
+  ops/s        957804
+  p50          29165 ns
+  p90          32027 ns
+  p99          39283 ns
+  max          12039809 ns
+  mean         31625 ns
+
+Gate: p99 contended vs p99 single-thread (~310 ns from Phase 4.1 perf test).
+  ratio        126.7x
+  verdict      FAIL — spinlock is a bottleneck

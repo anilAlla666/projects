@@ -1,0 +1,1793 @@
+{
+  "schema_version": "1.0",
+  "run_id": "testA_n16_30s",
+  "doc": {
+    "mfu_pct": "achieved_TFLOPS / 989e12 \u00d7 100  (H100 FP16 dense sparse spec). Industry-comparable.",
+    "hfu_pct": "achieved_TFLOPS / 660e12 \u00d7 100  (H100 FP16 measured at this pod's 700W cap). Internal diagnosis.",
+    "tpw": "tokens / total_energy_J (mean_power_W \u00d7 elapsed_s). 'Tokens per Watt'.",
+    "dollar_per_M_tok_power_only": "POWER COST ONLY at $0.10/kWh. Excludes capital amortization, DC overhead (cooling/networking), ops costs, and margin. Full neocloud $/M tok is typically 50-100x this. CIPHER affects only the power-cost portion.",
+    "fairness_ratio": "max(per_tenant_tps) / max(min(per_tenant_tps), 1e-9). Stop threshold = 1.10 in this sweep.",
+    "flops_per_token": "Per-token forward FLOPS for Mistral-7B at the configured mean_seq_len (prefill_len + max_decode/2)."
+  },
+  "gpu": {
+    "name": "NVIDIA H100 80GB HBM3",
+    "uuid": "GPU-993dd5d1-740e-ce8f-7c5e-404188d4b950",
+    "driver": "580.105.08",
+    "hbm_gb": 79.6,
+    "cuda_runtime": "13.0",
+    "sm_count": 132,
+    "compute_capability": "9.0",
+    "tdp_w": 700
+  },
+  "config": {
+    "model_path": "/home/ubuntu/models/Mistral-7B-v0.1",
+    "dtype": "fp16+marlin_int4",
+    "cipher_envs": {
+      "CIPHER_WEIGHT_COMPRESS": "on",
+      "CIPHER_SUBSTITUTE_V2": "on",
+      "CIPHER_FAIRNESS": "on",
+      "CIPHER_FUSION_KERNELS": "on"
+    },
+    "test_kind": "continuous",
+    "n_tenants": 16,
+    "duration_s": 30,
+    "prefill_len": 128,
+    "max_decode": 200
+  },
+  "samples": [
+    {
+      "t_s": 0.0002,
+      "power_w": 153.8,
+      "mem_mib": 19756,
+      "util_pct": 21,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 0.2003,
+      "power_w": 152.76,
+      "mem_mib": 21202,
+      "util_pct": 32,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 0.4003,
+      "power_w": 168.18,
+      "mem_mib": 21560,
+      "util_pct": 24,
+      "clock_mhz": 1980,
+      "temp_c": 42
+    },
+    {
+      "t_s": 0.6003,
+      "power_w": 179.62,
+      "mem_mib": 21842,
+      "util_pct": 29,
+      "clock_mhz": 1980,
+      "temp_c": 42
+    },
+    {
+      "t_s": 0.8004,
+      "power_w": 185.65,
+      "mem_mib": 21978,
+      "util_pct": 19,
+      "clock_mhz": 1980,
+      "temp_c": 42
+    },
+    {
+      "t_s": 1.0004,
+      "power_w": 188.21,
+      "mem_mib": 22048,
+      "util_pct": 18,
+      "clock_mhz": 1980,
+      "temp_c": 42
+    },
+    {
+      "t_s": 1.2002,
+      "power_w": 190.87,
+      "mem_mib": 22104,
+      "util_pct": 17,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 1.4004,
+      "power_w": 175.95,
+      "mem_mib": 22144,
+      "util_pct": 16,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 1.6003,
+      "power_w": 164.29,
+      "mem_mib": 22168,
+      "util_pct": 15,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 1.8005,
+      "power_w": 155.64,
+      "mem_mib": 22170,
+      "util_pct": 15,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 2.0003,
+      "power_w": 149.95,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 2.2007,
+      "power_w": 146.84,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 2.4011,
+      "power_w": 142.84,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 2.6005,
+      "power_w": 141.0,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 2.8004,
+      "power_w": 140.85,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 3.0003,
+      "power_w": 140.8,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 3.2006,
+      "power_w": 141.04,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 3.4004,
+      "power_w": 141.88,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 3.6003,
+      "power_w": 142.23,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 3.8003,
+      "power_w": 141.56,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 4.0005,
+      "power_w": 142.19,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 4.2004,
+      "power_w": 141.81,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 4.4008,
+      "power_w": 141.71,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 4.6003,
+      "power_w": 141.53,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 4.8004,
+      "power_w": 141.73,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 5.0008,
+      "power_w": 141.69,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 5.2007,
+      "power_w": 141.56,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 5.4005,
+      "power_w": 141.16,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 5.6007,
+      "power_w": 140.92,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 5.8003,
+      "power_w": 140.6,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 6.0003,
+      "power_w": 139.83,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 6.2004,
+      "power_w": 139.82,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 6.4004,
+      "power_w": 139.68,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 6.6003,
+      "power_w": 139.69,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 6.8005,
+      "power_w": 140.02,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 7.0003,
+      "power_w": 140.65,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 7.2005,
+      "power_w": 140.48,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 7.4003,
+      "power_w": 140.58,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 7.6007,
+      "power_w": 140.62,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 40
+    },
+    {
+      "t_s": 7.8008,
+      "power_w": 140.48,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 8.0004,
+      "power_w": 140.11,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 8.2006,
+      "power_w": 140.5,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 8.4006,
+      "power_w": 140.64,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 8.6004,
+      "power_w": 140.61,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 8.8011,
+      "power_w": 140.55,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 9.0004,
+      "power_w": 140.65,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 9.2003,
+      "power_w": 140.45,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 9.4003,
+      "power_w": 140.04,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 9.6002,
+      "power_w": 139.73,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 40
+    },
+    {
+      "t_s": 9.8002,
+      "power_w": 139.66,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 10.0003,
+      "power_w": 139.2,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 10.2007,
+      "power_w": 139.12,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 10.4003,
+      "power_w": 139.19,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 10.6004,
+      "power_w": 139.43,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 10.8004,
+      "power_w": 139.42,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 40
+    },
+    {
+      "t_s": 11.0002,
+      "power_w": 139.88,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 11.2005,
+      "power_w": 139.82,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 11.4005,
+      "power_w": 140.15,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 11.6008,
+      "power_w": 139.84,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 11.8004,
+      "power_w": 140.3,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 12.0003,
+      "power_w": 140.21,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 12.2004,
+      "power_w": 140.13,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 12.4003,
+      "power_w": 140.0,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 12.6005,
+      "power_w": 140.0,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 12.8004,
+      "power_w": 139.55,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 13.0003,
+      "power_w": 139.49,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 13.2003,
+      "power_w": 139.44,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 13.4012,
+      "power_w": 139.46,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 13.6004,
+      "power_w": 139.93,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 13.8004,
+      "power_w": 140.72,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 14.0003,
+      "power_w": 140.6,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 14.2003,
+      "power_w": 140.96,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 14.4003,
+      "power_w": 141.01,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 14.6004,
+      "power_w": 140.3,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 14.8003,
+      "power_w": 139.8,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 15.0003,
+      "power_w": 139.75,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 15.2005,
+      "power_w": 139.76,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 15.4003,
+      "power_w": 139.22,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 15.6009,
+      "power_w": 139.0,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 15.8004,
+      "power_w": 138.84,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 16.0002,
+      "power_w": 139.28,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 16.2007,
+      "power_w": 139.51,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 16.4004,
+      "power_w": 140.13,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 16.6003,
+      "power_w": 140.32,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 40
+    },
+    {
+      "t_s": 16.8006,
+      "power_w": 140.45,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 17.0004,
+      "power_w": 140.46,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 17.2003,
+      "power_w": 140.06,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 17.4004,
+      "power_w": 140.45,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 17.6004,
+      "power_w": 140.77,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 17.8002,
+      "power_w": 140.94,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 18.0012,
+      "power_w": 140.72,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 18.2003,
+      "power_w": 141.17,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 18.4004,
+      "power_w": 141.07,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 18.6003,
+      "power_w": 140.98,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 18.8005,
+      "power_w": 140.24,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 19.0004,
+      "power_w": 140.15,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 19.2004,
+      "power_w": 139.96,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 19.4002,
+      "power_w": 139.81,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 19.6005,
+      "power_w": 139.65,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 19.8006,
+      "power_w": 140.88,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 20.0002,
+      "power_w": 141.13,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 40
+    },
+    {
+      "t_s": 20.2004,
+      "power_w": 141.24,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 20.4008,
+      "power_w": 141.4,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 20.6005,
+      "power_w": 141.85,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 20.8003,
+      "power_w": 141.13,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 21.0002,
+      "power_w": 141.53,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 21.2005,
+      "power_w": 141.74,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 21.4007,
+      "power_w": 141.89,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 21.6003,
+      "power_w": 141.55,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 21.8004,
+      "power_w": 141.52,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 22.0002,
+      "power_w": 141.1,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 22.2002,
+      "power_w": 141.47,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 22.4003,
+      "power_w": 140.94,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 22.6002,
+      "power_w": 141.44,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 22.8007,
+      "power_w": 142.14,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 23.0008,
+      "power_w": 142.05,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 23.2005,
+      "power_w": 141.39,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 23.4005,
+      "power_w": 141.52,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 23.6009,
+      "power_w": 141.42,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 23.8004,
+      "power_w": 141.06,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 24.0006,
+      "power_w": 141.24,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 24.2002,
+      "power_w": 141.26,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 40
+    },
+    {
+      "t_s": 24.4005,
+      "power_w": 141.71,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 24.6004,
+      "power_w": 141.28,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 24.8007,
+      "power_w": 141.06,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 25.0005,
+      "power_w": 141.0,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 25.2006,
+      "power_w": 140.61,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 25.4007,
+      "power_w": 140.6,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 25.6002,
+      "power_w": 140.7,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 25.8007,
+      "power_w": 140.82,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 26.0003,
+      "power_w": 140.73,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 26.2006,
+      "power_w": 141.08,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 26.4009,
+      "power_w": 140.52,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 26.6004,
+      "power_w": 140.34,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 26.8011,
+      "power_w": 140.18,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 27.0005,
+      "power_w": 139.57,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 27.2005,
+      "power_w": 138.92,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 27.4011,
+      "power_w": 139.12,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 27.6005,
+      "power_w": 139.1,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 27.8009,
+      "power_w": 138.8,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 28.0003,
+      "power_w": 139.09,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 28.2007,
+      "power_w": 139.45,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 28.4008,
+      "power_w": 138.99,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 28.6007,
+      "power_w": 138.52,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 28.8006,
+      "power_w": 138.34,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 29.0004,
+      "power_w": 138.3,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 29.2003,
+      "power_w": 138.26,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 29.4004,
+      "power_w": 138.21,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 29.6009,
+      "power_w": 139.25,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 29.8005,
+      "power_w": 139.75,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 30.0003,
+      "power_w": 139.72,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 30.2003,
+      "power_w": 139.15,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 30.4005,
+      "power_w": 139.75,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 30.6003,
+      "power_w": 138.35,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 30.8005,
+      "power_w": 138.52,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 31.0007,
+      "power_w": 138.81,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 31.2006,
+      "power_w": 139.61,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 31.4008,
+      "power_w": 139.38,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 31.6004,
+      "power_w": 139.64,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 31.8005,
+      "power_w": 139.06,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 32.0008,
+      "power_w": 139.33,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 32.2004,
+      "power_w": 139.31,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 32.4005,
+      "power_w": 139.05,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 32.6003,
+      "power_w": 139.57,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 32.8002,
+      "power_w": 139.51,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 33.0007,
+      "power_w": 139.09,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 33.201,
+      "power_w": 138.81,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 33.4003,
+      "power_w": 139.16,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 33.6007,
+      "power_w": 138.69,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 33.8003,
+      "power_w": 139.57,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 34.0003,
+      "power_w": 139.69,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 34.2003,
+      "power_w": 139.5,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 34.4007,
+      "power_w": 139.41,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 34.6011,
+      "power_w": 139.52,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 34.8003,
+      "power_w": 139.1,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 35.0003,
+      "power_w": 139.28,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 35.2004,
+      "power_w": 139.69,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 35.4003,
+      "power_w": 139.85,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 35.6009,
+      "power_w": 139.5,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 35.8003,
+      "power_w": 139.55,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 36.0002,
+      "power_w": 139.15,
+      "mem_mib": 22170,
+      "util_pct": 14,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 36.2005,
+      "power_w": 138.75,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 36.4003,
+      "power_w": 138.46,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 36.6004,
+      "power_w": 138.27,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 36.8003,
+      "power_w": 138.65,
+      "mem_mib": 22170,
+      "util_pct": 13,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 37.0003,
+      "power_w": 139.69,
+      "mem_mib": 22170,
+      "util_pct": 12,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    },
+    {
+      "t_s": 37.2003,
+      "power_w": 143.3,
+      "mem_mib": 22170,
+      "util_pct": 22,
+      "clock_mhz": 1980,
+      "temp_c": 41
+    }
+  ],
+  "aggregate": {
+    "n_tenants": 16,
+    "total_tokens": 447,
+    "elapsed_s": 30.477,
+    "agg_tps": 14.819,
+    "tps_min": 0.886,
+    "tps_max": 1.166,
+    "fairness_ratio": 1.3157,
+    "achieved_TFLOPS": 0.2103,
+    "flops_per_token": 14340325376,
+    "mean_seq_len": 228,
+    "mfu_pct": 0.0213,
+    "hfu_pct": 0.0319,
+    "mean_power_w": 140.09,
+    "peak_power_w": 142.14,
+    "mean_util_pct": 13.56,
+    "mean_clock_mhz": 1980.0,
+    "peak_mem_mib": 22170,
+    "energy_J": 4269.5,
+    "tpw": 0.1047,
+    "dollar_per_M_tok_power_only": 0.265319,
+    "n_samples": 187,
+    "tenants": [
+      {
+        "tenant_id": 0,
+        "n_tokens": 27,
+        "elapsed_s": 30.260902564012213,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.8922404063423329,
+        "lat_p50_us": 1121986.7299951147,
+        "lat_p95_us": 1144296.0900021717,
+        "lat_p99_us": 1149598.3799977694,
+        "lat_mean_us": 1120627.0105957864,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 1,
+        "n_tokens": 27,
+        "elapsed_s": 30.263899482990382,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.8921520511649587,
+        "lat_p50_us": 1127382.8810080886,
+        "lat_p95_us": 1170275.6859885994,
+        "lat_p99_us": 1170941.332995426,
+        "lat_mean_us": 1120702.9897378997,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 2,
+        "n_tokens": 27,
+        "elapsed_s": 30.386255831981543,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.888559622129637,
+        "lat_p50_us": 1132781.5490076318,
+        "lat_p95_us": 1162103.7179720588,
+        "lat_p99_us": 1163500.421011122,
+        "lat_mean_us": 1125306.6802207658,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 3,
+        "n_tokens": 27,
+        "elapsed_s": 30.109547509026015,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.896725531723987,
+        "lat_p50_us": 1121271.1100233719,
+        "lat_p95_us": 1163103.4980237018,
+        "lat_p99_us": 1165291.3480065763,
+        "lat_mean_us": 1115015.8600390165,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 4,
+        "n_tokens": 27,
+        "elapsed_s": 30.47673726498033,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.8859216052311703,
+        "lat_p50_us": 1123288.231989136,
+        "lat_p95_us": 1174644.2029834725,
+        "lat_p99_us": 1185158.501000842,
+        "lat_mean_us": 1128515.4021838766,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 5,
+        "n_tokens": 27,
+        "elapsed_s": 30.131001072993968,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.8960870544789087,
+        "lat_p50_us": 1121707.5330205262,
+        "lat_p95_us": 1149604.514008388,
+        "lat_p99_us": 1158182.3219894432,
+        "lat_mean_us": 1115796.0146654793,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 6,
+        "n_tokens": 32,
+        "elapsed_s": 30.04456031799782,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 1.065084649643909,
+        "lat_p50_us": 1114746.395003749,
+        "lat_p95_us": 1153462.283022236,
+        "lat_p99_us": 1153936.8279918563,
+        "lat_mean_us": 938719.4726878079,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 7,
+        "n_tokens": 27,
+        "elapsed_s": 30.00976671697572,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.8997070938484445,
+        "lat_p50_us": 1121094.9789965525,
+        "lat_p95_us": 1150054.6740135178,
+        "lat_p99_us": 1172503.3069960773,
+        "lat_mean_us": 1111297.25433097,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 8,
+        "n_tokens": 27,
+        "elapsed_s": 30.037806250009453,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.8988672400132917,
+        "lat_p50_us": 1123277.0729984622,
+        "lat_p95_us": 1150113.8779858593,
+        "lat_p99_us": 1150530.8799969498,
+        "lat_mean_us": 1112321.5088888106,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 9,
+        "n_tokens": 27,
+        "elapsed_s": 30.41870878500049,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.887611640284802,
+        "lat_p50_us": 1126655.7759954594,
+        "lat_p95_us": 1163220.0910244137,
+        "lat_p99_us": 1163567.0179966837,
+        "lat_mean_us": 1126464.5613684682,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 10,
+        "n_tokens": 28,
+        "elapsed_s": 30.007050207990687,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.9331140450634424,
+        "lat_p50_us": 1112813.7189953122,
+        "lat_p95_us": 1143304.758996237,
+        "lat_p99_us": 1166072.3779932596,
+        "lat_mean_us": 1071476.824180406,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 11,
+        "n_tokens": 35,
+        "elapsed_s": 30.02806409599725,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 1.1655763051559993,
+        "lat_p50_us": 1107482.4440001976,
+        "lat_p95_us": 1135261.3589842804,
+        "lat_p99_us": 1151759.9599901587,
+        "lat_mean_us": 857757.463201415,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 12,
+        "n_tokens": 27,
+        "elapsed_s": 30.24827473500045,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.8926128923564076,
+        "lat_p50_us": 1123908.8450092822,
+        "lat_p95_us": 1163594.2589782644,
+        "lat_p99_us": 1164798.231999157,
+        "lat_mean_us": 1120145.2054783998,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 13,
+        "n_tokens": 27,
+        "elapsed_s": 30.101766124978894,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.8969573375827605,
+        "lat_p50_us": 1118031.7369871773,
+        "lat_p95_us": 1156654.0480125695,
+        "lat_p99_us": 1165207.3980076239,
+        "lat_mean_us": 1114643.2964090277,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 14,
+        "n_tokens": 27,
+        "elapsed_s": 30.11569981899811,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.8965423404495283,
+        "lat_p50_us": 1118456.17700601,
+        "lat_p95_us": 1158158.222999191,
+        "lat_p99_us": 1162114.1119976528,
+        "lat_mean_us": 1115237.9844063912,
+        "idle_fraction": 0.0
+      },
+      {
+        "tenant_id": 15,
+        "n_tokens": 28,
+        "elapsed_s": 30.079137559980154,
+        "compute_s": 0.0,
+        "idle_s": 0.0,
+        "n_bursts": 0,
+        "tps": 0.9308777535315236,
+        "lat_p50_us": 1123969.0229995176,
+        "lat_p95_us": 1158568.394021131,
+        "lat_p99_us": 1162643.3069759514,
+        "lat_mean_us": 1074059.4157843068,
+        "idle_fraction": 0.0
+      }
+    ],
+    "stop_reason": "completed"
+  },
+  "sampler": {
+    "backend": "nvml",
+    "samples_collected": 187,
+    "samples_in_receipt": 187,
+    "samples_dropped": 0,
+    "n_sample_errors": 0,
+    "first_error": null
+  }
+}

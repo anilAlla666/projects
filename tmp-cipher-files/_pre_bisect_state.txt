@@ -1,0 +1,22 @@
+--- pre-bisect state 2026-05-14T02:44:58Z ---
+kmod loaded:
+cipher_kmod            57344  2
+kmod version/srcversion: 0.4.4 / 1B657D6043D718B6DE2BC56
+
+/proc/cipher/stats head:
+cipher_kmod 0.4.4  uptime=23782705 jiffies (23782.70 s)
+nvidia_unlocked_ioctl @ 0xffffffffc05f6300 [hooked]
+total_observed=241194  total_errors=0  alloc_failures=0  reaped=141
+
+Frontend ioctls (nr 200..218):
+  nr   name                              count        errors     
+  ---  --------------------------------  -----------  -----------
+  200  NV_ESC_CARD_INFO                          164            0
+  201  NV_ESC_REGISTER_FD                        648            0
+  206  NV_ESC_ALLOC_OS_EVENT                     320            0
+
+taint: 12288
+daemons:
+ 283587    06:30:43 sudo /home/ubuntu/cipher_gpustate/cipher-gpustate
+ 283588    06:30:43 /home/ubuntu/cipher_gpustate/cipher-gpustate
+ 283592    06:30:42 python3 /home/ubuntu/cipher_exporter/cipher-exporter.py --port 9402 --bind 127.0.0.1

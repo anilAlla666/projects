@@ -1,0 +1,49 @@
+[CIPHER SUB-V2] init max_shapes=256 target_arch=sm_90
+[CIPHER WCMP] init max_weights=512 stable_hits=1000 min_bytes=1048576 rel_err_threshold=0.0100
+[CIPHER L3.10] CfC LNN initialized.
+  Architecture: 48 → 64 → 12 (CfC)
+  Weight init:  analytical (Layer 3 rules encoded)
+  Weight size:  59 KB
+  Δt:           1.0
+[CIPHER 10ops] Shadow LNN initialized: hidden=64 input=48 params=60976 bytes
+[CIPHER L3.5] EDMD pipeline initialized: op='GEMM' dim=1 K=8 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='ATTENTION' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='ELEMENTWISE' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='CONVOLUTION' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='REDUCTION' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='MEMCPY_TRANSPOSE' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='ITERATIVE_CUSTOM' dim=64 K=20 min_snapshots=400
+[CIPHER 10ops] EDMD pipelines initialized: 7 classes × 200 snapshots min
+[CIPHER KEN] Initialized: r=8 n=16 spectral evolver
+[CIPHER BLOCK] Cannot open /workspace/manifold/V_layer20.npy
+[CIPHER BLOCK] Failed to load V from /workspace/manifold/V_layer20.npy
+[CIPHER 10ops] POSIX SHM opened: /cipher_sm_demand (64 bytes) — ARBITRATE active
+[CIPHER 10ops] Stage 1/2 threads skipped — no observers enabled (lazy-start)
+[CIPHER 10ops] ══════════════════════════════
+[CIPHER 10ops] 10-Operation Runtime ACTIVE
+[CIPHER 10ops]   Stage 0: CLASSIFY+SPECULATE_CHECK+SUBSTITUTE+ORCHESTRATE+GENERATE+RING_WRITE
+[CIPHER 10ops]   Stage 1: REMEMBER+VALIDATE+AUDIT+SPECULATE (shadow thread)
+[CIPHER 10ops]   Stage 2: ADAPT+ARBITRATE (background)
+[CIPHER 10ops]   Ring:    8192 KB (65536 × 128B entries)
+[CIPHER 10ops]   AUDIT:   HMAC-SHA256 (OpenSSL/SHA-NI)
+[CIPHER 10ops] ══════════════════════════════
+[CIPHER F1] cuLaunchKernel hook installed. real_launch=0x712a4279f4b0 shim=0x712a3fa1feb0
+
+=== ACTION 7: stacked levers at batch=1 ===
+
+--- Power cap: 700W (default) ---
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 1/291 [00:00<00:29,  9.74it/s]Loading weights:   3%|▎         | 9/291 [00:00<00:06, 42.09it/s]Loading weights:   4%|▍         | 13/291 [00:00<00:06, 40.54it/s]Loading weights:   8%|▊         | 22/291 [00:00<00:05, 50.88it/s]Loading weights:  11%|█         | 31/291 [00:00<00:05, 50.85it/s]Loading weights:  14%|█▎        | 40/291 [00:00<00:04, 53.55it/s]Loading weights:  17%|█▋        | 49/291 [00:00<00:04, 55.46it/s]Loading weights:  20%|█▉        | 58/291 [00:01<00:04, 48.75it/s]Loading weights:  23%|██▎       | 68/291 [00:01<00:03, 56.93it/s]Loading weights:  26%|██▋       | 77/291 [00:01<00:03, 64.01it/s]Loading weights:  29%|██▉       | 85/291 [00:01<00:03, 53.96it/s]Loading weights:  33%|███▎      | 95/291 [00:01<00:03, 58.46it/s]Loading weights:  36%|███▌      | 104/291 [00:01<00:02, 62.63it/s]Loading weights:  39%|███▉      | 114/291 [00:01<00:02, 69.23it/s]Loading weights:  42%|████▏     | 122/291 [00:02<00:02, 70.74it/s]Loading weights:  45%|████▍     | 130/291 [00:02<00:02, 66.89it/s]Loading weights:  48%|████▊     | 139/291 [00:02<00:02, 64.72it/s]Loading weights:  51%|█████     | 149/291 [00:02<00:02, 57.33it/s]Loading weights:  56%|█████▌    | 163/291 [00:02<00:01, 72.87it/s]Loading weights:  59%|█████▉    | 171/291 [00:02<00:01, 65.48it/s]Loading weights:  63%|██████▎   | 184/291 [00:03<00:01, 59.67it/s]Loading weights:  67%|██████▋   | 194/291 [00:03<00:01, 66.24it/s]Loading weights:  70%|███████   | 204/291 [00:03<00:01, 67.04it/s]Loading weights:  73%|███████▎  | 212/291 [00:03<00:01, 65.53it/s]Loading weights:  78%|███████▊  | 226/291 [00:03<00:00, 76.04it/s]Loading weights:  80%|████████  | 234/291 [00:03<00:00, 70.35it/s]Loading weights:  84%|████████▍ | 244/291 [00:03<00:00, 76.10it/s]Loading weights:  87%|████████▋ | 252/291 [00:04<00:00, 71.79it/s]Loading weights:  89%|████████▉ | 260/291 [00:04<00:00, 66.13it/s]Loading weights:  93%|█████████▎| 272/291 [00:04<00:00, 78.77it/s]Loading weights:  97%|█████████▋| 281/291 [00:04<00:00, 73.77it/s]Loading weights: 100%|██████████| 291/291 [00:04<00:00, 64.51it/s]
+  C1: fp16 graph                                    tps= 110.07  W= 309.7  clk= 1980  tok/W= 0.355
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   1%|          | 2/291 [00:00<00:32,  8.84it/s]Loading weights:   5%|▌         | 15/291 [00:00<00:05, 53.27it/s]Loading weights:   8%|▊         | 23/291 [00:00<00:04, 54.06it/s]Loading weights:  11%|█         | 31/291 [00:00<00:04, 59.11it/s]Loading weights:  14%|█▎        | 40/291 [00:00<00:04, 56.94it/s]Loading weights:  17%|█▋        | 49/291 [00:00<00:04, 55.34it/s]Loading weights:  20%|██        | 59/291 [00:01<00:04, 55.64it/s]Loading weights:  26%|██▌       | 76/291 [00:01<00:03, 61.61it/s]Loading weights:  30%|██▉       | 86/291 [00:01<00:03, 63.88it/s]Loading weights:  35%|███▌      | 103/291 [00:01<00:02, 71.72it/s]Loading weights:  38%|███▊      | 112/291 [00:01<00:02, 65.55it/s]Loading weights:  42%|████▏     | 122/291 [00:02<00:02, 68.06it/s]Loading weights:  45%|████▌     | 131/291 [00:02<00:02, 72.13it/s]Loading weights:  48%|████▊     | 139/291 [00:02<00:02, 65.84it/s]Loading weights:  51%|█████     | 148/291 [00:02<00:02, 70.19it/s]Loading weights:  54%|█████▍    | 157/291 [00:02<00:02, 59.04it/s]Loading weights:  57%|█████▋    | 167/291 [00:02<00:01, 62.80it/s]Loading weights:  61%|██████    | 177/291 [00:02<00:01, 69.60it/s]Loading weights:  64%|██████▎   | 185/291 [00:02<00:01, 71.01it/s]Loading weights:  67%|██████▋   | 194/291 [00:03<00:01, 66.24it/s]Loading weights:  70%|██████▉   | 203/291 [00:03<00:01, 67.22it/s]Loading weights:  73%|███████▎  | 212/291 [00:03<00:01, 70.95it/s]Loading weights:  76%|███████▌  | 220/291 [00:03<00:01, 69.02it/s]Loading weights:  79%|███████▊  | 229/291 [00:03<00:00, 70.51it/s]Loading weights:  82%|████████▏ | 238/291 [00:03<00:00, 60.75it/s]Loading weights:  85%|████████▌ | 248/291 [00:03<00:00, 64.26it/s]Loading weights:  88%|████████▊ | 257/291 [00:04<00:00, 64.71it/s]Loading weights:  92%|█████████▏| 267/291 [00:04<00:00, 69.51it/s]Loading weights:  95%|█████████▍| 275/291 [00:04<00:00, 64.03it/s]Loading weights:  98%|█████████▊| 284/291 [00:04<00:00, 69.50it/s]Loading weights: 100%|██████████| 291/291 [00:04<00:00, 65.86it/s]
+  C2: fp16 graph + fusion                           tps= 128.03  W= 316.9  clk= 1980  tok/W= 0.404
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 1/291 [00:00<00:32,  8.82it/s]Loading weights:   1%|          | 2/291 [00:00<00:32,  9.00it/s]Loading weights:   4%|▍         | 13/291 [00:00<00:05, 49.65it/s]Loading weights:   8%|▊         | 22/291 [00:00<00:04, 56.62it/s]Loading weights:  11%|█         | 31/291 [00:00<00:04, 58.00it/s]Loading weights:  14%|█▍        | 41/291 [00:00<00:03, 69.67it/s]Loading weights:  17%|█▋        | 50/291 [00:00<00:03, 73.51it/s]Loading weights:  23%|██▎       | 68/291 [00:00<00:02, 103.43it/s]Loading weights:  27%|██▋       | 79/291 [00:01<00:02, 90.32it/s] Loading weights:  31%|███       | 89/291 [00:01<00:02, 85.61it/s]Loading weights:  34%|███▎      | 98/291 [00:01<00:02, 83.35it/s]Loading weights:  37%|███▋      | 107/291 [00:01<00:02, 82.60it/s]Loading weights:  42%|████▏     | 122/291 [00:01<00:01, 100.16it/s]Loading weights:  48%|████▊     | 139/291 [00:01<00:01, 112.70it/s]Loading weights:  54%|█████▍    | 157/291 [00:01<00:01, 122.32it/s]Loading weights:  60%|██████    | 175/291 [00:01<00:00, 126.34it/s]Loading weights:  66%|██████▋   | 193/291 [00:02<00:00, 125.79it/s]Loading weights:  72%|███████▏  | 209/291 [00:02<00:00, 133.96it/s]Loading weights:  77%|███████▋  | 223/291 [00:02<00:00, 89.14it/s] Loading weights:  80%|████████  | 234/291 [00:02<00:00, 84.87it/s]Loading weights:  84%|████████▍ | 244/291 [00:02<00:00, 72.45it/s]Loading weights:  87%|████████▋ | 253/291 [00:02<00:00, 72.81it/s]Loading weights:  90%|█████████ | 262/291 [00:03<00:00, 74.49it/s]Loading weights:  95%|█████████▍| 275/291 [00:03<00:00, 84.45it/s]Loading weights: 100%|██████████| 291/291 [00:03<00:00, 89.55it/s]
+  C3: fp16 graph + fusion + INT4                    tps= 113.38  W= 299.5  clk= 1980  tok/W= 0.379
+
+--- Power cap: 200W ---
+  power cap setting failed (need root?); skipping 200W rows
+
+=== Best tok/W: C2: fp16 graph + fusion ===
+  C2: fp16 graph + fusion  tok/W=0.404
+[CIPHER F1] Teardown. Intercepts: 0 | Substitutions: 0 (0.0%) | Avg overhead: 0.0ns | Max: 0ns

@@ -1,0 +1,68 @@
+[CIPHER SUB-V2] init max_shapes=256 target_arch=sm_90
+[CIPHER WCMP] init max_weights=512 stable_hits=1000 min_bytes=1048576 rel_err_threshold=0.0100
+[CIPHER L3.10] CfC LNN initialized.
+  Architecture: 48 → 64 → 12 (CfC)
+  Weight init:  analytical (Layer 3 rules encoded)
+  Weight size:  59 KB
+  Δt:           1.0
+[CIPHER 10ops] Shadow LNN initialized: hidden=64 input=48 params=60976 bytes
+[CIPHER L3.5] EDMD pipeline initialized: op='GEMM' dim=1 K=8 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='ATTENTION' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='ELEMENTWISE' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='CONVOLUTION' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='REDUCTION' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='MEMCPY_TRANSPOSE' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='ITERATIVE_CUSTOM' dim=64 K=20 min_snapshots=400
+[CIPHER 10ops] EDMD pipelines initialized: 7 classes × 200 snapshots min
+[CIPHER KEN] Initialized: r=8 n=16 spectral evolver
+[CIPHER BLOCK] Cannot open /workspace/manifold/V_layer20.npy
+[CIPHER BLOCK] Failed to load V from /workspace/manifold/V_layer20.npy
+[CIPHER 10ops] POSIX SHM opened: /cipher_sm_demand (64 bytes) — ARBITRATE active
+[CIPHER 10ops] Stage 1/2 threads skipped — no observers enabled (lazy-start)
+[CIPHER 10ops] ══════════════════════════════
+[CIPHER 10ops] 10-Operation Runtime ACTIVE
+[CIPHER 10ops]   Stage 0: CLASSIFY+SPECULATE_CHECK+SUBSTITUTE+ORCHESTRATE+GENERATE+RING_WRITE
+[CIPHER 10ops]   Stage 1: REMEMBER+VALIDATE+AUDIT+SPECULATE (shadow thread)
+[CIPHER 10ops]   Stage 2: ADAPT+ARBITRATE (background)
+[CIPHER 10ops]   Ring:    8192 KB (65536 × 128B entries)
+[CIPHER 10ops]   AUDIT:   HMAC-SHA256 (OpenSSL/SHA-NI)
+[CIPHER 10ops] ══════════════════════════════
+[CIPHER F1] cuLaunchKernel hook installed. real_launch=0x73a68c59f4b0 shim=0x73a68961feb0
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[setup] prompt='Explain how a CPU executes instructions step by step' prompt_len=12 N_DECODE=200
+
+========== fp16 baseline ==========
+[build] fp16
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   3%|▎         | 9/291 [00:00<00:03, 89.70it/s]Loading weights:   8%|▊         | 23/291 [00:00<00:02, 113.44it/s]Loading weights:  14%|█▎        | 40/291 [00:00<00:02, 123.01it/s]Loading weights:  20%|█▉        | 58/291 [00:00<00:01, 142.04it/s]Loading weights:  26%|██▌       | 76/291 [00:00<00:01, 130.47it/s]Loading weights:  32%|███▏      | 94/291 [00:00<00:01, 141.59it/s]Loading weights:  38%|███▊      | 112/291 [00:00<00:01, 141.40it/s]Loading weights:  45%|████▍     | 130/291 [00:00<00:01, 135.17it/s]Loading weights:  51%|█████     | 149/291 [00:01<00:00, 145.21it/s]Loading weights:  57%|█████▋    | 166/291 [00:01<00:00, 137.50it/s]Loading weights:  64%|██████▎   | 185/291 [00:01<00:00, 146.34it/s]Loading weights:  69%|██████▉   | 202/291 [00:01<00:00, 145.33it/s]Loading weights:  76%|███████▌  | 220/291 [00:01<00:00, 144.10it/s]Loading weights:  82%|████████▏ | 238/291 [00:01<00:00, 144.08it/s]Loading weights:  88%|████████▊ | 256/291 [00:01<00:00, 144.02it/s]Loading weights:  94%|█████████▍| 274/291 [00:01<00:00, 138.97it/s]Loading weights: 100%|██████████| 291/291 [00:02<00:00, 141.92it/s]
+[fp16] 200 tokens in 4.05s = 49.33 tok/s
+[fp16] free-running text: '.\n\nThe CPU is the brain of the computer. It is the part of the computer that executes instructions. The CPU is made up of a control unit and an arithmetic logic unit. The control unit is responsible for fetching instructions from memory and decoding them. The arithmetic logic unit is responsible for'
+
+========== naive INT4 (no AWQ) ==========
+[build] int4
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   0%|          | 1/291 [00:00<00:30,  9.56it/s]Loading weights:   8%|▊         | 22/291 [00:00<00:02, 111.75it/s]Loading weights:  14%|█▎        | 40/291 [00:00<00:01, 135.02it/s]Loading weights:  20%|█▉        | 58/291 [00:00<00:01, 141.53it/s]Loading weights:  26%|██▌       | 76/291 [00:00<00:01, 141.88it/s]Loading weights:  32%|███▏      | 94/291 [00:00<00:01, 145.03it/s]Loading weights:  38%|███▊      | 110/291 [00:00<00:01, 149.36it/s]Loading weights:  43%|████▎     | 125/291 [00:00<00:01, 142.63it/s]Loading weights:  48%|████▊     | 140/291 [00:01<00:01, 138.52it/s]Loading weights:  54%|█████▍    | 157/291 [00:01<00:00, 142.50it/s]Loading weights:  60%|██████    | 175/291 [00:01<00:00, 144.20it/s]Loading weights:  66%|██████▋   | 193/291 [00:01<00:00, 135.17it/s]Loading weights:  73%|███████▎  | 213/291 [00:01<00:00, 148.14it/s]Loading weights:  79%|███████▊  | 229/291 [00:01<00:00, 150.56it/s]Loading weights:  85%|████████▍ | 247/291 [00:01<00:00, 145.00it/s]Loading weights:  91%|█████████ | 265/291 [00:01<00:00, 148.68it/s]Loading weights:  97%|█████████▋| 283/291 [00:02<00:00, 146.02it/s]Loading weights: 100%|██████████| 291/291 [00:02<00:00, 143.42it/s]
+[build] replaced 224 linears
+[int4-teacher] top1=0.9750 mean_kl=0.0380 p99_kl=0.2229
+[int4-free] 200 tokens in 3.62s = 55.30 tok/s
+[int4-free] text: '.\nGroupLayout\n\n# Explain how a CPU executes instructions step by step.\n\n## Answer:\n\nA CPU executes instructions step by step by fetching the instructions from the memory, decoding the instructions, and executing the instructions.\n\n## Explanation\n\nA CPU executes instructions step by step by fetching '
+
+========== AWQ INT4 ==========
+[awq] loaded 224 per-linear scale tensors
+[build] awq
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   2%|▏         | 6/291 [00:00<00:04, 57.44it/s]Loading weights:   8%|▊         | 22/291 [00:00<00:02, 108.49it/s]Loading weights:  14%|█▎        | 40/291 [00:00<00:02, 117.16it/s]Loading weights:  20%|█▉        | 58/291 [00:00<00:01, 129.48it/s]Loading weights:  26%|██▌       | 76/291 [00:00<00:01, 139.35it/s]Loading weights:  32%|███▏      | 94/291 [00:00<00:01, 140.54it/s]Loading weights:  38%|███▊      | 112/291 [00:00<00:01, 135.62it/s]Loading weights:  45%|████▌     | 131/291 [00:00<00:01, 140.75it/s]Loading weights:  51%|█████     | 148/291 [00:01<00:00, 145.16it/s]Loading weights:  57%|█████▋    | 166/291 [00:01<00:00, 150.17it/s]Loading weights:  63%|██████▎   | 184/291 [00:01<00:00, 138.84it/s]Loading weights:  69%|██████▉   | 202/291 [00:01<00:00, 140.34it/s]Loading weights:  76%|███████▌  | 220/291 [00:01<00:00, 149.60it/s]Loading weights:  82%|████████▏ | 238/291 [00:01<00:00, 140.63it/s]Loading weights:  88%|████████▊ | 257/291 [00:01<00:00, 149.65it/s]Loading weights:  94%|█████████▍| 274/291 [00:01<00:00, 150.52it/s]Loading weights: 100%|██████████| 291/291 [00:02<00:00, 142.51it/s]
+[build] replaced 224 linears
+[awq-teacher] top1=0.0100 mean_kl=9.1208 p99_kl=12.6574
+[awq-free] 200 tokens in 4.01s = 49.90 tok/s
+[awq-free] text: '.\n\nculhu e utoutoutowegwegipperaraaraaraaraaraaraaraaraaraketketroylelelelealalalalalalalalal                                                                                                                                                                 '
+
+========== SUMMARY ==========
+      mode     tok/s      top1   mean_kl    p99_kl
+      fp16     49.33       --        --        --
+      int4     55.30    0.9750    0.0380    0.2229
+       awq     49.90    0.0100    9.1208   12.6574
+
+  AWQ vs naive INT4: top1 0.9750 -> 0.0100 (-96.5 pp)
+                     mean_kl 0.0380 -> 9.1208 (-23921.1% reduction)
+
+[save] awq_results.json
+[CIPHER F1] Teardown. Intercepts: 0 | Substitutions: 0 (0.0%) | Avg overhead: 0.0ns | Max: 0ns

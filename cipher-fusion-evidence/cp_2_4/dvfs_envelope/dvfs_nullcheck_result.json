@@ -1,0 +1,102 @@
+{
+  "cp": "2.4",
+  "test": "DVFS_envelope_post_marlin_int4",
+  "workload": "Mistral-7B-v0.1 INT4 (Marlin on), B=1 decode",
+  "methodology": "matched-pair (VOLT off vs on), n=5, decode-window power avg, T4.3-comparable",
+  "t4_3_reference": "Mistral-7B FP16 envelope was -2%% to -14%% \u0394tok/W",
+  "clocks": [
+    {
+      "clock_mhz": 9999,
+      "per_pair": {
+        "off": [
+          {
+            "pair": 1,
+            "watts": 176.605,
+            "clock_mhz": 1980.0,
+            "tok_s": 52.249,
+            "tok_w": 0.295854
+          },
+          {
+            "pair": 2,
+            "watts": 175.533,
+            "clock_mhz": 1980.0,
+            "tok_s": 50.794,
+            "tok_w": 0.289368
+          },
+          {
+            "pair": 3,
+            "watts": 175.087,
+            "clock_mhz": 1980.0,
+            "tok_s": 51.596,
+            "tok_w": 0.294687
+          },
+          {
+            "pair": 4,
+            "watts": 177.084,
+            "clock_mhz": 1980.0,
+            "tok_s": 52.312,
+            "tok_w": 0.295407
+          },
+          {
+            "pair": 5,
+            "watts": 176.255,
+            "clock_mhz": 1980.0,
+            "tok_s": 52.05,
+            "tok_w": 0.29531
+          }
+        ],
+        "on": [
+          {
+            "pair": 1,
+            "watts": 176.373,
+            "clock_mhz": 1980.0,
+            "tok_s": 51.758,
+            "tok_w": 0.293456
+          },
+          {
+            "pair": 2,
+            "watts": 176.88,
+            "clock_mhz": 1980.0,
+            "tok_s": 52.188,
+            "tok_w": 0.29505
+          },
+          {
+            "pair": 3,
+            "watts": 174.998,
+            "clock_mhz": 1980.0,
+            "tok_s": 51.408,
+            "tok_w": 0.293761
+          },
+          {
+            "pair": 4,
+            "watts": 176.388,
+            "clock_mhz": 1980.0,
+            "tok_s": 51.818,
+            "tok_w": 0.293771
+          },
+          {
+            "pair": 5,
+            "watts": 176.609,
+            "clock_mhz": 1980.0,
+            "tok_s": 51.972,
+            "tok_w": 0.294277
+          }
+        ]
+      },
+      "delta_tok_w": {
+        "n": 5,
+        "off_tok_w_mean": 0.29413,
+        "on_tok_w_mean": 0.29406,
+        "off_clock_mhz": 1980.0,
+        "on_clock_mhz": 1980.0,
+        "pct_delta": -0.021,
+        "pct_95lo": -0.994,
+        "pct_95hi": 0.952
+      }
+    }
+  ],
+  "verdict": {
+    "dvfs_in_composed_gate": false,
+    "rationale": "no clock point shows \u0394tok/W with 95%% CI lower bound > 0 on the post-Marlin-INT4 Mistral-7B workload \u2014 neutral or negative across the envelope. DVFS OUT of the composed gate (memo \u00a73.3 disable rule). Not re-tuned."
+  }
+}

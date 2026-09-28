@@ -1,0 +1,73 @@
+=== Phase 4 cipher_kmod 0.4.3 cutover gates — 2026-05-13 (post-reboot) ===
+
+[ Module ]
+  version:        0.4.3
+  srcversion:     335F54871889FFF2C36E3B0
+  .ko md5:        fb210777460c47bedd52c7d4223b22ca
+
+[ Fallback md5 verification ]
+  55ab8c0cd8309ca7cc0fc40fe556aa19  cipher_kmod.ko.v0.2.0  (expected)
+  86618c30896470b642fcc6985d8dc632  libcipher_v2.so.v0.2.0  (expected)
+
+[ Taint after all gates ]
+  /proc/sys/kernel/tainted = 12288 (nvidia OE + unsigned; no W/D bits from cipher)
+
+[ Incident 2 (cipher_bar0_exit oops) ]
+  Status: FIXED by Fix A. 20/20 insmod→smoke→rmmod cycles clean.
+
+[ Incident 3 (do_exit slot leak) ]
+  Status: FIXED in 0.4.2; preserved in 0.4.3. Verified by partition Test 4.
+
+[ Phase 3 ABI gates ]
+  happy:     all PASS  (REGISTER_TENANT + SUBMIT_LAUNCH_STATS)
+  negative:  all PASS  (6 anti-spoof / capability cases)
+  root:      all PASS  (SUBMIT_GPU_STATE + SUBMIT_PROCESS_UTIL)
+
+[ Phase 4.1 snapshot (10/10 PASS) ]
+  by_pid lookup, by_id lookup, ENOENT on unknown / no-selector / unknown-id.
+
+[ Phase 4.2 partition (8/8 functional PASS) ]
+  request 4 / 8 popcount + Test 3 (11-way fork), Test 4 (post-reap reclaim),
+  hint=0/99 clamps.
+
+[ Phase 4.2 partition single-thread perf (N=1,000,000) ]
+  p50  228 ns   p90  233 ns   p99  236 ns   max  14,828 ns
+
+[ Phase 4.2 contention gate (5× target) ]
+
+  Headline:  1.4×  (33 threads, hint=1, per-thread fd, p99=322 ns)
+  Verdict:   PASS — gate cleanly achieved.
+
+  Three sweeps run to fully characterize:
+
+    A) Shared fd (one /dev/cipher across all threads), hint=8:
+       4t  574 ns / 2.4×    8t  2059 ns / 8.7×    13t  4996 ns / 21.2×
+       26t 11,862 ns / 50.3×    33t 10,430 ns / 44.2×
+       ops/s flat at ~8M from 4t through 33t — VFS single-struct-file cap.
+
+    B) Same shared-fd setup with hint=1 (33t × 1 = exact 33-slot supply):
+       Result statistically equal to hint=8. Demand-supply mismatch was NOT
+       the cause. Disconfirms over-subscription hypothesis.
+
+    C) Per-thread fd (each worker opens its own /dev/cipher), hint=1:
+       4t  252 ns / 1.1× / 14M ops    8t  251 ns / 1.1× / 28M ops
+       13t 315 ns / 1.3× / 38M ops    24t 323 ns / 1.4× / 69M ops
+       33t 322 ns / 1.4× / 76M ops    ← gate-spec workload
+
+  The 44.2× shared-fd number was measuring kernel-side struct-file
+  serialization (capped at ~8 M ops/s), not allocator contention. Once that
+  confound is removed, the lock-free allocator is near-linear scalable.
+
+  Comparison vs 0.4.1 (spinlock) at 33 threads:
+    0.4.1 shared fd:           126.7×
+    0.4.3 shared fd:            44.2×
+    0.4.3 per-thread fd:         1.4×    ← headline
+
+[ Phase 3 demo substrate (Stage 5b) under 0.4.3 ]
+  cipher-gpustate writes /dev/cipher; cipher-exporter exposes /metrics on
+  :9402. Device row populated (power, temp, clocks, fb). Substrate preserved.
+
+[ Baseline collection (background) ]
+  Runner: /home/ubuntu/cipher-phase4-evidence/run_baselines.sh
+  Batch 1: WL01 WL02 WL06 WL11 WL14 WL15 @ 600s each.
+  Batches 2/3/4 + WL05 deferred to follow-up.

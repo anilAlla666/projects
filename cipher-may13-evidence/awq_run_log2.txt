@@ -1,0 +1,66 @@
+[CIPHER L3.10] CfC LNN initialized.
+  Architecture: 48 → 64 → 12 (CfC)
+  Weight init:  analytical (Layer 3 rules encoded)
+  Weight size:  59 KB
+  Δt:           1.0
+[CIPHER 10ops] Shadow LNN initialized: hidden=64 input=48 params=60976 bytes
+[CIPHER L3.5] EDMD pipeline initialized: op='GEMM' dim=1 K=8 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='ATTENTION' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='ELEMENTWISE' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='CONVOLUTION' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='REDUCTION' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='MEMCPY_TRANSPOSE' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='ITERATIVE_CUSTOM' dim=64 K=20 min_snapshots=400
+[CIPHER 10ops] EDMD pipelines initialized: 7 classes × 200 snapshots min
+[CIPHER KEN] Initialized: r=8 n=16 spectral evolver
+[CIPHER BLOCK] Cannot open /workspace/manifold/V_layer20.npy
+[CIPHER BLOCK] Failed to load V from /workspace/manifold/V_layer20.npy
+[CIPHER 10ops] POSIX SHM opened: /cipher_sm_demand (64 bytes) — ARBITRATE active
+[CIPHER 10ops] Stage 1/2 threads skipped — no observers enabled (lazy-start)
+[CIPHER 10ops] ══════════════════════════════
+[CIPHER 10ops] 10-Operation Runtime ACTIVE
+[CIPHER 10ops]   Stage 0: CLASSIFY+SPECULATE_CHECK+SUBSTITUTE+ORCHESTRATE+GENERATE+RING_WRITE
+[CIPHER 10ops]   Stage 1: REMEMBER+VALIDATE+AUDIT+SPECULATE (shadow thread)
+[CIPHER 10ops]   Stage 2: ADAPT+ARBITRATE (background)
+[CIPHER 10ops]   Ring:    8192 KB (65536 × 128B entries)
+[CIPHER 10ops]   AUDIT:   HMAC-SHA256 (OpenSSL/SHA-NI)
+[CIPHER 10ops] ══════════════════════════════
+[CIPHER F1] cuLaunchKernel hook installed. real_launch=0x7a70ccb9f4b0 shim=0x7a70c9e1feb0
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[setup] prompt='Explain how a CPU executes instructions step by step' prompt_len=12 N_DECODE=200
+
+========== fp16 baseline ==========
+[build] fp16
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   4%|▍         | 13/291 [00:00<00:02, 112.85it/s]Loading weights:  11%|█         | 31/291 [00:00<00:02, 128.76it/s]Loading weights:  17%|█▋        | 49/291 [00:00<00:01, 123.06it/s]Loading weights:  23%|██▎       | 67/291 [00:00<00:01, 139.66it/s]Loading weights:  29%|██▉       | 85/291 [00:00<00:01, 140.36it/s]Loading weights:  35%|███▌      | 103/291 [00:00<00:01, 139.60it/s]Loading weights:  42%|████▏     | 121/291 [00:00<00:01, 142.31it/s]Loading weights:  48%|████▊     | 139/291 [00:01<00:01, 143.86it/s]Loading weights:  54%|█████▍    | 157/291 [00:01<00:00, 143.73it/s]Loading weights:  60%|██████    | 175/291 [00:01<00:00, 144.77it/s]Loading weights:  66%|██████▋   | 193/291 [00:01<00:00, 136.74it/s]Loading weights:  73%|███████▎  | 212/291 [00:01<00:00, 145.92it/s]Loading weights:  79%|███████▉  | 230/291 [00:01<00:00, 148.85it/s]Loading weights:  85%|████████▍ | 247/291 [00:01<00:00, 146.36it/s]Loading weights:  91%|█████████ | 265/291 [00:01<00:00, 138.42it/s]Loading weights:  97%|█████████▋| 283/291 [00:01<00:00, 147.97it/s]Loading weights: 100%|██████████| 291/291 [00:02<00:00, 144.69it/s]
+[fp16] 200 tokens in 4.06s = 49.28 tok/s
+[fp16] free-running text: '.\n\nThe CPU is the brain of the computer. It is the part of the computer that executes instructions. The CPU is made up of a control unit and an arithmetic logic unit. The control unit is responsible for fetching instructions from memory and decoding them. The arithmetic logic unit is responsible for'
+
+========== naive INT4 (no AWQ) ==========
+[build] int4
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   3%|▎         | 10/291 [00:00<00:03, 90.82it/s]Loading weights:   8%|▊         | 22/291 [00:00<00:02, 107.05it/s]Loading weights:  14%|█▍        | 41/291 [00:00<00:01, 129.89it/s]Loading weights:  20%|█▉        | 58/291 [00:00<00:01, 137.84it/s]Loading weights:  26%|██▌       | 76/291 [00:00<00:01, 145.72it/s]Loading weights:  32%|███▏      | 94/291 [00:00<00:01, 143.54it/s]Loading weights:  38%|███▊      | 112/291 [00:00<00:01, 138.72it/s]Loading weights:  45%|████▍     | 130/291 [00:00<00:01, 136.94it/s]Loading weights:  51%|█████     | 148/291 [00:01<00:01, 140.01it/s]Loading weights:  57%|█████▋    | 166/291 [00:01<00:00, 149.74it/s]Loading weights:  63%|██████▎   | 184/291 [00:01<00:00, 147.91it/s]Loading weights:  69%|██████▉   | 202/291 [00:01<00:00, 146.48it/s]Loading weights:  76%|███████▌  | 220/291 [00:01<00:00, 153.44it/s]Loading weights:  82%|████████▏ | 238/291 [00:01<00:00, 150.65it/s]Loading weights:  88%|████████▊ | 256/291 [00:01<00:00, 149.37it/s]Loading weights:  94%|█████████▍| 274/291 [00:01<00:00, 147.35it/s]Loading weights: 100%|██████████| 291/291 [00:02<00:00, 145.36it/s]
+[build] replaced 224 linears
+[int4-teacher] top1=1.0000 mean_kl=0.0000 p99_kl=0.0000
+[int4-free] 200 tokens in 3.57s = 56.07 tok/s
+[int4-free] text: '.\n\nThe CPU is the brain of the computer. It is the part of the computer that executes instructions. The CPU is made up of a control unit and an arithmetic logic unit. The control unit is responsible for fetching instructions from memory and decoding them. The arithmetic logic unit is responsible for'
+
+========== AWQ INT4 ==========
+[awq] loaded 224 per-linear scale tensors
+[build] awq
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   1%|          | 2/291 [00:00<00:16, 17.99it/s]Loading weights:   8%|▊         | 22/291 [00:00<00:02, 104.34it/s]Loading weights:  14%|█▎        | 40/291 [00:00<00:01, 128.82it/s]Loading weights:  20%|█▉        | 58/291 [00:00<00:01, 143.44it/s]Loading weights:  26%|██▌       | 76/291 [00:00<00:01, 140.40it/s]Loading weights:  32%|███▏      | 94/291 [00:00<00:01, 130.34it/s]Loading weights:  39%|███▉      | 113/291 [00:00<00:01, 143.52it/s]Loading weights:  45%|████▍     | 130/291 [00:00<00:01, 137.12it/s]Loading weights:  51%|█████     | 148/291 [00:01<00:00, 147.15it/s]Loading weights:  57%|█████▋    | 166/291 [00:01<00:00, 142.35it/s]Loading weights:  63%|██████▎   | 184/291 [00:01<00:00, 144.97it/s]Loading weights:  69%|██████▉   | 202/291 [00:01<00:00, 144.88it/s]Loading weights:  76%|███████▌  | 220/291 [00:01<00:00, 143.74it/s]Loading weights:  82%|████████▏ | 238/291 [00:01<00:00, 144.75it/s]Loading weights:  88%|████████▊ | 256/291 [00:01<00:00, 144.85it/s]Loading weights:  94%|█████████▍| 274/291 [00:01<00:00, 139.29it/s]Loading weights: 100%|██████████| 291/291 [00:02<00:00, 141.25it/s]
+[build] replaced 224 linears
+[awq-teacher] top1=1.0000 mean_kl=0.0000 p99_kl=0.0000
+[awq-free] 200 tokens in 3.93s = 50.83 tok/s
+[awq-free] text: '.\n\nThe CPU is the brain of the computer. It is the part of the computer that executes instructions. The CPU is made up of a control unit and an arithmetic logic unit. The control unit is responsible for fetching instructions from memory and decoding them. The arithmetic logic unit is responsible for'
+
+========== SUMMARY ==========
+      mode     tok/s      top1   mean_kl    p99_kl
+      fp16     49.28       --        --        --
+      int4     56.07    1.0000    0.0000    0.0000
+       awq     50.83    1.0000    0.0000    0.0000
+
+  AWQ vs naive INT4: top1 1.0000 -> 1.0000 (+0.0 pp)
+                     mean_kl 0.0000 -> 0.0000 (-27.2% reduction)
+
+[save] awq_results.json
+[CIPHER F1] Teardown. Intercepts: 0 | Substitutions: 0 (0.0%) | Avg overhead: 0.0ns | Max: 0ns

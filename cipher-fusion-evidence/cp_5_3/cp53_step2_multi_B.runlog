@@ -1,0 +1,56 @@
+CP 5.3 STEP 2 harness — role=multi tenant_handle=7912822 pid=1499451 2026-05-18T04:30:51Z
+======================================================
+[cipher_v2] MARLIN: engine init OK (NVRTC + cuda + cudart resolved; cubin compile deferred to first eligible call)
+[cipher_v2] MARLIN: NVRTC compile starting (kernel src 34640 bytes, sm_90)...
+[cipher_v2] MARLIN: cubin ready (10/10 entry points in 12.30 s)
+[cipher_v2] MARLIN: GPU quant kernels compiled in 0.07 s
+[setup] S1-largeN-smallK   quantized + cuBLAS reference ready
+[setup] S2-smallN-largeK   quantized + cuBLAS reference ready
+[setup] S3-cp24-hang       quantized + cuBLAS reference ready
+[setup] S4-small-x-small   quantized + cuBLAS reference ready
+
+-- CONTROL phase (single-tenant path, grid=device SM count) --
+[ctl] shape=S1-largeN-smallK
+[ctl] DISPATCH M=16 N=4096 K=512 stream=(nil) green_sm=0 ...
+[ctl] max_abs_err=0.031250 nan=0
+[ctl] shape=S2-smallN-largeK
+[ctl] DISPATCH M=16 N=128 K=8192 stream=(nil) green_sm=0 ...
+[ctl] max_abs_err=0.250000 nan=0
+[ctl] shape=S3-cp24-hang
+[ctl] DISPATCH M=16 N=4096 K=4096 stream=(nil) green_sm=0 ...
+[ctl] max_abs_err=0.062500 nan=0
+[ctl] shape=S4-small-x-small
+[ctl] DISPATCH M=16 N=128 K=512 stream=(nil) green_sm=0 ...
+[ctl] max_abs_err=0.015625 nan=0
+CONTROL_DONE 2026-05-18T04:31:05Z
+[cipher_v2] GREEN: device 0 has 132 SMs total; splitting into 16 groups of 8 SMs each
+[cipher_v2] GREEN: split returned nb_groups=15 (requested 16); remaining 12 SMs unallocated
+[cipher_v2] GREEN: tenant_handle=0x0078bd76 pid=1499451 → selecting group 13 of 15 (each group has 8 SMs)
+[cipher_v2] GREEN: green context bound to group 13 with 8 SMs (CUcontext=0x5f2275217230)
+
+-- creating real green context --
+[green] ensured: sm_count=8 group_id=13
+[green] green-bound stream created (stream ctx != primary)
+[barrier] /home/ubuntu/cipher-fusion-evidence/cp_5_3/cp53_gatec_barrier.1499441/ready.1499451 posted; waiting for peer ...
+[barrier] released 2026-05-18T04:34:56Z
+
+-- PARTITION phase (8-SM green ctx, grid=partition SM count) --
+[part] shape=S1-largeN-smallK
+[part] DISPATCH M=16 N=4096 K=512 stream=0x5f2273549680 green_sm=8 ...
+[part] max_abs_err=0.015625 nan=0
+[part] shape=S2-smallN-largeK
+[part] DISPATCH M=16 N=128 K=8192 stream=0x5f2273549680 green_sm=8 ...
+[part] max_abs_err=0.062500 nan=0
+[part] shape=S3-cp24-hang
+[part] DISPATCH M=16 N=4096 K=4096 stream=0x5f2273549680 green_sm=8 ...
+[part] max_abs_err=0.062500 nan=0
+[part] shape=S4-small-x-small
+[part] DISPATCH M=16 N=128 K=512 stream=0x5f2273549680 green_sm=8 ...
+[part] max_abs_err=0.015625 nan=0
+PARTITION_DONE 2026-05-18T04:34:56Z
+RESULT shape=S1-largeN-smallK ctl_err=0.031250 part_err=0.015625 eps=0.062500 anum=PASS nsmid=8 B=PASS
+RESULT shape=S2-smallN-largeK ctl_err=0.250000 part_err=0.062500 eps=0.500000 anum=PASS nsmid=8 B=PASS
+RESULT shape=S3-cp24-hang ctl_err=0.062500 part_err=0.062500 eps=0.125000 anum=PASS nsmid=8 B=PASS
+RESULT shape=S4-small-x-small ctl_err=0.015625 part_err=0.015625 eps=0.031250 anum=PASS nsmid=8 B=PASS
+
+RESULT status=HARNESS_DONE anum_all=PASS b_all=PASS group_id=13 union_smids=74,75,88,89,102,103,116,117 out=cp53_step2_multi_B.result

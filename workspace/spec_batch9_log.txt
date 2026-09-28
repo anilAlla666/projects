@@ -1,0 +1,36 @@
+[load] mistralai/Mistral-7B-v0.1
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   4%|▍         | 13/291 [00:00<00:02, 117.80it/s]Loading weights:  11%|█         | 31/291 [00:00<00:02, 115.52it/s]Loading weights:  18%|█▊        | 51/291 [00:00<00:01, 141.07it/s]Loading weights:  23%|██▎       | 67/291 [00:00<00:01, 144.81it/s]Loading weights:  29%|██▉       | 85/291 [00:00<00:01, 138.88it/s]Loading weights:  35%|███▌      | 103/291 [00:00<00:01, 134.55it/s]Loading weights:  42%|████▏     | 121/291 [00:00<00:01, 144.70it/s]Loading weights:  48%|████▊     | 139/291 [00:01<00:01, 135.34it/s]Loading weights:  54%|█████▍    | 157/291 [00:01<00:00, 146.70it/s]Loading weights:  60%|██████    | 175/291 [00:01<00:00, 139.59it/s]Loading weights:  66%|██████▋   | 193/291 [00:01<00:00, 145.73it/s]Loading weights:  73%|███████▎  | 211/291 [00:01<00:00, 144.49it/s]Loading weights:  79%|███████▊  | 229/291 [00:01<00:00, 144.89it/s]Loading weights:  85%|████████▍ | 247/291 [00:01<00:00, 137.16it/s]Loading weights:  91%|█████████ | 265/291 [00:01<00:00, 146.76it/s]Loading weights:  97%|█████████▋| 283/291 [00:02<00:00, 144.22it/s]Loading weights: 100%|██████████| 291/291 [00:02<00:00, 143.20it/s]
+
+[time] batch=9, ctx_len=2048, seq_len=1, iters=100
+[time]   batch=9 forward: 17.828 ms  (vs batch=1 = 17.499 ms, ratio 1.019x)
+[time]   active power during run: 356.2 W  (14 samples)
+
+=== Spec-decode tok/W projection (K=8 drafts, p=0.59) ===
+  Constants:
+    batch=1 baseline:        57.1 tok/s  /  231.6 W  =  0.247 tok/W
+    batch=9 forward time:    17.83 ms
+    active power:            356.2 W
+    n-gram match rate p:     0.59
+    K (draft length):        8
+
+  USER formula (independent acceptance — optimistic upper bound):
+    expected accepted/cycle: 1 + 0.59 * 8 = 5.72 tokens
+    throughput:              320.9 tok/s
+    tok/W:                   0.901  (3.65x baseline)
+
+  STANDARD formula (sequential acceptance — what real spec decoders deliver):
+    expected accepted/cycle: 1 + sum(p^k, k=1..8) = 2.418 tokens
+    throughput:              135.6 tok/s
+    tok/W:                   0.381  (1.54x baseline)
+
+  Reason for the gap:
+    Spec decode in production REJECTS draft k as soon as draft k-1 is wrong.
+    So expected accepted prefix is the geometric series, not K * p.
+    The user's formula assumes drafts are evaluated independently — true only if
+    the verifier returns ALL K conditional logits (which it does in batched verification)
+    AND the draft tree is a tree (Medusa-style) rather than a single chain.
+    For single-chain n-gram drafts, the Markov formula is what you actually get.
+
+[save] -> /home/ubuntu/op31-prod-fix/spec_batch9_results.json

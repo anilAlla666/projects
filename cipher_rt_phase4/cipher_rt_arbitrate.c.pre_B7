@@ -1,0 +1,158 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * cipher_rt_arbitrate.c -- T4.2.3 ARBITRATE implementation.
+ *
+ * Calls CIPHER_REQUEST_SM_PARTITION (ioctl nr 9) via a per-process fd
+ * (NOT shared with cipher_rt_tenant.cpp's per-thread fd — this is a
+ * single cold-path call per process, locked, so a shared fd is acceptable
+ * here. It is NOT in the hot path).
+ *
+ * Hint derivation policy: quartile of this tenant's launches_total
+ * among the tenants currently visible via /proc/cipher/stats enumerate.
+ */
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdatomic.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <sys/ioctl.h>
+#include <pthread.h>
+
+/* cipher_rt_tenant.h has a `struct cipher_tenant_snapshot_query` that
+ * conflicts with the kernel's homonym in cipher_ioctl.h. Avoid pulling
+ * cipher_ioctl.h into the same TU; instead, manually declare the bits
+ * we need from it (CIPHER_REQUEST_SM_PARTITION and the request struct). */
+#include <sys/ioctl.h>
+#include <linux/ioctl.h>
+
+#include "cipher_v2_internal.h"
+#include "cipher_rt_arbitrate.h"
+#include "cipher_rt_tenant.h"
+
+/* Mirror of struct cipher_partition_request (cipher_ioctl.h nr 9). */
+struct cipher_arb_request_local {
+	unsigned int hint_partitions;
+	unsigned int partition_mask_out;
+	unsigned int partition_count_out;
+	unsigned int reserved;
+};
+#define CIPHER_ARB_IOCTL_MAGIC  'C'
+#define CIPHER_ARB_REQUEST_SM_PARTITION \
+	_IOWR(CIPHER_ARB_IOCTL_MAGIC, 9, struct cipher_arb_request_local)
+
+#define CIPHER_ARB_MAX_PEERS  64
+
+static int                 g_arb_fd = -1;
+static pthread_mutex_t     g_arb_lock = PTHREAD_MUTEX_INITIALIZER;
+static atomic_uint         g_last_mask  = 0;
+static atomic_uint         g_last_count = 0;
+static atomic_int          g_arb_done   = 0;  /* per-process one-shot */
+
+static int compare_launches_desc(const void *a, const void *b)
+{
+	const struct cipher_tenant_snapshot *ta = a;
+	const struct cipher_tenant_snapshot *tb = b;
+	if (tb->launches_total > ta->launches_total) return 1;
+	if (tb->launches_total < ta->launches_total) return -1;
+	return 0;
+}
+
+static unsigned derive_hint_from_quartile(unsigned my_rank, unsigned total)
+{
+	/* No effective contention -> top hint. With 32 slots and hint cap 8,
+	 * the kmod allocator can serve up to 4 fully-greedy tenants without
+	 * any contention; below that threshold quartile slicing produces
+	 * pathologically small hints (solo tenant: total=1 → bottom). */
+	if (total <= 4) return 8;
+	if (my_rank < total / 4)        return 8;   /* top quartile */
+	if (my_rank < total / 2)        return 6;   /* second quartile */
+	if (my_rank < (3 * total) / 4)  return 4;   /* third quartile */
+	return 2;                                    /* bottom quartile */
+}
+
+int cipher_rt_arb_init(void)
+{
+	g_arb_fd = open("/dev/cipher", O_RDWR);
+	if (g_arb_fd < 0) {
+		cipher_log("ARB: open(/dev/cipher) failed: %s", strerror(errno));
+		return -1;
+	}
+	cipher_log("ARB: arbitrate initialized (fd=%d)", g_arb_fd);
+	return 0;
+}
+
+unsigned int cipher_rt_arb_request_partition(void)
+{
+	struct cipher_arb_request_local req;
+	struct cipher_tenant_snapshot peers[CIPHER_ARB_MAX_PEERS];
+	int npeers = 0, my_rank = 0, found_self = 0;
+	pid_t my_pid;
+	unsigned hint = 4;
+	int rc;
+	int expected = 0;
+
+	/* One-shot per process: subsequent calls return cached mask. */
+	if (!atomic_compare_exchange_strong(&g_arb_done, &expected, 1))
+		return atomic_load(&g_last_mask);
+
+	if (g_arb_fd < 0) {
+		cipher_log("ARB: fd not open, skipping request");
+		return 0;
+	}
+
+	pthread_mutex_lock(&g_arb_lock);
+
+	/* Enumerate active tenants and find our rank. */
+	my_pid = getpid();
+	npeers = cipher_rt_tenant_enumerate(peers, CIPHER_ARB_MAX_PEERS);
+	if (npeers > 0) {
+		qsort(peers, npeers, sizeof(peers[0]), compare_launches_desc);
+		for (int i = 0; i < npeers; i++) {
+			if ((pid_t)peers[i].pid == my_pid ||
+			    (pid_t)peers[i].tgid == my_pid) {
+				my_rank = i;
+				found_self = 1;
+				break;
+			}
+		}
+		if (!found_self)
+			my_rank = npeers;   /* treat as bottom */
+		hint = derive_hint_from_quartile((unsigned)my_rank,
+		                                 (unsigned)npeers);
+		cipher_dbg("ARB: rank %d/%d, hint=%u", my_rank, npeers, hint);
+	} else {
+		hint = 4;   /* solo or pre-enumerate: middle hint */
+		cipher_dbg("ARB: enumerate found no peers, hint=4 default");
+	}
+
+	memset(&req, 0, sizeof(req));
+	req.hint_partitions = hint;
+	rc = ioctl(g_arb_fd, CIPHER_ARB_REQUEST_SM_PARTITION, &req);
+	if (rc != 0) {
+		cipher_log("ARB: REQUEST_SM_PARTITION rc=%d errno=%d %s",
+		           rc, errno, strerror(errno));
+		pthread_mutex_unlock(&g_arb_lock);
+		return 0;
+	}
+
+	atomic_store(&g_last_mask,  req.partition_mask_out);
+	atomic_store(&g_last_count, req.partition_count_out);
+	cipher_log("ARB: granted mask=0x%08x count=%u (hint=%u)",
+	           req.partition_mask_out, req.partition_count_out, hint);
+
+	pthread_mutex_unlock(&g_arb_lock);
+	return req.partition_mask_out;
+}
+
+unsigned int cipher_rt_arb_last_mask(void)
+{
+	return atomic_load(&g_last_mask);
+}
+
+unsigned int cipher_rt_arb_last_count(void)
+{
+	return atomic_load(&g_last_count);
+}

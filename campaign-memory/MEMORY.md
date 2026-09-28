@@ -1,0 +1,34 @@
+- [CIPHER fusion campaign](cipher-fusion-campaign.md) — close all 23 canonical CPs; one atomic STEP/CP, design-memo→approve→build, WAIT for adjudication between each
+- [CIPHER project layout](cipher-project-layout.md) — real source lives in /home/ubuntu, not /workspace as some specs assume
+- [CIPHER phase discipline](cipher-phase-discipline.md) — every phase: 7-item plan → approve → execute → tarball; preserve prior .ko fallback
+- [CIPHER pod environment](cipher-pod-environment.md) — Lambda H100 80GB SXM5, driver 580.105.08, kernel 6.8.0-1046-nvidia, NVML+CUPTI present, no Go
+- [CIPHER ABI rule](cipher-abi-rule.md) — /dev/cipher ioctl nrs are additive only; reserved nrs (2/3/4) return -ENOSYS; new ioctls take fresh nrs
+- [CIPHER kbuild clean wipes .ko](cipher-kbuild-clean-wipes-ko.md) — store fallback .ko OUTSIDE the build dir (kbuild clean globs *.ko)
+- [CIPHER PMC_BOOT_1=0 on bare metal](cipher-pmc-boot-1-bare-metal.md) — H100 PMC_BOOT_1=0x00000000 is expected bare-metal reading, not stuck bus (VGPU bits)
+- [CIPHER Phase 3 shipped 2026-05-13](cipher-phase3-shipped.md) — kmod 0.4.3 is the working Phase 4 baseline (Phase 3 substrate preserved)
+- [CIPHER Incident 2 bar0_exit](cipher-incident-2-bar0-exit.md) — never call pci_dev_put in cipher_bar0_exit; leak the ref instead
+- [CIPHER contention gate context](cipher-contention-gate-context.md) — T4.2.1 5× gate ACHIEVED at 1.4× (33t, per-thread fd); shared-fd 44.2× was measuring VFS file serialization, not allocator
+- [CIPHER T4.2.4c partition-not-enforced](cipher-t424c-partition-not-enforced.md) — GREEN_CTX passes API smoke but bomb-throughput-A=B proves partition doesn't reach PyTorch's hot-path streams
+- [CIPHER T4.2.4d enforcement fixed](cipher-t424d-enforcement-fixed.md) — persistent cuCtxSetCurrent(green) per-launch makes NULL-stream launches use partition; bomb 11× slowdown confirms
+- [CIPHER T4.2.4e isolation confirmed](cipher-t424e-isolation-confirmed.md) — 2× Mistral prefill A/B: partition gives 3× tail-tightness (max/mean) at 12× absolute-latency cost; isolation is variance reduction, not p99 reduction
+- [CIPHER T4.3.1 VOLT shipped](cipher-t431-volt-shipped.md) — DVFS NVML port; +60% tok/W lift at B=1 decode via clock lock; user-process injection DEGRADES, operator-level wiring is Stream 2
+- [CIPHER T4.3.2 kmod VOLT ioctl](cipher-t432-kmod-volt-ioctl.md) — CIPHER_SET_CLOCK_MHZ ioctl + libcipher_rt fall-through closes non-root gap; kmod 0.4.6 ships; same 36% watts reduction without sudo
+- [CIPHER T4.5 substrate + Marlin](cipher-t45-substrate-marlin.md) — matmul-routing substrate ships (`.symver` cuBLAS LD_PRELOAD, 50 LOC replaces ~3000); Marlin actuator integrated; regression on TinyLlama B=1 (outside Marlin's B≥8 designed regime); next-session needs Mistral-7B validation
+- [CIPHER T4.6 KV dedup discovery](cipher-t46-kv-dedup-discovery.md) — cuIpc cross-process GPU memory VERIFIED on this pod; attention substrate via `.symver pytorch_flash::run_mha_*`; impl 2.5-4 weeks; next session is T4.6.0.5 measurement-of-opportunity gate
+- [CIPHER T4.6 measurement gate](cipher-t46-measurement.md) — synthetic dedup 1.19× at block=16 N=8; committed outcome (c) L1+L3 (after user-review triangulation: prior art verifies opportunity, cuIpc verified separately); validation gate moves to AFTER L1+L3 build, before production ship; moat lives at 32K+ context
+- [CIPHER lift framing](cipher-lift-framing.md) — aggregate-TPW lift on WL01-WL24 is mechanically unsupported for SM partitioning; ship on MFU gates not TPW lift
+- [CIPHER T4.6.1 attn substrate](cipher-t461-attn-substrate.md) — attention-routing substrate shipped (plain LD_PRELOAD on ATen SDPA dispatcher in libtorch_cpu.so, no .symver); cuDNN is hot path on H100/cu13; Mistral byte-identical + T4.5.1 + VOLT compose clean
+- [CIPHER T4.3 VOLT envelope](cipher-t43-envelope.md) — 7-condition campaign 2026-05-14: T4.3.2's +57% reproduces on TinyLlama-1.1B B=1 (+54.97%) but does NOT generalize. Mistral-7B B=1 is -14% (no clock recovers positive). Honest claim: "+55% on memory-bandwidth-bound decode only"; 7B+ regime needs recalibration or pivot
+- [CIPHER regression discipline](cipher-regression-discipline.md) — blocker from a prior change → audit first, fix in source, never a runtime workaround
+- [CIPHER devnode codified](cipher-devnode-codified.md) — kmod 0.4.8 (e2f50452) codifies /dev/cipher mode 0666 via devnode callback; new campaign anchor, supersedes 0.4.7
+- [CIPHER Marlin primary-ctx pin](cipher-marlin-primary-ctx-pin.md) — Marlin GEMM is structurally full-GPU; Fix A pins it to primary context; libcipher_rt anchor 5e304549; Marlin×partitioning is Phase 5 work
+- [CIPHER CP 2.4 closed](cipher-cp24-closed.md) — STEP complete; composed 3.617× tok/W [3.591,3.642] Mistral-7B; report landed (c1a2d310); (d) Llama model-draft 1.75× NOT MET → Phase 5; awaiting adjudication
+- [CIPHER CP 2.5 closed](cipher-cp25-closed.md) — SHIPPED 2026-05-16; LD_PRELOAD-free deploy + cipher-platform.deb; Phase 2 CLOSED 15/23; libcipher_rt anchor now c2c5d313
+- [CIPHER audit 2026-05-16](cipher-audit-2026-05-16.md) — 33 ops live in may13 build NOT production c2c5d313; Phase 4 IN-FLIGHT not closed; Goal 4 fires zero
+- [CIPHER CP 4.6.5+6 closed](cipher-cp4656-closed.md) — Phase 4.6 substrate primitive CLOSED 2026-05-16; 100-proc dedup scales, Llama-3.1-8B real-decode ceiling 13 tenants, isolation PASS; live-KV wiring is Phase 5
+- [CIPHER CP 4.4 closed](cipher-cp44-closed.md) — L2 weight pin CLOSED 2026-05-16 at memo via bound (118-524× over 31.25 MiB L2 budget); not built, actuator not migrated
+- [CIPHER CP 4.7 closed](cipher-cp47-closed.md) — kernel fusion CLOSED 2026-05-17 at memo via bound (1.1% hook-reachable; may13 +0.88%/-0.23% confirms null); not built; Phase 4 has only 4.8 left
+- [CIPHER Phase 5 scoped](cipher-phase5-scoped.md) — Phase 4 CLOSED via CP 4.8 (2026-05-17); Phase 5 = 5 CPs (2/5 closed), CP 5.3 partition-aware Marlin is next GPU work; 24h soak deferred to CP 5.5
+- [CIPHER CP 5.1 closed](cipher-cp51-closed.md) — vLLM KV integration CLOSED 2026-05-17; Option A buffer-ownership hook, correctness gate PASS on TinyLlama (MHA) + Mistral-7B (GQA); certifies memo §4 #2 only
+- [CIPHER CP 5.2 closed](cipher-cp52-closed.md) — KV offload CLOSED 2026-05-17; Option A snapshot-on-preempt, correctness gate PASS on TinyLlama + Mistral-7B; certifies §4 #1 only, dedup deferred; Phase 5 at 2/5
+- [CIPHER finding F1](cipher-f1-fullgpu-marlin-broken.md) — shipped libcipher_rt c2c5d313 full-GPU Marlin produces degenerate decode (6-way reproduced); needs its own audit STEP, NOT folded into CP 5.3

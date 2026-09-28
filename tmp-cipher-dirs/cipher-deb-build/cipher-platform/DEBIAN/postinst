@@ -1,0 +1,45 @@
+#!/bin/sh
+# cipher-platform postinst — register/build/install the kmod via DKMS and
+# load it. Idempotent: safe to re-run on reinstall/upgrade.
+set -e
+
+PKG=cipher-kmod
+VER=0.4.8
+
+case "$1" in
+  configure)
+    # --- DKMS register + build + install against the running kernel ---
+    if ! dkms status -m "$PKG" -v "$VER" 2>/dev/null | grep -q "$VER"; then
+      dkms add -m "$PKG" -v "$VER"
+    fi
+    # build/install are idempotent under --force; tolerate "already built".
+    dkms build  -m "$PKG" -v "$VER" --force
+    dkms install -m "$PKG" -v "$VER" --force
+
+    # --- load the module ---
+    if modprobe cipher_kmod 2>/dev/null; then
+      :
+    else
+      echo "cipher-platform: modprobe cipher_kmod failed — the module is" \
+           "installed via DKMS but not loaded; load it manually or reboot." >&2
+    fi
+
+    # --- /dev/cipher ---
+    # kmod 0.4.8 creates /dev/cipher 0666 via its devnode callback at insmod
+    # (devtmpfs/udev). Fall back to an explicit mknod only if that did not
+    # happen (e.g. module not yet loaded).
+    if [ ! -e /dev/cipher ]; then
+      major=$(awk '$2=="cipher"{print $1}' /proc/devices 2>/dev/null || true)
+      if [ -n "$major" ]; then
+        mknod -m 0666 /dev/cipher c "$major" 0 || true
+      else
+        echo "cipher-platform: /dev/cipher not present and no 'cipher'" \
+             "char device registered — verify the module loaded." >&2
+      fi
+    fi
+
+    echo "cipher-platform installed. Launch workloads with: cipher-run <cmd>"
+    ;;
+esac
+
+exit 0
