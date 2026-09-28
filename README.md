@@ -47,7 +47,7 @@ All my code except Calphant. One branch per project; switch branch to see it.
 | `hyperflux/v16-int8-sdk` | `~/Downloads/hyperflux_v16_int8_sdk` |
 | `hyperflux/tier1-colab-kernels` | `~/Downloads/Tier1` |
 | `hyperflux/ballistics-kernel` | `~/Downloads/files` |
-| `tirusoma` | `~/Desktop/TIRUSOMA-MPC` |
+| `soma` / `tirusoma` | SOMA: `~/Desktop/TIRUSOMA-MPC`, the v7 SDK, and every SOMA file in `~/Downloads` |
 | `website/horizons-export` | `~/Downloads/horizons-export-b870d9c0-abdd-4eca-b97f-879c84367732` |
 | `neural-dynamics` | `~/neural-dynamics` |
 | `ml/ann-classification` | `~/Downloads/annclassification` |
@@ -58,3 +58,8 @@ All my code except Calphant. One branch per project; switch branch to see it.
 | `ml/antigravity-transformer` | `~/Desktop/antigravity` |
 | `zomato-scraper` | `~/zomato_scraper` |
 | `misc/home-scripts` | two loose scripts from `~` |
+| `cipher/loose-files` | loose CIPHER files in `~/Downloads` |
+| `hyperflux/loose-files` | loose HyperFlux code in `~/Downloads` |
+| `ml/smollm2-cpt` | SmolLM2 continual-pretraining scripts |
+| `ml/nlp-notebooks` | NLTK / BoW / TF-IDF / Word2vec notebooks |
+| `misc/loose-scripts` | loose scripts from `~/Desktop` and `~/Downloads` |
