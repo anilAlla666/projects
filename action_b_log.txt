@@ -1,0 +1,50 @@
+[CIPHER SUB-V2] init max_shapes=256 target_arch=sm_90
+[CIPHER WCMP] init max_weights=512 stable_hits=1000 min_bytes=1048576 rel_err_threshold=0.0100
+[CIPHER L3.10] CfC LNN initialized.
+  Architecture: 48 → 64 → 12 (CfC)
+  Weight init:  analytical (Layer 3 rules encoded)
+  Weight size:  59 KB
+  Δt:           1.0
+[CIPHER 10ops] Shadow LNN initialized: hidden=64 input=48 params=60976 bytes
+[CIPHER L3.5] EDMD pipeline initialized: op='GEMM' dim=1 K=8 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='ATTENTION' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='ELEMENTWISE' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='CONVOLUTION' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='REDUCTION' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='MEMCPY_TRANSPOSE' dim=64 K=20 min_snapshots=400
+[CIPHER L3.5] EDMD pipeline initialized: op='ITERATIVE_CUSTOM' dim=64 K=20 min_snapshots=400
+[CIPHER 10ops] EDMD pipelines initialized: 7 classes × 200 snapshots min
+[CIPHER KEN] Initialized: r=8 n=16 spectral evolver
+[CIPHER BLOCK] Cannot open /workspace/manifold/V_layer20.npy
+[CIPHER BLOCK] Failed to load V from /workspace/manifold/V_layer20.npy
+[CIPHER 10ops] POSIX SHM opened: /cipher_sm_demand (64 bytes) — ARBITRATE active
+[CIPHER 10ops] Stage 1/2 threads skipped — no observers enabled (lazy-start)
+[CIPHER 10ops] ══════════════════════════════
+[CIPHER 10ops] 10-Operation Runtime ACTIVE
+[CIPHER 10ops]   Stage 0: CLASSIFY+SPECULATE_CHECK+SUBSTITUTE+ORCHESTRATE+GENERATE+RING_WRITE
+[CIPHER 10ops]   Stage 1: REMEMBER+VALIDATE+AUDIT+SPECULATE (shadow thread)
+[CIPHER 10ops]   Stage 2: ADAPT+ARBITRATE (background)
+[CIPHER 10ops]   Ring:    8192 KB (65536 × 128B entries)
+[CIPHER 10ops]   AUDIT:   HMAC-SHA256 (OpenSSL/SHA-NI)
+[CIPHER 10ops] ══════════════════════════════
+[CIPHER F1] cuLaunchKernel hook installed. real_launch=0x77b8ce99f4b0 shim=0x77b8cba1feb0
+=== ACTION B: L2 cache cold vs hot per Mistral shape ===
+
+  shape                fp16_W_MB  fp16_cold_us  fp16_hot_us  fp16_speedup
+  ---------------------------------------------------------------------------
+  q_proj/o_proj             32.0          34.8         25.5         1.37x
+  k_proj/v_proj              8.0          26.0         24.2         1.08x
+  gate_proj/up_proj        112.0          63.4         54.0         1.17x
+  down_proj                112.0          66.5         57.1         1.16x
+
+  shape                INT4_W_MB  INT4_cold_us  INT4_hot_us  INT4_speedup
+  ---------------------------------------------------------------------------
+  q_proj/o_proj              8.0          23.8         14.8         1.61x
+  k_proj/v_proj              2.0          22.1         13.2         1.68x
+  gate_proj/up_proj         28.0          46.4         38.3         1.21x
+  down_proj                 28.0          66.2         44.7         1.48x
+
+=== Interpretation ===
+  L2 capacity: 50 MB. Weights ≤50 MB should fit; weights >50 MB don't.
+  Hot/cold speedup > 1.5x → fits in L2; speedup ~1.0x → doesn't fit
+[CIPHER F1] Teardown. Intercepts: 0 | Substitutions: 0 (0.0%) | Avg overhead: 0.0ns | Max: 0ns
