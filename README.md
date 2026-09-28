@@ -61,5 +61,3 @@ All my code. One branch per project.
 | `cipher/loose-files` | loose CIPHER files in `~/Downloads` |
 | `hyperflux/loose-files` | loose HyperFlux code in `~/Downloads` |
 | `ml/smollm2-cpt` | SmolLM2 continual-pretraining scripts |
-| `ml/nlp-notebooks` | NLTK / BoW / TF-IDF / Word2vec notebooks |
-| `misc/loose-scripts` | loose scripts from `~/Desktop` and `~/Downloads` |
