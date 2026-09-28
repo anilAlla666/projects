@@ -1,0 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Source+Serif+4:opsz,wght@8..60,300;8..60,400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 38 28% 94%; /* #f5f0e8 */
+    --foreground: 240 5% 4%; /* #0a0a0b */
+    --accent: 11 80% 42%; /* #c23616 */
+    --secondary-text: 210 29% 24%; /* #2c3e50 */
+    --muted-text: 210 17% 58%; /* #8395a7 */
+    --gold: 41 62% 55%; /* #d4a746 */
+    --code-bg: 240 28% 14%; /* #1a1a2e */
+    --code-text: 158 55% 78%; /* #a8e6cf */
+    
+    /* Standard UI Tokens matching brand for compatibility */
+    --card: 38 28% 94%;
+    --card-foreground: 240 5% 4%;
+    --popover: 38 28% 94%;
+    --popover-foreground: 240 5% 4%;
+    --primary: 240 5% 4%;
+    --primary-foreground: 38 28% 94%;
+    --secondary: 210 17% 92%;
+    --secondary-foreground: 240 5% 4%;
+    --muted: 210 17% 92%;
+    --muted-foreground: 210 17% 58%;
+    --destructive: 11 80% 42%;
+    --destructive-foreground: 38 28% 94%;
+    --border: 210 17% 85%;
+    --input: 210 17% 85%;
+    --ring: 240 5% 4%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 240 5% 4%;
+    --foreground: 38 28% 94%;
+    --card: 240 5% 4%;
+    --card-foreground: 38 28% 94%;
+    --popover: 240 5% 4%;
+    --popover-foreground: 38 28% 94%;
+    --primary: 38 28% 94%;
+    --primary-foreground: 240 5% 4%;
+    --secondary: 240 5% 10%;
+    --secondary-foreground: 38 28% 94%;
+    --muted: 240 5% 10%;
+    --muted-foreground: 210 17% 58%;
+    --destructive: 11 80% 42%;
+    --destructive-foreground: 38 28% 94%;
+    --border: 240 5% 15%;
+    --input: 240 5% 15%;
+    --ring: 38 28% 94%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Source Serif 4', serif;
+    font-size: 19px;
+    line-height: 1.75;
+    text-align: justify;
+    hyphens: auto;
+  }
+
+  ::selection {
+    background-color: hsl(var(--accent));
+    color: white;
+  }
+}
+
+@layer utilities {
+  .font-playfair { font-family: 'Playfair Display', serif; }
+  .font-source { font-family: 'Source Serif 4', serif; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  
+  .text-accent { color: hsl(var(--accent)); }
+  .text-secondary-text { color: hsl(var(--secondary-text)); }
+  .text-muted-text { color: hsl(var(--muted-text)); }
+  .text-gold { color: hsl(var(--gold)); }
+}
+
+@layer components {
+  .drop-cap {
+    font-family: 'Playfair Display', serif;
+    font-size: 4.5rem;
+    font-weight: 900;
+    color: hsl(var(--accent));
+    float: left;
+    line-height: 0.85;
+    margin-right: 0.6rem;
+    margin-top: 0.4rem;
+  }
+
+  .pull-quote {
+    border-left: 3px solid hsl(var(--accent));
+    background: linear-gradient(90deg, rgba(194,54,22,0.05) 0%, rgba(245,240,232,0) 100%);
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 1.4rem;
+    padding: 1.5rem 2rem;
+    margin: 2.5rem 0;
+    text-align: left;
+    hyphens: none;
+  }
+
+  .code-block {
+    background-color: hsl(var(--code-bg));
+    border-radius: 6px;
+    padding: 1.8rem 2rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: hsl(var(--code-text));
+    text-align: left;
+    hyphens: none;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+  }
+
+  .dark-section {
+    background-color: hsl(var(--foreground));
+    color: hsl(var(--background));
+    position: relative;
+    overflow: hidden;
+  }
+
+  .dark-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle at center, rgba(194,54,22,0.08) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .dark-section::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.2) 2px,
+      rgba(0,0,0,0.2) 4px
+    );
+    pointer-events: none;
+    opacity: 0.3;
+    z-index: 1;
+  }
+
+  .dark-section > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  .section-divider {
+    text-align: center;
+    color: hsl(var(--muted-text));
+    font-family: 'Playfair Display', serif;
+    font-size: 1.5rem;
+    letter-spacing: 0.3em;
+    margin: 4rem 0;
+  }
+
+  .section-divider::before {
+    content: '· · ·';
+  }
+
+  .stat-number {
+    font-family: 'Playfair Display', serif;
+    font-weight: 900;
+    font-size: 2.8rem;
+    color: hsl(var(--accent));
+    line-height: 1.1;
+  }
+}
