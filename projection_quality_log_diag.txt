@@ -1,0 +1,87 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+[load] mistralai/Mistral-7B-v0.1 fp16 -> cuda
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   4%|▍         | 13/291 [00:00<00:02, 101.42it/s]Loading weights:  11%|█         | 31/291 [00:00<00:02, 122.47it/s]Loading weights:  17%|█▋        | 49/291 [00:00<00:01, 137.25it/s]Loading weights:  23%|██▎       | 67/291 [00:00<00:01, 138.33it/s]Loading weights:  29%|██▉       | 85/291 [00:00<00:01, 135.54it/s]Loading weights:  35%|███▌      | 103/291 [00:00<00:01, 141.73it/s]Loading weights:  42%|████▏     | 121/291 [00:00<00:01, 148.47it/s]Loading weights:  48%|████▊     | 139/291 [00:00<00:01, 147.78it/s]Loading weights:  54%|█████▍    | 157/291 [00:01<00:00, 146.66it/s]Loading weights:  60%|██████    | 175/291 [00:01<00:00, 146.28it/s]Loading weights:  66%|██████▋   | 193/291 [00:01<00:00, 146.18it/s]Loading weights:  73%|███████▎  | 211/291 [00:01<00:00, 135.60it/s]Loading weights:  79%|███████▊  | 229/291 [00:01<00:00, 146.53it/s]Loading weights:  85%|████████▍ | 247/291 [00:01<00:00, 148.25it/s]Loading weights:  91%|█████████ | 265/291 [00:01<00:00, 141.36it/s]Loading weights:  97%|█████████▋| 283/291 [00:01<00:00, 148.96it/s]Loading weights: 100%|██████████| 291/291 [00:02<00:00, 145.01it/s]
+[load] done in 3.3s
+[sanity] testing ProjectedLinear math
+[sanity]   k=  4  cum_var=0.188668  ||err||/||y||=0.899191  expected~0.900740
+[sanity]   k=  8  cum_var=0.350098  ||err||/||y||=0.802366  expected~0.806165
+[sanity]   k= 16  cum_var=0.623337  ||err||/||y||=0.610976  expected~0.613729
+[sanity]   k= 32  cum_var=1.000000  ||err||/||y||=0.000520  expected~0.000000+0.000345j
+[sanity]   k= 64  cum_var=1.000000  ||err||/||y||=0.000515  expected~0.000000+0.000345j
+[sanity]   full rank err=4.93e-04  (should be ~0 — input lies in row span of Vh)
+[calib] hooks=128; running 5 prompts x 100 decode tokens
+[calib]   prompt 1/5 done
+[calib]   prompt 2/5 done
+[calib]   prompt 3/5 done
+[calib]   prompt 4/5 done
+[calib]   prompt 5/5 done
+[calib] capture counts min=500 max=500 elapsed=14.1s
+[svd] computing top-499 singular vectors (uncentered) for 128 (layer, point) pairs
+[svd] done in 4.1s
+
+========== Baseline (full W) ==========
+[baseline] prompt='Explain how a CPU executes instructions step by step' prompt_len=12
+[baseline] generated 201 tokens in 4.2s
+[baseline] free-running text:
+    '.\n\nThe CPU is the brain of the computer. It is the part of the computer that executes instructions. The CPU is made up of a control unit and an arithmetic logic unit. The control unit is responsible for fetching instructions from memory and decoding them. The arithmetic logic unit is responsible for executing the instructions.\n\nThe CPU executes instructions in a step-by-step process. First, the control unit fetches an instruction from memory. The instruction is then decoded by the control unit. The arithmetic logic unit then executes the instruction. Finally, the results of the instruction are stored in memory.\n\nThe CPU executes instructions in a step-by-step process. First, the control unit fetches an instruction from memory. The instruction is then decoded by the control unit. The arithmetic logic unit then executes the instruction. Finally, the results of the instruction are stored in memory.\n\n## Other'
+
+========== Projected diag_k499_decode_only [decode-only] ==========
+[diag_k499_decode_only] prefill done with full W; KV cache saved
+[diag_k499_decode_only] patched 224 linears. Per-linear cum-variance at chosen k:
+[diag_k499_decode_only] 5 worst (layer, linear) by cum-var:
+           layer 31 gate_proj  k=499 cum_var=1.0000
+           layer 31 up_proj    k=499 cum_var=1.0000
+           layer 27 o_proj     k=499 cum_var=1.0000
+           layer 31 down_proj  k=499 cum_var=1.0000
+           layer 28 o_proj     k=499 cum_var=1.0000
+
+[diag_k499_decode_only] === metrics over 200 decode steps ===
+[diag_k499_decode_only] top-1 match rate: 0.7750
+[diag_k499_decode_only] mean KL(base||proj): 1.2827
+[diag_k499_decode_only] p99 KL:              15.6148
+[diag_k499_decode_only] per-layer residual cosine sim (and k):
+           layer  0  k=499  cum_var_avg=1.0000  cos_sim=1.0000
+           layer  1  k=499  cum_var_avg=1.0000  cos_sim=0.9855
+           layer  2  k=499  cum_var_avg=1.0000  cos_sim=0.9683
+           layer  3  k=499  cum_var_avg=1.0000  cos_sim=0.9577
+           layer  4  k=499  cum_var_avg=1.0000  cos_sim=0.9427
+           layer  5  k=499  cum_var_avg=1.0000  cos_sim=0.9313
+           layer  6  k=499  cum_var_avg=1.0000  cos_sim=0.9221
+           layer  7  k=499  cum_var_avg=1.0000  cos_sim=0.9090
+           layer  8  k=499  cum_var_avg=1.0000  cos_sim=0.8990
+           layer  9  k=499  cum_var_avg=1.0000  cos_sim=0.8813
+           layer 10  k=499  cum_var_avg=1.0000  cos_sim=0.8730
+           layer 11  k=499  cum_var_avg=1.0000  cos_sim=0.8801
+           layer 12  k=499  cum_var_avg=1.0000  cos_sim=0.8735
+           layer 13  k=499  cum_var_avg=1.0000  cos_sim=0.8700
+           layer 14  k=499  cum_var_avg=1.0000  cos_sim=0.8616
+           layer 15  k=499  cum_var_avg=1.0000  cos_sim=0.8653
+           layer 16  k=499  cum_var_avg=1.0000  cos_sim=0.8706
+           layer 17  k=499  cum_var_avg=1.0000  cos_sim=0.8756
+           layer 18  k=499  cum_var_avg=1.0000  cos_sim=0.8704
+           layer 19  k=499  cum_var_avg=1.0000  cos_sim=0.8725
+           layer 20  k=499  cum_var_avg=1.0000  cos_sim=0.8825
+           layer 21  k=499  cum_var_avg=1.0000  cos_sim=0.8850
+           layer 22  k=499  cum_var_avg=1.0000  cos_sim=0.8893
+           layer 23  k=499  cum_var_avg=1.0000  cos_sim=0.8944
+           layer 24  k=499  cum_var_avg=1.0000  cos_sim=0.8991
+           layer 25  k=499  cum_var_avg=1.0000  cos_sim=0.9020
+           layer 26  k=499  cum_var_avg=1.0000  cos_sim=0.9027
+           layer 27  k=499  cum_var_avg=1.0000  cos_sim=0.9060
+           layer 28  k=499  cum_var_avg=1.0000  cos_sim=0.9072
+           layer 29  k=499  cum_var_avg=1.0000  cos_sim=0.9052
+           layer 30  k=499  cum_var_avg=1.0000  cos_sim=0.9107
+           layer 31  k=499  cum_var_avg=1.0000  cos_sim=0.9164
+
+[diag_k499_decode_only] free-running projected text (first 80 decoded tokens):
+    '..\n\n\n\n\n\n\n\n the first of of the\n,, the\n,\n\n the\n\n the\n\n the\n\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the\n the the\n the the\n the the\n the the\n the the. the the\n the'
+
+[diag] top-1 = 0.7750
+[diag] algorithm does NOT compose at full rank with decode-only patching;
+[diag] further k sweeps would not change the conclusion. Reporting negative result.
+
+========== VERDICT ==========
+  diag_k499_decode_only: top1=0.7750  mean_kl=1.2827  -> FAIL
+
+[save] results -> /home/ubuntu/op31-prod-fix/projection_quality_results.json

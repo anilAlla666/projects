@@ -1,0 +1,31 @@
+#!/bin/bash
+# CIPHER post-install: set up runtime directories + sane defaults.
+set -e
+
+# Per-tenant policy file (operator edits this; install ships only the example).
+if [ ! -f /etc/cipher/policy.json ]; then
+    cp /opt/cipher/etc/policy.json.example /etc/cipher/policy.json 2>/dev/null || true
+fi
+
+# HMAC key for signed billing receipts. Generated only if missing — neither
+# overwrite operator's existing key nor leave the file world-readable.
+if [ ! -f /etc/cipher/hmac.key ]; then
+    umask 077
+    openssl rand -hex 32 > /etc/cipher/hmac.key 2>/dev/null \
+      && chmod 600 /etc/cipher/hmac.key \
+      || true
+fi
+
+# Receipt log dir
+install -d -m 0755 /var/log/cipher
+
+# Convenience symlink so customers can `cipher_run.sh` from $PATH
+ln -sf /opt/cipher/bin/cipher_run.sh /usr/local/bin/cipher_run.sh 2>/dev/null || true
+
+echo "CIPHER 1.0.0 installed."
+echo "  Library:   /opt/cipher/lib/libcipher_{hook,rt}.so"
+echo "  Launcher:  cipher_run.sh"
+echo "  Policy:    /etc/cipher/policy.json (edit per your tenants)"
+echo "  Logs:      /var/log/cipher/receipts.jsonl"
+
+exit 0

@@ -1,0 +1,35 @@
+=== A1 critical tests ===
+
+[load] mistralai/Mistral-7B-v0.1 fp16 -> cuda
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+[transformers] `torch_dtype` is deprecated! Use `dtype` instead!
+Loading weights:   0%|          | 0/291 [00:00<?, ?it/s]Loading weights:   4%|▍         | 13/291 [00:00<00:02, 102.96it/s]Loading weights:  11%|█         | 31/291 [00:00<00:01, 132.04it/s]Loading weights:  17%|█▋        | 49/291 [00:00<00:01, 132.06it/s]Loading weights:  23%|██▎       | 67/291 [00:00<00:01, 146.35it/s]Loading weights:  29%|██▉       | 85/291 [00:00<00:01, 138.58it/s]Loading weights:  35%|███▌      | 103/291 [00:00<00:01, 140.35it/s]Loading weights:  42%|████▏     | 121/291 [00:00<00:01, 150.43it/s]Loading weights:  48%|████▊     | 139/291 [00:00<00:01, 147.43it/s]Loading weights:  54%|█████▍    | 157/291 [00:01<00:00, 147.65it/s]Loading weights:  60%|██████    | 175/291 [00:01<00:00, 146.14it/s]Loading weights:  66%|██████▋   | 193/291 [00:01<00:00, 146.55it/s]Loading weights:  73%|███████▎  | 211/291 [00:01<00:00, 134.17it/s]Loading weights:  79%|███████▉  | 230/291 [00:01<00:00, 144.83it/s]Loading weights:  85%|████████▍ | 247/291 [00:01<00:00, 141.45it/s]Loading weights:  91%|█████████ | 265/291 [00:01<00:00, 142.22it/s]Loading weights:  97%|█████████▋| 283/291 [00:01<00:00, 141.48it/s]Loading weights: 100%|██████████| 291/291 [00:02<00:00, 144.57it/s]
+[load] done in 3.4s
+[calib] hooks=128; running 5 prompts x 100 decode tokens
+[calib]   prompt 1/5 done
+[calib]   prompt 2/5 done
+[calib]   prompt 3/5 done
+[calib]   prompt 4/5 done
+[calib]   prompt 5/5 done
+[calib] capture counts min=500 max=500 elapsed=14.6s
+[svd] computing top-499 singular vectors (uncentered) for 128 (layer, point) pairs
+[svd] done in 4.2s
+
+Representative Q: layer 15, qkv_in. Shape = (4096, 499)
+  in_features = 4096,  K_MAX = 499
+
+[orthonormality] ||Q.T @ Q - I_k||_F / sqrt(k) = 8.56e-05   (should be ~1e-7 fp32)
+[projector]      ||Q @ Q.T - I_n||_F = 59.97   (expected sqrt(n - k) = 59.97)
+  (this CANNOT be ~0 unless k == in_features. With 500 calibration samples, k_max=499 < n=4096.
+   Q @ Q.T is a rank-499 projector onto a 499-dim subspace of 4096-dim ambient.)
+
+[W projection] q_proj layer 15, W shape = (4096, 4096)
+  ||W - W @ Q @ Q.T||_F / ||W||_F = 0.924581
+  This is the fraction of W that does NOT lie in col(Q).
+  At k=499 / n=4096: theoretical lower bound depends on W's row distribution in calibration subspace.
+  If W was learned to fit activation patterns ⊆ col(Q), this could be small. Empirically:
+
+[decode-time test] capture qkv_in at layer 15 over 32 decode tokens, measure W x vs W Q Q.T x
+  captured 32 decode-time activations
+  decode activation: mean ||x - Q Q.T x|| / ||x|| = 0.000171
+  decode output:     mean ||W x - W Q Q.T x|| / ||W x|| = 0.000146
