@@ -1,6 +1,6 @@
 # projects
 
-All my code except Calphant. One branch per project; switch branch to see it.
+All my code. One branch per project.
 
 | Branch | Source folder |
 |---|---|
