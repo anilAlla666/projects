@@ -1,0 +1,5 @@
+- [CIPHER session 8 summary](session8_summary.md) — Changes 1-4 delivered end-to-end (EDMD live, persist, rank 64, attention koopman default-OFF, NCCL tuner plugin)
+- [CIPHER v2 next session pickup](cipher_v2_continuation.md) — where to resume, pending 3b/4b, gotchas that cost time last session
+- [CIPHER v2 cached output success](cipher_v2_cached_output.md) — Path 1 shipped (session 7): 1.57x-4.60x speedup via pointer-identity cache
+- [CIPHER v2 session complete record](project_cipher_v2_session.md) — 8-phase build on H100, original foundation
+- [MFU baseline is hardware-limited](feedback_mfu_baseline.md) — H100 sustains ~700 TFLOPS, 989 is boost spec not target

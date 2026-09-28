@@ -1,0 +1,14 @@
+- [CIPHER product definition](project_cipher_product.md) — runtime op-substitution primitive; four-instance library; build order 4→3→1, optional 2' sparsity
+- [Instance 4 build plan (CURRENT PRIORITY)](project_instance_4_plan.md) — graph-captured block at fp16; Phase 4.0 measurement harness is the next step
+- [Operating envelope — STABLE](project_operating_envelope.md) — H100 SXM5, TinyLlama + 7B, continuous batching batch range 32–256, fp16/bf16, primary gate at batch=256
+- [Instance 2 (quant) deferred](project_instance_2_deferred.md) — INT4/INT8/FP8 are optional later tiers, NOT load-bearing; only if customers explicitly request
+- [Phase 4.0 pool-observer finding](project_phase_4_0_finding.md) — allocator-interceptor hypothesis falsified at batch=1; observation code stays on disk; Instance 4 now returns via a different path
+- [fp16/bf16 is the compute precision floor](feedback_fp16_is_the_floor.md) — never lower compute precision; weight STORAGE tricks (sparsity, structural compression) are fine
+- [Batch is a RANGE 32–256, not a point](feedback_batch_size_range.md) — hit 85% MFU at the upper end, scale gracefully downward; DO NOT re-anchor on a single point
+- [Run the arithmetic before committing a plan](feedback_run_arithmetic_first.md) — three resets in session 7 came from skipping this
+- [Check real production serving before anchoring](feedback_batch_size_miss.md) — the original batch=1 miss
+- [No reframing, no pivots, no goalpost moves](feedback_no_reframing.md) — user rejects every attempt to soften product claims
+- [Three goals are load-bearing](feedback_goals_load_bearing.md) — new primitive + O(1) substitution + MFU 85%+ simultaneously
+- [Cheap falsification before expensive construction](feedback_cheap_falsification.md) — Phase X.0 discipline endorsed by user
+- [Run the arithmetic before committing a plan](feedback_run_arithmetic_first.md) — three resets in session 7 came from not doing this
+- [User role: CIPHER product owner](user_role.md) — commits not menus; holds the line on original claims
