@@ -22,6 +22,10 @@ from their publishers and apply our adapters. sha256 prefixes let you check ever
 | `round4/adapter_run4_standalone/` | 617 | `5fa231860fbb9d16` | 3,706 standalone test files |
 | `round4/adapter_run5_reward_round/` | 617 | `bd80430de8418ff8` | reward-filtered round |
 
+Training logs, scores and configs are included. Two training-data files (`round3/data3_context/train.jsonl`,
+`round4/data4_standalone/train.jsonl`) and the generation archive `gen_and_runs.tgz` are left out because they quote
+key-shaped sample text from public repositories; `../small_models/scripts` rebuilds them.
+
 ## `requirement_model_7b/` (LoRA on Qwen2.5-7B-Instruct; code in `../loop/vb/requirements.py`, `../loop/vb/reqdata.py`)
 
 | File | MB | sha256 | What it is |

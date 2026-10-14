@@ -85,7 +85,7 @@ a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 <ul>
   <li><strong>The loop works with a frontier judge.</strong> On seven agent-written graders it reached 1.00 on five, from starting points of 0.35, 0.45, 0.50, 0.50 and 0.85. The mean of the first six went from 0.71 to 0.90, and no correct attempt was newly rejected anywhere.</li>
   <li><strong>It is model-agnostic.</strong> The judge is a configuration value: Anthropic's API, Claude Code, any model on OpenRouter, or our own GPUs. Measured with Claude Opus and with an open 27B model, which untrained already reaches 0.82 against the frontier judge's 0.90 on held-out tasks.</li>
-  <li><strong>It improves as a system.</strong> It has two components, the loop and the model, and each one's output is the other's input. Every failure the loop meets becomes a rule that closes its whole class, every round it runs becomes a scored training example for the model, and a change to either is adopted only when it beats the current one on tasks it has never seen (section 8).</li>
+  <li><strong>It improves as a system.</strong> It has two components, the loop and the model, and each one's output is the other's input. Every failure the loop meets becomes a rule that closes its whole class, every round it runs becomes a scored training example for the model, and a change to either is adopted only when it beats the current one on tasks it has never seen. The self-evolving step is built and its first cycle has run: it found every mistake on three labelled tasks by itself and proposed six general rules (section 8).</li>
 </ul>
 <p><strong>What we ask for.</strong> Every training run so far used free data: small public task sets, puzzles, the model's own attempts and $34 of frontier demonstrations. Those runs located the model's gap exactly. The next stage needs real labelled attempts at scale (8,910 are already indexed for Terminal-Bench 4.0 alone) and <strong>64 H100 GPUs for 6 days</strong> for outcome-based reinforcement learning on the loop itself. Section 14 lists the full to-do list to the goal.</p>
 
@@ -270,7 +270,15 @@ flowchart LR
   <li><strong>Both changes go through the held-out gate</strong>, and whichever passes is adopted.</li>
   <li><strong>The better loop and model run on more environments</strong>, which produces more and harder rounds, and the cycle repeats.</li>
 </ol>
-<p>Steps 1 to 3 are how the loop has improved so far, with the rule changes made by us; the rest of the cycle uses the training stack already built. Automating step 3 and training at scale are items 9 to 21 of the to-do list.</p>
+<div class="callout"><span class="label">Built, and its first cycle has run</span>
+<p>The self-evolving step is code (<code>loop/vb/evolve.py</code>), not a plan. On its first three tasks with known answers it ran without a person in the loop:</p>
+<ul>
+  <li><strong>Post-mortem:</strong> it reran each final grader on every labelled attempt and found all 22 mistakes the graders made (7, 4 and 11), each with the check that misfired, reproducing the hidden scores exactly.</li>
+  <li><strong>Proposal:</strong> a model turned those mistakes into 6 general rules for the judge, and all 6 passed the lint that rejects anything naming a task, a path or a value. Two of them: <em>"Never let a criterion fail an attempt because the evidence needed to judge it could not be found"</em> and <em>"Never derive a threshold from the attempts under audit by placing it just outside their observed values."</em></li>
+  <li><strong>Rulebook and ledger:</strong> the 6 rules are versioned candidates in <code>loop/configs/rulebook.json</code>, and every step is recorded in <code>loop/runs/evolve/ledger.jsonl</code>.</li>
+  <li><strong>Next:</strong> the gate, paired runs on fresh labelled tasks, decides which rules are adopted. Until a rule passes it, the judge does not use it.</li>
+</ul></div>
+<p>The model's half of the cycle uses the training stack already built (section 11). Training it at scale on the loop's record is items 17 to 22 of the to-do list.</p>
 
 <h2 id="flywheel">9. How fast it improves</h2>
 <p>The loop's record shows a pattern: each measured failure becomes a rule or a component change that closes its whole class, and the gain shows up on the next tasks.</p>
@@ -360,6 +368,7 @@ flowchart LR
 <p><strong>The goal:</strong> every grader an agent writes for HUD is verified and repaired automatically, scores 0.90 or above on hidden labelled attempts on at least 9 of 10 new tasks, never ends below its starting point, and the judge doing it is HUD's own model.</p>
 <h3>A. Harden the loop (weeks 1 to 2, frontier judge, no new compute)</h3>
 <ol>
+  <li>Gate the six candidate rules from the first self-evolving cycle on fresh labelled tasks, and adopt those that pass.</li>
   <li>Rule for free-form checks: a check on layout or wording may reject only what the task explicitly forbids, and must state the requirement it enforces.</li>
   <li>Correctness-preserving variants in the evidence: for every attempt the judge calls correct, add variants that keep it correct (extra rows or sections appended, sections reordered, sheets renamed, whitespace and number formatting changed). The guard rejects any repair that fails one.</li>
   <li>Broader outside evidence: 10 attempts from at least 4 model families instead of 5.</li>
@@ -370,7 +379,7 @@ flowchart LR
   <li>Run the same 10 tasks with judges from three labs (Anthropic, OpenAI, Google) and publish each judge's numbers, to show the loop is model-agnostic.</li>
 </ol>
 <h3>B. Build the data (weeks 2 to 4)</h3>
-<ol start="9">
+<ol start="10">
   <li>Hidden pools for all 66 Terminal-Bench 4.0 tasks from the 8,910 indexed attempts, labels regraded with the official tests.</li>
   <li>Pools for DeepSWE's 113 tasks and for HUD's own environments, from every rollout scored by a trusted grader.</li>
   <li>Strengthen labels where the official tests are loose: an attempt counts as correct only if a recomputation agrees.</li>
@@ -380,7 +389,7 @@ flowchart LR
   <li>An attacker corpus: convincing wrong attempts written to pass weak graders.</li>
 </ol>
 <h3>C. Train the verifier (weeks 4 to 6, 64 H100)</h3>
-<ol start="16">
+<ol start="17">
   <li>Warm start: supervised fine-tuning of the 27B and a 32B on the verified rounds.</li>
   <li>Outcome reinforcement learning on the loop itself, online: the reward is the repaired grader's balanced accuracy on hidden labelled attempts, which HUD's taskset already computes.</li>
   <li>Adversarial hardening: the attacker generates wrong attempts, the verifier is rewarded for graders that hold.</li>
@@ -389,7 +398,7 @@ flowchart LR
   <li>Evaluation on held-out tasks, 5 runs each, against frontier judges under the identical harness. Bar: match or beat the frontier judge's balanced accuracy.</li>
 </ol>
 <h3>D. Put it in HUD's pipeline (weeks 6 to 8)</h3>
-<ol start="22">
+<ol start="23">
   <li>Every new or changed environment's grader goes through the loop automatically before the environment is used for training.</li>
   <li>The per-check report and any author question go to the environment's builder in HUD's interface.</li>
   <li>Routing: the owned model first; a frontier judge as a second opinion where the owned model abstains.</li>
