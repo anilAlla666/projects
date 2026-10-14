@@ -1,14 +1,12 @@
 # Plan 3: Judging data Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Produce the judge's labelled examples: qualified libraries, planted bugs, attempts of every kind (rule-made, cheats and an open model's real fixes), oracle labels with the two auxiliary targets, evidence gathered by running code, and token sequences ready for fine-tuning, with a reservoir several times larger than one training set for hard-negative mining.
 
 **Architecture:** Every library gets a Docker-isolated environment (`python:3.12-slim`, editable install so tests import the copy under test). Every run of untrusted code happens in a container with no network, 1 GB of memory, one CPU and a 90-second limit; outcomes come from a tiny pytest plugin that writes JSON per test id, never from printed output. A task is a library, one planted bug, one named failing test and the library's visible half of its tests. Attempts are generated per task, labelled by the full suite (the oracle), given evidence from visible tests, diff shape, test-edit detection and differential fuzzing, and serialised into the four segments.
 
 **Tech Stack:** Python 3.12, Docker (via `sudo -n docker`), `ast`/`tokenize`, vLLM for the open model, the 32k tokenizer from plan 2. Runs on the GPU instance (104 vCPUs) or any Linux machine with Docker.
 
-**Spec:** `docs/superpowers/specs/2026-10-08-verifier-judge-design.md`, sections 3 and 5, including the three additions of 8 Oct (model attempts, auxiliary labels, the reservoir for hard-negative mining).
+**Spec:** `docs/specs/2026-10-08-verifier-judge-design.md`, sections 3 and 5, including the three additions of 8 Oct (model attempts, auxiliary labels, the reservoir for hard-negative mining).
 
 ## Global Constraints
 

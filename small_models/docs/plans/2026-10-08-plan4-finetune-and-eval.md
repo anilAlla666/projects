@@ -1,14 +1,12 @@
 # Plan 4: Fine-tuning the judge, hard-negative mining, adversarial rounds, calibration and evaluation
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Turn the pretrained MAIN model into the judge (verdict, evidence pointer, and the two auxiliary targets), improve it with hard-negative mining and adversarial rounds, calibrate it, and measure it against the spec's pre-registered bars and baselines.
 
 **Architecture:** The pretrained `Judge` is loaded from `final.pt`. The two auxiliary heads live in a separate `AuxHeads` module, so `Judge` keeps the MLX model's exact parameter count. Fine-tuning is `torchrun` data-parallel on 4 GPUs over the serialised examples, with length-bucketed batches and a small share of pretraining batches replayed. Scoring the reservoir is batched inference. Evaluation computes every bar in spec section 7 on the held-out test split, with bootstrap intervals resampled by library.
 
 **Tech Stack:** PyTorch 2.11, fla 0.5.2, the plan 2 tokenizer and streams, the plan 3 serialised examples; vLLM in `~/vllmenv` for the attacker's prose and the LLM baseline.
 
-**Spec:** `docs/superpowers/specs/2026-10-08-verifier-judge-design.md`, sections 6 and 7.
+**Spec:** `docs/specs/2026-10-08-verifier-judge-design.md`, sections 6 and 7.
 
 ## Global Constraints
 

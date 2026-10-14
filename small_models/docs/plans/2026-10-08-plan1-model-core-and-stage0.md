@@ -1,14 +1,12 @@
 # Plan 1: Model core and Stage 0 (feasibility) Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Build the judge model's architecture (chunked Kimi Delta Attention, gated full attention, the 3:1 hybrid stack, segment embeddings, verdict and pointer heads), its optimiser and training step, and the Stage 0 measurement that sets every later budget.
 
 **Architecture:** Plain MLX on Apple silicon. The delta rule is computed in chunks of 32 steps with plain MLX ops so autodiff works (mlx-lm's Metal kernel is forward-only), and it is checked against mlx-lm's step-by-step `gated_delta_ops`, an implementation we did not write. Model, optimiser and step are small focused modules; Stage 0 is a script that writes a JSON report.
 
 **Tech Stack:** Python 3.12, MLX 0.32.3, mlx-lm 0.32.0 (reference implementation only), numpy, pytest.
 
-**Spec:** `docs/superpowers/specs/2026-10-08-verifier-judge-design.md` (sections 4 and 6, stage 0).
+**Spec:** `docs/specs/2026-10-08-verifier-judge-design.md` (sections 4 and 6, stage 0).
 
 **This is plan 1 of 4.** Plan 2 (data: libraries, tasks, attempts, harness, oracle, splits), plan 3 (tokenizer, pretraining, fine-tuning, adversarial rounds, calibration) and plan 4 (evaluation) are written after this plan's Stage 0 report, because their budgets come from it.
 

@@ -1,14 +1,12 @@
 # Plan 1b: GPU port and Stage 0 on the A100 Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Port the judge to PyTorch with flash-linear-attention's fused Kimi Delta Attention kernel, prove the port matches the MLX model's structure and a plain recurrence, and measure Stage 0 on the A100 so the config decision is made on real numbers.
 
 **Architecture:** `vmt/` mirrors `vm/` module for module and reuses `vm/model/config.py` (pure Python, no MLX import), so both implementations share one set of configs and must have identical parameter counts. The delta core is fla's `chunk_kda`, checked against `vmt/kda_ref.py`, a plain step-by-step loop. Code is written on the Mac, synced to the instance with rsync, and tested there.
 
 **Tech Stack:** Python 3.12 (uv-managed `~/vmenv` on the instance), PyTorch 2.11 (CUDA 12.8), flash-linear-attention 0.5.2, Triton 3.6, pytest.
 
-**Spec:** `docs/superpowers/specs/2026-10-08-verifier-judge-design.md` (sections 2, 4 and 6). Follows plan 1 (`2026-10-08-plan1-model-core-and-stage0.md`).
+**Spec:** `docs/specs/2026-10-08-verifier-judge-design.md` (sections 2, 4 and 6). Follows plan 1 (`2026-10-08-plan1-model-core-and-stage0.md`).
 
 ## Global Constraints
 

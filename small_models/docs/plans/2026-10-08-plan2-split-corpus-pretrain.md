@@ -1,14 +1,12 @@
 # Plan 2: Library split, pretraining corpus, tokenizer and pretraining Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Freeze the library split, build a licence-clean pretraining corpus (Python from permissively licensed PyPI packages, English from FineWeb-Edu) that excludes every dev and test library, train the 32k tokenizer, and pretrain the MAIN config to 20 tokens per parameter on 4 H100s.
 
 **Architecture:** Candidates come from the 15,000 most-downloaded PyPI packages; each gets a split from a seeded hash of its normalised name, decided before any library is looked at. Only train-split, permissive packages enter the corpus, and vendored copies of dev or test libraries are filtered by import name. Tokenised text is stored as uint16 streams that a seeded sampler reads in windows. Pretraining is `torchrun` data-parallel with `torch.compile`, bfloat16 autocast, Muon and AdamW, checkpoints and a held-out validation loss.
 
 **Tech Stack:** Python 3.12, PyTorch 2.11, flash-linear-attention 0.5.2, Hugging Face `tokenizers`, `huggingface_hub`, `pyarrow`, `zstandard`, pytest. Instance: 4x H100 80GB, 104 vCPUs, `ubuntu@192.222.52.170`.
 
-**Spec:** `docs/superpowers/specs/2026-10-08-verifier-judge-design.md` (section 5, sources and splits; section 6, stages 1 and 2). MAIN config chosen by the user on 8 Oct after `docs/stage0_gpu_report.md`.
+**Spec:** `docs/specs/2026-10-08-verifier-judge-design.md` (section 5, sources and splits; section 6, stages 1 and 2). MAIN config chosen by the user on 8 Oct after `docs/stage0_gpu_report.md`.
 
 ## Global Constraints
 
