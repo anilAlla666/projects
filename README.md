@@ -5,7 +5,8 @@ Everything built in the Verifier Bench research program: a loop that makes grade
 teaches the loop from its own mistakes, every model we trained along the way with its weights, and the full research
 log with every run.
 
-**Start with the report:** [`report/verify_loop_report.html`](report/verify_loop_report.html) (open in a browser).
+**Start with the report:** [`REPORT.md`](REPORT.md).
+
 **Every study, pre-registration and result:** [`loop/docs/research_intent_goal.md`](loop/docs/research_intent_goal.md).
 
 ## What is where
@@ -16,7 +17,7 @@ log with every run.
 | [`loop/vb/evolve.py`](loop/vb/evolve.py) | The self-evolving step: post-mortem on labelled pools, rule proposer, versioned rulebook ([`loop/configs/rulebook.json`](loop/configs/rulebook.json)), paired gate, ledger ([`loop/runs/evolve/`](loop/runs/evolve/)). |
 | [`small_models/`](small_models/) | The 116M attempt classifier trained from scratch (package `vm`) and the 7B grader writer (package `gw`), with their training scripts, configs, experiments and tests. |
 | [`weights/`](weights/) | Every trained model's weights, stored with Git LFS: the 116M classifier, the 7B grader writer (5 rounds), the 7B requirement model, and the open 27B judge (6 training studies). |
-| [`report/`](report/) | The report to HUD. |
+| [`REPORT.md`](REPORT.md) | The report to HUD. |
 
 ## The system in one paragraph
 
