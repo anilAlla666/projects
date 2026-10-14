@@ -41,7 +41,7 @@ Anil Kumar · every number below was measured on hidden, labelled attempts the j
 13. [Why our own model](#13-why-our-own-model)
 14. [The to-do list to the goal](#14-the-to-do-list-to-the-goal)
 15. [Resources](#15-resources)
-16. [Our commitment](#16-our-commitment)
+16. [I can build this](#16-i-can-build-this)
 
 ## 1. The problem, measured
 
@@ -378,20 +378,20 @@ The frontier judge makes the loop work today. The owned model makes it cheap eno
 
 **Where this is headed.** A verifier that sits next to every agent HUD uses to build environments, turns each agent-written grader into a verified one with an auditable report, asks a person only what no model can answer, and gets better with every environment HUD verifies. The harness, the loop, the guard, the serving stack, the training stack and the data sources are built. The loop already works with any frontier judge; the data and compute above make the judge HUD's own.
 
-## 16. Our commitment
+## 16. I can build this
 
-**With the resources in section 15, we commit to delivering the following in 8 weeks**, each measured on hidden labelled attempts with the same harness behind every number in this report:
+I designed, built and ran everything in this report: the harness, the loop, the guard, the self-evolving step, the 116M model trained from scratch, and the serving and training stack for the 27B. **With the resources in section 15, I will build the rest and deliver the following in 8 weeks**, each measured on hidden labelled attempts with the same harness behind every number in this report:
 
 1. **A verifier model owned by HUD.** An open-weight 27B to 32B judge that matches or beats the frontier judge's balanced accuracy on held-out Terminal-Bench tasks inside the identical loop, at a fraction of the cost per grader and running on HUD's own GPUs.
 2. **Autonomous grader verification in HUD's pipeline.** Every new or changed environment's grader passes through the loop automatically, ends at 0.90 or above on 9 of 10 new tasks, and is never left worse than it started.
 3. **A loop that keeps improving itself.** The self-evolving cycle runs on every labelled environment HUD has: post-mortem, rule proposals, the held-out gate, and weekly retraining of the model on the loop's record.
 
-**Why we are confident it works:**
+**Why I am confident it works:**
 
 - **The loop already works.** With a frontier judge it took 5 of 7 agent-written graders to 1.00 and the mean from 0.71 to 0.90, and under the current judge it has never left a grader worse than it found it.
 - **The remaining misses have one cause and a direct fix.** Every miss traced to lopsided evidence: no correct example, no wrong example, or no attempt that exercised the check. Broader evidence and correctness-preserving variants (items 2 to 4 of the to-do list) close exactly that class, and the self-evolving step already turned those misses into six general rules on its own.
 - **The model's gap is small, one-sided and trainable.** Untrained, the open 27B already reaches 0.82 against the frontier judge's 0.90. The gap is all on one side (rejecting convincing wrong work) and the same in 3 of 3 runs, which is a missing skill rather than noise, and the skill itself is already there: 0.93 when writing tests on 1,500 programming problems. Outcome reinforcement learning on real labelled attempts is the method that teaches exactly this.
-- **The recipe has worked at this scale.** DeepSWE trained a 32B agent with RL on 64 H100s in 6 days; UTRL trained a 4B model with RL to beat GPT-4.1 at writing tests that separate right code from wrong. Our free-data runs used 26 to 103 trajectories; the plan uses thousands, from the distribution the model will actually face.
-- **Everything else is already built and tested.** The harness, the loop, the guard, the self-evolving step, the 262k-context serving stack and the multi-GPU training stack all exist and have run. What remains is the data and the compute to train the model properly.
+- **The recipe has worked at this scale.** DeepSWE trained a 32B agent with RL on 64 H100s in 6 days; UTRL trained a 4B model with RL to beat GPT-4.1 at writing tests that separate right code from wrong. My free-data runs used 26 to 103 trajectories; the plan uses thousands, from the distribution the model will actually face.
+- **Everything else is already built and tested.** The harness, the loop, the guard, the self-evolving step, the 262k-context serving stack and the multi-GPU training stack all exist and have run. What remains is the data and the compute to train the model properly, and I am ready to start on day one.
 
 Spend to date: about $600 of model API across all studies, and rented GPU time on 5 H100 GPUs and 1 A100. Measurements are balanced accuracy on hidden labelled attempts; every study was pre-registered with its pass bar. Frontier comparison figures come from recorded runs, some with an earlier judge prompt; the final evaluation reruns them under the identical harness.
