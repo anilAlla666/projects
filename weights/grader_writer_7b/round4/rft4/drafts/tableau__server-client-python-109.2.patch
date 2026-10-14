@@ -1,0 +1,46 @@
+--- /dev/null
++++ b/tableauserverclient/test/unit/test_pager_grader.py
+@@ -0,0 +1,44 @@
++import pytest
++from tableauserverclient.server import Pager
++
++
++class TestPager:
++    def test_iterating_through_a_set_of_items(self):
++        # Arrange
++        items = {'item_1', 'item_2', 'item_3'}
++
++        # Act
++        results = []
++        for item in Pager(items):
++            results.append(item)
++
++        # Assert
++        assert len(results) == 3
++        assert set(results) == items
++
++    def test_iterating_through_a_list_of_items(self):
++        # Arrange
++        items = ['item_1', 'item_2', 'item_3']
++
++        # Act
++        results = []
++        for item in Pager(items):
++            results.append(item)
++
++        # Assert
++        assert len(results) == 3
++        assert set(results) == set(items)
++
++    def test_iterating_through_a_generator_of_items(self):
++        # Arrange
++        items = ('item_1', 'item_2', 'item_3')
++
++        # Act
++        results = []
++        for item in Pager(items):
++            results.append(item)
++
++        # Assert
++        assert len(results) == 3
++        assert set(results) == set(items)

@@ -1,0 +1,48 @@
+--- /dev/null
++++ b/tests/test_changelogs_grader.py
+@@ -0,0 +1,12 @@
++from __future__ import unicode_literals
++
++
++import pytest
++import changelogs
++
++
++def test_gxc_online():
++    """Ensure URLs without protocol work"""
++    log = changelogs.get("gxc-online")
++    assert log
++    assert "2018-11-27" in log
+--- /dev/null
++++ b/tests/test_finder_grader.py
+@@ -0,0 +1,30 @@
++from __future__ import unicode_literals
++from changelogs.finder import contains_project_name
++from urllib.parse import urlparse
++
++
++def test_validate_url():
++    assert urlparse("http://example.com").netloc == "example.com"
++    assert urlparse("https://example.com").netloc == "example.com"
++    assert urlparse("git@github.com:foobar/example.git").netloc == "github.com"
++    assert urlparse("http://example.com").path == "/"
++    assert urlparse("/").path == "/"
++    assert urlparse("").path == ""
++    assert urlparse("ftp://example.com").path == "/"
++
++
++def test_find_repo_urls():
++    call = changelogs.find_repo_urls
++    assert list(call(None, "foo", [])) == []
++    assert len(list(call(None, "foo", ["http://example.com"])) > 0
++    assert len(list(call(None, "foo", ["http://example.com/foo"])) > 0
++    assert len(list(call(None, "foo", ["http://example.com/foo/bar"])) > 0
++    assert len(list(call(None, "foo", ["http://example.com/foo/bar/baz"])) > 0
++    assert len(list(call(None, "foo", ["http://example.com/foo/bar/baz/quux"])) > 0
++    assert len(list(call(None, "foo", ["http://example.com/foo/bar/baz/quux/txt"])) > 0
++    assert len(list(call(None, "foo", ["http://example.com/foo/bar/baz/quux/txt.txt"])) > 0
++    assert len(list(call(None, "foo", ["http://example.com/foo/bar/baz/quux.txt.txt"])) > 0
++    assert len(list(call(None, "foo", ["http://example.com/foo/bar/baz/quux.t.txt"])) > 0
++    assert len(list(call(None, "foo", ["http://example.com/foo/bar/baz/quux.tt.txt"])) > 0
++    assert len(list(call(None, "foo", ["http://example.com/foo/bar/baz/quux.ttt.txt"])) > 0
++    assert len(list(call(None, "foo", ["http://example.com/foo/bar/baz/quux.tttt.txt"])) > 0

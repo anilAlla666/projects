@@ -1,0 +1,20 @@
+--- /dev/null
++++ b/test_pycparser_grader.py
+@@ -0,0 +1,17 @@
++from __future__ import print_function
++
++
++import unittest
++from .pycparser import parse_file
++
++
++class TestParseSwitch(unittest.TestCase):
++    def test_parse_switch_no_case(self):
++        text = """
++        void f(void) {
++            int x;
++            switch(x) {}
++        }
++        """
++        ast = parse_file(text, use_cpp=True)
++        assert ast is not None

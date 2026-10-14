@@ -1,0 +1,48 @@
+--- /dev/null
++++ b/test/test_injector_grader.py
+@@ -0,0 +1,25 @@
++from random import random
++import asyncio
++from unittest import TestCase
++from inject import Injector, InjectorException
++
++
++class TestAsyncFunction(TestCase):
++    def test_async_function__is_coroutine_function(self):
++        async def func():
++            pass
++
++        assert asyncio.iscoroutinefunction(func)
++
++    def test_async_function__after_wrapping_with_param(self):
++        @asyncio.coroutine
++        def func():
++            pass
++
++        inject.params(func, "value")
++        assert asyncio.iscoroutinefunction(func)
++
++    def test_async_function__after_wrapping_with_attr(self):
++        class MyClass(object):
++            value = 123
++
++        assert asyncio.iscoroutinefunction(MyClass.value)
+--- /dev/null
++++ b/test/test_inject_configuration_grader.py
+@@ -0,0 +1,15 @@
++import inject
++from inject import InjectorException
++from test import BaseTestInject
++
++
++class TestConfigure(BaseTestInject):
++    def test_configure__already_configured(self):
++        inject.configure()
++
++        self.assertRaisesRegexp(InjectorException, 'Injector is already configured',
++                                inject.configure)
++
++    def test_configure_once__should_return_existing_injector_when_present(self):
++        injector0 = inject.configure()
++        injector1 = inject.configure_once()
++        assert injector0 is injector1

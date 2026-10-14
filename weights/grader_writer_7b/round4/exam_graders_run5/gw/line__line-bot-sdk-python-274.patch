@@ -1,0 +1,55 @@
+--- /dev/null
++++ b/tests/models/test_flex_message_grader.py
+@@ -0,0 +1,44 @@
++from __future__ import unicode_literals, absolute_import
++import unittest
++from linebot.models import (
++    FlexSendMessage,
++    BlockStyle,
++    BubbleStyle,
++    BubbleContainer,
++    CarouselContainer,
++    BoxComponent,
++    TextComponent,
++    SeparatorComponent,
++    ImageComponent,
++    ButtonComponent,
++    FillerComponent,
++    IconComponent,
++    SpacerComponent,
++    SpanComponent,
++    URIAction,
++)
++from tests.models.serialize_test_case import SerializeTestCase
++
++
++class TestFlexMessage(SerializeTestCase):
++    def test_bubble_container_with_box_hero(self):
++        arg = {
++            'type': 'bubble',
++            'hero': {
++                'type': 'box',
++                'layout': 'vertical',
++                'contents': [
++                    {
++                        'type': 'text',
++                        'text': 'Brown Cafe'
++                    }
++                ]
++            },
++            'body': {
++                'type': 'box',
++                'layout': 'horizontal',
++                'spacing': 'sm',
++                'contents': [
++                    {
++                        'type': 'text',
++                        'text': 'A simple hero property'
++                    }
++                ]
++            }
++        }
++        self.assertEqual(
++            self.serialize_as_dict(arg, type=self.BUBBLE),
++            BubbleContainer(**arg).as_json_dict()
++        )

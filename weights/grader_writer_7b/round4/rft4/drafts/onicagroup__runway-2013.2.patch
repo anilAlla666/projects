@@ -1,0 +1,186 @@
+--- /dev/null
++++ b/tests/unit/core/components/test_module_path_grader.py
+@@ -0,0 +1,130 @@
++"""Test runway.core.components._module_path."""
++
++
++from __future__ import annotations
++from copy import deepcopy
++from pathlib import Path
++from typing import TYPE_CHECKING, Dict, List, Optional, Union
++import pytest
++from mock import MagicMock
++from typing_extensions import TypedDict
++from runway.config.components.runway import RunwayModuleDefinition
++from runway.config.models.runway import RunwayModuleDefinitionModel
++from runway.core.components._module_path import ModulePath
++
++
++if TYPE_CHECKING:
++    from pytest_mock import MockerFixture
++    from runway.core.components import DeployEnvironment
++
++
++MODULE = "runway.core.components._module_path"
++
++
++TypeDefTestDefinitionExpected = TypedDict(
++    "TypeDefTestDefinitionExpected",
++    arguments=Dict[str, str],
++    location=str,
++    source=str,
++    uri=str,
++)
++
++
++TypeDefTestDefinition = TypedDict(
++    "TypeDefTestDefinition",
++    definition=Optional[Union[Path, str]],
++    expected=TypeDefTestDefinitionExpected,
++)
++
++
++TESTS: List[TypeDefTestDefinition] = [
++    {
++        "definition": "path/to/local/thing",
++        "expected": {
++            "arguments": {},
++            "location": "path/to/local/thing",
++            "source": "",
++            "uri": "",
++        },
++    },
++    {
++        "definition": "./relative/path/to/local/thing",
++        "expected": {
++            "arguments": {},
++            "location": "./relative/path/to/local/thing",
++            "source": "",
++            "uri": "",
++        },
++    },
++    {
++        "definition": "https://github.com/org/repo",
++        "expected": {
++            "arguments": {},
++            "location": "https://github.com/org/repo",
++            "source": "git",
++            "uri": "https://github.com/org/repo",
++        },
++    },
++    {
++        "definition": "git::git@github.com:org/repo.git",
++        "expected": {
++            "arguments": {},
++            "location": "git@github.com:org/repo.git",
++            "source": "git",
++            "uri": "git@github.com:org/repo.git",
++        },
++    },
++    {
++        "definition": "git::https://github.com/org/repo.git?branch=v1.2.3",
++        "expected": {
++            "arguments": {"branch": "v1.2.3"},
++            "location": "https://github.com/org/repo.git",
++            "source": "git",
++            "uri": "https://github.com/org/repo.git",
++        },
++    },
++    {
++        "definition": "s3::bucket/key",
++        "expected": {
++            "arguments": {},
++            "location": "bucket/key",
++            "source": "s3",
++            "uri": "s3://bucket/key",
++        },
++    },
++    {
++        "definition": "file:///path/to/file",
++        "expected": {
++            "arguments": {},
++            "location": "/path/to/file",
++            "source": "file",
++            "uri": "file:///path/to/file",
++        },
++    },
++    {
++        "definition": "http://url.to.file",
++        "expected": {
++            "arguments": {},
++            "location": "http://url.to.file",
++            "source": "http",
++            "uri": "http://url.to.file",
++        },
++    },
++    {
++        "definition": "git::git@github.com:org/repo.git?ref=my-ref",
++        "expected": {
++            "arguments": {"ref": "my-ref"},
++            "location": "git@github.com:org/repo.git",
++            "source": "git",
++            "uri": "git@github.com:org/repo.git",
++        },
++    },
++]
++
++
++class TestModulePath:
++    """Test ModulePath."""
++
++    @pytest.mark.parametrize("test", deepcopy(TESTS))
++    def test_parse_obj_str(
++        self, deploy_environment: DeployEnvironment, tmp_path: Path, test: TestDefinition
++    ) -> None:
++        """Test parse_obj str."""
++        obj = ModulePath.parse_obj(
++            test["definition"], cache_dir=tmp_path, deploy_environment=deploy_environment
++        )
++        assert obj.arguments == test["expected"]["arguments"]
++        assert obj.location == test["expected"]["location"]
++        assert obj.source == test["expected"]["source"]
++        assert obj.uri == test["expected"]["uri"]
+--- /dev/null
++++ b/tests/unit/module/staticsite/options/test_components_grader.py
+@@ -0,0 +1,42 @@
++"""Test runway.module.staticsite.options.components."""
++
++
++from __future__ import annotations
++from runway.module.staticsite.options.components import StaticSiteOptions
++from runway.module.staticsite.options.models import (
++    RunwayStaticSiteModuleOptionsDataModel,
++    RunwayStaticSitePreBuildStepDataModel,
++)
++
++
++MODULE = "runway.module.staticsite.options.components"
++
++
++class TestStaticSiteOptions:
++    """Test StaticSiteOptions."""
++
++    def test_init(self) -> None:
++        """Test __init__."""
++        data = RunwayStaticSiteModuleOptionsDataModel(
++            build_output="./dist",
++            build_steps=["runway --help"],
++            extra_files=["foo", "bar"],
++            pre_build_steps=[RunwayStaticSitePreBuildStepDataModel(command="runway --help")],
++        )
++        obj = StaticSiteOptions(data=data)
++        assert obj.build_output == data.build_output
++        assert obj.build_steps == data.build_steps
++        assert obj.data == data
++        assert obj.extra_files == data.extra_files
++        assert obj.pre_build_steps == data.pre_build_steps
++        assert obj.source_hashing == data.source_hashing
++
++    def test_parse_obj(self) -> None:
++        """Test parse_obj."""
++        obj = StaticSiteOptions.parse_obj({"build_output": "./dist"})
++        assert isinstance(obj.data, RunwayStaticSiteModuleOptionsDataModel)
++        assert (
++            obj.data.dict(exclude_defaults=True, exclude_none=True, exclude_unset=True)
++            == {"build_output": "./dist"}
++        )

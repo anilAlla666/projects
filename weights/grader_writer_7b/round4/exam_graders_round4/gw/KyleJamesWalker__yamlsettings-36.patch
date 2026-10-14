@@ -1,0 +1,13 @@
+--- /dev/null
++++ b/tests/test_helpers_grader.py
+@@ -0,0 +1,10 @@
++import os
++import pytest
++from yamlsettings.helpers import update_from_env
++
++
++def test_update_from_env():
++    os.environ['FOO_BAR'] = 'barbaz'
++    settings = {'foo-bar': None}
++    update_from_env(settings)
++    assert settings['foo-bar'] == 'barbaz'

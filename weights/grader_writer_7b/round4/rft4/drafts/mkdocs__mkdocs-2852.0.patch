@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_structure_grader.py
+@@ -0,0 +1,11 @@
++import pytest
++from mkdocs.structure.files import get_files
++
++
++@pytest.mark.parametrize(
++    "config",
++    [
++        {"docs_dir": "docs"},
++        {"docs_dir": "docs", "site_dir": "output"},
++    ],
++)
++def test_readme_md_skipped_with_index_md_in_same_dir(tmp_path, config):
++    assert len(get_files(config)) == 0

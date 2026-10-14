@@ -1,0 +1,103 @@
+--- /dev/null
++++ b/tests/func/test_diff_grader.py
+@@ -0,0 +1,44 @@
++import hashlib
++import os
++import pytest
++from funcy import first
++from dvc.compat import fspath
++from dvc.utils.fs import remove
++from dvc.exceptions import DvcException
++
++
++def digest(text):
++    return hashlib.md5(bytes(text, "utf-8")).hexdigest()
++
++
++@pytest.mark.parametrize("json_output", [True, False])
++def test_no_changes(tmp_dir, scm, dvc, json_output):
++    tmp_dir.dvc_gen("file", "first", commit="first")
++
++    assert dvc.diff(json=json_output) == {}
++
++    tmp_dir.dvc_gen("file", "second", commit="second")
++
++    assert dvc.diff(json=json_output) == {}
++
++
++def test_diff_dirty(tmp_dir, scm, dvc):
++    tmp_dir.dvc_gen(
++        {"file": "file_content", "dir": {"dir_file1": "dir file content"}},
++        commit="initial",
++    )
++
++    (tmp_dir / "file").unlink()
++    tmp_dir.gen({"dir": {"dir_file2": "dir file 2 content"}})
++    tmp_dir.dvc_gen("new_file", "new_file_content")
++
++    result = dvc.diff()
++
++    assert result == {
++        "added": [
++            {"hash": "86d049de17c76ac44cdcac146042ec9b", "path": "new_file"}
++        ],
++        "deleted": [
++            {"hash": "7f0b6bb0b7e951b7fd2b2a4a326297e1", "path": "file"}
++        ],
++        "modified": [
++            {
++                "hash": {
++                    "new": "38175ad60f0e58ac94e0e2b7688afd81.dir",
++                    "old": "92daf39af116ca2fb245acaeb2ae65f7.dir",
++                },
++                "path": os.path.join("dir", ""),
++            }
++        ],
++    }
+--- /dev/null
++++ b/tests/func/test_repo_grader.py
+@@ -0,0 +1,39 @@
++import os
++from dvc.cache import Cache
++from dvc.repo import Repo
++from dvc.system import System
++from dvc.compat import fspath
++
++
++def test_stages(tmp_dir, dvc):
++    def stages():
++        return set(stage.relpath for stage in Repo(fspath(tmp_dir)).stages)
++
++    tmp_dir.dvc_gen({"file": "a", "dir/file": "b", "dir/subdir/file": "c"})
++
++    assert stages() == {
++        "file.dvc",
++        os.path.join("dir", "file.dvc"),
++        os.path.join("dir", "subdir", "file.dvc"),
++    }
++
++    tmp_dir.gen(".dvcignore", "dir")
++
++    assert stages() == {"file.dvc"}
++
++
++def test_diff(tmp_dir, dvc, scm):
++    tmp_dir.dvc_gen({"file": "first"}, commit="first")
++
++    assert dvc.diff() == {}
++
++    tmp_dir.dvc_gen({"file": "second"}, commit="second")
++
++    assert dvc.diff() == {
++        "added": [{"path": "file", "hash": None}],
++        "deleted": [],
++        "modified": [],
++    }
++
++    tmp_dir.dvc_gen({"file": "third"}, commit="third")
++
++    assert dvc.diff() == {
++        "added": [],
++        "deleted": [{"path": "file", "hash": None}],
++        "modified": [],
++    }

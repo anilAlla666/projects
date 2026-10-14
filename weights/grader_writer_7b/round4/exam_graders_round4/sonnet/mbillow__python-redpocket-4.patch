@@ -1,0 +1,56 @@
+--- /dev/null
++++ b/tests/test_get_details_type_api.py
+@@ -0,0 +1,45 @@
++from urllib.parse import urlparse, parse_qs
++
++import responses
++
++from redpocket import RedPocket
++
++DETAILS_URL = "https://www.redpocket.com/account/get-details"
++
++
++@responses.activate
++def test_get_line_details_requests_type_api(
++    successful_login: None, mock_line_details: dict
++):
++    responses.add(
++        responses.GET,
++        DETAILS_URL,
++        status=200,
++        json={"return_code": 1, "return_data": mock_line_details},
++    )
++    rp = RedPocket(username="fake", password="password")
++
++    rp.get_line_details("AAA1BBB2")
++
++    detail_calls = [
++        call
++        for call in responses.calls
++        if call.request.url.startswith(DETAILS_URL)
++    ]
++    assert len(detail_calls) == 1
++    parsed = urlparse(detail_calls[0].request.url)
++    assert parsed.path == "/account/get-details"
++    query = parse_qs(parsed.query)
++    assert query.get("id") == ["AAA1BBB2"]
++    assert query.get("type") == ["api"]
++
++
++@responses.activate
++def test_get_line_details_returns_parsed_details(
++    successful_login: None, mock_line_details: dict
++):
++    responses.add(
++        responses.GET,
++        DETAILS_URL,
++        status=200,
++        json={"return_code": 1, "return_data": mock_line_details},
++    )
++    rp = RedPocket(username="fake", password="password")
++
++    details = rp.get_line_details("AAA1BBB2")
++    assert details.number == 1234567890
++
++    query = parse_qs(urlparse(responses.calls[-1].request.url).query)
++    assert query.get("type") == ["api"]

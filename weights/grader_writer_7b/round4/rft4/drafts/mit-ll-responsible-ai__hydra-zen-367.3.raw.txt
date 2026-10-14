@@ -1,0 +1,153 @@
+--- /dev/null
++++ b/tests/test_launch/test_implementations_grader.py
+@@ -0,0 +1,152 @@
++from pathlib import Path
++from typing import Optional
++import pytest
++from hydra.core.config_store import ConfigStore
++from hydra.core.override_parser.overrides_parser import OverridesParser
++from hydra.errors import ConfigCompositionException
++from hydra.plugins.sweeper import Sweeper
++from omegaconf.omegaconf import OmegaConf
++from hydra_zen import builds, instantiate, launch, make_config
++from hydra_zen._compatibility import SUPPORTS_VERSION_BASE
++from hydra_zen._launch import _store_config
++
++
++try:
++    import dataclasses
++
++    import cloudpickle
++
++    CLOUDPICKLE_AVAIL = True
++except ImportError:
++    CLOUDPICKLE_AVAIL = False
++
++
++CONFIG_TYPE_EXAMPLES = [
++    make_config(),
++    builds(dict, a=1, b=1),
++    dict(a=1),
++    dict(f=builds(dict, a=1, b=1)),
++    OmegaConf.create(dict(a=1)),
++    OmegaConf.create(dict(f=builds(dict, a=1, b=1))),
++]
++
++
++DATACLASS_CONFIG_TYPE_EXAMPLES = [
++    make_config(),
++    builds(dict, a=1, b=1),
++]
++
++
++def foo(x: int) -> int:
++    return x + 1
++
++
++@dataclasses.dataclass
++class FooDataClass:
++    x: int
++
++    def __call__(self, y: int) -> int:
++        return self.x + y
++
++
++@dataclasses.dataclass
++class BarDataClass:
++    x: int
++
++    def bar(self, y: int) -> int:
++        return self.x * y
++
++
++class FooClass:
++    def __init__(self, x: int):
++        self.x = x
++
++    def __call__(self, y: int) -> int:
++        return self.x + y
++
++
++class BarClass:
++    def __init__(self, x: int):
++        self.x = x
++
++    def bar(self, y: int) -> int:
++        return self.x * y
++
++
++class FooStaticMethodClass:
++    @staticmethod
++    def foo(x: int) -> int:
++        return x + 1
++
++
++class FooClassMethodClass:
++    @classmethod
++    def foo(cls, x: int) -> int:
++        return x + 1
++
++
++cs = ConfigStore.instance()
++
++
++cs.store(name="foo_dataclass", node=FooDataClass)
++
++
++cs.store(name="bar_dataclass", node=BarDataClass)
++
++
++cs.store(name="foo_class", node=FooClass)
++
++
++cs.store(name="bar_class", node=BarClass)
++
++
++cs.store(name="foo_staticmethod", node=FooStaticMethodClass.foo)
++
++
++cs.store(name="foo_classmethod", node=FooClassMethodClass.foo)
++
++
++class BasicSweeper(Sweeper):
++    def setup(self, config: Any) -> None:
++        pass
++
++    def run_job(self, config: Any) -> Any:
++        return config
++
++    def finalize(self, results: List[Any]) -> None:
++        pass
++
++
++class LocalBasicSweeper(BasicSweeper):
++    def run_batch(self, arguments: List[List[str]]) -> List[List[Any]]:
++        returns = []
++        for args in arguments:
++            returns.append(instantiate(builds(dict, a=args)))
++        return returns
++
++
++cs = ConfigStore.instance()
++
++
++cs.store(group="hydra/sweeper", name="basic", node=builds(BasicSweeper))
++
++
++cs.store(group="hydra/sweeper", name="local_test", node=builds(LocalBasicSweeper))
++
++
++@pytest.mark.usefixtures("cleandir")
++@pytest.mark.parametrize(
++    "plugin",
++    [["hydra/sweeper=basic"], ["hydra/sweeper=local_test"]],
++)
++def test_launch_with_multirun_plugin(plugin, version_base):
++    cfg = builds(dict, a=1, b=1)
++    multirun_overrides = plugin + ["a=1,2"]
++    job = launch(
++        cfg, instantiate, overrides=multirun_overrides, multirun=True, **version_base
++    )
++    assert isinstance(job, list) and len(job) == 1 and len(job[0]) == 2
++    for i, j in enumerate(job[0]):
++        assert j.return_value == {"a": i + 1, "b": 1}

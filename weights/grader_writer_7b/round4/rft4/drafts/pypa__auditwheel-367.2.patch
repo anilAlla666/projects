@@ -1,0 +1,116 @@
+--- /dev/null
++++ b/tests/unit/test_tools_grader.py
+@@ -0,0 +1,80 @@
++import argparse
++from pathlib import Path
++import pytest
++from auditwheel.tools import EnvironmentDefault, dir2zip, zip2dir
++
++
++def _write_test_permissions_zip(path):
++    source_zip_xz = Path(__file__).parent / "test-permissions.zip.xz"
++    with source_zip_xz.open("rb") as f:
++        path.write_bytes(f.read())
++
++
++def _check_permissions(path):
++    for i in range(8):
++        for j in range(8):
++            for k in range(8):
++                mode = (path / f"{i}{j}{k}.f").stat().st_mode
++                assert ((mode >> 6) & 7) == (i | 6)  # always read/write
++                assert ((mode >> 3) & 7) == j
++                assert ((mode >> 0) & 7) == k
++                mode = (path / f"{i}{j}{k}.d").stat().st_mode
++                assert ((mode >> 6) & 7) == 7  # always read/write/execute
++                assert ((mode >> 3) & 7) == 5  # always read/execute
++                assert ((mode >> 0) & 7) == 5  # always read/execute
++
++
++def test_zip2dir_round_trip_permissions(tmp_path):
++    source_zip = tmp_path / "test-permissions.zip"
++    _write_test_permissions_zip(source_zip)
++    extract_path = tmp_path / "unzip2"
++    zip2dir(str(source_zip), str(tmp_path / "unzip1"))
++    dir2zip(str(tmp_path / "unzip1"), str(tmp_path / "tmp.zip"))
++    zip2dir(str(tmp_path / "tmp.zip"), str(extract_path))
++    _check_permissions(extract_path)
++
++
++def test_dir2zip(tmp_path):
++    test_file_path = tmp_path / "file.txt"
++    test_file_path.touch(mode=0o750)
++    test_file_path.parent.mkdir(mode=0o770)
++    dir2zip(str(tmp_path), str(tmp_path / "archive.zip"))
++
++    with zipfile.ZipFile(tmp_path / "archive.zip") as zf:
++        assert zf.infolist()[0].filename == "file.txt"
++        assert zf.infolist()[0].external_attr == 0o750 << 16
++        assert zf.infolist()[1].filename == "dir/"
++        assert zf.infolist()[1].external_attr == 0o770 << 16
++
++
++def test_zip2dir_roundtrip_dir_perms(tmp_path):
++    source_zip = tmp_path / "test-dir-permissions.zip"
++    test_file_path = tmp_path / "file.txt"
++    test_file_path.touch(mode=0o750)
++    test_file_path.parent.mkdir(mode=0o770)
++    dir2zip(str(tmp_path), str(source_zip))
++    extract_path = tmp_path / "unzip2"
++    zip2dir(str(source_zip), str(extract_path))
++
++    assert extract_path / "file.txt".stat().st_mode == 0o750
++    assert extract_path / "dir".stat().st_mode == 0o770
++
++
++def test_zip2dir_roundtrip_symlink(tmp_path):
++    source_zip = tmp_path / "test-symlink.zip"
++    (tmp_path / "realfile.txt").touch()
++    (tmp_path / "symlink.txt").symlink_to("realfile.txt")
++    dir2zip(str(tmp_path), str(source_zip))
++    extract_path = tmp_path / "unzip2"
++    zip2dir(str(source_zip), str(extract_path))
++
++    assert (extract_path / "symlink.txt").is_symlink()
++    assert (extract_path / "symlink.txt").resolve() == extract_path / "realfile.txt"
++
++
++def test_zip2dir_roundtrip_special_file(tmp_path):
++    source_zip = tmp_path / "test-special-file.zip"
++    (tmp_path / "fifo.fifo").mkdir(mode=0o770)
++    (tmp_path / "socket.sock").mkdir(mode=0o770)
++    dir2zip(str(tmp_path), str(source_zip))
++    extract_path = tmp_path / "unzip2"
++    zip2dir(str(source_zip), str(extract_path))
++
++    assert (extract_path / "fifo.fifo").is_fifo()
++    assert (extract_path / "socket.sock").is_socket()
+--- /dev/null
++++ b/tests/unit/test_condatools_grader.py
+@@ -0,0 +1,26 @@
++from unittest.mock import Mock, patch
++from auditwheel.condatools import InCondaPkg, InCondaPkgCtx
++
++
++@patch("auditwheel.condatools.tarbz2todir")
++@patch("auditwheel.condatools.open")
++def test_in_condapkg_context_open_error(open_mock, tarbz2todir_mock):
++    with InCondaPkgCtx("/fakepath") as conda_pkg:
++        file_mock = Mock()
++        file_mock.readlines.side_effect = Exception()
++        open_mock.return_value.__enter__.return_value = file_mock
++        # This returns empty lines so we have count with those as well. This
++        # might be a subtle bug in the implementation.
++        try:
++            for _ in conda_pkg.iter_files():
++                pass
++        except Exception as e:
++            assert isinstance(e, Exception)
++        else:
++            assert False, "No exception raised!"
++
++
++@patch("auditwheel.condatools.tarbz2todir")
++def test_in_condapkg(tarbz2todir_mock):
++    with InCondaPkg("/fakepath"):
++        assert True

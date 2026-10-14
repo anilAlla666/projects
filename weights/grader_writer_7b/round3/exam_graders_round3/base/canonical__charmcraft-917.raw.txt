@@ -1,0 +1,33 @@
+To address the issue, we need to add a test that checks if the `CHARMCRAFT_AUTH` environment variable is being logged correctly. The test should ensure that when `CHARMCRAFT_AUTH` is present, it is logged with a placeholder value instead of its actual value.
+
+Here's the updated test file `tests/test_main.py`:
+
+```diff
+@@ -462,6 +462,25 @@ class MySimpleCommand(BaseCommand):
+     help_msg = "some help"
+     name = "cmdname"
+     overview = "test overview"
++
++def test_get_system_details_logs_charmcraft_auth_placeholder():
++    """Test that CHARMCRAFT_AUTH is logged with a placeholder value."""
++    # Set up the environment with CHARMCRAFT_AUTH
++    os.environ['CHARMCRAFT_AUTH'] = 'actual-auth-value'
++
++    # Call the function to get system details
++    system_details = _get_system_details()
++
++    # Check if CHARMCRAFT_AUTH is logged with a placeholder value
++    expected_output = "System details: ...; Environment: DESKTOP_SESSION='plasma', CHARMCRAFT_AUTH='<hidden>', ..."
++    assert expected_output in system_details, f"Expected output not found: {expected_output}"
++
++    # Clean up the environment
++    del os.environ['CHARMCRAFT_AUTH']
++
+ 
+ def test_basecommand_needs_config_default():
+     """A command by default does not needs config."""
+```
+
+This test sets up the environment with `CHARMCRAFT_AUTH` set to `'actual-auth-value'`, calls `_get_system_details()`, and then checks if `CHARMCRAFT_AUTH` is logged with the placeholder value `<hidden>`. If the placeholder value is not found, the test will fail. After the test, it cleans up the environment by deleting `CHARMCRAFT_AUTH`.
+
+With this test, the fix will be verified to work as intended.

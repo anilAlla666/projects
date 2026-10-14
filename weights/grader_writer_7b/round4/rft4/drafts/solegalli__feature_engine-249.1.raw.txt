@@ -1,0 +1,33 @@
+--- /dev/null
++++ b/tests/test_creation/test_mathematical_combination_grader.py
+@@ -0,0 +1,32 @@
++import numpy as np
++import pandas as pd
++import pytest
++from feature_engine.creation import MathematicalCombination
++
++
++def test_ignore_null_values_in_combinations(df_with_nan):
++    transformer = MathematicalCombination(
++        variables_to_combine=["A", "C"],
++        ignore_na=True,
++    )
++
++    X_t = transformer.fit_transform(df_with_nan)
++
++    assert (
++        X_t.loc[
++            [2, 3, 4], ["A+C", "A-C", "A*C", "A/C", "A^C", "A%C"]
++        ].values.sum()
++        == df_with_nan.dropna(subset=["A", "C"]).loc[:, ["A", "C"]].values.sum()
++    )
++
++
++def test_raise_exception_when_missing_values_and_not_ignored(df_with_nan):
++    transformer = MathematicalCombination(
++        variables_to_combine=["A", "C"],
++        ignore_na=False,
++    )
++
++    with pytest.raises(ValueError):
++        transformer.fit_transform(df_with_nan)

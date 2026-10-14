@@ -1,0 +1,40 @@
+diff --git a/tests/test_stix2validator_v21_musts.py b/tests/test_stix2validator_v21_musts.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_stix2validator_v21_musts.py
+@@ -0,0 +1,45 @@
++import unittest
++from stix2validator.v21.musts import patterns
++
++class TestPatterns(unittest.TestCase):
++    def test_snort_pattern_validation(self):
++        # Create a mock indicator with a SNORT pattern
++        indicator = {
++            "type": "indicator",
++            "pattern_type": "snort",
++            "pattern": "alert tcp any any -> any any (msg:\"Test Snort Rule\"; sid:1000001; rev:1;)"
++        }
++
++        # Call the patterns function
++        result = list(patterns(indicator, None))
++
++        # Assert that no errors were yielded
++        self.assertEqual(len(result), 0)
++
++    def test_invalid_stix_pattern_validation(self):
++        # Create a mock indicator with an invalid STIX pattern
++        indicator = {
++            "type": "indicator",
++            "pattern_type": "stix",
++            "pattern": "[ipv4-addr:value = '192.168.1.1']"
++        }
++
++        # Call the patterns function
++        result = list(patterns(indicator, None))
++
++        # Assert that an error was yielded
++        self.assertTrue(any(isinstance(error, PatternError) for error in result))
++
++if __name__ == '__main__':
++    unittest.main()

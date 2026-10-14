@@ -1,0 +1,21 @@
+--- /dev/null
++++ b/tests/test_interfaces_grader.py
+@@ -0,0 +1,15 @@
++import pytest
++from pyanyapi.interfaces import (
++    IndexOfInterface,
++    JSONInterface,
++    XMLInterface,
++    YAMLInterface,
++)
++
++
++def test_yaml_parser():
++    interface = YAMLInterface(
++        """---
++    foo: !!python/object/apply:os.system ["echo hi"]
++    """,
++        strip=False,
++    )
++    with pytest.raises(ResponseParseError):
++        interface.parse('foo')

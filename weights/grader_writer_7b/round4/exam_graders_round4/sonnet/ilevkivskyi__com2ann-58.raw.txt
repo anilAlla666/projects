@@ -1,0 +1,57 @@
+The new test runs `main()` on two files with different contents and checks that each one is rewritten in place. On the current code the second file's output overwrites the first and the second file is left unchanged, so it fails.
+
+```diff
+--- /dev/null
++++ b/src/test_com2ann_multiple_files.py
+@@ -0,0 +1,63 @@
++"""Tests for processing multiple input files in a single invocation."""
++
++import os
++import shutil
++import sys
++import tempfile
++import unittest
++from unittest import mock
++
++import com2ann as c2a
++
++
++class MultipleFilesTestCase(unittest.TestCase):
++    def setUp(self) -> None:
++        self.tmp = tempfile.mkdtemp()
++        self.addCleanup(shutil.rmtree, self.tmp, True)
++
++    def write(self, name: str, content: str) -> str:
++        path = os.path.join(self.tmp, name)
++        with open(path, "w") as f:
++            f.write(content)
++        return path
++
++    def read(self, path: str) -> str:
++        with open(path) as f:
++            return f.read()
++
++    def run_main(self, *args: str) -> None:
++        with mock.patch.object(sys, "argv", ["com2ann", *args]):
++            c2a.main()
++
++    def test_two_files_in_place(self) -> None:
++        f1 = self.write("f1.py", "x = 1  # type: int\n")
++        f2 = self.write("f2.py", "y = 'a'  # type: str\n")
++        self.run_main(f1, f2)
++        self.assertEqual(self.read(f1), "x: int = 1\n")
++        self.assertEqual(self.read(f2), "y: str = 'a'\n")
++
++    def test_three_files_in_place(self) -> None:
++        f1 = self.write("a.py", "a = 1  # type: int\n")
++        f2 = self.write("b.py", "b = 'a'  # type: str\n")
++        f3 = self.write("c.py", "c = 1.0  # type: float\n")
++        self.run_main(f1, f2, f3)
++        self.assertEqual(self.read(f1), "a: int = 1\n")
++        self.assertEqual(self.read(f2), "b: str = 'a'\n")
++        self.assertEqual(self.read(f3), "c: float = 1.0\n")
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

@@ -1,0 +1,37 @@
+--- /dev/null
++++ b/test_grader/test_eventloop_grader.py
+@@ -0,0 +1,34 @@
++import sys
++from crochet import _eventloop
++
++
++class FakeLogger(object):
++    def __init__(self):
++        self.msgs = []
++
++    def debug(self, *args):
++        self.msgs.append('DEBUG %r' % args)
++
++    def error(self, *args):
++        self.msgs.append('ERROR %r' % args)
++
++    def info(self, *args):
++        self.msgs.append('INFO %r' % args)
++
++
++def test_log_observer_exception():
++    logger = FakeLogger()
++    observer = _eventloop.PythonLoggingObserver(logger)
++    observer.error = lambda x: x // 0
++
++    observer({'logLevel': 10, 'logText': 'hello\n'})
++    assert len(logger.msgs) == 1
++    assert logger.msgs[0].startswith('ERROR ')
++
++    observer({'logLevel': 20, 'logText': 'world\n'})
++    assert len(logger.msgs) == 2
++    assert logger.msgs[1] == 'INFO  ("world",)'
++
++    observer({'logLevel': 40, 'logText': 'goodbye\n'})
++    assert len(logger.msgs) == 3
++    assert logger.msgs[2].startswith('ERROR ')

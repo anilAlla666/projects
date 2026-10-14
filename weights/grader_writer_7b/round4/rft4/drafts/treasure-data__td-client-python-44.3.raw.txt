@@ -1,0 +1,58 @@
+--- /dev/null
++++ b/tdclient/test/test_cursor_test_grader.py
+@@ -0,0 +1,52 @@
++from __future__ import print_function
++from __future__ import unicode_literals
++
++
++try:
++    from unittest import mock
++except ImportError:
++    import mock
++
++
++import pytest
++from tdclient import cursor
++from tdclient import errors
++from tdclient.test.test_helper import *
++
++
++def setup_function(function):
++    unset_environ()
++
++
++def test_fetchall_no_rows():
++    td = cursor.Cursor(mock.MagicMock())
++    td._executed = "42"
++    td._rows = []
++    td._rownumber = 0
++    td._rowcount = 0
++    assert td.fetchall() == []
++
++
++def test_fetchall_some_rows():
++    td = cursor.Cursor(mock.MagicMock())
++    td._executed = "42"
++    td._rows = [["foo", 1], ["bar", 1], ["baz", 2]]
++    td._rownumber = 0
++    td._rowcount = len(td._rows)
++    assert td.fetchall() == [["foo", 1], ["bar", 1], ["baz", 2]]
++
++
++def test_fetchall_after_all_rows_fetched():
++    td = cursor.Cursor(mock.MagicMock())
++    td._executed = "42"
++    td._rows = [["foo", 1], ["bar", 1], ["baz", 2]]
++    td._rownumber = 3
++    td._rowcount = 3
++    assert td.fetchall() == []
++
++
++def test_fetchall_error_when_not_finished():
++    td = cursor.Cursor(mock.MagicMock())
++    td._executed = "42"
++    td._rows = [["foo", 1], ["bar", 1], ["baz", 2]]
++    td._rownumber = 2
++    td._rowcount = 3
++    with pytest.raises(errors.InternalError) as error:
++        td.fetchall()

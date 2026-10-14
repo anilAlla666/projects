@@ -1,0 +1,198 @@
+--- /dev/null
++++ b/tests/commands/test_run_test_utils_grader.py
+@@ -0,0 +1,222 @@
++import datetime
++import json
++import re
++import requests_mock
++from click.testing import CliRunner
++from tests.fixture_data import (
++    CONFIG_DATA,
++    CONFIG_YAML,
++    DEPLOYMENT_VERSION_DATA,
++    EXECUTION_DATA,
++    PIPELINE_DATA,
++    PROJECT_DATA,
++    YAML_WITH_EXTRACT_TRAIN_EVAL,
++)
++from valohai_cli import git
++from valohai_cli.commands.execution.run import run
++from valohai_cli.ctx import get_project
++from valohai_cli.utils import get_random_string
++
++
++ALTERNATIVE_YAML = 'batch.yaml'
++
++
++class RunAPIMock(requests_mock.Mocker):
++
++    def __init__(
++        self,
++        project_id,
++        commit_id='f' * 16,
++        deployment_id=666,
++        additional_payload_values=None,
++        deployment_version_name='220801.0',
++    ):
++        super().__init__()
++        self.last_create_execution_payload = None
++        self.project_id = project_id
++        self.commit_id = commit_id
++        self.deployment_id = deployment_id
++        self.deployment_version_name = deployment_version_name
++        self.additional_payload_values = additional_payload_values or {}
++
++    def handle_get_commit(self, request, context):
++        context.status_code = 200
++        return {
++            'repository': '8',
++            'identifier': self.commit_id,
++            'ref': 'adhoc',
++            'ctime': '2017-03-09T14:56:53.875721Z',
++            'commit_time': '2017-03-09T14:56:53.875475Z',
++        }
++
++    def handle_create_commit(self, request, context):
++        assert request.body
++        commit_id = f"~{get_random_string()}"
++        self.commit_id = commit_id  # Only accept the new commit
++        return {
++            'repository': '8',
++            'identifier': commit_id,
++            'ref': 'adhoc',
++            'ctime': '2017-03-09T14:56:53.875721Z',
++            'commit_time': '2017-03-09T14:56:53.875475Z',
++        }
++
++    def handle_upload_adhoc(self, request, context):
++        self.uploaded_files = request.json()['files']
++        self.uploaded_files_timestamp = request.headers['X-Valohai-Upload-Timestamp']
++        context.status_code = 201
++        return {'upload': {'timestamp': self.uploaded_files_timestamp}}
++
++    def handle_create_execution(self, request, context):
++        body_json = json.loads(request.body.decode('utf-8'))
++        assert body_json['project'] == self.project_id
++        assert body_json['step'] == 'train'
++        assert body_json['deployment'] == self.deployment_id
++        assert body_json['commit'] == self.commit_id
++        self.last_create_execution_payload = {**body_json, **self.additional_payload_values}
++        context.status_code = 201
++        return EXECUTION_DATA.copy()
++
++    def handle_create_endpoint_configuration(self, request, context):
++        body_json = json.loads(request.body.decode('utf-8'))
++        assert body_json['version'] == self.deployment_version_name
++        if body_json['endpoint_configurations'].get('predict-digit'):
++            files = body_json['endpoint_configurations']['predict-digit']['files']
++            assert files.get('model')
++        context.status_code = 201
++        return DEPLOYMENT_VERSION_DATA.copy()
++
++    def handle_create_pipeline(self, request, context):
++        body_json = json.loads(request.body.decode('utf-8'))
++        assert body_json['project'] == self.project_id
++        assert len(body_json['edges']) == 5
++        assert len(body_json['nodes']) == 3
++        context.status_code = 201
++        return PIPELINE_DATA.copy()
++
++
++class RunTestSetup:
++    def __init__(self, monkeypatch, adhoc, step_name='train'):
++        self.adhoc = adhoc
++        self.project_id = PROJECT_DATA['id']
++        self.commit_id = 'f' * 40
++        monkeypatch.setattr(git, 'get_current_commit', lambda dir: self.commit_id)
++
++        with open(get_project().get_config_filename(), 'w') as yaml_fp:
++            yaml_fp.write(CONFIG_YAML)
++
++        # Create an alternative yaml as well (monorepo style)
++        with open(get_project().get_config_filename(yaml_path=ALTERNATIVE_YAML), 'w') as yaml_fp:
++            yaml_fp.write(YAML_WITH_EXTRACT_TRAIN_EVAL)
++
++        self.args = [step_name]
++        if adhoc:
++            self.args.insert(0, '--adhoc')
++        self.values = {}
++        self._run_api_mock = None
++
++    @property
++    def run_api_mock(self) -> RunAPIMock:
++        if not self._run_api_mock:
++            self._run_api_mock = RunAPIMock(self.project_id, self.commit_id, self.values)
++        return self._run_api_mock
++
++    def run(self, *, catch_exceptions=True, verify_adhoc=True) -> str:
++        with self.run_api_mock:
++            output = CliRunner().invoke(run, self.args, catch_exceptions=catch_exceptions).output
++            if verify_adhoc:
++                # Making sure that non-adhoc executions don't turn adhoc or vice versa.
++                assert ('Uploaded ad-hoc code' in output) == self.adhoc
++                assert f"#{EXECUTION_DATA['counter']}" in output
++        return output
++
++    def set_value(self, key, value):
++        self.values[key] = value
++
++    def set_environment_variable(self, key, value):
++        self.values[f'environment_variables.{key}'] = value
++
++
++def add_valid_step_yaml(name='train', yaml_path=None):
++    project = get_project()
++    config_filename = project.get_config_filename(yaml_path=yaml_path)
++    with open(config_filename, 'w') as yaml_fp:
++        if name == 'train':
++            yaml_fp.write(CONFIG_YAML.replace('extract', name))
++        elif name == 'eval':
++            yaml_fp.write(CONFIG_YAML.replace('extract', name))
++        else:
++            raise NotImplementedError(f"Unknown step name: '{name}'")
++
++
++def add_invalid_step_yaml(yaml_path=None):
++    project = get_project()
++    config_filename = project.get_config_filename(yaml_path=yaml_path)
++    with open(config_filename, 'w') as yaml_fp:
++        yaml_fp.write('badness')
++
++
++def add_pipeline_yaml(pipeline_id=PROJECT_DATA['pipelines'][0]['id'], pipeline_version='220801.0', yaml_path=None):
++    project = get_project()
++    config_filename = project.get_config_filename(yaml_path=yaml_path)
++    with open(config_filename, 'w') as yaml_fp:
++        yaml_fp.write(PIPELINE_YAML.format(id=pipeline_id, version=pipeline_version))
++
++
++def add_valid_pipeline_yaml(yaml_path=None):
++    project = get_project()
++    config_filename = project.get_config_filename(yaml_path=yaml_path)
++    with open(config_filename, 'w') as yaml_fp:
++        yaml_fp.write(PIPELINE_YAML)
++
++
++def add_invalid_pipeline_yaml(yaml_path=None):
++    project = get_project()
++    config_filename = project.get_config_filename(yaml_path=yaml_path)
++    with open(config_filename, 'w') as yaml_fp:
++        yaml_fp.write('badness')
++
++
++def add_invalid_deployments_yaml(deployments_id=PROJECT_DATA['deployments'][0]['id'], yaml_path=None):
++    project = get_project()
++    config_filename = project.get_config_filename(yaml_path=yaml_path)
++    with open(config_filename, 'w') as yaml_fp:
++        yaml_fp.write(DEPLOYMENTS_BAD_FORMAT_YAML.format(id=deployments_id))
++
++
++DEPLOYMENTS_BAD_FORMAT_YAML = """---
++deployments:
++- id: {id}
++  version: 220801.0
++  configuration:
++    predict-digit:
++      files:
++        model: model.h5
++"""

@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,47 @@
++"""Test cases for dataclasses_json.core."""
++
++
++from collections import defaultdict
++from enum import Enum
++from dataclasses import dataclass, field
++from typing import Any, Dict, List, Optional, Union
++import pytest
++from dataclasses_json import DataClassJsonMixin
++from dataclasses_json.core import (
++    _FieldOverride,
++    _decode_dataclass,
++    _decode_enum,
++    _decode_list,
++    _decode_union,
++    _encode_dataclass,
++    _encode_enum,
++    _encode_overrides,
++    _encode_union,
++    _isinstance_safe,
++    _user_overrides_or_exts,
++)
++
++
++def test_encode_overrides_with_encode_json_true() -> None:
++    @dataclass
++    class MyDataClass(DataClassJsonMixin):
++        my_list_of_ints: List[int]
++
++    my_data_class_instance = MyDataClass(my_list_of_ints=[1, 2, 3])
++
++    # This will trigger the error unless we handle this case properly.
++    my_data_class_instance.to_dict(encode_json=True)
++
++
++def test_encode_overrides_with_encode_json_true_and_custom_encoder() -> None:
++    @dataclass
++    class MyDataClass(DataClassJsonMixin):
++        my_str: str
++
++    my_data_class_instance = MyDataClass(my_str="hello")
++
++    @classmethod
++    def custom_encoder(cls, obj: object) -> str:
++        return "world"
++
++    my_data_class_instance.to_dict(
++        encode_json=True, encoder={str: custom_encoder}
++    )

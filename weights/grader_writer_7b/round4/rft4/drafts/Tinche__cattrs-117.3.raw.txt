@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/test_multistrategy_dispatch_grader.py
+@@ -0,0 +1,32 @@
++from cattr.multistrategy_dispatch import MultiStrategyDispatch
++
++
++class Foo(object):
++    pass
++
++
++def _fallback():
++    pass
++
++
++def _foo_func():
++    pass
++
++
++def _foo_cls():
++    pass
++
++
++def test_multistrategy_dispatch_order_mro():
++    """
++    Test that order is respected for mro
++    """
++    class Bar(Foo):
++        pass
++
++    dispatch = MultiStrategyDispatch(_fallback)
++    dispatch.register_cls_list([(Bar, _foo_cls)])
++    dispatch.register_func_list(
++        [(lambda cls: issubclass(cls, Foo), _foo_func)]
++    )
++    assert dispatch.dispatch(Bar) == _foo_func

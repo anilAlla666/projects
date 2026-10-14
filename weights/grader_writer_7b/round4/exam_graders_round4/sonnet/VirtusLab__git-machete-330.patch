@@ -1,0 +1,75 @@
+diff --git a/tests/test_add_existing_branch.py b/tests/test_add_existing_branch.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_add_existing_branch.py
+@@ -0,0 +1,88 @@
++import contextlib
++import io
++import os
++import shutil
++import subprocess
++import tempfile
++import unittest
++
++from git_machete import cli
++
++
++def _git(*args):
++    env = dict(os.environ)
++    env.update({
++        "GIT_AUTHOR_NAME": "Test", "GIT_AUTHOR_EMAIL": "test@example.com",
++        "GIT_COMMITTER_NAME": "Test", "GIT_COMMITTER_EMAIL": "test@example.com",
++    })
++    subprocess.check_output(["git"] + list(args), env=env, stderr=subprocess.STDOUT)
++
++
++def _commit(name):
++    with open(name, "w") as f:
++        f.write(name)
++    _git("add", name)
++    _git("commit", "-m", name)
++
++
++class AddExistingBranchTest(unittest.TestCase):
++    def setUp(self):
++        self.old_cwd = os.getcwd()
++        self.dir = tempfile.mkdtemp()
++        os.chdir(self.dir)
++        _git("init")
++        _git("symbolic-ref", "HEAD", "refs/heads/master")
++        _commit("a.txt")
++        _commit("b.txt")
++        _git("checkout", "-b", "foo/bar")
++        _commit("c.txt")
++        _git("checkout", "master")
++        with open(os.path.join(".git", "machete"), "w") as f:
++            f.write("master\n")
++
++    def tearDown(self):
++        os.chdir(self.old_cwd)
++        shutil.rmtree(self.dir, ignore_errors=True)
++
++    def _launch(self, *args):
++        out = io.StringIO()
++        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
++            try:
++                cli.launch(list(args))
++            except SystemExit:
++                pass
++        return out.getvalue()
++
++    def _machete(self):
++        with open(os.path.join(".git", "machete")) as f:
++            return f.read()
++
++    def test_add_existing_unmanaged_branch_with_slash(self):
++        self._launch("add", "foo/bar", "--yes")
++        self.assertIn("foo/bar", self._machete())
++
++    def test_add_existing_unmanaged_branch_with_explicit_onto(self):
++        self._launch("add", "foo/bar", "--onto=master")
++        self.assertIn("foo/bar", self._machete())
++
++
++if __name__ == "__main__":
++    unittest.main()

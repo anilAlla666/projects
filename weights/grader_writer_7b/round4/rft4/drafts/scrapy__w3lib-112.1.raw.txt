@@ -1,0 +1,50 @@
+--- /dev/null
++++ b/tests/test_url_grader.py
+@@ -0,0 +1,42 @@
++from __future__ import absolute_import
++import os
++import unittest
++from w3lib.url import (is_url, safe_url_string, safe_download_url,
++    url_query_parameter, add_or_replace_parameter, url_query_cleaner,
++    file_uri_to_path, parse_data_uri, path_to_file_uri, any_to_uri,
++    urljoin_rfc, canonicalize_url, parse_url)
++from six.moves.urllib.parse import urlparse
++
++
++class DataUriTests(unittest.TestCase):
++    def test_empty_media_type(self):
++        result = parse_data_uri("data:,A%20brief%20note")
++        self.assertEqual(result.media_type, "")
++        self.assertEqual(result.media_type_parameters, {})
++        self.assertEqual(result.data, b"A brief note")
++
++    def test_url_without_slash(self):
++        result = parse_data_uri(
++            "data:image/svg+xml; charset=utf-8,<svg xmlns=\"http:"
++            "//www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"><rect width=\""
++            "10\" height=\"10\" fill=\"#0000ff\" /></svg>")
++        self.assertEqual(result.media_type, "image/svg+xml")
++        self.assertEqual(result.media_type_parameters,
++                         {"charset": "utf-8"})
++        self.assertEqual(result.data,
++                         b"<svg xmlns=\"http://www.w3.org/2000/svg\" "
++                         b"viewBox=\"0 0 10 10\"><rect width=\"10\" "
++                         b"height=\"10\" fill=\"#0000ff\" /></svg>")
++
++    def test_url_with_slash(self):
++        result = parse_data_uri(
++            "data:image/svg+xml; charset=utf-8,"
++            "<svg xmlns=\"http://www.w3.org/2000/svg\" "
++            "viewBox=\"0 0 10 10\"><rect width=\"10\" height=\"10\" "
++            "fill=\"#0000ff\" /></svg>")
++        self.assertEqual(result.media_type, "image/svg+xml")
++        self.assertEqual(result.media_type_parameters,
++                         {"charset": "utf-8"})
++        self.assertEqual(result.data,
++                         b"<svg xmlns=\"http://www.w3.org/2000/svg\" "
++                         b"viewBox=\"0 0 10 10\"><rect width=\"10\" "
++                         b"height=\"10\" fill=\"#0000ff\" /></svg>")
++
++
++if __name__ == "__main__":
++    unittest.main()

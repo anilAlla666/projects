@@ -1,0 +1,32 @@
+diff --git a/microdf/tests/test_generic.py b/microdf/tests/test_generic.py
+index 0b0c1e2..f3a4b5c 100644
+--- a/microdf/tests/test_generic.py
++++ b/microdf/tests/test_generic.py
+@@ -1,5 +1,6 @@
+ from microdf.generic import MicroDataFrame, MicroSeries
+ import numpy as np
++import pytest
+ import microdf as mdf
+ import pandas as pd
+ 
+@@ -195,3 +196,22 @@ def test_subset():
+     df_no_z_diff_weights = df_no_z.copy()
+     df_no_z_diff_weights.weights += 1
+     assert not df[["x", "y"]].equals(df_no_z_diff_weights)
++
++def test_subsetting_weights():
++    # Test subsetting a MicroDataFrame and ensuring weights are correctly subsetted
++    d = mdf.MicroDataFrame({"x": [1, 2, 3], "y": [1, 2, 2]}, weights=[4, 5, 6])
++    d2 = d[d.y > 1]
++    
++    # Check shape of the resulting DataFrame
++    assert d2.shape == (2, 2)
++    
++    # Check shape of the weights array
++    assert d2.weights.shape == (2,)
++    
++    # Check mean calculation without error
++    try:
++        d2.mean()
++    except TypeError:
++        pytest.fail("Mean calculation failed due to mismatched shapes between data and weights.")

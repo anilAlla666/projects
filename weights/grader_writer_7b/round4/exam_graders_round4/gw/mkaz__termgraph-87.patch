@@ -1,0 +1,24 @@
+--- /dev/null
++++ b/tests/test_termgraph_grader.py
+@@ -0,0 +1,21 @@
++from unittest.mock import patch
++from io import StringIO
++from termgraph import termgraph as tg
++import pytest
++
++
++def test_normalize_returns_empty_list_for_all_zeroes():
++    expected = [[]]
++    actual = tg.normalize([[0]], 100)
++    assert expected == actual
++
++
++def test_normalize_returns_empty_list_for_all_negative_numbers():
++    expected = [[]]
++    actual = tg.normalize([[-100]], 100)
++    assert expected == actual
++
++
++def test_normalize_raises_error_if_no_data():
++    with pytest.raises(ValueError):
++        tg.normalize([], 100)

@@ -1,0 +1,222 @@
+--- /dev/null
++++ b/tests/test_client_grader.py
+@@ -0,0 +1,228 @@
++from __future__ import annotations
++import asyncio
++import contextlib
++import itertools
++import logging
++import socket
++from functools import partial
++from typing import Any
++from unittest.mock import AsyncMock, MagicMock, call, create_autospec, patch
++import pytest
++from google.protobuf import message
++from aioesphomeapi._frame_helper.plain_text import APIPlaintextFrameHelper
++from aioesphomeapi.api_pb2 import (
++    AlarmControlPanelCommandRequest,
++    BinarySensorStateResponse,
++    BluetoothConnectionsFreeResponse,
++    BluetoothDeviceClearCacheResponse,
++    BluetoothDeviceConnectionResponse,
++    BluetoothDevicePairingResponse,
++    BluetoothDeviceRequest,
++    BluetoothDeviceUnpairingResponse,
++    BluetoothGATTCharacteristic,
++    BluetoothGATTDescriptor,
++    BluetoothGATTErrorResponse,
++    BluetoothGATTGetServicesDoneResponse,
++    BluetoothGATTGetServicesResponse,
++    BluetoothGATTNotifyDataResponse,
++    BluetoothGATTNotifyResponse,
++    BluetoothGATTReadResponse,
++    BluetoothGATTService,
++    BluetoothGATTWriteResponse,
++    BluetoothLEAdvertisementResponse,
++    BluetoothLERawAdvertisement,
++    BluetoothLERawAdvertisementsResponse,
++    BluetoothServiceData,
++    ButtonCommandRequest,
++    CameraImageRequest,
++    CameraImageResponse,
++    ClimateCommandRequest,
++    ClimaTuneCommandRequest,
++    CoverCommandRequest,
++    FanCommandRequest,
++    LightCommandRequest,
++    LockCommandRequest,
++    MediaPlayerCommandRequest,
++    NumberCommandRequest,
++    SelectCommandRequest,
++    SensorStateResponse,
++    ServiceCallRequest,
++    TextCommandRequest,
++    UpdateCheckResponse,
++    VacuumCommandRequest,
++    VoiceAssistantAudioSettings,
++    VoiceAssistantAudioSettingsModel,
++    VoiceAssistantRequest,
++    VoiceAssistantStatusResponse,
++    WebSocketClientProtocol,
++)
++from aioesphomeapi.api_pb2 import LegacyCoverCommand, LegacyLightCommand
++from aioesphomeapi.apimodels import APIVersion
++from aioesphomeapi.connection import ConnectionClosedError
++from aioesphomeapi.exceptions import (
++    CommunicationError,
++    DeviceOfflineError,
++    IncompatibleAPIVersionError,
++    InvalidMessageError,
++    MessageTooLargeError,
++    NoAvailableServicesError,
++    NotConnectedError,
++    PacketSizeLimitExceededError,
++    ProtocolError,
++    ServiceUnavailableError,
++    TimeoutError,
++    UnsupportedFeatureError,
++)
++from aioesphomeapi.message_types import MessageType
++from aioesphomeapi.protocol import (
++    DEFAULT_PORT,
++    PLAINTEXT_FRAME_SIZE_LIMIT,
++    APIPlaintextFrameHelper,
++    Frame,
++    FrameHelperBase,
++    FrameParser,
++    MessageHandler,
++    PlainTextProtocol,
++    _parse_frame_header,
++    generate_plaintext_packet,
++)
++from aioesphomeapi.services import (
++    BluetoothGATTServiceInfo,
++    BLEDevice,
++    BLEDeviceAddress,
++    BLEDeviceInformation,
++    BLEDevicePairingStatus,
++    BluetoothDeviceInfo,
++    BluetoothDevicePairingInfo,
++    BluetoothDevicePairingStatus,
++    BluetoothDeviceUnpairingInfo,
++    BluetoothDeviceUnpairingStatus,
++    BluetoothGATTService,
++    BluetoothGATTServiceInfo,
++    BluetoothGATTServiceInfoList,
++    BluetoothLEAdvertisement,
++    BluetoothLERawAdvertisement,
++    BluetoothServiceData,
++    ClimateInfo,
++    ClimateMode,
++    ClimatePreset,
++    ClimateSwingMode,
++    ClimateSupport,
++    ClimateSystemModes,
++    ClimateSystemModesEnum,
++    ClimateSystemModesValue,
++    CoverInfo,
++    CoverOpState,
++    CoverState,
++    CoverStopAction,
++    EntityCategory,
++    EntityInfo,
++    EntityInfoList,
++    FanInfo,
++    FanSpeed,
++    FanSpeedEnum,
++    FanSpeedLevel,
++    FanSpeedLevels,
++    FanSpeedValue,
++    FanState,
++    FanSupportedFlags,
++    HomeAssistantInfo,
++    LightColorCapability,
++    LightColorCapabilities,
++    LightColorTemperatureCapability,
++    LightEffect,
++    LightEntityCapability,
++    LightInfo,
++    LightRGBWCCCapabilities,
++    LightState,
++    MediaContent,
++    MediaPlayerInfo,
++    MediaPlayerOperation,
++    NumberInfo,
++    NumberMinMaxRange,
++    NumberStep,
++    NumberState,
++    SelectInfo,
++    SelectOption,
++    SelectOptions,
++    SelectState,
++    SwitchInfo,
++    SwitchState,
++    TextInfo,
++    TextState,
++    UpdateInfo,
++    UpdateInstallStatus,
++    UpdateProgress,
++    UpdateStatus,
++    VacuumInfo,
++    VacuumOpState,
++    VacuumState,
++    VoiceAssistantInfo,
++    VoiceAssistantStatus,
++    VoiceAssistantUpdate,
++    VoiceAssistantUpdateError,
++    VoiceAssistantUpdateProgress,
++    VoiceAssistantUpdateStatus,
++)
++from aioesphomeapi.utils import parse_mac_address, parse_mac_addresses
++from aioesphomeapi.websocket_protocol import WebSocketProtocol
++from .conftest import MockAsyncIOEventLoop, MockAsyncIOSocket, MockFuture
++
++
++def mock_send_message(mock_socket: MockAsyncIOSocket, data: bytes) -> None:
++    mock_socket.sendall(data)
++
++
++@pytest.fixture(name="mock_socket")
++def fixture_mock_socket() -> MockAsyncIOSocket:
++    return MockAsyncIOSocket(send_message=mock_send_message)
++
++
++@pytest.fixture(name="protocol")
++async def fixture_protocol(mock_socket: MockAsyncIOSocket) -> PlainTextProtocol:
++    loop = MockAsyncIOEventLoop()
++    loop.create_future.side_effect = MockFuture
++    frame_parser = FrameParser()
++    frame_helper = APIPlaintextFrameHelper(frame_parser)
++    protocol = PlainTextProtocol(
++        frame_parser=frame_parser,
++        frame_helper=frame_helper,
++        host="host",
++        port=DEFAULT_PORT,
++        loop=loop,
++        local_addr=None,
++        remote_addr=None,
++        ssl_context=None,
++        extra_headers={},
++        read_buffer_size=1024,
++    )
++    protocol.transport = mock_socket
++    return protocol
++
++
++def mock_data_received(
++    protocol: PlainTextProtocol, packet: bytes, timestamp: float = 0
++) -> None:
++    protocol.data_received(packet, timestamp)
++
++
++@pytest.mark.asyncio
++async def test_api_version_after_connection_closed(
++    api_client: tuple[
++        APIClient, APIConnection, asyncio.Transport, APIPlaintextFrameHelper
++    ],
++) -> None:
++    """Test api version is None after connection close."""
++    client, connection, transport, protocol = api_client
++    assert client.api_version == APIVersion(1, 9)
++    await client.disconnect(force=True)
++    assert client.api_version is None

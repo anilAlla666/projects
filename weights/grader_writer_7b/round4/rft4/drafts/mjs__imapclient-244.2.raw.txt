@@ -1,0 +1,18 @@
+--- /dev/null
++++ b/imapclient/test/test_imapclient_grader.py
+@@ -0,0 +1,14 @@
++from __future__ import unicode_literals
++import itertools
++import socket
++import sys
++from datetime import datetime
++import six
++from imapclient.fixed_offset import FixedOffset
++from .testable_imapclient import TestableIMAPClient as IMAPClient
++from .imapclient_test import IMAPClientTest
++from .util import patch, sentinel, Mock
++
++
++class TestRawCommandWithLiterals(IMAPClientTest):
++    def test_empty_str(self):
++        self.check(b'search', [b'TEXT', b'', b'TEXT', b'\x00\x00'], b'tag UID SEARCH TEXT {}\r\n\r\nTEXT {2}\r\n\x00\x00\r\n')

@@ -1,0 +1,40 @@
+To address the issue where dots in artifact names cause problems when generating the `fetch-artifacts-url.yaml` file, we need to ensure that the URLs are correctly formed without converting dots to slashes.
+
+Here's a unified diff that includes a new test case in `tests/test_unit_tools.py` to verify that the fix works:
+
+```diff
+diff --git a/tests/test_unit_tools.py b/tests/test_unit_tools.py
+index 0a1b2c3..d4e5f6g 100644
+--- a/tests/test_unit_tools.py
++++ b/tests/test_unit_tools.py
+@@ -402,6 +402,25 @@ def test_dependency_handler_handle_dependencies_with_platform_specific_package(m
+     assert "All dependencies provided!" in caplog.text
+ 
+ 
++def test_generate_fetch_artifacts_url_with_dot_in_filename(mocker, caplog):
++    caplog.set_level(logging.DEBUG, logger="cekit")
++
++    mock_brew_call = mocker.patch('subprocess.check_output')
++    mock_brew_call.return_value = b'[{"filename": "javax.json-1.0.4.jar"}]'
++
++    url = tools.generate_fetch_artifacts_url('569870f975deeeb6691fcb9bc02a9555', 'maven')
++
++    expected_url = 'http://download.devel.redhat.com/brewroot/packages/javax.json/1.0.4/_/javax.json/1.0.4/javax.json-1.0.4.jar'
++    assert url == expected_url, f"Expected URL: {expected_url}, but got: {url}"
++
++    assert "Generating fetch-artifacts-url.yaml file..." in caplog.text
++    assert "URL for artifact javax.json-1.0.4.jar is: http://download.devel.redhat.com/brewroot/packages/javax.json/1.0.4/_/javax.json/1.0.4/javax.json-1.0.4.jar" in caplog.text
++
++
+ def test_dependency_handler_check_for_executable_with_executable_only(mocker, caplog, monkeypatch):
+     caplog.set_level(logging.DEBUG, logger="cekit")
+ 
+@@ -441,6 +460,7 @@ def test_dependency_handler_check_for_executable_with_executable_fail_with_packag
+         handler._check_for_executable('xyz', 'xyz-aaa', 'package-xyz')
+ 
+ 
++if __name__ == "__main__":
+     pytest.main()
+```
+
+This new test case simulates fetching an artifact with a dot in its filename (`javax.json-1.0.4.jar`) and checks if the generated URL is correctly formed without converting the dot to a slash. The test should fail with the current implementation and pass after applying the fix.

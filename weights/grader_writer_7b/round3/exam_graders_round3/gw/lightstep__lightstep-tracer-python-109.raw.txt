@@ -1,0 +1,27 @@
+diff --git a/tests/lightstep_binary_propagator_test.py b/tests/lightstep_binary_propagator_test.py
+index 0b0f0c0..012101c 100644
+--- a/tests/lightstep_binary_propagator_test.py
++++ b/tests/lightstep_binary_propagator_test.py
+@@ -30,6 +30,7 @@ class LightStepBinaryPropagatorTest(unittest.TestCase):
+         self.assertEqual(span.context.sampled, result.sampled)
+ 
+     def testExtractionOfKnownInput(self):
++        # Test extraction of a well-known input, for validation with other libraries.
+         # Test extraction of a well - known input, for validation with other libraries.
+         input = "EigJOjioEaYHBgcRNmifUO7/xlgYASISCgdjaGVja2VkEgdiYWdnYWdl"
+         result = self.tracer().extract(LightStepFormat.LIGHTSTEP_BINARY, bytearray(input, 'utf-8'))
+diff --git a/tests/recorder_test.py b/tests/recorder_test.py
+index 011102c..0601108 100644
+--- a/tests/recorder_test.py
++++ b/tests/recorder_test.py
+@@ -224,6 +224,10 @@ def test_exception_logging():
+     span.finish()
+     assert len(recorder._span_records) == 1
+     assert recorder.flush(mock_connection)
++
++    assert mock_connection.reports[1].spans[0].flags == 1
++    assert mock_connection.reports[1].spans[0].trace_flags == 1
++
+     spans = recorder.converter.get_span_records(mock_connection.reports[1])
+     
+     if hasattr(spans[0], "log_records"):

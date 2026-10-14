@@ -1,0 +1,28 @@
+--- /dev/null
++++ b/tests/test_pager_grader.py
+@@ -0,0 +1,27 @@
++import pytest
++from unittest.mock import MagicMock
++from tableauserverclient.server.pager import Pager
++
++
++@pytest.mark.parametrize(
++    'items',
++    [
++        [],
++        ['a'],
++        ['a', 'b']
++    ]
++)
++def test_iterate(items):
++    items = iter(items)
++    pager = Pager(items)
++    result = [item for item in pager]
++    assert result == list(items)
++
++
++def test_iterate_with_none():
++    items = iter([None])
++    pager = Pager(items)
++    result = [item for item in pager]
++    assert result == []

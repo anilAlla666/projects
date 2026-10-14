@@ -1,0 +1,28 @@
+diff --git a/tests/parse_datetime_test.py b/tests/parse_datetime_test.py
+index 3a2b3c4..5d6e7f8 100644
+--- a/tests/parse_datetime_test.py
++++ b/tests/parse_datetime_test.py
+@@ -537,6 +537,15 @@ def test_repeat_localized():
+     for data_list, vevent in test_set_repeat_localized:
+         with freeze_time('2014-02-16 12:00:00'):
+             event = _construct_event(data_list.split(),
+                                      description='please describe the event',
+                                      repeat='daily',
+                                      until='05.06.2015',
+                                      locale=LOCALE_BERLIN)
+             assert normalize_component(_replace_uid(event).to_ical()) == \
+                 normalize_component(vevent)
+ 
++def test_delta_with_leading_plus():
++    for data_list, vevent in [
++            ('+1h', 'DTSTART;TZID=UTC:20140216T130000'),
++            ('+1h 30m', 'DTSTART;TZID=UTC:20140216T133000'),
++            ('+1h30m', 'DTSTART;TZID=UTC:20140216T133000'),
++            ('+1h30m 45s', 'DTSTART;TZID=UTC:20140216T133045'),
++    ]:
++        event = _construct_event(data_list.split(), locale=LOCALE_BERLIN)
++        assert event.dtstart.strftime('%Y%m%dT%H%M%S') == vevent.split('\n')[1].split(':')[1].strip()
++
+ test_set_alarm = _create_testcases(
+     ('8:00 Äwesöme Event',
+      ['BEGIN:VEVENT',

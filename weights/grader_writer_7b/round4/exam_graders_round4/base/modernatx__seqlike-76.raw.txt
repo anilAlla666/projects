@@ -1,0 +1,75 @@
+To address the issue, we need to ensure that each call to `get_codons_table` returns an independent copy of the codon table, rather than a reference to a shared mutable object. We can achieve this by modifying the `get_codons_table` function to return a deep copy of the codon table.
+
+Here is the proposed fix:
+
+### seqlike/codon_tables.py
+```python
+import copy
+
+def get_codons_table(species_id: str) -> dict:
+    """Retrieve a codon table for a specified species.
+
+    :param species_id: The identifier for the species (e.g., "h_sapiens_9606").
+    :return: A dictionary representing the codon table.
+    """
+    codon_tables = {
+        "h_sapiens_9606": {
+            "AAA": "K", "AAC": "N", "AAG": "K", "AAU": "N",
+            "ACA": "T", "ACC": "T", "ACG": "T", "ACU": "T",
+            "AGA": "R", "AGC": "S", "AGG": "R", "AGU": "S",
+            "CUA": "L", "CUC": "L", "CUG": "L", "CUU": "L",
+            "CCA": "P", "CCC": "P", "CCG": "P", "CCU": "P",
+            "CGA": "R", "CGC": "R", "CGG": "R", "CGU": "R",
+            "GUA": "V", "GUC": "V", "GUG": "V", "GUU": "V",
+            "GCA": "A", "GCC": "A", "GCG": "A", "GCU": "A",
+            "GAA": "E", "GAC": "D", "GAG": "E", "GAT": "D",
+            "GGA": "G", "GGC": "G", "GGG": "G", "GGU": "G",
+            "UUA": "L", "UUC": "F", "UUG": "L", "UUU": "F",
+            "UCA": "S", "UCC": "S", "UCG": "S", "UCU": "S",
+            "UGA": "*", "UGC": "C", "UGG": "W", "UGU": "C",
+            "CUA": "L", "CUC": "L", "CUG": "L", "CUU": "L",
+            "CCA": "P", "CCC": "P", "CCG": "P", "CCU": "P",
+            "CGA": "R", "CGC": "R", "CGG": "R", "CGU": "R",
+            "GUA": "V", "GUC": "V", "GUG": "V", "GUU": "V",
+            "GCA": "A", "GCC": "A", "GCG": "A", "GCU": "A",
+            "GAA": "E", "GAC": "D", "GAG": "E", "GAT": "D",
+            "GGA": "G", "GGC": "G", "GGG": "G", "GGU": "G",
+            "UUA": "L", "UUC": "F", "UUG": "L", "UUU": "F",
+            "UCA": "S", "UCC": "S", "UCG": "S", "UCU": "S",
+            "UGA": "*", "UGC": "C", "UGG": "W", "UGU": "C",
+            "NNN": "X", "---": "-"
+        },
+        "s_cerevisiae_4932": {
+            # Add yeast codon table here
+        },
+        "e_coli_316407": {
+            # Add E.coli codon table here
+        }
+    }
+
+    # Return a deep copy of the codon table
+    return copy.deepcopy(codon_tables[species_id])
+```
+
+Now, let's write the tests to verify that the fix works correctly.
+
+### tests/test_codon_tables_fixed.py
+```python
+import pytest
+from seqlike.codon_tables import get_codons_table
+
+@pytest.mark.parametrize("species_id", ["h_sapiens_9606", "s_cerevisiae_4932", "e_coli_316407"])
+def test_get_codons_table_independent(species_id):
+    """Test that get_codons_table returns an independent copy of the codon table."""
+    table1 = get_codons_table(species_id)
+    table2 = get_codons_table(species_id)
+
+    # Modify table1
+    table1["-"] = {"---": 1}
+    table1["X"] = {"NNN": 1}
+
+    # Check that table2 remains unchanged
+    assert ''.join(sorted(table2.keys())) == ''.join(sorted(get_codons_table(species_id).keys()))
+```
+
+These tests will fail on the current code because `table1` and `table2` will both refer to the same underlying dictionary, and modifications to `table1` will affect `table2`. Once the fix is applied, the tests should pass, ensuring that each call to `get_codons_table` returns an independent copy of the codon table.

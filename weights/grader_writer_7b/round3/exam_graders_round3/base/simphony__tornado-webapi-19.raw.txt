@@ -1,0 +1,56 @@
+To address the issue of changing the `BadRequest` error to `BadRepresentation`, we need to update the exception class and ensure that the tests reflect the change. Below is a unified diff that includes the necessary changes:
+
+```diff
+diff --git a/tornadowebapi/exceptions.py b/tornadowebapi/exceptions.py
+index 1a2b3c4..5d6e7f8 100644
+--- a/tornadowebapi/exceptions.py
++++ b/tornadowebapi/exceptions.py
+@@ -47,7 +47,7 @@ class NotFound(WebAPIException):
+     """Exception raised when the resource is not found.
+     Raise this exception in your handlers when you can't
+     find the resource the identifier refers to.
+-    """
++    """
+     http_code = httpstatus.NOT_FOUND
+ 
+     def representation(self):
+@@ -56,7 +56,7 @@ class NotFound(WebAPIException):
+         """NotFound is special as it does not have a representation,
+         just an error status"""
+         return None
+ 
+ 
+-class BadRequest(WebAPIException):
++class BadRepresentation(WebAPIException):
+     """Exception raised when the resource representation is
+     invalid or does not contain the appropriate keys.
+     Raise this exception in your handlers when the received
+     representation is ill-formed
+     """
+     http_code = httpstatus.BAD_REQUEST
+```
+
+This diff renames the `BadRequest` class to `BadRepresentation`. To ensure that the tests reflect this change, we need to add a new test file or modify existing ones to check for the new exception class.
+
+Here is an example of how you might write a test for this change:
+
+```python
+# tests/test_exceptions.py
+
+import unittest
+from tornadowebapi.exceptions import WebAPIException, BadRepresentation
+
+class TestExceptions(unittest.TestCase):
+
+    def test_bad_representation_exception(self):
+        try:
+            raise BadRepresentation("Invalid representation")
+        except BadRepresentation as e:
+            self.assertEqual(e.http_code, 400)
+            self.assertEqual(str(e), "Invalid representation")
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+This test checks that the `BadRepresentation` exception raises the correct HTTP status code and has the expected message. If the `BadRequest` class is still being used instead of `BadRepresentation`, this test will fail, ensuring that the fix is correctly applied.

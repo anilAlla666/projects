@@ -1,0 +1,71 @@
+To address the issue of multiple input files being processed into a single output file, we need to ensure that each input file is processed independently and written to its respective output file. Here's how you can write tests to verify this behavior:
+
+1. **Test Case**: Ensure that when multiple input files are provided, each file is processed and written to its own output file.
+
+```diff
+@@ -671,6 +671,25 @@ class FutureImportTestCase(BaseTestCase):
+                 print(f)
+             """)
+ 
++    def test_multiple_files_output(self) -> None:
++        # Create temporary input files
++        temp_files = [
++            tempfile.NamedTemporaryFile(delete=False, mode='w') for _ in range(2)
++        ]
++        try:
++            for i, tf in enumerate(temp_files):
++                tf.write(f"def function{i}():\n    pass\n")
++                tf.close()
++
++            # Run the script with multiple input files
++            subprocess.run(['python', 'src/com2ann.py'] + [tf.name for tf in temp_files], check=True)
++
++            # Check if output files were created
++            for tf in temp_files:
++                self.assertTrue(os.path.exists(tf.name.replace('.py', '.ann')))
++        finally:
++            for tf in temp_files:
++                os.unlink(tf.name)
++
+     def test_async_for(self) -> None:
+         self.check(
+             """
+```
+
+2. **Test Case**: Ensure that if an output file is specified, it is used for all input files unless overridden.
+
+```diff
+@@ -671,6 +671,25 @@ class FutureImportTestCase(BaseTestCase):
+                 print(f)
+             """)
+ 
++    def test_specified_output_file(self) -> None:
++        # Create temporary input files
++        temp_files = [
++            tempfile.NamedTemporaryFile(delete=False, mode='w') for _ in range(2)
++        ]
++        try:
++            for tf in temp_files:
++                tf.write(f"def function():\n    pass\n")
++                tf.close()
++
++            # Specify an output file
++            output_file = tempfile.NamedTemporaryFile(delete=False, mode='w').name
++            subprocess.run(['python', 'src/com2ann.py', '-o', output_file] + [tf.name for tf in temp_files], check=True)
++
++            # Check if output file contains content from all input files
++            with open(output_file, 'r') as f:
++                content = f.read()
++                for tf in temp_files:
++                    self.assertIn('function()', content)
++        finally:
++            for tf in temp_files:
++                os.unlink(tf.name)
++            os.unlink(output_file)
++
+     def test_async_for(self) -> None:
+         self.check(
+             """
+```
+
+These tests should help ensure that the fix resolves the issue of multiple input files being processed into a single output file. The first test checks that each input file is processed and written to its own output file, while the second test ensures that if an output file is specified, it is used for all input files unless overridden.

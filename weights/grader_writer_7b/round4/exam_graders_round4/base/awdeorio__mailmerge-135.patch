@@ -1,0 +1,31 @@
+diff --git a/tests/test_read_csv_database.py b/tests/test_read_csv_database.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_read_csv_database.py
+@@ -0,0 +1,34 @@
++import os
++import tempfile
++from pathlib import Path
++import unittest
++
++from mailmerge import read_csv_database
++
++class TestReadCsvDatabase(unittest.TestCase):
++    def test_read_csv_database_with_bom(self):
++        # Create a temporary directory
++        with tempfile.TemporaryDirectory() as temp_dir:
++            # Create a CSV file with a BOM
++            csv_path = Path(temp_dir) / 'mailmerge_database_with_BOM.csv'
++            csv_path.write_text('\ufeffname,email\nMy Name,to@test.com', encoding='utf-8-sig')
++
++            # Read the CSV database
++            rows = list(read_csv_database(csv_path))
++
++            # Check if the rows are read correctly
++            self.assertEqual(len(rows), 1)
++            self.assertEqual(rows[0]['name'], 'My Name')
++            self.assertEqual(rows[0]['email'], 'to@test.com')
++
++if __name__ == '__main__':
++    unittest.main()

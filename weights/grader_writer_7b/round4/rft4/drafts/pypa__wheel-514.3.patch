@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/tests/cli/test_unpack_grader.py
+@@ -0,0 +1,23 @@
++from __future__ import annotations
++import os
++from pathlib import Path
++from stat import S_IRUSR, S_IWUSR, S_IXUSR
++from wheel.cli.unpack import unpack
++
++
++def test_permissions(wheel_paths, tmp_path):
++    """
++    Verify 'wheel unpack' preserves permissions.
++    """
++    # Ensure we have some executable files in the test wheel
++    for wheel_path in wheel_paths:
++        with open(wheel_path, "r+b") as f:
++            f.seek(0x42)
++            assert f.read(1) == b"\x00"
++            f.write(b"\xff\xff\xff")
++
++    # Unpack and check permissions
++    for wheel_path in wheel_paths:
++        unpack(str(wheel_path), str(tmp_path))
++        assert Path(tmp_path) / "test_wheel-0.1" / "script.sh" & (
++            S_IRUSR | S_IWUSR | S_IXUSR
++        )

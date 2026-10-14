@@ -1,0 +1,35 @@
+diff --git a/tests/test_commands.py b/tests/test_commands.py
+new file mode 100644
+index 0000000..e6b8c9d
+--- /dev/null
++++ b/tests/test_commands.py
+@@ -0,0 +1,25 @@
++import unittest
++from sievelib.commands import ExistsCommand
++
++class TestExistsCommand(unittest.TestCase):
++    def test_exists_command_with_string(self):
++        cmd = ExistsCommand({"header-names": '"Subject"'})
++        expected = ('exists', 'Subject')
++        self.assertEqual(cmd.args_as_tuple(), expected)
++
++    def test_exists_command_with_list(self):
++        cmd = ExistsCommand({"header-names": ['"From"', '"To"']})
++        expected = ('exists', 'From', 'To')
++        self.assertEqual(cmd.args_as_tuple(), expected)
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/sievelib/commands.py b/sievelib/commands.py
+index 8a9b0c1..f2d3e45 100644
+--- a/sievelib/commands.py
++++ b/sievelib/commands.py
+@@ -800,7 +800,7 @@ class ExistsCommand(TestCommand):
+     def args_as_tuple(self):
+         value = self.arguments["header-names"]
+         if isinstance(value, list):
+-            return ("exists", ) + tuple(tools.to_list(value))
++            return ("exists",) + tuple(tools.to_list(value))
+         elif not value.startswith("["):
+             return ('exists', value.strip('"'))
+         return ("exists", ) + tuple(tools.to_list(value))

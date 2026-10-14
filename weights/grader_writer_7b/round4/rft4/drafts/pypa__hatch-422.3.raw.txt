@@ -1,0 +1,119 @@
+--- /dev/null
++++ b/tests/cli/version/test_version_grader.py
+@@ -0,0 +1,29 @@
++from hatch.project.core import Project
++
++
++def test_show_dynamic_with_hooks(hatch, temp_dir):
++    project_name = 'My.App'
++
++    with temp_dir.as_cwd():
++        hatch('new', project_name)
++
++    path = temp_dir / 'my-app'
++
++    path.joinpath('.hatch').mkdir()
++    path.joinpath('.hatch', 'build').write_text('')
++    path.joinpath('.hatch', 'metadata').write_text('')
++
++    with path.as_cwd():
++        result = hatch('version')
++
++    assert result.exit_code == 0, result.output
++    assert result.output == '0.0.1\n'
++
++
++def test_set_dynamic_with_hooks(hatch, helpers, temp_dir):
++    project_name = 'My.App'
++
++    with temp_dir.as_cwd():
++        hatch('new', project_name)
++
++    path = temp_dir / 'my-app'
++
++    with path.as_cwd():
++        result = hatch('version', 'minor,rc')
+--- /dev/null
++++ b/tests/backend/builders/hooks/test_version_grader.py
+@@ -0,0 +1,58 @@
++import pytest
++from hatchling.builders.hooks.version import VersionBuildHook
++from hatchling.metadata.core import ProjectMetadata
++from hatchling.plugin.manager import PluginManager
++from hatchling.utils.constants import DEFAULT_BUILD_SCRIPT
++
++
++class TestInitialize:
++    def test_custom(self, temp_dir, helpers):
++        config = {'path': 'baz.py', 'pattern': 'v = "(?P<version>.+)"'}
++        metadata = ProjectMetadata(
++            str(temp_dir),
++            PluginManager(),
++            {
++                'project': {'name': 'foo', 'dynamic': ['version']},
++                'tool': {'hatch': {'metadata': {'hooks': {'custom': {}}}}},
++            },
++        )
++
++        file_path = temp_dir / DEFAULT_BUILD_SCRIPT
++        file_path.write_text(
++            helpers.dedent(
++                """
++                from hatchling.metadata.plugin.interface import MetadataHookInterface
++
++                class CustomHook(MetadataHookInterface):
++                    def update(self, metadata):
++                        metadata['version'] = '1.2.3'
++                """
++            )
++        )
++        version_file = temp_dir / 'baz.py'
++        version_file.write_text(
++            helpers.dedent(
++                """
++                v = "0.0.0"
++                """
++            )
++        )
++
++        build_data = {'artifacts': []}
++        hook = VersionBuildHook(str(temp_dir), config, None, metadata, '', '')
++        hook.initialize([], build_data)
++
++        assert version_file.read_text() == helpers.dedent(
++            """
++            v = "1.2.3"
++            """
++        )
++        assert build_data['artifacts'] == ['/baz.py']
++
++    def test_metadata_hook_error(self, temp_dir, helpers):
++        config = {'path': 'baz.py', 'pattern': 'v = "(?P<version>.+)"'}
++        metadata = ProjectMetadata(
++            str(temp_dir),
++            PluginManager(),
++            {'project': {'name': 'foo', 'dynamic': ['version']}},
++        )
++
++        build_data = {'artifacts': []}
++        hook = VersionBuildHook(str(temp_dir), config, None, metadata, '', '')
++
++        with pytest.raises(RuntimeError, match='Failed to run metadata hooks'):
++            hook.initialize([], build_data)
+--- /dev/null
++++ b/tests/core/test_project_grader.py
+@@ -0,0 +1,14 @@
++from hatch.project.core import Project
++
++
++def test_get_version_from_build_environment(tmp_path):
++    path = tmp_path / 'my-project'
++
++    path.mkdir()
++    path.joinpath('pyproject.toml').write_text('[project]\nname = "foo"\ndynamic=["version"]')
++    path.joinpath('.hatch', 'build').write_text('')
++
++    with path.as_cwd():
++        project = Project(path)
++        assert project.metadata.hatch.version.source.get_version_data()['version'] == '0.0.1'
++        assert project.metadata.hatch.version.source.set_version('1.2.3', project.metadata.hatch.version.source.get_version_data())

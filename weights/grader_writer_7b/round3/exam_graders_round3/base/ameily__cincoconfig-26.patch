@@ -1,0 +1,35 @@
+diff --git a/tests/test_securefield.py b/tests/test_securefield.py
+new file mode 100644
+index 0000000..b8a9d2f
+--- /dev/null
++++ b/tests/test_securefield.py
+@@ -0,0 +1,45 @@
++import unittest
++from cincoconfig import Config, Field, SecureField
++
++class TestSecureField(unittest.TestCase):
++    def setUp(self):
++        self.config = Config()
++        self.field = SecureField(name='test_field')
++
++    def test_empty_string_handling(self):
++        # Test that an empty string is handled correctly
++        result = self.field.to_python(self.config, '')
++        self.assertIsNone(result)
++
++    def test_non_empty_string_encryption(self):
++        # Test that a non-empty string is encrypted correctly
++        value = 'secret_value'
++        result = self.field.to_python(self.config, value)
++        self.assertIsInstance(result, str)
++        self.assertNotEqual(result, value)
++
++    def test_decryption_of_encrypted_value(self):
++        # Test that the encrypted value can be decrypted back to its original form
++        value = 'secret_value'
++        encrypted = self.field.to_basic(self.config, value)
++        decrypted = self.field.to_python(self.config, encrypted)
++        self.assertEqual(decrypted, value)
++
++if __name__ == '__main__':
++    unittest.main()

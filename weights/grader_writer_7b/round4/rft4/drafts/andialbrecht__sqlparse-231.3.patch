@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_grouping_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++import sqlparse
++from sqlparse import sql
++from sqlparse import tokens as T
++from sqlparse.compat import u
++from tests.utils import TestCaseBase
++
++
++def test_function_comparison():
++    p = sqlparse.parse('foo = date(bar.baz)')[0].tokens
++    assert len(p) == 1
++    assert isinstance(p[0], sql.Comparison)
++    assert isinstance(p[0].tokens[1], sql.IdentifierList)

@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/test_sparse_list_grader.py
+@@ -0,0 +1,14 @@
++import unittest
++import sparse_list
++
++
++try:
++    xrange
++except NameError:
++    # On Python 3, range() is equivalent to Python 2's xrange()
++    xrange = range
++
++
++class TestSparseList(unittest.TestCase):
++    def test_delete_empty_slice(self):
++        sl = sparse_list.SparseList(range(5), None)
++        del sl[3:3]
++        self.assertEqual([0, 1, 2, 3, 4], sl)

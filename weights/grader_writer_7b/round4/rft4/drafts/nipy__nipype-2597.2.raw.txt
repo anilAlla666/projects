@@ -1,0 +1,147 @@
+--- /dev/null
++++ b/nipype/testing/tests/test_utils_grader.py
+@@ -0,0 +1,25 @@
++"""Test testing utilities
++"""
++
++
++import os
++import warnings
++import subprocess
++from mock import patch, MagicMock
++from nipype.testing.utils import TempFATFS
++from nipype.utils.filemanip import load_json
++
++
++@patch('subprocess.check_call', MagicMock())
++def test_get_package_information(monkeypatch):
++    monkeypatch.setattr(load_json, '__call__', MagicMock(return_value={}))
++    from nipype import get_info
++    assert get_info()['package'] == ''
++    assert get_info()['commit'] == ''
++    assert get_info()['description'] == ''
++    assert get_info()['url'] == ''
++    assert get_info()['license'] == ''
++    assert get_info()['version'] == ''
++    assert get_info()['release_date'] == ''
++    assert get_info()['download_url'] == ''
++    assert get_info()['maintainer'] == ''
++    assert get_info()['maintainer_email'] == ''
+--- /dev/null
++++ b/nipype/interfaces/fsl/tests/test_utils_grader.py
+@@ -0,0 +1,113 @@
++import os
++import numpy as np
++import nibabel as nb
++import pytest
++import nipype.interfaces.fsl.utils as fsl
++from nipype.interfaces.fsl import no_fsl, Info
++from nipype.testing.fixtures import create_files_in_directory_plus_output_type
++
++
++@pytest.mark.skipif(no_fsl(), reason="fsl is not installed")
++def test_fslroi(create_files_in_directory_plus_output_type):
++    filelist, outdir, _ = create_files_in_directory_plus_output_type
++
++    roi = fsl.ExtractROI()
++
++    # make sure command gets called
++    assert roi.cmd == 'fslroi'
++
++    # test raising error with mandatory args absent
++    with pytest.raises(ValueError):
++        roi.run()
++
++    # .inputs based parameters setting
++    roi.inputs.in_file = filelist[0]
++    roi.inputs.roi_file = 'foo_roi.nii'
++    roi.inputs.t_min = 10
++    roi.inputs.t_size = 20
++    assert roi.cmdline == 'fslroi %s foo_roi.nii 10 20' % filelist[0]
++
++    # .run based parameter setting
++    roi2 = fsl.ExtractROI(
++        in_file=filelist[0],
++        roi_file='foo2_roi.nii',
++        t_min=20,
++        t_size=30)
++    assert roi2.cmdline == 'fslroi %s foo2_roi.nii 20 30' % filelist[0]
++
++    # test optional arguments
++    roi.inputs.background_image = 'backgound.nii'
++    assert roi.cmdline == 'fslroi %s foo_roi.nii 10 20 background.nii' % (
++        filelist[0])
++
++    # test that the output type is correctly passed through
++    assert 'output_type' not in roi.inputs.__dict__
++    roi.output_type = 'NIFTI_GZ'
++    assert 'output_type' in roi.inputs.__dict__
++    assert roi.cmdline == 'fslroi %s foo_roi.nii.gz 10 20' % filelist[0]
++
++
++@pytest.mark.skipif(no_fsl(), reason="fsl is not installed")
++def test_convertxfm(create_files_in_directory_plus_output_type):
++    filelist, outdir, _ = create_files_in_directory_plus_output_type
++    cvt = fsl.ConvertXFM()
++
++    # make sure command gets called
++    assert cvt.cmd == "convert_xfm"
++
++    # test raising error with mandatory args absent
++    with pytest.raises(ValueError):
++        cvt.run()
++
++    # .inputs based parameters setting
++    cvt.inputs.in_file = filelist[0]
++    cvt.inputs.invert_xfm = True
++    cvt.inputs.out_file = "foo.mat"
++    assert cvt.cmdline == 'convert_xfm -omat foo.mat -inverse %s' % filelist[0]
++
++    # constructor based parameter setting
++    cvt2 = fsl.ConvertXFM(
++        in_file=filelist[0],
++        in_file2=filelist[1],
++        concat_xfm=True,
++        out_file="bar.mat")
++    assert cvt2.cmdline == \
++        "convert_xfm -omat bar.mat -concat %s %s" % (filelist[1], filelist[0])
++
++    # test that the output type is correctly passed through
++    assert 'output_type' not in cvt.inputs.__dict__
++    cvt.output_type = 'NIFTI_GZ'
++    assert 'output_type' in cvt.inputs.__dict__
++    assert cvt.cmdline == \
++        'convert_xfm -omat bar.mat.gz -concat %s %s' % (
++            filelist[1], filelist[0])
++
++
++@pytest.mark.skipif(no_fsl(), reason="fsl is not installed")
++def test_swapdims(create_files_in_directory_plus_output_type):
++    files, testdir, out_ext = create_files_in_directory_plus_output_type
++    swap = fsl.SwapDimensions()
++
++    # Test the underlying command
++    assert swap.cmd == "fslswapdim"
++
++    # Test mandatory args
++    args = [dict(in_file=files[0]), dict(new_dims=("x", "y", "z"))]
++    for arg in args:
++        wontrun = fsl.SwapDimensions(**arg)
++        with pytest.raises(ValueError):
++            wontrun.run()
++
++    # Now test a basic command line
++    swap.inputs.in_file = files[0]
++    swap.inputs.new_dims = ("x", "y", "z")
++    assert swap.cmdline == "fslswapdim a.nii x y z %s" % os.path.realpath(
++        os.path.join(testdir, "a_newdims%s" % out_ext))
++
++    # Test that we can set an output name
++    swap.inputs.out_file = "b.nii"
++    assert swap.cmdline == "fslswapdim a.nii x y z b.nii"
++
++    # test that the output type is correctly passed through
++    assert 'output_type' not in swap.inputs.__dict__
++    swap.output_type = 'NIFTI_GZ'
++    assert 'output_type' in swap.inputs.__dict__
++    assert swap.cmdline == "fslswapdim a.nii x y z b.nii.gz"

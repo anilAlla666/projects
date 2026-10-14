@@ -1,0 +1,85 @@
+--- /dev/null
++++ b/tests/unit/test_file_checker_grader.py
+@@ -0,0 +1,36 @@
++"""Unit tests for the FileChecker class."""
++
++
++from __future__ import annotations
++import argparse
++from unittest import mock
++import pytest
++import flake8
++from flake8 import checker
++from flake8._compat import importlib_metadata
++from flake8.plugins import finder
++
++
++def test_sorts_alphabetically_by_filename(tmp_path, default_options):
++    """Test that results are returned in a filename-sorted order."""
++    first_fname = tmp_path.joinpath("a.py")
++    second_fname = tmp_path.joinpath("z.py")
++    first_fname.write_text("")
++    second_fname.write_text("")
++    fchecker = checker.FileChecker(
++        filename=str(first_fname),
++        plugins=finder.Checkers([], [], []),
++        options=default_options,
++    )
++    fchecker.run_checks()
++    fchecker = checker.FileChecker(
++        filename=str(second_fname),
++        plugins=finder.Checkers([], [], []),
++        options=default_options,
++    )
++    fchecker.run_checks()
++    assert fchecker.filename == str(first_fname)
++    fchecker = checker.FileChecker(
++        filename=str(second_fname),
++        plugins=finder.Checkers([], [], []),
++        options=default_options,
++    )
++    fchecker.run_checks()
++    assert fchecker.filename == str(second_fname)
+--- /dev/null
++++ b/tests/integration/test_checker_grader.py
+@@ -0,0 +1,37 @@
++"""Integration tests for the checker submodule."""
++
++
++from __future__ import annotations
++import sys
++from unittest import mock
++import pytest
++from flake8 import checker
++from flake8._compat import importlib_metadata
++from flake8.plugins import finder
++from flake8.processor import FileProcessor
++
++
++PHYSICAL_LINE = "# Physical line content"
++
++
++EXPECTED_REPORT = (1, 1, "T000 Expected Message")
++
++
++EXPECTED_REPORT_PHYSICAL_LINE = (1, "T000 Expected Message")
++
++
++EXPECTED_RESULT_PHYSICAL_LINE = ("T000", 0, 1, "Expected Message", None)
++
++
++class PluginClass:
++    """Simple file plugin class yielding the expected report."""
++
++    def __init__(self, tree):
++        """Construct a dummy object to provide mandatory parameter."""
++        pass
++
++    def run(self):
++        """Run class yielding one element containing the expected report."""
++        yield EXPECTED_REPORT + (type(self),)
++
++
++def test_sorts_alphabetically_by_filename(default_options):
++    """Test that results are returned in a filename-sorted order."""
++    assert sorted(checker.get_sorted_filenames(["a.py", "z.py"])) == ["a.py", "z.py"]

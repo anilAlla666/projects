@@ -1,0 +1,59 @@
+--- /dev/null
++++ b/tests/test_engine_grader.py
+@@ -0,0 +1,53 @@
++import unittest
++from universe import engine
++
++
++class TestInterceptMovement(MovementTestCase):
++    def test_one_object_single_turn_move(self):
++        state = {'turn': 2500, 'width': 1000,
++                 'entities': {0: {'type': 'ship', 'x': 480, 'y': 235, 'queue': [{'target_id': 1, 'warp': 10}]}}}
++        # actual speed is warp**2
++        updates = {0: [{'seq': 0, 'x_t': 422, 'y_t': 210, 'warp': 10}]}
++
++        S = engine.GameState(state, updates)
++        results = S.generate()
++
++        self.assertEqual(results['turn'], 2501)
++        self.assertEqual(results['width'], 1000)
++        self.assertEqual(len(results['entities']), 2)
++        coordinates = {(entity['x'], entity['y']) for entity in results['entities'].values()}
++        self.assertEqual(coordinates, {(470, 225)})
++
++    def test_two_objects_collide(self):
++        state = {'turn': 2500, 'width': 1000,
++                 'entities': {0: {'type': 'ship', 'x': 480, 'y': 235, 'queue': [{'target_id': 1, 'warp': 10}]},
++                               1: {'type': 'ship', 'x': 460, 'y': 215, 'queue': [{'target_id': 0, 'warp': 10}]}}}
++        updates = {0: [{'seq': 0, 'x_t': 470, 'y_t': 225, 'warp': 10}],
++                   1: [{'seq': 0, 'x_t': 470, 'y_t': 225, 'warp': 10}]}
++
++        S = engine.GameState(state, updates)
++        results = S.generate()
++
++        self.assertEqual(results['turn'], 2501)
++        self.assertEqual(results['width'], 1000)
++        self.assertEqual(len(results['entities']), 2)
++        coordinates = {(entity['x'], entity['y']) for entity in results['entities'].values()}
++        self.assertEqual(coordinates, {(480, 235), (460, 215)})
++        self.assertTrue(all(not entity['queue'] for entity in results['entities'].values()))
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/tests/test_components_grader.py
+@@ -0,0 +1,11 @@
++import unittest
++from universe import components
++
++
++class MetadataComponentTestCase(unittest.TestCase):
++    def test_simple(self):
++        data = {'type': 'something'}
++        component = components.MetadataComponent()
++        self.assertEqual(component.serialize(data), data)
++
++
++if __name__ == '__main__':
++    unittest.main()

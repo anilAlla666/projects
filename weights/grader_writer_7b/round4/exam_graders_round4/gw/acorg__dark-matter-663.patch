@@ -1,0 +1,161 @@
+--- /dev/null
++++ b/test/test_reads_grader.py
+@@ -0,0 +1,100 @@
++import six
++from six.moves import builtins
++from six import StringIO
++from unittest import TestCase
++from random import seed
++from os import stat
++
++
++try:
++    from unittest.mock import patch, call
++except ImportError:
++    from mock import patch, call
++
++
++from .mocking import mockOpen, File
++from dark.aa import (
++    BASIC_POSITIVE, HYDROPHOBIC, HYDROPHILIC, NEGATIVE, NONE, POLAR, SMALL,
++    TINY)
++from dark.fasta import FastaReads
++from dark.hsp import HSP
++from dark.reads import (
++    Read, TranslatedRead, Reads, ReadsInRAM, DNARead, RNARead, AARead,
++    AAReadORF, AAReadWithX, SSAARead, SSAAReadWithX, readClassNameToClass)
++
++
++class TestSitesMatching(TestCase):
++    """
++    Tests for sitesMatching().
++    """
++
++    def testIgnoreCase(self):
++        """
++        If only some of a read's sites all match the target bases with
++        matching case, sitesMatching must return the expected set of sites
++        when we tell it to ignore case.
++        """
++        reads = Reads()
++        reads.add(Read('id1', 'aAAga'))
++        result = reads.sitesMatching({'a'}, matchCase=False, any_=False)
++        self.assertEqual({0, 1, 2, 4}, result)
++
++    def testIgnoreCaseMixedCase(self):
++        """
++        If only some of a read's sites all match the target bases with
++        matching case, sitesMatching must return the expected set of sites
++        when we tell it to ignore case.
++        """
++        reads = Reads()
++        reads.add(Read('id1', 'aAaGa'))
++        result = reads.sitesMatching({'a'}, matchCase=False, any_=False)
++        self.assertEqual({0, 1, 2, 4}, result)
++
++
++class TestTranslate(TestCase):
++    """
++    Tests for the translate() method.
++    """
++
++    def testTranslateLowercase(self):
++        """
++        The translate() method must work correctly even if the input sequence
++        contains lowercase letters.
++        """
++        reads = Reads()
++        reads.add(Read('id1', 'aaa'))
++        reads.add(Read('id2', 'AAA'))
++        reads.add(Read('id3', 'aAa'))
++        reads.add(Read('id4', 'aAaG'))
++        reads.add(Read('id5', 'aAaGG'))
++        reads.add(Read('id6', 'aAaGGG'))
++        reads.add(Read('id7', 'aAaGGGG'))
++        reads.add(Read('id8', 'aAaGGGGG'))
++        reads.add(Read('id9', 'aAaGGGGGG'))
++        reads.add(Read('id10', 'aAaGGGGGGG'))
++        reads.add(Read('id11', 'aAaGGGGGGGG'))
++        reads.add(Read('id12', 'aAaGGGGGGGGG'))
++        reads.add(Read('id13', 'aAaGGGGGGGGGG'))
++        reads.add(Read('id14', 'aAaGGGGGGGGGGG'))
++        reads.add(Read('id15', 'aAaGGGGGGGGGGGG'))
++        reads.add(Read('id16', 'aAaGGGGGGGGGGGGG'))
++        reads.add(Read('id17', 'aAaGGGGGGGGGGGGGG'))
++        reads.add(Read('id18', 'aAaGGGGGGGGGGGGGGG'))
++        reads.add(Read('id19', 'aAaGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id20', 'aAaGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id21', 'aAaGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id22', 'aAaGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id23', 'aAaGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id24', 'aAaGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id25', 'aAaGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id26', 'aAaGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id27', 'aAaGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id28', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id29', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id30', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id31', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id32', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id33', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id34', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id35', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id36', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id37', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id38', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id39', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id40', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id41', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id42', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id43', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id44', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id45', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id46', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id47', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id48', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id49', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id50', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id51', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id52', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id53', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id54', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id55', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id56', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id57', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id58', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id59', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id60', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id61', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id62', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id63', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id64', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id65', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id66', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id67', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id68', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id69', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id70', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id71', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id72', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id73', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id74', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id75', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id76', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id77', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id78', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id79', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id80', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id81', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id82', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id83', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id84', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id85', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id86', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id87', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id88', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id89', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id90', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id91', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id92', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id93', 'aAaGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG'))
++        reads.add(Read('id94',

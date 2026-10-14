@@ -1,0 +1,42 @@
+--- /dev/null
++++ b/tests/test_parse_grader.py
+@@ -0,0 +1,38 @@
++import pytest
++from lingua_franca.parse import *
++
++
++def test_year_2007():
++    """Test parsing 2007."""
++    res = parse_date("2007")
++    assert len(res) == 2
++    assert isinstance(res[0], datetime.date)
++    assert res[0].year == 2007
++    assert res[0].month == 1
++    assert res[0].day == 1
++    assert res[1] == ''
++
++
++def test_year_2007_in_2007():
++    """Test parsing 'in 2007'."""
++    res = parse_date("in 2007")
++    assert len(res) == 2
++    assert isinstance(res[0], datetime.date)
++    assert res[0].year == 2007
++    assert res[0].month == 1
++    assert res[0].day == 1
++    assert res[1] == ''
++
++
++def test_year_2007_in_2007_in_the_past():
++    """Test parsing 'in 2007' when speaking in the past."""
++    res = parse_date("in 2007", spoken_in_past=True)
++    assert len(res) == 2
++    assert isinstance(res[0], datetime.date)
++    assert res[0].year == 2007
++    assert res[0].month == 1
++    assert res[0].day == 1
++    assert res[1] == ''
++
++
++if __name__ == '__main__':
++    pytest.main()

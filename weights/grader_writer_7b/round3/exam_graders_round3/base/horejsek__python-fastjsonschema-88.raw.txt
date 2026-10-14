@@ -1,0 +1,81 @@
+To address the issue of supporting tuples as arrays in `fastjsonschema`, we need to modify the existing code to handle tuples appropriately during validation. Additionally, we should add tests to ensure that the fix works as expected.
+
+Here's a proposed solution:
+
+1. **Modify `fastjsonschema/generator.py`**:
+   - Add a method to check if a variable is a tuple.
+   - Modify the array validation logic to accept both lists and tuples.
+
+2. **Add tests to `tests/json_schema/test_draft04.py`**:
+   - Create tests that validate schemas with tuple arrays.
+   - Ensure these tests fail before the fix and pass after the fix.
+
+### Modified `fastjsonschema/generator.py`
+
+```diff
+@@ -274,6 +274,12 @@ class CodeGeneratorDraft04(CodeGenerator):
+         """
+         Append code for creating variable with keys of that variable (dictionary)
+         with a name ``{variable}_keys``. Similar to `create_variable_with_length`.
++        """
++    def create_variable_is_tuple(self):
++        """
++        Append code for creating variable with bool if it's instance of tuple
++        with a name ``{variable}_is_tuple``. Similar to `create_variable_with_length`.
++        """
++        variable_name = '{}_is_tuple'.format(self._variable)
++        if variable_name in self._variables:
++            return
++        self._variables.add(variable_name)
++        self.l('{variable}_is_tuple = isinstance({variable}, tuple)')
+ 
+     def create_variable_is_dict(self):
+         """
+@@ -300,6 +306,12 @@ class CodeGeneratorDraft04(CodeGenerator):
+             return
+         self._variables.add(variable_name)
+         self.l('{variable}_is_dict = isinstance({variable}, dict)')
++
++    def create_variable_is_array(self):
++        """
++        Append code for creating variable with bool if it's instance of list or tuple
++        with a name ``{variable}_is_array``. Similar to `create_variable_with_length`.
++        """
++        variable_name = '{}_is_array'.format(self._variable)
++        if variable_name in self._variables:
++            return
++        self._variables.add(variable_name)
++        self.l('{variable}_is_array = {variable}_is_list or {variable}_is_tuple')
+```
+
+### Added Tests to `tests/json_schema/test_draft04.py`
+
+```diff
+@@ -18,6 +18,7 @@
+ from .utils import template_test, resolve_param_values_and_ids
+ 
+ 
++def test_tuple_as_array():
++    schema = {
++        "type": "array",
++        "items": {"type": "integer"}
++    }
++    data = (1, 2, 3)
++    assert template_test(schema, data)
++
+ def pytest_generate_tests(metafunc):
+     param_values, param_ids = resolve_param_values_and_ids(
+         schema_version='http://json-schema.org/draft-04/schema',
+         suite_dir='JSON-Schema-Test-Suite/tests/draft4',
+         ignored_suite_files=[
+             # Optional.
+             'ecmascript-regex.json',
+         ],
+     )
+     metafunc.parametrize(['schema_version', 'schema', 'data', 'is_valid'], param_values, ids=param_ids)
+ 
+ # Real test function to be used with parametrization by previous hook function.
+ test = template_test
+```
+
+These changes should allow `fastjsonschema` to validate tuples as arrays and include tests to verify the functionality.

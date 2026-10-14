@@ -1,0 +1,26 @@
+--- a/systemfixtures/tests/test_filesystem.py
++++ b/systemfixtures/tests/test_filesystem.py
+@@ -97,6 +97,23 @@
+         shutil.rmtree("/foo/bar")
+         self.assertEqual([], os.listdir("/foo"))
+ 
++    def test_copytree_to_fake_path(self):
++        # shutil.copytree passes os.DirEntry objects to open() on
++        # recent Python versions.
++        self.fs.add("/foo")
++        src = self.useFixture(TempDir())
++        with open(os.path.join(src.path, "file.txt"), "w") as fd:
++            fd.write("hello")
++        os.mkdir(os.path.join(src.path, "sub"))
++        with open(os.path.join(src.path, "sub", "other.txt"), "w") as fd:
++            fd.write("world")
++
++        shutil.copytree(src.path, "/foo/dst")
++
++        self.assertThat("/foo/dst/file.txt", FileContains("hello"))
++        self.assertThat("/foo/dst/sub/other.txt", FileContains("world"))
++        self.assertEqual(["file.txt", "sub"], sorted(os.listdir("/foo/dst")))
++
+     if six.PY3:
+ 
+         def test_listdir_with_fd(self):

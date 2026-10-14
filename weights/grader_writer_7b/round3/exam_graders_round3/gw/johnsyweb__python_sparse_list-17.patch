@@ -1,0 +1,17 @@
+diff --git a/test_sparse_list.py b/test_sparse_list.py
+index 0e0f3a5..c001008 100644
+--- a/test_sparse_list.py
++++ b/test_sparse_list.py
+@@ -330,6 +330,12 @@ class TestSparseList(unittest.TestCase):
+         sl = sparse_list.SparseList([1, 2, 3])
+         self.assertRaises(ValueError, sl.remove, 4)
+ 
++    def test_del_slice_ignores_empty_slices(self):
++        sl = sparse_list.SparseList([1, 2, 3])
++        del sl[1:1]
++        self.assertEqual([1, 2, 3], sl)
++        self.assertEqual(3, len(sl))
++
+     def test_remove_default_value_does_nothing(self):
+         sl = sparse_list.SparseList(4, None)
+         sl.remove(None)

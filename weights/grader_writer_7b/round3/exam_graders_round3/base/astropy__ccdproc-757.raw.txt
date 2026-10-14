@@ -1,0 +1,63 @@
+To address the issue of allowing `Combiner` and `combine` to accept a generator as an argument, we need to add tests that ensure:
+
+1. The existing implementation fails when given a generator.
+2. The updated implementation passes when given a generator.
+
+Here's how you can write these tests:
+
+### New Test File: `ccdproc/tests/test_generator_support.py`
+
+```python
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+
+import numpy as np
+from astropy.nddata import CCDData
+from ccdproc.combiner import Combiner, combine
+import pytest
+
+def test_combiner_accepts_generator():
+    # Create some sample CCDData objects
+    ccd1 = CCDData(np.ones((10, 10)), unit='adu')
+    ccd2 = CCDData(np.ones((10, 10)), unit='adu')
+    ccd3 = CCDData(np.ones((10, 10)), unit='adu')
+
+    # Create a generator of CCDData objects
+    ccd_gen = (ccd1, ccd2, ccd3)
+
+    # Check that the Combiner constructor raises a TypeError when given a generator
+    with pytest.raises(TypeError):
+        Combiner(ccd_gen)
+
+    # Check that the combine function works with a generator
+    result = combine(ccd_gen, method='average')
+    assert isinstance(result, CCDData)
+    assert result.shape == (10, 10)
+    assert np.allclose(result.data, 1.0)
+
+def test_combine_accepts_generator():
+    # Create some sample CCDData objects
+    ccd1 = CCDData(np.ones((10, 10)), unit='adu')
+    ccd2 = CCDData(np.ones((10, 10)), unit='adu')
+    ccd3 = CCDData(np.ones((10, 10)), unit='adu')
+
+    # Create a generator of CCDData objects
+    ccd_gen = (ccd1, ccd2, ccd3)
+
+    # Check that the combine function works with a generator
+    result = combine(ccd_gen, method='average')
+    assert isinstance(result, CCDData)
+    assert result.shape == (10, 10)
+    assert np.allclose(result.data, 1.0)
+```
+
+### Explanation:
+
+1. **Test Case for `Combiner`:**
+   - We create a generator of `CCDData` objects.
+   - We check that the `Combiner` constructor raises a `TypeError` when given a generator.
+
+2. **Test Case for `combine`:**
+   - We create a generator of `CCDData` objects.
+   - We check that the `combine` function works correctly with a generator.
+
+These tests ensure that the existing implementation fails when given a generator and that the updated implementation passes when given a generator. They also do not depend on details left open by the issue, such as specific methods or additional parameters.

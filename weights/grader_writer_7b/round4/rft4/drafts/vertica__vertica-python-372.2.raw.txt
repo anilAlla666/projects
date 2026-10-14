@@ -1,0 +1,130 @@
+--- /dev/null
++++ b/vertica_python/tests/integration_tests/test_cursor_grader.py
+@@ -0,0 +1,125 @@
++from __future__ import print_function, division, absolute_import
++from datetime import date, datetime, time
++from decimal import Decimal
++from uuid import UUID
++import pytest
++from six import string_types
++
++
++@pytest.mark.parametrize("value, expected", [
++    ('a', 'a'),
++    ('a\'b', 'a\\\'b'),
++    ("a'b'", r"a\'b\'"),
++    ('abc\ndef', r'abc\n\ndef'),
++    ('\n', '\\n'),
++    ("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"
++     "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F",
++     r'\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\v\n\f\r\x10\x11\x12\x13'
++     '\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F')
++])
++def test_format_quote(cursor, value, expected):
++    assert cursor.format_quote(value, False) == expected
++
++
++@pytest.mark.parametrize("value, expected", [
++    ('a', 'a'),
++    ('a\'b', r"'a\'b'"),
++    ("a'b'", r"'a''b'''"),
++    ('abc\ndef', r"'abc\n\ndef'"),
++    ('\n', r"'\\n'"),
++    ("\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0A\x0B\x0C\x0D\x0E\x0F"
++     "\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1A\x1B\x1C\x1D\x1E\x1F",
++     r"'\\x00\\x01\\x02\\x03\\x04\\x05\\x06\\x07\\x08\\t\\v\\n\\f\\r\\x10\\x11\\x12\\x13\\x14\\x15\\x16\\x17\\x18\\x19\\x1A\\x1B\\x1C\\x1D\\x1E\\x1F'")
++])
++def test_format_quote_copy_data(cursor, value, expected):
++    assert cursor.format_quote(value, True) == expected
++
++
++@pytest.mark.parametrize("operation, parameters, expected", [
++    ("SELECT %s in %s", (1, (1,2,3)),
++     "SELECT 1 in (1,2,3)"),
++    ("SELECT %s::int", ("1",),
++     "SELECT '1'::int"),
++    ("SELECT %s::varchar", (u"test",),
++     "SELECT 'test'::varchar"),
++    ("SELECT %s::time", ("12:34:56",),
++     "SELECT '12:34:56'::time"),
++    ("SELECT %s::interval", ("1y 10m",),
++     "SELECT '1y 10m'::interval"),
++    ("SELECT %s::decimal(10,5)", ("123.45678",),
++     "SELECT '123.45678'::decimal(10,5)")
++])
++def test_format_operation_with_parameters(cursor, operation, parameters, expected):
++    assert cursor.format_operation_with_parameters(operation, parameters) == expected
++
++
++@pytest.mark.parametrize("operation, parameters, expected", [
++    ("SELECT %(key)s in %(values)s", {"key": 1, "values": (1,2,3)},
++     "SELECT 1 in (1,2,3)"),
++    ("SELECT %(key)s::int", {"key": "1"},
++     "SELECT '1'::int"),
++    ("SELECT %(key)s::varchar", {"key": u"test"},
++     "SELECT 'test'::varchar"),
++    ("SELECT %(key)s::time", {"key": "12:34:56"},
++     "SELECT '12:34:56'::time"),
++    ("SELECT %(key)s::interval", {"key": "1y 10m"},
++     "SELECT '1y 10m'::interval"),
++    ("SELECT %(key)s::decimal(10,5)", {"key": "123.45678"},
++     "SELECT '123.45678'::decimal(10,5)")
++])
++def test_format_operation_with_parameters_dict(cursor, operation, parameters, expected):
++    assert cursor.format_operation_with_parameters(operation, parameters) == expected
++
++
++@pytest.mark.parametrize("operation, parameters, expected", [
++    ("SELECT %s in %s", [(1,2,3)],
++     "SELECT (1,2,3) in (1,2,3)"),
++    ("SELECT %s::int", [(1,),],
++     "SELECT (1,)::int"),
++    ("SELECT %s::varchar", [(u"test",)],
++     "SELECT ('test')::varchar"),
++    ("SELECT %s::time", [("12:34:56",)],
++     "SELECT ('12:34:56')::time"),
++    ("SELECT %s::interval", [("1y 10m",)],
++     "SELECT ('1y 10m')::interval"),
++    ("SELECT %s::decimal(10,5)", [("123.45678",)],
++     "SELECT ('123.45678')::decimal(10,5)")
++])
++def test_format_operation_with_parameters_tuple(cursor, operation, parameters, expected):
++    assert cursor.format_operation_with_parameters(operation, parameters) == expected
++
++
++@pytest.mark.parametrize("operation, parameters, expected", [
++    ("SELECT %s in %s", ((1,2,3),),
++     "SELECT (1,2,3) in (1,2,3)"),
++    ("SELECT %s::int", ([1,],),
++     "SELECT [1]::int"),
++    ("SELECT %s::varchar", ([u"test"],),
++     "SELECT ('test')::varchar"),
++    ("SELECT %s::time", (["12:34:56"],),
++     "SELECT ('12:34:56')::time"),
++    ("SELECT %s::interval", (["1y 10m"],),
++     "SELECT ('1y 10m')::interval"),
++    ("SELECT %s::decimal(10,5)", (["123.45678"],),
++     "SELECT ('123.45678')::decimal(10,5)")
++])
++def test_format_operation_with_parameters_list(cursor, operation, parameters, expected):
++    assert cursor.format_operation_with_parameters(operation, parameters) == expected
++
++
++@pytest.mark.parametrize("operation, parameters, error_msg", [
++    ("SELECT %s in %s", ["hello"],
++     "Argument 'parameters' must be dict or tuple/list"),
++    ("SELECT %s::int", "1",
++     "Argument 'parameters' must be dict or tuple/list"),
++    ("SELECT %s::varchar", 123,
++     "Argument 'parameters' must be dict or tuple/list"),
++    ("SELECT %s::time", 123,
++     "Argument 'parameters' must be dict or tuple/list"),
++    ("SELECT %s::interval", 123,
++     "Argument 'parameters' must be dict or tuple/list"),
++    ("SELECT %s::decimal(10,5)", 123,
++     "Argument 'parameters' must be dict or tuple/list"),
++])
++def test_format_operation_with_parameters_invalid(cursor, operation, parameters, error_msg):
++    with pytest.raises(TypeError) as excinfo:
++        cursor.format_operation_with_parameters(operation, parameters)
++    assert str(excinfo.value) == error_msg

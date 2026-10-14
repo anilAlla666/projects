@@ -1,0 +1,47 @@
+--- /dev/null
++++ b/tests/test_munch_grader.py
+@@ -0,0 +1,41 @@
++import json
++import pickle
++from collections import namedtuple
++import pytest
++from munch import DefaultFactoryMunch, AutoMunch, DefaultMunch, Munch, munchify, unmunchify
++
++
++def test_from_yml():
++    s = "!munch.Munch {foo: [bar, !munch.Munch {lol: true}], hello: 42}"
++    assert Munch.fromYAML(s) == Munch({'foo': ['bar', Munch({'lol': True})], 'hello': 42})
++
++
++def test_from_yml_loader_specified():
++    s = "!munch.Munch {foo: [bar, !munch.Munch {lol: true}], hello: 42}"
++    assert Munch.fromYAML(s, Loader=None) == Munch({'foo': ['bar', Munch({'lol': True})], 'hello': 42})
++    assert Munch.fromYAML(s, Loader=None, LoaderClass=None) == Munch({'foo': ['bar', Munch({'lol': True})], 'hello': 42})
++
++
++def test_from_yml_default_value():
++    s = "{foo: [bar, {lol: true}], hello: 42}"
++    assert Munch.fromYAML(s, Loader=None) == Munch({'foo': ['bar', Munch({'lol': True})], 'hello': 42})
++    assert Munch.fromYAML(s, Loader=None, LoaderClass=None) == Munch({'foo': ['bar', Munch({'lol': True})], 'hello': 42})
++
++
++def test_from_yml_default_factory():
++    s = "{foo: [bar, {lol: true}], hello: 42}"
++    assert DefaultMunch.fromYAML(s, Loader=None, default_factory=list) == DefaultMunch(list, {'foo': ['bar', Munch({'lol': True})], 'hello': 42})
++    assert DefaultMunch.fromYAML(s, Loader=None, LoaderClass=None, default_factory=list) == DefaultMunch(list, {'foo': ['bar', Munch({'lol': True})], 'hello': 42})
++
++
++def test_from_yml_default_value_and_factory():
++    s = "{foo: [bar, {lol: true}], hello: 42}"
++    with pytest.raises(ValueError):
++        DefaultMunch.fromYAML(s, Loader=None, default=42, default_factory=list)
++    with pytest.raises(ValueError):
++        DefaultMunch.fromYAML(s, Loader=None, LoaderClass=None, default=42, default_factory=list)
++
++
++def test_from_yml_custom_loader():
++    class MyLoader(object):
++        @staticmethod
++        def load(s):
++            return Munch(foo=[s])
++    assert Munch.fromYAML("!myloader foobar", Loader=MyLoader) == Munch({'foo': ['foobar']})

@@ -1,0 +1,49 @@
+--- /dev/null
++++ b/tests/unit/test_sql_analyser_grader.py
+@@ -0,0 +1,46 @@
++from __future__ import annotations
++import unittest
++from django_migration_linter.sql_analyser import (
++    analyse_sql_statements,
++    get_sql_analyser_class,
++)
++
++
++class PostgresSqlAnalyserTestCase(SqlAnalyserTestCase):
++    database_vendor = "postgres"
++
++    def test_create_index_with_condition_on_not_null(self):
++        sql = [
++            """CREATE INDEX CONCURRENTLY delete_data_after_idx ON models_prediction
++                ("delete_data_after")
++                WHERE (("data_deleted_at" IS NULL AND "delete_data_after" IS NOT NULL));
++            """,
++        ]
++        self.assertValidSql(sql)
++
++    def test_create_index_with_condition_on_null(self):
++        sql = [
++            """CREATE INDEX CONCURRENTLY delete_data_after_idx ON models_prediction
++                ("delete_data_after")
++                WHERE (("data_deleted_at" IS NOT NULL AND "delete_data_after" IS NULL));
++            """,
++        ]
++        self.assertValidSql(sql)
++
++    def test_create_index_with_condition_on_not_null_and_null(self):
++        sql = [
++            """CREATE INDEX CONCURRENTLY delete_data_after_idx ON models_prediction
++                ("delete_data_after")
++                WHERE (("data_deleted_at" IS NULL AND "delete_data_after" IS NULL));
++            """,
++        ]
++        self.assertValidSql(sql)
++
++    def test_create_index_with_condition_on_not_null_and_null_2(self):
++        sql = [
++            """CREATE INDEX CONCURRENTLY delete_data_after_idx ON models_prediction
++                ("delete_data_after")
++                WHERE (("data_deleted_at" IS NULL AND "delete_data_after" IS NOT NULL));
++            """,
++        ]
++        self.assertValidSql(sql)

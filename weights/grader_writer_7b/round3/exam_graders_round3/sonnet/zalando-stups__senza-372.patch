@@ -1,0 +1,42 @@
+--- a/tests/test_aws.py
++++ b/tests/test_aws.py
+@@ -6,6 +6,41 @@
+                         resolve_topic_arn, matches_any, get_tag)
+ 
+ 
++def _ec2_with_tag_only_sg(sg_id='sg-tagged', tag_value='my-sg-name'):
++    """EC2 mock where only the filter on tag:Name finds a security group."""
++    sg = MagicMock()
++    sg.id = sg_id
++
++    def fake_filter(Filters=None, **kwargs):
++        for f in Filters or []:
++            if f['Name'] == 'tag:Name' and tag_value in f['Values']:
++                return [sg]
++        return []
++
++    ec2 = MagicMock()
++    ec2.security_groups.filter = MagicMock(side_effect=fake_filter)
++    ec2.security_groups.all = MagicMock(return_value=[])
++    return ec2
++
++
++def test_get_security_group_by_name_tag(monkeypatch):
++    ec2 = _ec2_with_tag_only_sg()
++    monkeypatch.setattr('boto3.resource', MagicMock(return_value=ec2))
++
++    sg = get_security_group('myregion', 'my-sg-name')
++    assert sg is not None
++    assert sg.id == 'sg-tagged'
++
++
++def test_resolve_security_groups_by_name_tag(monkeypatch):
++    ec2 = _ec2_with_tag_only_sg()
++    monkeypatch.setattr('boto3.resource', MagicMock(return_value=ec2))
++
++    assert resolve_security_groups(['my-sg-name'], 'myregion') == ['sg-tagged']
++
++
+ def test_get_security_group(monkeypatch):
+     ec2 = MagicMock()
+     monkeypatch.setattr('boto3.resource', MagicMock(return_value=ec2))

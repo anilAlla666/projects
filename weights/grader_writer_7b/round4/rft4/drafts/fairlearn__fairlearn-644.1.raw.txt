@@ -1,0 +1,65 @@
+--- /dev/null
++++ b/test/unit/metrics/test_extra_metrics_grader.py
+@@ -0,0 +1,27 @@
++import numpy as np
++import pytest
++import sklearn.metrics as skm
++import fairlearn.metrics as metrics
++from fairlearn.metrics._extra_metrics import _get_labels_for_confusion_matrix
++
++
++class TestBinaryClassificationMetricSmokeTest:
++    def test_all_zeros(self):
++        zeros = np.zeros(10)
++
++        # Should behave as if pos_label=1
++        assert metrics.binary_classification_metrics(true_positive_rate=zeros, true_negative_rate=zeros) == {'truePositiveRate': 0, 'trueNegativeRate': 1}
++        assert metrics.binary_classification_metrics(false_positive_rate=zeros, false_negative_rate=zeros) == {'falsePositiveRate': 0, 'falseNegativeRate': 0}
++
++        assert metrics.binary_classification_metrics(true_positive_rate=zeros, true_negative_rate=zeros, pos_label=1) == {'truePositiveRate': 0, 'trueNegativeRate': 1}
++        assert metrics.binary_classification_metrics(false_positive_rate=zeros, false_negative_rate=zeros, pos_label=1) == {'falsePositiveRate': 0, 'falseNegativeRate': 0}
++
++        assert metrics.binary_classification_metrics(true_positive_rate=zeros, true_negative_rate=zeros, pos_label=0) == {'truePositiveRate': 1, 'trueNegativeRate': 0}
++        assert metrics.binary_classification_metrics(false_positive_rate=zeros, false_negative_rate=zeros, pos_label=0) == {'falsePositiveRate': 0, 'falseNegativeRate': 0}
++
++    def test_all_ones(self):
++        ones = np.ones(10)
++
++        # should behave as if pos_label=1
++        assert metrics.binary_classification_metrics(true_positive_rate=ones, true_negative_rate=ones) == {'truePositiveRate': 1, 'trueNegativeRate': 0}
++        assert metrics.binary_classification_metrics(false_positive_rate=ones, false_negative_rate=ones) == {'falsePositiveRate': 0, 'falseNegativeRate': 0}
+--- /dev/null
++++ b/test/unit/metrics/test_metrics_engine_dicts_grader.py
+@@ -0,0 +1,32 @@
++import pytest
++import fairlearn.metrics as metrics
++
++
++y_true = [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
++
++
++y_pred = [1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
++
++
++sf_binary = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
++
++
++derived_metric_results = {
++    metrics.binary_classification_metrics: {'truePositiveRate': 0.4, 'trueNegativeRate': 0.88888889},
++    metrics.classification_metrics: {'accuracyScore': 0.85714286, 'zeroOneLoss': 0.14285714, 'balancedAccuracyScore': 0.675, 'precisionScore': 0.6, 'recallScore': 0.6, 'rocAucScore': 0.675, 'meanAbsoluteError': 0.33333333, 'meanSquaredError': 0.33333333, 'r2Score': -0.35, 'f1Score': 0.75, 'logLoss': 7.67546133},
++    metrics.regression_metrics: {'meanAbsoluteError': 0.33333333, 'meanSquaredError': 0.33333333, 'r2Score': -0.35}
++}
++
++
++def test_dict_sizes():
++    assert len(metrics._derived_metric_dict) == len(derived_metric_results)
++
++
++@pytest.mark.parametrize("func", derived_metric_results.keys())
++def test_derived_metrics_smoke(func):
++    result = func(y_true, y_pred, sensitive_features=sf_binary)
++    expected_result = derived_metric_results[func]
++    assert isinstance(result, dict)
++    for k, v in expected_result.items():
++        assert k in result
++        assert result[k] == pytest.approx(v)

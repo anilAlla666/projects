@@ -1,0 +1,102 @@
+--- /dev/null
++++ b/tests/test_transformers_grader.py
+@@ -0,0 +1,113 @@
++from unittest import TestCase
++import pytest
++from lark import Lark, Tree, Token, Transformer, Transformer_InPlace, Transformer_NonRecursive, Transformer_InPlaceRecursive
++
++
++GRAMMAR = '''
++    start: expr NEWLINE
++        | empty
++    NEWLINE: "\n"
++    expr: term (("+" | "-") term)*
++    term: factor (("*" | "/") factor)*
++    factor: NUMBER | "(" expr ")"
++    %import common.NUMBER
++    %import common.WS
++    %ignore WS
++'''
++
++
++def assert_raises(exc_type, exc_msg, f):
++    try:
++        f()
++    except Exception as e:
++        assert type(e) == exc_type
++        assert str(e) == exc_msg
++    else:
++        raise AssertionError("Exception {0} not raised".format(exc_type))
++
++
++@pytest.mark.parametrize(
++    ("Transformer",),
++    [
++        (Transformer,),
++        (Transformer_InPlace,),
++        (Transformer_NonRecursive,),
++        (Transformer_InPlaceRecursive,),
++    ],
++)
++def test_discard_in_transformer_non_recursive(Transformer):
++    grammar = (
++        r"""
++        start: expr NEWLINE
++            | empty
++        NEWLINE: "\n"
++        expr: term (("+" | "-") term)*
++        term: factor (("*" | "/") factor)*
++        factor: NUMBER | "(" expr ")" | "discard"
++        discard: "discard" -> discard
++        %import common.NUMBER
++        %import common.WS
++        %ignore WS
++        """
++    )
++
++    parser = Lark(grammar, parser="lalr")
++
++    tree = parser.parse("1 + 2\n")
++    transformer = Transformer()
++    transformed_tree = transformer.transform(tree)
++    assert transformed_tree.pretty() == "expr\n  term\n    factor\n      NUMBER\n        1\n  +\n  term\n    factor\n      NUMBER\n        2\nNEWLINE"
++
++    tree = parser.parse("(1 + discard)\n")
++    transformer = Transformer()
++    transformed_tree = transformer.transform(tree)
++    assert transformed_tree.pretty() == "expr\n  term\n    factor\n      expr\n        term\n          factor\n            NUMBER\n              1\n        +\nNEWLINE"
++
++    tree = parser.parse("(1 + discard)\n")
++    transformer = Transformer()
++    transformed_tree = transformer.transform(tree)
++    assert transformed_tree.pretty() == "expr\n  term\n    factor\n      expr\n        term\n          factor\n            NUMBER\n              1\n        +\nNEWLINE"
++
++    tree = parser.parse("discard\n")
++    transformer = Transformer()
++    transformed_tree = transformer.transform(tree)
++    assert transformed_tree.pretty() == "NEWLINE"
++
++    tree = parser.parse("(1 + discard)\n")
++    transformer = Transformer()
++    transformed_tree = transformer.transform(tree)
++    assert transformed_tree.pretty() == "expr\n  term\n    factor\n      expr\n        term\n          factor\n            NUMBER\n              1\n        +\nNEWLINE"
++
++    tree = parser.parse("((1 + discard))\n")
++    transformer = Transformer()
++    transformed_tree = transformer.transform(tree)
++    assert transformed_tree.pretty() == "expr\n  term\n    factor\n      expr\n        term\n          factor\n            expr\n              term\n                factor\n                  NUMBER\n                    1\n              +\nNEWLINE"
++
++    tree = parser.parse("(1 + discard)\n")
++    transformer = Transformer()
++    transformed_tree = transformer.transform(tree)
++    assert transformed_tree.pretty() == "expr\n  term\n    factor\n      expr\n        term\n          factor\n            NUMBER\n              1\n        +\nNEWLINE"
++
++    tree = parser.parse("(1 + discard)\n")
++    transformer = Transformer()
++    transformed_tree = transformer.transform(tree)
++    assert transformed_tree.pretty() == "expr\n  term\n    factor\n      expr\n        term\n          factor\n            NUMBER\n              1\n        +\nNEWLINE"
++
++    tree = parser.parse("(((1 + discard))))\n")
++    transformer = Transformer()
++    transformed_tree = transformer.transform(tree)
++    assert transformed_tree.pretty() == "expr\n  term\n    factor\n      expr\n        term\n          factor\n            expr\n              term\n                factor\n                  expr\n                    term\n                      factor\n                        NUMBER\n                          1\n                  +\nNEWLINE"

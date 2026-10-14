@@ -1,0 +1,33 @@
+diff --git a/test_elasticsearch/test_helpers.py b/test_elasticsearch/test_helpers.py
+index 0e0c324..1000000 100644
+--- a/test_elasticsearch/test_helpers.py
++++ b/test_elasticsearch/test_helpers.py
+@@ -1,5 +1,6 @@
+ import mock
+ import time
++import six
+ 
+ from elasticsearch import helpers, Elasticsearch
+ from elasticsearch.serializer import JSONSerializer
+@@ -32,7 +33,7 @@ class TestChunkActions(TestCase):
+         self.actions = [({'index': {}}, {'some': 'data', 'i': i}) for i in range(100)]
+ 
+     def test_chunks_are_chopped_by_byte_size(self):
+-        self.assertEquals(100, len(list(helpers._chunk_actions(self.actions, 100000, 1, JSONSerializer()))))
++        self.assertEquals(100, len(list(helpers._chunk_actions(self.actions, 100000, 1, JSONSerializer(six.text_type))))))
+ 
+     def test_chunks_are_chopped_by_chunk_size(self):
+         self.assertEquals(10, len(list(helpers._chunk_actions(self.actions, 10, 99999999, JSONSerializer()))))
+diff --git a/test_elasticsearch/test_transport.py b/test_elasticsearch/test_transport.py
+index 0100000..1100000 100644
+--- a/test_elasticsearch/test_transport.py
++++ b/test_elasticsearch/test_transport.py
+@@ -186,7 +186,7 @@ class TestTransport(TestCase):
+     def test_sniff_reuses_connection_instances_if_possible(self):
+         t = Transport([{'data': CLUSTER_NODES}, {"host": "1.1.1.1", "port": 123}], connection_class=DummyConnection, randomize_hosts=False)
+         connection = t.connection_pool.connections[1]
+-
++        
+         t.sniff_hosts()
+         self.assertEquals(1, len(t.connection_pool.connections))
+         self.assertIs(connection, t.get_connection())

@@ -1,0 +1,45 @@
+--- /dev/null
++++ b/tests/test_structlog_sentry_grader.py
+@@ -0,0 +1,39 @@
++from unittest.mock import patch
++import pytest
++import structlog
++import structlog.testing
++import structlog_sentry
++
++
++def test_processor_with_format_exc_info():
++    """
++    Regression test for https://github.com/kiwicom/structlog-sentry/issues/34
++
++    When using SentryProcessor along with format_exc_info, we can't get
++    the stack trace in Sentry logs because the structlog built-in
++    format_exc_info processor removes 'exc_info' from event_dict.
++    """
++    logger = structlog.get_logger()
++
++    def error_handler(_, method, event_dict):
++        assert event_dict["event"] == "error occurred"
++        assert "stack" in event_dict["context"]
++
++    with patch.object(structlog_sentry.SentryProcessor, "_log"):
++        with patch.object(
++            structlog.processors,
++            "format_exc_info",
++            lambda x, y, z: {"event": "error occurred", "context": z},
++        ):
++            logger.add_processor(error_handler)
++            logger.add_processor(structlog_sentry.SentryProcessor())
++            try:
++                raise ValueError("test error")
++            except ValueError:
++                logger.exception("An error occurred")
++
++    structlog_sentry.SentryProcessor()._log.assert_called_once_with(
++        {
++            "event": "error occurred",
++            "level": "error",
++            "exception": ValueError,
++            "context": {"stack": ["Traceback (most recent call last):..."]},
++        }
++    )

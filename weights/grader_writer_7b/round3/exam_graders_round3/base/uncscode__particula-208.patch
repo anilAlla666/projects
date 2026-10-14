@@ -1,0 +1,95 @@
+diff --git a/particula/particle.py b/particula/particle.py
+index 1234567..abcdef8 100644
+--- a/particula/particle.py
++++ b/particula/particle.py
+@@ -31,6 +31,7 @@ class ParticleDistribution(Vapor):
+             self.spacing = kwargs.get("spacing", "linspace")
+             self.nbins = in_scalar(kwargs.get("nbins", 1000)).m
+             self.nparticles = in_scalar(kwargs.get("nparticles", 1e5))
++            self.modes = in_radius(kwargs.get("mode", [100e-9])).m
+             self.volume = in_volume(kwargs.get("volume", 1e-6))
+             self.cutoff = in_scalar(kwargs.get("cutoff", 0.9999)).m
+             self.gsigma = in_scalar(kwargs.get("gsigma", 1.25)).m
+@@ -43,6 +44,7 @@ class ParticleDistribution(Vapor):
+ 
+     def pre_radius(self):
+         """ Returns the radius space of the particles
+ 
++        Utilizing the utility cut_rad to get 99.99% of the distribution.
+         From this interval, radius is made on a linspace with nbins points.
+ 
+         Returns:
+@@ -52,6 +54,7 @@ class ParticleDistribution(Vapor):
+                 self.nbins,
+                 self.volume,
+                 self.cutoff,
++                self.modes,
+             )
+ 
+     def generate_distribution(self):
+@@ -60,6 +63,7 @@ class ParticleDistribution(Vapor):
+         """ Generates the particle distribution
+ 
+         Returns:
++        A list of distributions for each mode
+             List[ndarray]: Distribution of particles for each bin
+         """
+         distributions = []
+@@ -67,6 +71,7 @@ class ParticleDistribution(Vapor):
+             for mode in self.modes:
+                 dist = discretize(
+                     interval=self.rad_interval,
++                    mode=mode,
+                     gsigma=self.gsigma,
+                     nbins=self.nbins,
+                     spacing=self.spacing,
+@@ -75,6 +80,7 @@ class ParticleDistribution(Vapor):
+                 distributions.append(dist)
+ 
+         return distributions
+diff --git a/particula/util/distribution_discretization.py b/particula/util/distribution_discretization.py
+index abcdef1..2345678 100644
+--- a/particula/util/distribution_discretization.py
++++ b/particula/util/distribution_discretization.py
+@@ -12,6 +12,7 @@
+ from particula import u
+ from particula.util.input_handling import in_scalar, in_radius
+ 
++
+ def discretize(
+     interval=None,
+     disttype="lognormal",
+@@ -27,6 +28,7 @@ def discretize(
+     gsigma=in_scalar(1.25).m,
+     mode=in_radius(100e-9).m,
+     **kwargs
++):
+     """ discretize the distribution of the particles
+ 
+         Parameters:
+@@ -34,6 +36,7 @@ def discretize(
+             interval    (float) the size interval of the distribution
+             disttype     (str)   the type of distribution, "lognormal" for now
+             gsigma      (float) geometric standard deviation of distribution
++            mode        (list)  list of modes for each distribution
+             mode        (float) pdf scale (corresponds to mode in lognormal)
+     """
+ 
+@@ -42,6 +45,7 @@ def discretize(
+     if interval is None:
+         raise ValueError("the 'interval' must be specified!")
+ 
++    for mode in mode:
+     if not isinstance(interval, u.Quantity):
+         interval = u.Quantity(interval, " ")
+ 
+@@ -50,6 +54,7 @@ def discretize(
+     if disttype == "lognormal":
+         dist = lognorm.pdf(
+             x=interval.m,
++            s=np.log(gsigma),
+             scale=mode,
+         )/interval.u
+     else:
+@@ -60,6 +65,7 @@ def discretize(
+     return dist

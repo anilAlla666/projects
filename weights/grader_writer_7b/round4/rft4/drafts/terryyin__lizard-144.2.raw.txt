@@ -1,0 +1,100 @@
+--- /dev/null
++++ b/tests/test_lizard_grader.py
+@@ -0,0 +1,105 @@
++import unittest
++
++
++def get_all_files():
++    import os
++    path = "./"
++    all_file_path = []
++    for root, dirs, files in os.walk(path):
++        for file in files:
++            full_path = os.path.join(root, file)
++            if full_path.endswith('.py') or full_path.endswith('.c') \
++                    or full_path.endswith('.h') or full_path.endswith(
++                '.cpp') or full_path.endswith('.hpp'):
++                all_file_path.append(full_path)
++    return all_file_path
++
++
++class TestLizard(unittest.TestCase):
++    def setUp(self):
++        from lizard_ext.lizard import get_functions
++        self.get_functions = get_functions
++
++    def test_cpp11_ref_qualifiers(self):
++        code = """
++        struct A {
++          void foo() & {};
++          void foo() const & {};
++          void foo() && {};
++          void foo() const && {};
++        };
++        """
++        function_list = self.get_functions(code)
++        self.assertEqual(4, len(function_list))
++        expected_names = ['A::foo()', 'A::foo() const&', 'A::foo()&&',
++                          'A::foo() const&&']
++        actual_names = [func.name for func in function_list]
++        self.assertCountEqual(expected_names, actual_names)
++
++    def test_cref_asterisk(self):
++        code = """
++        class B { public: int *const &a; };
++        """
++        function_list = self.get_functions(code)
++        self.assertEqual(1, len(function_list))
++        self.assertEqual('B::B(int* const&)',
++                         function_list[0].name)
++
++    def test_enum(self):
++        code = """
++        enum E {
++           X,
++           Y
++        };"""
++        function_list = self.get_functions(code)
++        self.assertEqual(0, len(function_list))
++
++    def test_typedef_class(self):
++        code = """
++        typedef class { int x; } T;
++        """
++        function_list = self.get_functions(code)
++        self.assertEqual(0, len(function_list))
++
++    def test_class_def_without_semicolon(self):
++        code = """
++        class A {
++            int x;
++        }
++        """
++        function_list = self.get_functions(code)
++        self.assertEqual(0, len(function_list))
++
++    def test_lambda(self):
++        code = """
++        auto lambda = [] () -> int {
++            return 42;
++        };
++        """
++        function_list = self.get_functions(code)
++        self.assertEqual(1, len(function_list))
++        self.assertEqual('(lambda)',
++                         function_list[0].name)
++
++    def test_lambda_parameters(self):
++        code = """
++        auto lambda = [] (int x, int y) -> int {
++            return x + y;
++        };
++        """
++        function_list = self.get_functions(code)
++        self.assertEqual(1, len(function_list))
++        self.assertEqual('(lambda)(x, y)',
++                         function_list[0].name)
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,30 @@
+diff --git a/test_project_runpy.py b/test_project_runpy.py
+index 0a1b2c3..4d5e6f7 100644
+--- a/test_project_runpy.py
++++ b/test_project_runpy.py
+@@ -160,6 +160,24 @@ class HeidiReadableSqlFilter(TestCase):
+         self.assertIn('SELECT...FROM moo', record.args[1])
+ 
+     def test_filter_formats_ignores_select_without_from(self):
++        logging_filter = ReadableSqlFilter()
++        original_sql = None
++        record = mock.MagicMock(args=(1.0, original_sql))
++        with self.assertRaises(TypeError):
++            logging_filter.filter(record)
++
++    def test_filter_handles_none_sql(self):
++        logging_filter = ReadableSqlFilter()
++        original_sql = None
++        record = mock.MagicMock(args=(1.0, original_sql))
++        with self.assertRaises(TypeError):
++            logging_filter.filter(record)
++
++    def test_filter_handles_empty_sql(self):
++        logging_filter = ReadableSqlFilter()
++        original_sql = ''
++        record = mock.MagicMock(args=(1.0, original_sql))
++        self.assertTrue(logging_filter.filter(record))
++
+         logging_filter = ReadableSqlFilter()
+         original_sql = '(yolo) SELECT {0} moo'.format(VERY_LONG_STRING)
+         record = mock.MagicMock(args=(1.0, original_sql))

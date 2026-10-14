@@ -1,0 +1,176 @@
+--- /dev/null
++++ b/tests/test_datamodel_grader.py
+@@ -0,0 +1,72 @@
++from dataclasses import dataclass
++from typing import Tuple
++
++
++from typing_extensions import Literal
++
++
++from xarray_dataclasses.datamodel import DataModel
++from xarray_dataclasses.typing import Attr, Coord, Coordof, Data, Dataof
++
++
++X = Literal["x"]
++
++
++Y = Literal["y"]
++
++
++@dataclass
++class XAxis:
++    data: Data[X, int]
++    units: Attr[str] = "pixel"
++
++
++@dataclass
++class YAxis:
++    data: Data[Y, int]
++    units: Attr[str] = "pixel"
++
++
++@dataclass
++class Image:
++    data: Data[Tuple[X, Y], float]
++    mask: Coord[Tuple[X, Y], bool] = False
++    x: Coordof[XAxis] = 0
++    y: Coordof[YAxis] = 0
++
++
++@dataclass
++class RedChannel(Image):
++    pass
++
++
++@dataclass
++class GreenChannel(Image):
++    pass
++
++
++@dataclass
++class BlueChannel(Image):
++    pass
++
++
++image_model = DataModel[Image]()
++
++
++color_model = DataModel[
++    Tuple[RedChannel, GreenChannel, BlueChannel],
++    "red",
++    "green",
++    "blue",
++]()
++
++
++def test_image_data() -> None:
++    data = image_model.data_vars[0]
++    assert data.name == "data"
++    assert data.tag == "data"
++    assert data.dims == ("x", "y")
++    assert data.dtype == "float"
++    assert data.base is None
++    assert data.cast == True
+--- /dev/null
++++ b/tests/test_typing_grader.py
+@@ -0,0 +1,108 @@
++from typing import Any, Tuple, Union
++import numpy as np
++from pytest import mark
++from typing_extensions import Annotated as Ann
++from typing_extensions import Literal as L
++
++
++from xarray_dataclasses.typing import (
++    Attr,
++    Coord,
++    Data,
++    Name,
++    Role,
++    get_dims,
++    get_dtype,
++    get_name,
++    get_role,
++)
++
++
++testdata_dims = [
++    (Coord[Tuple[()], Any], ()),
++    (Coord[L["x"], Any], ("x",)),
++    (Coord[Tuple[L["x"]], Any], ("x",)),
++    (Coord[Tuple[L["x"], L["y"]], Any], ("x", "y")),
++    (Data[Tuple[()], Any], ()),
++    (Data[L["x"], Any], ("x",)),
++    (Data[Tuple[L["x"]], Any], ("x",)),
++    (Data[Tuple[L["x"], L["y"]], Any], ("x", "y")),
++    (Ann[Coord[L["x"], Any], "coord"], ("x",)),
++    (Ann[Data[L["x"], Any], "data"], ("x",)),
++    (Union[Ann[Coord[L["x"], Any], "coord"], Ann[Any, "any"]], ("x",)),
++    (Union[Ann[Data[L["x"], Any], "data"], Ann[Any, "any"]], ("x",)),
++]
++
++
++testdata_dtype = [
++    (Attr[Any], np.dtype("O")),
++    (Data[Any, Any], np.dtype("O")),
++    (Coord[Any, Any], np.dtype("O")),
++    (Name[Any], np.dtype("U")),
++    (Any, np.dtype("O")),
++    (Ann[Attr[Any], "attr"], np.dtype("O")),
++    (Ann[Data[Any, Any], "data"], np.dtype("O")),
++    (Ann[Coord[Any, Any], "coord"], np.dtype("O")),
++    (Ann[Name[Any], "name"], np.dtype("U")),
++    (Ann[Any, "other"], np.dtype("O")),
++    (Union[Ann[Attr[Any], "attr"], Ann[Any, "any"]], np.dtype("O")),
++    (Union[Ann[Data[Any, Any], "data"], Ann[Any, "any"]], np.dtype("O")),
++    (Union[Ann[Coord[Any, Any], "coord"], Ann[Any, "any"]], np.dtype("O")),
++    (Union[Ann[Name[Any], "name"], Ann[Any, "any"]], np.dtype("U")),
++    (Union[Ann[Any, "other"], Ann[Any, "any"]], np.dtype("O")),
++    (Ann[Data[Any, float], "data"], np.dtype("f8")),
++    (Union[Ann[Coord[Any, float], "coord"], Ann[Any, "any"]], np.dtype("f8")),
++    (Union[Ann[Data[Any, float], "data"], Ann[Any, "any"]], np.dtype("f8")),
++]
++
++
++testdata_name = [
++    (Attr[Any], None),
++    (Data[Any, Any], None),
++    (Coord[Any, Any], None),
++    (Name[Any], None),
++    (Any, None),
++    (Ann[Attr[Any], "attr"], "attr"),
++    (Ann[Data[Any, Any], "data"], "data"),
++    (Ann[Coord[Any, Any], "coord"], "coord"),
++    (Ann[Name[Any], "name"], "name"),
++    (Ann[Any, "other"], None),
++    (Union[Ann[Attr[Any], "attr"], Ann[Any, "any"]], "attr"),
++    (Union[Ann[Data[Any, Any], "data"], Ann[Any, "any"]], "data"),
++    (Union[Ann[Coord[Any, Any], "coord"], Ann[Any, "any"]], "coord"),
++    (Union[Ann[Name[Any], "name"], Ann[Any, "any"]], "name"),
++    (Union[Ann[Any, "other"], Ann[Any, "any"]], None),
++]
++
++
++testdata_role = [
++    (Attr[Any], Role.ATTR),
++    (Data[Any, Any], Role.DATA),
++    (Coord[Any, Any], Role.COORD),
++    (Name[Any], Role.NAME),
++    (Any, Role.OTHER),
++    (Ann[Attr[Any], "attr"], Role.ATTR),
++    (Ann[Data[Any, Any], "data"], Role.DATA),
++    (Ann[Coord[Any, Any], "coord"], Role.COORD),
++    (Ann[Name[Any], "name"], Role.NAME),
++    (Ann[Any, "other"], Role.OTHER),
++    (Union[Ann[Attr[Any], "attr"], Ann[Any, "any"]], Role.ATTR),
++    (Union[Ann[Data[Any, Any], "data"], Ann[Any, "any"]], Role.DATA),
++    (Union[Ann[Coord[Any, Any], "coord"], Ann[Any, "any"]], Role.COORD),
++    (Union[Ann[Name[Any], "name"], Ann[Any, "any"]], Role.NAME),
++    (Union[Ann[Any, "other"], Ann[Any, "any"]], Role.OTHER),
++]
++
++
++@mark.parametrize("tp, dims", testdata_dims)
++def test_get_dims(tp: Any, dims: Any) -> None:
++    assert get_dims(tp) == dims

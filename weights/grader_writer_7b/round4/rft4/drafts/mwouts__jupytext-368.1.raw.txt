@@ -1,0 +1,86 @@
+--- /dev/null
++++ b/tests/test_jupytext_read_grader.py
+@@ -0,0 +1,17 @@
++import pytest
++import jupytext
++from jupytext.compare import compare_notebooks
++
++
++def test_read_ipynb_md_roundtrip(tmpdir):
++    md = '''# Title
++
++> Some Markdown
++
++```python
++%matplotlib inline
++a = 1
++```
++'''
++    tmp_md = str(tmpdir.join('notebook.md'))
++    tmp_ipynb = str(tmpdir.join('notebook.ipynb'))
++    with open(tmp_md, 'w') as fp: fp.write(md)
++    assert jupytext.read(tmp_ipynb) == jupytext.read(tmp_md)
+--- /dev/null
++++ b/tests/test_jupytext_errors_grader.py
+@@ -0,0 +1,16 @@
++import pytest
++from nbformat.v4.nbbase import new_notebook
++import jupytext
++from jupytext.formats import JupytextFormatError
++
++
++def test_read_invalid_ipynb_md_raises(tmpdir):
++    md = '''# Title
++
++> Some Markdown
++
++```python
++%matplotlib inline
++a = 1
++```
++'''
++    tmp_md = str(tmpdir.join('notebook.md'))
++    with open(tmp_md, 'w') as fp: fp.write(md)
++    with pytest.raises(ValueError):
++        jupytext.read(tmp_md)
+--- /dev/null
++++ b/tests/test_jupytext_write_grader.py
+@@ -0,0 +1,19 @@
++import os
++import tempfile
++import pytest
++import jupytext
++from jupytext.compare import compare
++
++
++@pytest.mark.parametrize('ext', [None, '.ipynb'])
++def test_write_ipynb_md_roundtrip(ext, tmpdir):
++    md = '''# Title
++
++> Some Markdown
++
++```python
++%matplotlib inline
++a = 1
++```
++'''
++    tmp_md = str(tmpdir.join('notebook.md'))
++    tmp_nb = str(tmpdir.join('notebook'+ext))
++    with open(tmp_md, 'w') as fp: fp.write(md)
++    jupytext.write(jupytext.read(tmp_md), tmp_nb)
++    assert os.path.exists(tmp_nb)
+--- /dev/null
++++ b/tests/test_notebook_read_write_grader.py
+@@ -0,0 +1,10 @@
++import pytest
++import jupytext
++from jupytext.compare import compare
++
++
++def test_read_ipynb_md_roundtrip(tmpdir):
++    md = '''# Title
++
++```python
++a = 1
++```
++'''

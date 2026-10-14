@@ -1,0 +1,55 @@
+--- /dev/null
++++ b/tests/test_signature_details_grader.py
+@@ -0,0 +1,52 @@
++import pytest
++from ninja import ModelSchema
++from ninja.signature.details import (
++    is_collection_type,
++    is_pydantic_model,
++    parse_annotation,
++)
++
++
++@pytest.mark.parametrize(
++    "type_,expected",
++    [
++        (str, False),
++        (int, False),
++        (list, True),
++        (tuple, True),
++        (set, True),
++        (dict, True),
++        ("abc", False),
++    ],
++)
++def test_is_collection_type(type_: object, expected: bool):
++    assert is_collection_type(type_) == expected
++
++
++@pytest.mark.parametrize(
++    "type_,expected",
++    [
++        (str, False),
++        (int, False),
++        (bool, False),
++        (list, False),
++        (tuple, False),
++        (set, False),
++        (dict, False),
++        (object, False),
++        (None, False),
++        (float, False),
++        (ModelSchema, True),
++        (object(), False),  # pragma: no cover
++    ],
++)
++def test_is_pydantic_model(type_: object, expected: bool):
++    assert is_pydantic_model(type_) == expected
++
++
++@pytest.mark.parametrize(
++    "annotation,expected",
++    [(str, str), (int, int)],
++)
++def test_parse_annotation(annotation: object, expected: object):
++    assert parse_annotation(annotation) == expected

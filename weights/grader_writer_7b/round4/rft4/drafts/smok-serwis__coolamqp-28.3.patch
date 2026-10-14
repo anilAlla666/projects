@@ -1,0 +1,20 @@
+--- /dev/null
++++ b/tests/test_attach_consumer_grader.py
+@@ -0,0 +1,15 @@
++from unittest import TestCase
++from coolamqp.attaches.consumer import Consumer
++
++
++class TestConsumer(TestCase):
++    def test_init(self):
++        c = Consumer(
++            queue="a",
++            on_message=lambda x: x,
++            qos=3
++        )
++        self.assertEqual(c.qos, 0, 3)
++        c = Consumer(
++            queue="a",
++            on_message=lambda x: x,
++            qos=(None, 3)
++        )

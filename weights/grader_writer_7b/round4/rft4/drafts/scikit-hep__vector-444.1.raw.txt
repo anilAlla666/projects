@@ -1,0 +1,92 @@
+--- /dev/null
++++ b/tests/backends/test_object_grader.py
+@@ -0,0 +1,17 @@
++from __future__ import annotations
++import numpy
++import pytest
++import vector
++
++
++def test_array_casting():
++    obj = vector.obj(x=1, y=1)
++    assert isinstance(obj, vector.VectorObject2D)
++    assert isinstance(numpy.asanyarray(obj), vector.VectorNumpy2D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    obj = vector.obj(px=1, py=1)
++    assert isinstance(obj, vector.MomentumObject2D)
++    assert isinstance(numpy.asanyarray(obj), vector.MomentumNumpy2D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    with pytest.raises(ValueError):
++        vector.obj(x=1, y=complex(1, 2))
+--- /dev/null
++++ b/tests/backends/test_numba_object_grader.py
+@@ -0,0 +1,28 @@
++from __future__ import annotations
++import sys
++import numpy
++import pytest
++import vector
++import vector.backends.object
++
++
++numba = pytest.importorskip("numba")
++
++
++import vector.backends._numba_object  # noqa: E402
++
++
++pytestmark = pytest.mark.numba
++
++
++@numba.njit
++def check_vector_obj_dtype(x):
++    return x.dtype
++
++
++def test_check_vector_obj_dtype():
++    obj = vector.obj(x=1, y=1)
++    assert check_vector_obj_dtype(obj) == vector.types.PY_FLOAT
++
++    obj = vector.obj(x=1, y=1j)
++    assert check_vector_obj_dtype(obj) == vector.types.PY_COMPLEX
+--- /dev/null
++++ b/tests/backends/test_numpy_object_grader.py
+@@ -0,0 +1,36 @@
++from __future__ import annotations
++import numpy
++import pytest
++import vector
++import vector.backends.numpy
++
++
++def test_power_of_complex_number():
++    obj = vector.obj(x=1, y=1j)
++    result = obj**2
++
++    # Assert that the result is complex and equal to the mathematical expectation
++    assert isinstance(result, vector.backends.numpy.VectorNumpy2D)
++    assert result.x == pytest.approx(-1)
++    assert result.y == pytest.approx(0)
++
++    # Test with negative exponent
++    result = obj**-1
++    assert result.x == pytest.approx(1)
++    assert result.y == pytest.approx(0)
++
++    # Test with non-complex object
++    obj = vector.obj(x=1, y=1)
++    result = obj**2
++    assert result.x == pytest.approx(1)
++    assert result.y == pytest.approx(1)
++
++    # Test with negative exponent
++    result = obj**-1
++    assert result.x == pytest.approx(1)
++    assert result.y == pytest.approx(1)
++
++    # Test with zero exponent
++    result = obj**0
++    assert result.x == pytest.approx(1)
++    assert result.y == pytest.approx(1)

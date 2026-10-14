@@ -1,0 +1,27 @@
+To address the issue of incorrect if-else precedence in the `pymbolic` parser, we need to ensure that the parser correctly handles the precedence of `if-else` expressions. Specifically, the parser should recognize that `if-else` expressions have higher precedence than logical operators like `and` and `or`.
+
+Here's a unified diff that adds a new test case to `test/test_pymbolic.py` to verify the correct handling of `if-else` precedence:
+
+```diff
+diff --git a/test/test_pymbolic.py b/test/test_pymbolic.py
+index 3f4c5d6..7e8f9g0 100644
+--- a/test/test_pymbolic.py
++++ b/test/test_pymbolic.py
+@@ -629,6 +629,15 @@ def test_multiplicative_stringify_preserves_association():
+     assert_parse_roundtrip("(y{inner}z){outer}x")
+ 
+     assert_parse_roundtrip("(-1)*(((-1)*x) / 5)")
++
++def test_if_else_precedence():
++    from pymbolic.primitives import Variable, If
++    x, y = Variable('x'), Variable('y')
++    expr = parse("10 if x or y else 20")
++    assert isinstance(expr, If)
++    assert expr.condition == (x | y)
++    assert expr.then_clause == 10
++    assert expr.else_clause == 20
+```
+
+This test case checks if the expression `10 if x or y else 20` is parsed correctly as an `If` statement with the condition `(x | y)` and the correct `then_clause` and `else_clause`. This ensures that the parser correctly handles the precedence of `if-else` expressions.
+
+With this test case added, the existing test suite will now fail on the current code because it does not handle the precedence of `if-else` expressions correctly. Once the fix is applied, the test case will pass, indicating that the issue has been resolved.

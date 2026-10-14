@@ -1,0 +1,305 @@
+--- /dev/null
++++ b/tests/unit/threadstats/test_threadstats_grader.py
+@@ -0,0 +1,209 @@
++"""
++Tests for the ThreadStats class, using HTTP mode
++"""
++
++
++import logging
++import os
++import random
++import time
++import unittest
++from mock import patch
++from datadog import ThreadStats, lambda_metric, datadog_lambda_wrapper
++from datadog.threadstats.aws_lambda import _lambda_stats
++from tests.util.contextmanagers import preserve_environment_variable
++
++
++logger = logging.getLogger('dd.datadogpy')
++
++
++logger.setLevel(logging.ERROR)
++
++
++def assert_equal(a, b):
++    assert a == b
++
++
++class MemoryReporter(object):
++    """
++    A reporting class that reports to memory for testing.
++    """
++
++    def __init__(self):
++        self.distributions = []
++        self.metrics = []
++        self.events = []
++
++    def flush_distributions(self, distributions):
++        self.distributions += distributions
++
++    def flush_metrics(self, metrics):
++        self.metrics += metrics
++
++    def flush_events(self, events):
++        self.events += events
++
++
++class TestThreadStats(unittest.TestCase):
++    def setUp(self):
++        self.reporter = MemoryReporter()
++
++    def sort_metrics(self, metrics):
++        # Sort metrics based on their metric name
++        sorted_keys = sorted(metrics.keys())
++        first = metrics[sorted_keys[0]]
++        second = metrics[sorted_keys[1]]
++        p75 = metrics[sorted_keys[2]]
++        p85 = metrics[sorted_keys[3]]
++        p95 = metrics[sorted_keys[4]]
++        p99 = metrics[sorted_keys[5]]
++        avg = metrics[sorted_keys[6]]
++        cnt = metrics[sorted_keys[7]]
++        max_ = metrics[sorted_keys[8]]
++        min_ = metrics[sorted_keys[9]]
++        return (first, second, p75, p85, p95, p99, avg, cnt, max_, min_)
++
++    def test_set_metric(self):
++        """
++        Check that set metric works.
++        """
++        # Set up ThreadStats with a namespace
++        dog = ThreadStats(namespace="foo")
++        dog.start(roll_up_interval=1, flush_in_thread=False)
++        reporter = dog.reporter = self.reporter
++
++        # Send a few metrics
++        dog.set_metric("set", 20, timestamp=100.0)
++        dog.flush(200.0)
++
++        # Sort metrics based on their metric name
++        sorted_keys = sorted(reporter.metrics.keys())
++        first = reporter.metrics[sorted_keys[0]]
++
++        # Assert Metric type
++        assert_equal(first['type'], 'gauge')
++
++    def test_set_distribution(self):
++        """
++        Check that set distribution works.
++        """
++        # Set up ThreadStats with a namespace
++        dog = ThreadStats(namespace="foo")
++        dog.start(roll_up_interval=1, flush_in_thread=False)
++        reporter = dog.reporter = self.reporter
++
++        # Send a few metrics
++        dog.set_distribution("set_dist", 20, timestamp=100.0)
++        dog.flush(200.0)
++
++        # Sort metrics based on their metric name
++        sorted_keys = sorted(reporter.metrics.keys())
++        first = reporter.metrics[sorted_keys[0]]
++
++        # Assert Metric type
++        assert_equal(first['type'], 'distribution')
++
++    def test_set_gauge_with_no_namespace(self):
++        """
++        Check that set metric works when no namespace is provided.
++        """
++        # Set up ThreadStats with a namespace
++        dog = ThreadStats(namespace="")
++        dog.start(roll_up_interval=1, flush_in_thread=False)
++        reporter = dog.reporter = self.reporter
++
++        # Send a few metrics
++        dog.set_metric("set", 20, timestamp=100.0)
++        dog.flush(200.0)
++
++        # Sort metrics based on their metric name
++        sorted_keys = sorted(reporter.metrics.keys())
++        first = reporter.metrics[sorted_keys[0]]
++
++        # Assert Metric type
++        assert_equal(first['type'], 'gauge')
++
++    def test_set_distribution_with_no_namespace(self):
++        """
++        Check that set distribution works when no namespace is provided.
++        """
++        # Set up ThreadStats with a namespace
++        dog = ThreadStats(namespace="")
++        dog.start(roll_up_interval=1, flush_in_thread=False)
++        reporter = dog.reporter = self.reporter
++
++        # Send a few metrics
++        dog.set_distribution("set_dist", 20, timestamp=100.0)
++        dog.flush(200.0)
++
++        # Sort metrics based on their metric name
++        sorted_keys = sorted(reporter.metrics.keys())
++        first = reporter.metrics[sorted_keys[0]]
++
++        # Assert Metric type
++        assert_equal(first['type'], 'distribution')
++
++    def test_set_metric_with_namespace(self):
++        """
++        Check that set metric works when a namespace is provided.
++        """
++        # Set up ThreadStats with a namespace
++        dog = ThreadStats(namespace="namespace")
++        dog.start(roll_up_interval=1, flush_in_thread=False)
++        reporter = dog.reporter = self.reporter
++
++        # Send a few metrics
++        dog.set_metric("set", 20, timestamp=100.0)
++        dog.flush(200.0)
++
++        # Sort metrics based on their metric name
++        sorted_keys = sorted(reporter.metrics.keys())
++        first = reporter.metrics[sorted_keys[0]]
++
++        # Assert Metric type
++        assert_equal(first['type'], 'gauge')
++
++    def test_set_distribution_with_namespace(self):
++        """
++        Check that set distribution works when a namespace is provided.
++        """
++        # Set up ThreadStats with a namespace
++        dog = ThreadStats(namespace="namespace")
++        dog.start(roll_up_interval=1, flush_in_thread=False)
++        reporter = dog.reporter = self.reporter
++
++        # Send a few metrics
++        dog.set_distribution("set_dist", 20, timestamp=100.0)
++        dog.flush(200.0)
++
++        # Sort metrics based on their metric name
++        sorted_keys = sorted(reporter.metrics.keys())
++        first = reporter.metrics[sorted_keys[0]]
++
++        # Assert Metric type
++        assert_equal(first['type'], 'distribution')
++
++    def test_set_metric_with_no_timestamp(self):
++        """
++        Check that set metric works when no timestamp is provided.
++        """
++        # Set up ThreadStats with a namespace
++        dog = ThreadStats(namespace="namespace")
++        dog.start(roll_up_interval=1, flush_in_thread=False)
++        reporter = dog.reporter = self.reporter
++
++        # Send a few metrics
++        dog.set_metric("set", 20)
++        dog.flush(200.0)
++
++        # Sort metrics based on their metric name
++        sorted_keys = sorted(reporter.metrics.keys())
++        first = reporter.metrics[sorted_keys[0]]
++
++        # Assert Metric type
++        assert_equal(first['type'], 'gauge')
++
++    def test_set_distribution_with_no_timestamp(self):
++        """
++        Check that set distribution works when no timestamp is provided.
++        """
++        # Set up ThreadStats with a namespace
++        dog = ThreadStats(namespace="namespace")
++        dog.start(roll_up_interval=1, flush_in_thread=False)
++        reporter = dog.reporter = self.reporter
++
++        # Send a few metrics
++        dog.set_distribution("set_dist", 20)
++        dog.flush(200.0)
++
++        # Sort metrics based on their metric name
++        sorted_keys = sorted(reporter.metrics.keys())
++        first = reporter.metrics[sorted_keys[0]]
++
++        # Assert Metric type
++        assert_equal(first['type'], 'distribution')
+--- /dev/null
++++ b/tests/performance/test_threadstats_thread_safety_grader.py
+@@ -0,0 +1,68 @@
++import re
++import time
++import threading
++from datadog import ThreadStats
++
++
++class MemoryReporter(object):
++    """ A reporting class that reports to memory for testing. """
++
++    def __init__(self):
++        self.metrics = []
++        self.events = []
++
++    def flush_metrics(self, metrics):
++        self.metrics += metrics
++
++    def flush_events(self, events):
++        self.events += events
++
++
++class ThreadStatsTest(ThreadStats):
++    def send_metrics_and_event(self, id):
++        # Counter
++        self.increment("counter", timestamp=12345)
++        time.sleep(0.001)  # sleep makes the os continue another thread
++
++        # Gauge
++        self.gauge("gauge_" + str(id), 42)
++        time.sleep(0.001)  # sleep makes the os continue another thread
++
++        # Histogram
++        self.histogram("histogram", id, timestamp=12345)
++        time.sleep(0.001)  # sleep makes the os continue another thread
++
++        # Event
++        self.event("title", "content")
++
++
++class TestThreadStatsThreadSafety(object):
++    def test_threadstats_thread_safety(self):
++        stats = ThreadStatsTest()
++        stats.start(roll_up_interval=10, flush_in_thread=False)
++        reporter = stats.reporter = MemoryReporter()
++
++        for i in range(10000):
++            threading.Thread(target=stats.send_metrics_and_event, args=[i]).start()
++        # Wait all threads to finish
++        time.sleep(10)
++
++        # Flush and check
++        stats.flush()
++        metrics = reporter.metrics
++        events = reporter.events
++
++        # Overview
++        assert len(metrics) == 10009
++
++        # Sort metrics
++        counter_metrics = []
++        gauge_metrics = []
++        histogram_metrics = []
++        set_metrics = []
++        set_distribution_metrics = []
++
++        for m in metrics:
++            if re.match("gauge_.*", m['metric']):
++                gauge_metrics.append(m)
++            elif re.match("histogram.*", m['metric']):
++                histogram_metrics.append(m)
++            elif re.match("set.*", m['metric']):
++                set_metrics.append(m)
++            elif re.match("set_dist.*", m['metric']):
++                set_distribution_metrics.append(m)
++            else:
++                counter_metrics.append(m)

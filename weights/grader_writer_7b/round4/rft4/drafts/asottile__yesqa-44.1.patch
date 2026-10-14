@@ -1,0 +1,66 @@
+--- /dev/null
++++ b/tests/test_yesqa_test_grader.py
+@@ -0,0 +1,69 @@
++import pytest
++import yesqa
++
++
++@pytest.fixture
++def assert_rewrite(tmpdir):
++    def _assert(s, expected=None):
++        expected_retc = 0 if expected is None else 1
++        expected = s if expected is None else expected
++        f = tmpdir.join('f.py')
++        f.write(s)
++        assert yesqa.fix_file(str(f)) == expected_retc
++        assert f.read() == expected
++    return _assert
++
++
++@pytest.mark.parametrize(
++    ('src', 'expected'),
++    (
++        # line comments
++        ('x = 1  # noqa\n', 'x = 1\n'),
++        ('import os  # noqa: F401,X999\n', 'import os  # noqa: F401\n'),
++        ('import os  # noqa:F401,X999\n', 'import os  # noqa: F401\n'),
++        ('# foo # noqa\nx = 1\n', '# foo\nx = 1\n'),
++        ('# noqa # foo\nx = 1\n', '# foo\nx = 1\n'),
++        (
++            'try:\n'
++            '    pass\n'
++            'except OSError:  # noqa hi\n'
++            '    pass\n',
++            'try:\n'
++            '    pass\n'
++            'except OSError:  # hi\n'
++            '    pass\n',
++        ),
++        (
++            'import os  # noqa\n'
++            '# hello world\n'
++            'os\n',
++            'import os\n'
++            '# hello world\n'
++            'os\n',
++        ),
++        (
++            '# a  # noqa: E501\n',
++            '# a\n',
++        ),
++        pytest.param(
++            'if x==1:  # noqa: F401\n'
++            '    pass\n',
++            'if x==1:\n'
++            '    pass\n',
++            id='wrong noqa',
++        ),
++        # file comments
++        ('# flake8: noqa\nx = 1\n', 'x = 1\n'),
++        ('x = 1  # flake8: noqa\n', 'x = 1\n'),
++        # source option
++        ('# flake8: noqa: X999\nx = 1\n', 'x = 1\n'),
++    ),
++)
++def test_rewrite(assert_rewrite, src, expected):
++    assert_rewrite(src, expected)

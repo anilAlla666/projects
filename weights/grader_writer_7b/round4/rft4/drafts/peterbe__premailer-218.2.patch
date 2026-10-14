@@ -1,0 +1,103 @@
+--- /dev/null
++++ b/premailer/tests/test_premailer_grader.py
+@@ -0,0 +1,106 @@
++from __future__ import absolute_import, unicode_literals
++import logging
++import re
++import sys
++import unittest
++from contextlib import contextmanager
++from io import StringIO  # Yes, the is an io lib in py2.x
++from lxml.etree import XMLSyntaxError, fromstring
++from requests.exceptions import HTTPError
++import mock
++import premailer.premailer  # lint:ok
++from nose.tools import assert_raises, eq_, ok_
++from premailer.__main__ import main
++from premailer.premailer import (
++    ExternalNotFoundError,
++    Premailer,
++    csstext_to_pairs,
++    merge_styles,
++    transform,
++)
++
++
++if sys.version_info >= (3,):  # As in, Python 3
++    from urllib.request import urlopen
++else:  # Python 2
++    from urllib2 import urlopen
++
++
++whitespace_between_tags = re.compile(r">\s*<")
++
++
++@contextmanager
++def captured_output():
++    new_out, new_err = StringIO(), StringIO()
++    old_out, old_err = sys.stdout, sys.stderr
++    try:
++        sys.stdout, sys.stderr = new_out, new_err
++        yield sys.stdout, sys.stderr
++    finally:
++        sys.stdout, sys.stderr = old_out, old_err
++
++
++class TestPremailer(unittest.TestCase):
++    maxDiff = None
++
++    def setUp(self):
++        logging.basicConfig(level=logging.DEBUG)
++
++    def test_reuse_transformer(self):
++        """Ensure that you can reuse a transformer.
++
++        Issue #188
++        """
++        html = '<html><head><style>.foo{color:red}</style>'
++        html += '<style>.bar{font-size:1em}</style></head>'
++        html += "<body><p class='foo bar'>Hello world!</p></body>"
++        html += "</html>"
++
++        p = Premailer(html, remove_classes=False)
++        result_html = p.transform()
++        self.assertEqual(result_html.count("style"), 1)
++        result_html = p.transform()
++        self.assertEqual(result_html.count("style"), 1)
++
++    def test_reuse_transformer_with_different_content(self):
++        """Ensure that you can reuse a transformer with different content.
++
++        Issue #188
++        """
++        html1 = '<html><head><style>.foo{color:red}</style>'
++        html1 += '<style>.bar{font-size:1em}</style></head>'
++        html1 += "<body><p class='foo bar'>Hello world!</p></body>"
++        html1 += "</html>"
++
++        html2 = '<html><head><style>.baz{color:blue}</style>'
++        html2 += '<style>.qux{font-size:1em}</style></head>'
++        html2 += "<body><p class='baz qux'>Hello world!</p></body>"
++        html2 += "</html>"
++
++        p = Premailer(html1, remove_classes=False)
++        result_html = p.transform()
++        self.assertEqual(result_html.count("style"), 1)
++        result_html = p.transform(html=html2)
++        self.assertEqual(result_html.count("style"), 1)
++
++    def test_reuse_transformer_with_different_kwargs(self):
++        """Ensure that you can reuse a transformer with different kwargs.
++
++        Issue #188
++        """
++        html = '<html><head><style>.foo{color:red}</style>'
++        html += '<style>.bar{font-size:1em}</style></head>'
++        html += "<body><p class='foo bar'>Hello world!</p></body>"
++        html += "</html>"
++
++        p = Premailer(html, remove_classes=False)
++        result_html = p.transform(remove_classes=True)
++        self.assertEqual(result_html.count("style"), 1)
++        result_html = p.transform(remove_classes=False)
++        self.assertEqual(result_html.count("style"), 1)

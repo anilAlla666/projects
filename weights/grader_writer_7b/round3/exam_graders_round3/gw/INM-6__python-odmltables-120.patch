@@ -1,0 +1,156 @@
+diff --git a/odmltables/tests/test_odml_table.py b/odmltables/tests/test_odml_table.py
+index 0000000..1100500 100644
+--- a/odmltables/tests/test_odml_table.py
++++ b/odmltables/tests/test_odml_table.py
+@@ -438,6 +438,14 @@ class TestLoadOdmlFromTable(unittest.TestCase):
+ class TestOdmlDtypes(unittest.TestCase):
+     """
+     class to test the other functions of the OdmlDtype-class
++    """
++
++    def test_empty_string(self):
++        """
++        check if an empty string is converted to None
++        """
++        dtypes = OdmlDtypes()
++        self.assertIsNone(dtypes.string_to_value('', 'string'))
+ 
+     def setUp(self):
+         self.test_dtypes = OdmlDtypes()
+diff --git a/odmltables/tests/test_odml_xls_table.py b/odmltables/tests/test_odml_xls_table.py
+index 0000000..1100500 100644
+--- a/odmltables/tests/test_odml_xls_table.py
++++ b/odmltables/tests/test_odml_xls_table.py
+@@ -393,7 +393,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', '', '', 'value2', '', '', '']]
+@@ -412,7 +412,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+                     if expected[row][col] is None:  # skipping unspecified cells
+                         continue
+                     cell = worksheet.cell(row, col)
+-                    value = cell.value
++                    value = cell.value  # noqa
+                     if cell.ctype == 3:
+                         # if its a date, convert it to a tuple
+                         value = xlrd.xldate_as_tuple(value, 0)
+@@ -430,7 +430,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', '', '', 'value2', '', '', '']]
+@@ -448,7 +448,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', '', '', 'value2', '', '', '']]
+@@ -466,7 +466,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', '', '', 'value2', '', '', '']]
+@@ -484,7 +484,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', '', '', 'value2', '', '', '']]
+@@ -502,7 +502,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', '', '', 'value2', '', '', '']]
+@@ -520,7 +520,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', '', '', 'value2', '', '', '']]
+@@ -538,7 +538,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', '', '', 'value2', '', '', '']]
+@@ -556,7 +556,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', '', '', 'value2', '', '', '']]
+@@ -574,7 +574,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', '', '', 'value2', '', '', '']]
+@@ -592,7 +592,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', '', '', 'value2', '', '', '']]
+@@ -610,7 +610,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', '', '', 'value2', '', '', '']]
+@@ -628,7 +628,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', 'property1', 'prop1', 'value1', 'g', 1, 'string'],
+             ['/section3', 'section3', 'sec3', '', '', 'value2', '', '', '']]
+@@ -646,7 +646,7 @@ class TestOdmlXlsTable(unittest.TestCase):
+             ['/section1', 'section1', 'sec1', '', '', 'value2', '', '', ''],
+             ['/section1', 'section1', 'sec1', '', '', 'value3', '', '', ''],
+             ['/section1', 'section1', 'sec1', 'property2', 'prop2', 'value1', 'g', 1, 'text'],
+-            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],
++            ['/section1', 'section1', 'sec1', 'property3', 'prop3', 'value1', 'g', 1, 'text'],  # noqa
+             ['/section2', 'section2', 'sec2', 'property1', 'prop1', 'value1', 'g', 1,

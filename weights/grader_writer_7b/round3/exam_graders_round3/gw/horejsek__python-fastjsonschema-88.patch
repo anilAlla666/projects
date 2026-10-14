@@ -1,0 +1,22 @@
+diff --git a/tests/json_schema/test_draft04.py b/tests/json_schema/test_draft04.py
+index 0e1f0b0..c000000 100644
+--- a/tests/json_schema/test_draft04.py
++++ b/tests/json_schema/test_draft04.py
+@@ -1,5 +1,6 @@
+ import pytest
+ 
++from ..draft04 import CodeGeneratorDraft04
+ from .utils import template_test, resolve_param_values_and_ids
+ 
+ 
+@@ -14,3 +15,10 @@ def pytest_generate_tests(metafunc):
+     )
+     metafunc.parametrize(['schema_version', 'schema', 'data', 'is_valid'], param_values, ids=param_ids)
+ 
++
++def test_tuples_as_arrays():
++    generator = CodeGeneratorDraft04({'type': 'array'})
++    assert generator.create_code() == (
++        'if {variable}_is_list:\n'
++        '    pass\n'
++    )

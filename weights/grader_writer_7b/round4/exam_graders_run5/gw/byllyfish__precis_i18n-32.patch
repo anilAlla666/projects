@@ -1,0 +1,13 @@
+--- /dev/null
++++ b/tests/test_profile_grader.py
+@@ -0,0 +1,11 @@
++from unittest import TestCase
++import precis_i18n.profile
++
++
++class TestProfile(TestCase):
++    def test_nickname_additional_mapping_rule(self):
++        p = precis_i18n.profile.Nickname(None, 'test')
++        self.assertEqual(p.additional_mapping_rule(" a\n"), "a")
++        self.assertEqual(p.additional_mapping_rule("\x1fb\x1f"), "b")
++        self.assertEqual(p.additional_mapping_rule("\tc\r\n"), "c")

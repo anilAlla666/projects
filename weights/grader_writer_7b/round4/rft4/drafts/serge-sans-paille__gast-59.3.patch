@@ -1,0 +1,31 @@
+--- /dev/null
++++ b/tests/test_ast_grader.py
+@@ -0,0 +1,31 @@
++import gast
++
++
++def test_assignment_expression():
++    source = """
++a = b = c = d = 1
++(a := b) = 1
++a := b := c
++"""
++    tree = gast.parse(source)
++    print(tree)
++    assert len(tree.body) == 3
++
++    first_assign = tree.body[0]
++    second_assign = tree.body[1]
++    third_assign = tree.body[2]
++
++    assert isinstance(first_assign, gast.Assign)
++    assert isinstance(second_assign, gast.Expr)
++    assert isinstance(third_assign, gast.Expr)
++
++    first_value = first_assign.value
++    second_value = second_assign.value
++    third_value = third_assign.value
++
++    assert isinstance(first_value, gast.Tuple)
++    assert isinstance(second_value, gast.NamedExpr)
++    assert isinstance(third_value, gast.Tuple)

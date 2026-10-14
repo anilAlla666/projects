@@ -1,0 +1,32 @@
+diff --git a/tests/test_signing.py b/tests/test_signing.py
+index 3b2c3d4..5e6f7g8 100644
+--- a/tests/test_signing.py
++++ b/tests/test_signing.py
+@@ -31,6 +31,25 @@ class TestSigningHelper(unittest.TestCase):
+ 
+     def test_create_message_bytestrings(self):
+         params = {'parĄm1': 'valuĘ'}
++        url = 'https://endpoint.com/ąpi'
++
++        msg = signing.create_base_message(params, url)
++
++        self.assertEqual(
++            msg,
++            'POST&https%3A%2F%2Fendpoint.com%2F%C4%85pi&'
++            'par%25C4%2584m1%3Dvalu%25C4%2598',
++        )
++
++    def test_create_message_byte_strings_with_bytes(self):
++        params = {'parĄm1': b'value'}
++        url = 'https://endpoint.com/ąpi'
++
++        msg = signing.create_base_message(params, url)
++
++        self.assertEqual(
++            msg,
++            'POST&https%3A%2F%2Fendpoint.com%2F%C4%85pi&'
++            'par%25C4%2584m1%3Dvalue',
++        )
+ 
+     def test_create_message_sorting_and_combining_params(self):
+         params = {

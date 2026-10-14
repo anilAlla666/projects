@@ -1,0 +1,102 @@
+--- /dev/null
++++ b/tests/test_inventory_validator_grader.py
+@@ -0,0 +1,64 @@
++"""Identity dispositor tests."""
++
++
++import json
++import unittest
++from ocfl.inventory_validator import InventoryValidator
++
++
++class TLogger():
++    """Simplified logger to replace ValidationLogger."""
++
++    def __init__(self):
++        """Initialize."""
++        self.clear()
++
++    def error(self, code, **args):  # pylint: disable=unused-argument
++        """Add error code, discard args."""
++        self.errors.append(code)
++
++    def warning(self, code, **args):  # pylint: disable=unused-argument
++        """Add warn code, discard args."""
++        self.warns.append(code)
++
++    def clear(self):
++        """Clear records."""
++        self.errors = []
++        self.warns = []
++
++
++class TestAll(unittest.TestCase):
++    """TestAll class to run tests."""
++
++    def test_check_id(self):
++        """Test check_id method."""
++        log = TLogger()
++        iv = InventoryValidator(log=log)
++        # Bad cases
++        self.assertFalse(iv.check_id(None))
++        self.assertEqual(log.errors, ['E037a'])
++        log.clear()
++        self.assertFalse(iv.check_id(""))
++        self.assertEqual(log.errors, ['E037a'])
++        log.clear()
++        self.assertFalse(iv.check_id("foo"))
++        self.assertEqual(log.errors, ['E037a'])
++        log.clear()
++        self.assertFalse(iv.check_id("ARK:/12345/abc"))
++        self.assertEqual(log.errors, ['E037a'])
++        log.clear()
++        self.assertFalse(iv.check_id("ark:/12345/abc"))
++        self.assertEqual(log.errors, ['E037a'])
++        log.clear()
++        self.assertFalse(iv.check_id("ark:/12345/abc"))
++        self.assertEqual(log.errors, ['E037a'])
++        log.clear()
++        self.assertFalse(iv.check_id("ark:/12345/abc"))
++        self.assertEqual(log.errors, ['E037a'])
++        log.clear()
++        self.assertFalse(iv.check_id("ark:/12345/abc"))
++        self.assertEqual(log.errors, ['E037a'])
++        # Good cases
++        log.clear()
++        self.assertTrue(iv.check_id("ark:/12345/abc"))
++        self.assertEqual(log.errors, [])
++        log.clear()
++        self.assertTrue(iv.check_id("ark:/12345/abc"))
++        self.assertEqual(log.errors, [])
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/tests/test_demo_ocfl_store_script_grader.py
+@@ -0,0 +1,27 @@
++"""Tests/demo of ocfl-store.py client."""
++
++
++from testlib import DemoTestCase
++
++
++class TestAll(DemoTestCase):
++    """TestAll class to run tests."""
++
++    def test02_explore_simple_root(self):
++        """Test exploration of a simple OCFL object root."""
++        out = self.run_script("List objects",
++                              ["python", "ocfl-store.py",
++                               "--root=extra_fixtures/good-storage-roots/simple-root",
++                               "--list"])
++        self.assertIn("ark%3A%2F12345%2Fbcd987 -- id=ark:/12345/bcd987", out)
++        self.assertIn("ark%3A123%2Fabc -- id=ark:123/abc", out)
++        self.assertIn("http%3A%2F%2Fexample.org%2Fminimal_mixed_digests -- id=http://example.org/minimal_mixed_digests", out)
++        self.assertIn("urn%3A3%3AHUL.DRS.OBJECT%3A100775205 -- id=urn:3:HUL.DRS.OBJECT:100775205", out)
++        self.assertIn("INFO:root:Found 4 OCFL Objects under root extra_fixtures/good-storage-roots/simple-root", out)
++
++
++if __name__ == "__main__":
++    # Run in demo mode if run directly instead of through py.test
++    TestAll.run_as_demo(title="OCFL Object Root Store manipulation script")

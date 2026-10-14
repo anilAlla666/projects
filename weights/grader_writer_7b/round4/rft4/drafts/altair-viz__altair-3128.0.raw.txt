@@ -1,0 +1,99 @@
+--- /dev/null
++++ b/tests/utils/test_core_grader.py
+@@ -0,0 +1,61 @@
++import types
++import numpy as np
++import pandas as pd
++import pytest
++import altair as alt
++from altair.utils.core import parse_shorthand, update_nested, infer_encoding_types
++from altair.utils.core import infer_dtype
++
++
++FAKE_CHANNELS_MODULE = '''
++"""Fake channels module for utility tests."""
++
++from altair.utils import schemapi
++
++
++class FieldChannel:
++    def __init__(self, shorthand, **kwargs):
++        kwargs['shorthand'] = shorthand
++        return super(FieldChannel, self).__init__(**kwargs)
++
++
++class ValueChannel:
++    def __init__(self, value, **kwargs):
++        kwargs['value'] = value
++        return super(ValueChannel, self).__init__(**kwargs)
++
++
++class X(FieldChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "x"
++
++
++class XValue(ValueChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "x"
++
++
++class Y(FieldChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "y"
++
++
++class YValue(ValueChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "y"
++
++
++def _getargs(*args, **kwds):
++    return args, kwds
++'''
++
++
++@pytest.mark.parametrize("backend", ("numpy", "pyarrow"))
++def test_sanitize_arrow_timestamp(backend):
++    # Test that we can serialize timestamps correctly.
++    arr = pd.arrays.ArrowTimestampArray.from_sequence(
++        ["2022-01-01", "2022-01-02", None], freq="D", timezone="UTC"
++    ).cast_to_datetime()
++    df = pd.DataFrame({"arr": arr})
++    sanitized = sanitize_dataframe(df, backend=backend)
++    assert sanitized["arr"][0] == "2022-01-01T00:00:00.000Z"
+--- /dev/null
++++ b/tests/utils/test_utils_grader.py
+@@ -0,0 +1,34 @@
++import pytest
++import warnings
++import json
++import numpy as np
++import pandas as pd
++from altair.utils import infer_vegalite_type, sanitize_dataframe
++
++
++@pytest.mark.skipif(
++    not hasattr(pd, "StringDtype"),
++    reason="dedicated String dtype not supported in pandas v{}".format(pd.__version__),
++)
++def test_sanitize_arrow_string_dtype():
++    df = pd.DataFrame(
++        {
++            "string_object": ["a", "b", "c", "d"],
++            "string_string": pd.array(["a", "b", "c", "d"], dtype="string"),
++            "string_object_null": ["a", "b", None, "d"],
++            "string_string_null": pd.array(["a", "b", None, "d"], dtype="string"),
++        }
++    )
++
++    df_clean = sanitize_dataframe(df)
++    assert {col.dtype.name for _, col in df_clean.items()} == {"object"}
++
++    result_python = {col_name: list(col) for col_name, col in df_clean.items()}
++    assert result_python == {
++        "string_object": ["a", "b", "c", "d"],
++        "string_string": ["a", "b", "c", "d"],
++        "string_object_null": ["a", "b", None, "d"],
++        "string_string_null": ["a", "b", None, "d"],
++    }

@@ -1,0 +1,20 @@
+diff --git a/tests/test_reader.py b/tests/test_reader.py
+index 0a1b2c3..4d5e6f7 100644
+--- a/tests/test_reader.py
++++ b/tests/test_reader.py
+@@ -634,6 +634,14 @@ def test_lex_exception_filtering(capsys):
+     check_trace_output(
+         capsys,
+         execinfo,
++        [
++            '  File "<string>", line 1',
++            "    (hy.models.Symbol \"#foo\")",
++            "                 ^",
++            "ValueError: Syntactically illegal symbol: '#foo'",
++        ],
++    )
++
++def test_symbol_with_hash_tag():
++    with pytest.raises(ValueError) as e:
++        tokenize("(hy.models.Symbol \"#foo\")")
++    assert str(e.value) == "Syntactically illegal symbol: '#foo'"

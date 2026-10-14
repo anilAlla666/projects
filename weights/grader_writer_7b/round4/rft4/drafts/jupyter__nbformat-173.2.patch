@@ -1,0 +1,31 @@
+--- /dev/null
++++ b/tests/test_readwrite_grader.py
+@@ -0,0 +1,30 @@
++import json
++from pathlib import Path
++import pytest
++
++
++@pytest.fixture(params=[
++    "tests/test2.ipynb",
++    Path("tests/test2.ipynb"),
++])
++def filename(request):
++    return request.param
++
++
++def test_readwrite(filename):
++    with open(filename, "r") as f:
++        original = json.load(f)
++    
++    nb = read(filename, as_version=4)
++    assert nb == original
++    nb["cells"][0]["source"] = ["hello world"]
++    written = writes(nb)
++    with open(filename, "w") as f:
++        f.write(written)
++    
++    with open(filename, "r") as f:
++        result = json.load(f)
++    
++    assert result["cells"][0]["source"] == ["hello world"]

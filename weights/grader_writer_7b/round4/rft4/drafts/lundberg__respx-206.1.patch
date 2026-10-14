@@ -1,0 +1,75 @@
+--- /dev/null
++++ b/tests/test_patterns_grader.py
+@@ -0,0 +1,65 @@
++import re
++from unittest.mock import ANY
++import httpx
++import pytest
++from respx.patterns import (
++    JSON,
++    URL,
++    Content,
++    Cookies,
++    Data,
++    Headers,
++    Host,
++    Lookup,
++    M,
++    Method,
++    Params,
++    Path,
++    Pattern,
++    Port,
++    QueryParam,
++    Scheme,
++    merge_patterns,
++    parse_url_patterns,
++)
++
++
++def test_params_eq_empty():
++    pattern = Method("GET").params__eq({})
++    request = httpx.Request("GET", "https://foo.bar/")
++    assert pattern.match(request)
++
++
++def test_params_eq_empty_string():
++    pattern = Method("GET").params__eq("")
++    request = httpx.Request("GET", "https://foo.bar/")
++    assert pattern.match(request)
++
++
++def test_params_contains_empty():
++    pattern = Method("GET").params__contains("")
++    request = httpx.Request("GET", "https://foo.bar/")
++    assert pattern.match(request)
++
++
++def test_params_contains_empty_string():
++    pattern = Method("GET").params__contains("")
++    request = httpx.Request("GET", "https://foo.bar/")
++    assert pattern.match(request)
++
++
++def test_params_startswith_empty():
++    pattern = Method("GET").params__startswith("")
++    request = httpx.Request("GET", "https://foo.bar/")
++    assert pattern.match(request)
++
++
++def test_params_endswith_empty():
++    pattern = Method("GET").params__endswith("")
++    request = httpx.Request("GET", "https://foo.bar/")
++    assert pattern.match(request)
++
++
++def test_params_regex_empty():
++    pattern = Method("GET").params__regex(r"^$")
++    request = httpx.Request("GET", "https://foo.bar/")
++    assert pattern.match(request)
++
++
++def test_queryparam_empty():
++    pattern = Method("GET").params__contains(QueryParam("", ""))
++    request = httpx.Request("GET", "https://foo.bar/")
++    assert pattern.match(request)

@@ -1,0 +1,247 @@
+--- /dev/null
++++ b/stacker/tests/hooks/test_aws_lambda_grader.py
+@@ -0,0 +1,105 @@
++from __future__ import print_function
++from __future__ import division
++from __future__ import absolute_import
++from future import standard_library
++standard_library.install_aliases()
++from builtins import range
++import os.path
++import os
++import unittest
++import mock
++import random
++from io import BytesIO as StringIO
++from zipfile import ZipFile
++import boto3
++import botocore
++from troposphere.awslambda import Code
++from moto import mock_s3
++from testfixtures import TempDirectory, ShouldRaise, compare
++from stacker.context import Context
++from stacker.config import Config
++from stacker.hooks.aws_lambda import (
++    upload_lambda_functions,
++    ZIP_PERMS_MASK,
++    _calculate_hash,
++    select_bucket_region,
++)
++from ..factories import mock_provider
++
++
++REGION = "us-east-1"
++
++
++ALL_FILES = (
++    'f1/f1.py',
++    'f1/f1.pyc',
++    'f1/__init__.py',
++    'f1/test/__init__.py',
++    'f1/test/f1.py',
++    'f1/test/f1.pyc',
++    'f1/test2/test.txt'
++)
++
++
++class TestAWSLambdaHook(unittest.TestCase):
++    """Test AWS Lambda Hook."""
++
++    def setUp(self):
++        self.mock_context = mock.ProviderContext(config=Config({'namespace': ''}))
++        self.mock_provider = mock_provider()
++        self.mock_context.add_provider('aws', self.mock_provider)
++        self.mock_provider.client = mock.Mock()
++
++    def run_hook(self, functions=None, follow_symlinks=True, region=REGION):
++        context = self.mock_context
++        config = {'functions': functions}
++        hook = upload_lambda_functions(context, config, region=region,
++                                       follow_symlinks=follow_symlinks)
++        return hook.execute()
++
++    @mock.patch('stacker.hooks.aws_lambda._upload_to_s3')
++    def test_upload_lambda_functions(self, upload_mock):
++        functions = {
++            'MyFunction': {
++                'path': '/my/path'
++            },
++            'MyOtherFunction': {
++                'path': '/my/other/path'
++            }
++        }
++        upload_mock.return_value = Code(S3Bucket='bucket-name', S3Key='key')
++
++        self.run_hook(functions)
++
++        expected_calls = [
++            mock.call('/my/path', self.mock_provider.session),
++            mock.call('/my/other/path', self.mock_provider.session),
++        ]
++        self.assertEqual(upload_mock.call_args_list, expected_calls)
++
++    @mock.patch('stacker.hooks.aws_lambda._upload_to_s3')
++    def test_upload_lambda_functions_no_path(self, upload_mock):
++        functions = {
++            'MyFunction': {
++                'runtime': 'python2.7',
++                'handler': 'main.handler'
++            }
++        }
++
++        with ShouldRaise(ValueError):
++            self.run_hook(functions)
++
++    @mock.patch('stacker.hooks.aws_lambda._upload_to_s3')
++    def test_upload_lambda_functions_relative_path(self, upload_mock):
++        functions = {
++            'MyFunction': {
++                'path': '../my/path'
++            }
++        }
++
++        with ShouldRaise(ValueError):
++            self.run_hook(functions)
++
++    @classmethod
++    def tearDownClass(cls):
++        mock.stop_and_cleanup()
+--- /dev/null
++++ b/stacker/tests/lookups/handlers/test_file_grader.py
+@@ -0,0 +1,154 @@
++from __future__ import print_function
++from __future__ import division
++from __future__ import absolute_import
++import unittest
++import mock
++import base64
++import yaml
++import json
++from troposphere import Base64, Join
++from stacker.lookups.handlers.file import (json_codec, handler,
++                                           parameterized_codec, yaml_codec)
++
++
++def to_template_dict(obj):
++    """Extract the CFN template dict of an object for test comparisons"""
++
++    if hasattr(obj, 'to_dict') and callable(obj.to_dict):
++        return obj.to_dict()
++    elif isinstance(obj, dict):
++        return dict((key, to_template_dict(value))
++                    for (key, value) in obj.items())
++    elif isinstance(obj, (list, tuple)):
++        return type(obj)(to_template_dict(item) for item in obj)
++    else:
++        return obj
++
++
++class TestFileLookupHandler(unittest.TestCase):
++    @mock.patch('stacker.lookups.handlers.file.read_value_from_path')
++    def test_handler_raw(self, content_mock):
++        result = mock.Mock()
++        content_mock.return_value = result
++
++        out = handler(u'raw:file://tmp/test')
++
++        self.assertEqual(out, result)
++
++    @mock.patch('stacker.lookups.handlers.file.yaml_codec')
++    @mock.patch('stacker.lookups.handlers.file.read_value_from_path')
++    def test_handler_yaml(self, content_mock, codec_mock):
++        result = mock.Mock()
++        codec_mock.return_value = result
++
++        out = handler(u'yaml:file://tmp/test')
++        codec_mock.assert_called_once_with(content_mock.return_value,
++                                           parameterized=False)
++
++        self.assertEqual(result, out)
++
++    @mock.patch('stacker.lookups.handlers.file.yaml_codec')
++    @mock.patch('stacker.lookups.handlers.file.read_value_from_path')
++    def test_handler_yaml_parameterized(self, content_mock, codec_mock):
++        result = mock.Mock()
++        codec_mock.return_value = result
++
++        out = handler(u'yaml-parameterized:file://tmp/test')
++        codec_mock.assert_called_once_with(content_mock.return_value,
++                                           parameterized=True)
++
++        self.assertEqual(result, out)
++
++    @mock.patch('stacker.lookups.handlers.file.json_codec')
++    @mock.patch('stacker.lookups.handlers.file.read_value_from_path')
++    def test_handler_json(self, content_mock, codec_mock):
++        result = mock.Mock()
++        codec_mock.return_value = result
++
++        out = handler(u'json:file://tmp/test')
++        codec_mock.assert_called_once_with(content_mock.return_value,
++                                           parameterized=False)
++
++        self.assertEqual(result, out)
++
++    @mock.patch('stacker.lookups.handlers.file.json_codec')
++    @mock.patch('stacker.lookups.handlers.file.read_value_from_path')
++    def test_handler_json_parameterized(self, content_mock, codec_mock):
++        result = mock.Mock()
++        codec_mock.return_value = result
++
++        out = handler(u'json-parameterized:file://tmp/test')
++        codec_mock.assert_called_once_with(content_mock.return_value,
++                                           parameterized=True)
++
++        self.assertEqual(result, out)
++
++    @mock.patch('stacker.lookups.handlers.file.parameterized_codec')
++    @mock.patch('stacker.lookups.handlers.file.read_value_from_path')
++    def test_handler_parameterized(self, content_mock, codec_mock):
++        result = mock.Mock()
++        codec_mock.return_value = result
++
++        out = handler(u'parameterized:file://tmp/test')
++        codec_mock.assert_called_once_with(content_mock.return_value,
++                                           parameterized=True)
++
++        self.assertEqual(result, out)
++
++    @mock.patch('stacker.lookups.handlers.file.parameterized_codec')
++    @mock.patch('stacker.lookups.handlers.file.read_value_from_path')
++    def test_handler_parameterized_b64(self, content_mock, codec_mock):
++        result = mock.Mock()
++        codec_mock.return_value = result
++
++        out = handler(u'parameterized-b64:file://tmp/test')
++        codec_mock.assert_called_once_with(content_mock.return_value, True)
++
++        self.assertEqual(result, out)
++
++    @mock.patch('stacker.lookups.handlers.file.read_value_from_path')
++    def test_unknown_codec(self, _):
++        with self.assertRaises(KeyError):
++            handler(u'bad:file://tmp/test')
++
++
++class TestReadValueFromPath(unittest.TestCase):
++    @mock.patch('stacker.lookups.handlers.file.open')
++    def test_read_value_from_path(self, open_mock):
++        file_content = '{"foo":"bar"}'
++        open_mock.return_value.__enter__.return_value.read.return_value = \
++            file_content
++        open_mock.return_value.__enter__.return_value.close.return_value = None
++
++        out = read_value_from_path('file://tmp/test')
++
++        self.assertEqual(json.loads(file_content), out)
++
++    @mock.patch('stacker.lookups.handlers.file.open')
++    def test_read_value_from_path_binary(self, open_mock):
++        file_content = b'\x01\x02\x03'
++        open_mock.return_value.__enter__.return_value.read.return_value = \
++            file_content
++        open_mock.return_value.__enter__.return_value.close.return_value = None
++
++        out = read_value_from_path('file://tmp/test')
++
++        self.assertEqual(file_content, out)

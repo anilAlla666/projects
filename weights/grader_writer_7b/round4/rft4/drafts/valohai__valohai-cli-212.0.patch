@@ -1,0 +1,427 @@
+--- /dev/null
++++ b/tests/commands/test_run_test_utils_grader.py
+@@ -0,0 +1,96 @@
++import datetime
++import json
++import re
++import requests_mock
++from click.testing import CliRunner
++from tests.fixture_data import (
++    CONFIG_DATA,
++    CONFIG_YAML,
++    DEPLOYMENT_VERSION_DATA,
++    EXECUTION_DATA,
++    PIPELINE_DATA,
++    PROJECT_DATA,
++    YAML_WITH_EXTRACT_TRAIN_EVAL,
++)
++from valohai_cli import git
++from valohai_cli.commands.execution.run import run
++from valohai_cli.ctx import get_project
++from valohai_cli.utils import get_random_string
++
++
++ALTERNATIVE_YAML = 'batch.yaml'
++
++
++class RunAPIMock(requests_mock.Mocker):
++
++    def __init__(
++        self,
++        project_id,
++        commit_id='f' * 16,
++        deployment_id=666,
++        additional_payload_values=None,
++        deployment_version_name='220801.0',
++    ):
++        super().__init__()
++        self.last_create_execution_payload = None
++        self.project_id = project_id
++        self.commit_id = commit_id
++        self.deployment_id = deployment_id
++        self.deployment_version_name = deployment_version_name
++        self.additional_payload_values = additional_payload_values or {}
++
++    def handle_create_execution(self, request, context):
++        body_json = json.loads(request.body.decode('utf-8'))
++        assert body_json['commit'] == self.commit_id
++        assert body_json['project'] == self.project_id
++        assert body_json['step'] == 'extract'
++        assert body_json['parameters'] == {'max-depth': 2}
++        self.last_create_execution_payload = body_json
++        context.status_code = 201
++        return EXECUTION_DATA.copy()
++
++    def handle_create_endpoint(self, request, context):
++        body_json = json.loads(request.body.decode('utf-8'))
++        if body_json['endpoint_configurations'].get('predict-digit'):
++            files = body_json['endpoint_configurations']['predict-digit']['files']
++            assert files.get('model')
++        context.status_code = 201
++        return DEPLOYMENT_VERSION_DATA.copy()
++
++    def handle_create_pipeline(self, request, context):
++        body_json = json.loads(request.body.decode('utf-8'))
++        assert body_json['project'] == self.project_id
++        assert len(body_json['edges']) == 5
++        assert len(body_json['nodes']) == 3
++        context.status_code = 201
++        return PIPELINE_DATA.copy()
++
++    def handle_create_commit(self, request, context):
++        assert request.body
++        commit_id = f"~{get_random_string()}"
++        self.commit_id = commit_id  # Only accept the new commit
++        return {
++            'repository': '8',
++            'identifier': commit_id,
++            'ref': 'adhoc',
++            'ctime': '2017-03-09T14:56:53.875721Z',
++            'commit_time': '2017-03-09T14:56:53.875475Z',
++        }
++
++
++class RunTestSetup:
++    def __init__(self, monkeypatch, adhoc, step_name='train'):
++        self.adhoc = adhoc
++        self.project_id = PROJECT_DATA['id']
++        self.commit_id = 'f' * 40
++        monkeypatch.setattr(git, 'get_current_commit', lambda dir: self.commit_id)
++
++        with open(get_project().get_config_filename(), 'w') as yaml_fp:
++            yaml_fp.write(CONFIG_YAML)
++
++        # Create an alternative yaml as well (monorepo style)
++        with open(get_project().get_config_filename(yaml_path=ALTERNATIVE_YAML), 'w') as yaml_fp:
++            yaml_fp.write(YAML_WITH_EXTRACT_TRAIN_EVAL)
++
++        self.args = [step_name]
++        if adhoc:
++            self.args.insert(0, '--adhoc')
++        self.values = {}
++        self._run_api_mock = None
++
++    @property
++    def run_api_mock(self) -> RunAPIMock:
++        if not self._run_api_mock:
++            self._run_api_mock = RunAPIMock(self.project_id, self.commit_id, self.values)
++        return self._run_api_mock
+--- /dev/null
++++ b/tests/commands/test_run__dynamic_run_command_grader.py
+@@ -0,0 +1,101 @@
++import os
++import shutil
++from unittest.mock import MagicMock, patch
++from urllib.parse import quote_plus
++import click
++from click.testing import CliRunner
++from pytest import fixture, mark
++from valohai_cli.api import api_client
++from valohai_cli.cli import cli
++from valohai_cli.commands.execution.run.dynamic_run_command import DynamicRunCommand
++from valohai_cli.commands.execution.run.utils import make_executions
++from valohai_cli.config import Config
++from valohai_cli.exceptions import CommandError
++from valohai_cli.models.execution import Execution
++from valohai_cli.models.input import Input
++from valohai_cli.models.project import Project
++from valohai_cli.models.step import Step
++from valohai_cli.models.tag import Tag
++from valohai_cli.models.user import User
++from valohai_cli.models.workspace import Workspace
++from valohai_cli.steps import get_step
++from valohai_cli.steps.step import StepParameters
++from valohai_cli.utils import get_random_string
++from .test_run_test_utils import RunAPIMock, RunTestSetup
++
++
++@fixture
++def setup(monkeypatch):
++    yield RunTestSetup(monkeypatch, False)
++
++
++@fixture
++def setup_adhoc(monkeypatch):
++    yield RunTestSetup(monkeypatch, True)
++
++
++@mark.parametrize('adhoc', [False, True])
++def test_dynamic_run_command_basic(setup, adhoc, tmpdir):
++    config = setup.project.get_config()
++    step = get_step(config, 'train')
++    cmd = DynamicRunCommand(
++        project=setup.project,
++        step=step,
++        commit='abcd1234',
++        environment='my-env',
++        image='my-image',
++        watch=False,
++        download_directory=str(tmpdir.join('downloads')),
++        title='My exec',
++        environment_variables={'MY_ENV_VAR': 'value'},
++        tags=('tag1', 'tag2'),
++        runtime_config={'a': 'b', 'c': 'd'},
++        adhoc=adhoc,
++    )
++    assert cmd.project == setup.project
++    assert cmd.step == step
++    assert cmd.commit == 'abcd1234'
++    assert cmd.environment == 'my-env'
++    assert cmd.image == 'my-image'
++    assert cmd.watch == False
++    assert cmd.download_directory == str(tmpdir.join('downloads'))
++    assert cmd.title == 'My exec'
++    assert cmd.environment_variables == {'MY_ENV_VAR': 'value'}
++    assert cmd.tags == ['tag1', 'tag2']
++    assert cmd.runtime_config == {'a': 'b', 'c': 'd'}
++    assert cmd.adhoc == adhoc
++
++    # Test that the generated help message is somewhat reasonable
++    result = setup.runner.invoke(cli, ['run'], obj={'config': config})
++    assert result.exit_code == 0
++    assert 'Usage:' in result.output
++    assert 'options' in result.output
++    assert '--image' in result.output
++
++    # Test that the help message is different when running ad hoc
++    result = setup.runner.invoke(cli, ['run', '--adhoc'], obj={'config': config})
++    assert result.exit_code == 0
++    assert 'Usage:' in result.output
++    assert 'options' in result.output
++    assert '--image' in result.output
++
++
++def test_parameter_list_value(setup, tmpdir):
++    config = setup.project.get_config()
++    step = get_step(config, 'train')
++    cmd = DynamicRunCommand(project=setup.project, step=step, commit='abcd1234')
++
++    # Test that lists are properly handled
++    result = setup.runner.invoke(cmd, ['--list-param', 'foo', 'bar'])
++    assert result.exit_code == 0
++    assert cmd.last_create_execution_payload['parameters'] == {
++        'list-param': ['foo', 'bar']
++    }
++
++    # Test that we error out if we're given too many arguments
++    result = setup.runner.invoke(cmd, ['--list-param', 'foo', 'bar', 'baz'])
++    assert result.exit_code != 0
++    assert 'Too many values provided for option' in result.output
+--- /dev/null
++++ b/tests/commands/test_run__dynamic_run_command_grader_grader.py
+@@ -0,0 +1,150 @@
++import os
++import shutil
++from unittest.mock import MagicMock, patch
++from urllib.parse import quote_plus
++import click
++from click.testing import CliRunner
++from pytest import fixture, mark
++from valohai_cli.api import api_client
++from valohai_cli.cli import cli
++from valohai_cli.commands.execution.run.dynamic_run_command import DynamicRunCommand
++from valohai_cli.commands.execution.run.utils import make_executions
++from valohai_cli.config import Config
++from valohai_cli.exceptions import CommandError
++from valohai_cli.models.execution import Execution
++from valohai_cli.models.input import Input
++from valohai_cli.models.project import Project
++from valohai_cli.models.step import Step
++from valohai_cli.models.tag import Tag
++from valohai_cli.models.user import User
++from valohai_cli.models.workspace import Workspace
++from valohai_cli.steps import get_step
++from valohai_cli.steps.step import StepParameters
++from valohai_cli.utils import get_random_string
++from .test_run_test_utils import RunAPIMock, RunTestSetup
++
++
++@fixture
++def setup(monkeypatch):
++    yield RunTestSetup(monkeypatch, False)
++
++
++@fixture
++def setup_adhoc(monkeypatch):
++    yield RunTestSetup(monkeypatch, True)
++
++
++@mark.parametrize('adhoc', [False, True])
++def test_dynamic_run_command_basic(setup, adhoc, tmpdir):
++    config = setup.project.get_config()
++    step = get_step(config, 'train')
++    cmd = DynamicRunCommand(
++        project=setup.project,
++        step=step,
++        commit='abcd1234',
++        environment='my-env',
++        image='my-image',
++        watch=False,
++        download_directory=str(tmpdir.join('downloads')),
++        title='My exec',
++        environment_variables={'MY_ENV_VAR': 'value'},
++        tags=('tag1', 'tag2'),
++        runtime_config={'a': 'b', 'c': 'd'},
++        adhoc=adhoc,
++    )
++    assert cmd.project == setup.project
++    assert cmd.step == step
++    assert cmd.commit == 'abcd1234'
++    assert cmd.environment == 'my-env'
++    assert cmd.image == 'my-image'
++    assert cmd.watch == False
++    assert cmd.download_directory == str(tmpdir.join('downloads'))
++    assert cmd.title == 'My exec'
++    assert cmd.environment_variables == {'MY_ENV_VAR': 'value'}
++    assert cmd.tags == ['tag1', 'tag2']
++    assert cmd.runtime_config == {'a': 'b', 'c': 'd'}
++    assert cmd.adhoc == adhoc
++
++    # Test that the generated help message is somewhat reasonable
++    result = setup.runner.invoke(cli, ['run'], obj={'config': config})
++    assert result.exit_code == 0
++    assert 'Usage:' in result.output
++    assert 'options' in result.output
++    assert '--image' in result.output
++
++    # Test that the help message is different when running ad hoc
++    result = setup.runner.invoke(cli, ['run', '--adhoc'], obj={'config': config})
++    assert result.exit_code == 0
++    assert 'Usage:' in result.output
++    assert 'options' in result.output
++    assert '--image' in result.output
++
++
++def test_parameter_list_value(setup, tmpdir):
++    config = setup.project.get_config()
++    step = get_step(config, 'train')
++    cmd = DynamicRunCommand(project=setup.project, step=step, commit='abcd1234')
++
++    # Test that lists are properly handled
++    result = setup.runner.invoke(cmd, ['--list-param', 'foo', 'bar'])
++    assert result.exit_code == 0
++    assert cmd.last_create_execution_payload['parameters'] == {
++        'list-param': ['foo', 'bar']
++    }
++
++    # Test that we error out if we're given too many arguments
++    result = setup.runner.invoke(cmd, ['--list-param', 'foo', 'bar', 'baz'])
++    assert result.exit_code != 0
++    assert 'Too many values provided for option' in result.output
++
++    # Test that we error out if we're given an empty list
++    result = setup.runner.invoke(cmd, ['--list-param', '', 'bar'])
++    assert result.exit_code != 0
++    assert 'Expected at least one argument for option' in result.output
++
++    # Test that we can give an empty list by passing null
++    result = setup.runner.invoke(cmd, ['--list-param', 'null', 'bar'])
++    assert result.exit_code == 0
++    assert cmd.last_create_execution_payload['parameters'] == {
++        'list-param': ['null', 'bar']
++    }
++
++    # Test that we can give an empty list by passing []
++    result = setup.runner.invoke(cmd, ['--list-param', '[]', 'bar'])
++    assert result.exit_code == 0
++    assert cmd.last_create_execution_payload['parameters'] == {
++        'list-param': ['', 'bar']
++    }
++
++    # Test that we can give an empty list by passing an empty string
++    result = setup.runner.invoke(cmd, ['--list-param', '', 'bar'])
++    assert result.exit_code == 0
++    assert cmd.last_create_execution_payload['parameters'] == {
++        'list-param': ['bar']
++    }
++
++    # Test that we can give an empty list by passing nothing
++    result = setup.runner.invoke(cmd, ['--list-param', 'bar'])
++    assert result.exit_code == 0
++    assert cmd.last_create_execution_payload['parameters'] == {
++        'list-param': ['bar']
++    }
++
++
++def test_environment_variables_are_applied_correctly(setup, tmpdir):
++    config = setup.project.get_config()
++    step = get_step(config, 'train')
++    cmd = DynamicRunCommand(project=setup.project, step=step, commit='abcd1234')
++
++    # Test that environment variables are applied correctly
++    result = setup.runner.invoke(cmd, [
++        '-e', 'MY_ENV_VAR=value',
++        '-e', 'OTHER_ENV_VAR=other-value',
++    ])
++    assert result.exit_code == 0
++    assert cmd.last_create_execution_payload['environment_variables'] == {
++        'MY_ENV_VAR': 'value',
++        'OTHER_ENV_VAR': 'other-value',
++    }
+--- /dev/null
++++ b/tests/commands/test_run__run_grader.py
+@@ -0,0 +1,101 @@
++from unittest.mock import patch
++import click
++from click.testing import CliRunner
++from pytest import fixture
++from valohai_cli.api import api_client
++from valohai_cli.cli import cli
++from valohai_cli.commands.execution.run import run
++from valohai_cli.commands.execution.run.utils import make_executions
++from valohai_cli.config import Config
++from valohai_cli.exceptions import CommandError
++from valohai_cli.models.execution import Execution
++from valohai_cli.models.input import Input
++from valohai_cli.models.project import Project
++from valohai_cli.models.step import Step
++from valohai_cli.models.tag import Tag
++from valohai_cli.models.user import User
++from valohai_cli.models.workspace import Workspace
++from valohai_cli.steps import get_step
++from valohai_cli.steps.step import StepParameters
++from valohai_cli.utils import get_random_string
++from .test_run_test_utils import RunAPIMock, RunTestSetup
++
++
++@fixture
++def setup(monkeypatch):
++    yield RunTestSetup(monkeypatch, False)
++
++
++@fixture
++def setup_adhoc(monkeypatch):
++    yield RunTestSetup(monkeypatch, True)
++
++
++def test_run_basic(setup, tmpdir):
++    config = setup.project.get_config()
++    step = get_step(config, 'train')
++    setup.values.update({
++        'step': step,
++        'commit': 'abcd1234',
++    })
++    with setup.run_api_mock:
++        result = setup.runner.invoke(cli, ['run'], obj={'config': config})
++    assert result.exit_code == 0
++    assert '#{} created'.format(EXECUTION_DATA['counter']) in result.output
++
++
++def test_run_adhoc(setup_adhoc, tmpdir):
++    config = setup_adhoc.project.get_config()
++    step = get_step(config, 'train')
++    setup_adhoc.values.update({
++        'step': step,
++        'commit': 'abcd1234',
++    })
++    with setup_adhoc.run_api_mock:
++        result = setup_adhoc.runner.invoke(cli, ['run', '--adhoc'], obj={'config': config})
++    assert result.exit_code == 0
++    assert '#{} created'.format(EXECUTION_DATA['counter']) in result.output
++
++
++def test_run_adhoc_with_yaml_path(setup_adhoc, tmpdir):
++    config = setup_adhoc.project.get_config()
++    step = get_step(config, 'train')
++    setup_adhoc.values.update({
++        'step': step

@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_warnings_grader.py
+@@ -0,0 +1,13 @@
++from unittest import TestCase
++from mlx.warnings import WarningsPlugin
++
++
++class TestWarningsPlugin(TestCase):
++    def test_return_code(self):
++        warnings = WarningsPlugin()
++        warnings.set_limit(0, 1)
++        warnings.check('This should not be treated as warning2')
++        self.assertEqual(warnings.return_count(), 1)
++        self.assertEqual(warnings.return_check_limits(), 1)
++        warnings.set_limit(1, 2)
++        self.assertEqual(warnings.return_check_limits(), 0)

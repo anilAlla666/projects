@@ -1,0 +1,15 @@
+--- /dev/null
++++ b/tests/test_zotero_bibtize_grader.py
+@@ -0,0 +1,20 @@
++import pytest
++from zotero_bibtize import BibEntry
++
++
++def test_bibentry_field_ending_with_newline():
++    """Test parsing a BibTeX entry with field ending with newline.
++
++    Test case for issue #1.
++    """
++    bibtex_entry = "@article{example,\nauthor = {Doe},\ntitle = {Example},\nabstract = {This is an example.\n\nThis is another paragraph.},\njournal = {Journal of Examples},\nyear = {2021},\npages = {1--2},\n}"
++    expected = {"author": "Doe", "title": "Example", "abstract": "This is an example.\n\nThis is another paragraph.", "journal": "Journal of Examples", "year": "2021", "pages": "1--2"}
++    assert BibEntry(bibtex_entry).fields == expected

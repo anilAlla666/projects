@@ -1,0 +1,69 @@
+The tests below cover wildcards at the start, in the middle and at the end of a test name. They should fail on the current code, where only a trailing `*` is treated as a wildcard, and pass once matching uses `fnmatch`. I haven't run them.
+
+The tests assume `create_filtered_test_list` returns the filtered dict and accepts `skip_test=None`; they don't assert on how skipped tests or unmatched names are handled.
+
+```diff
+diff --git a/test/mbed_gt_filter_glob.py b/test/mbed_gt_filter_glob.py
+new file mode 100644
+--- /dev/null
++++ b/test/mbed_gt_filter_glob.py
+@@ -0,0 +1,59 @@
++"""
++Tests for wildcard (glob) handling of test names passed with -n
++"""
++
++import unittest
++
++from mbed_greentea.mbed_greentea_cli import create_filtered_test_list
++
++
++class GreenteaFilterGlobTest(unittest.TestCase):
++
++    def setUp(self):
++        self.tests = {
++            'mbed-os-timer': {'binaries': []},
++            'mbed-os-ticker': {'binaries': []},
++            'tests-drivers-timer': {'binaries': []},
++            'tests-drivers-i2c': {'binaries': []},
++            'other': {'binaries': []},
++        }
++
++    def _filter(self, names):
++        result = create_filtered_test_list(self.tests, names, None)
++        return sorted(result.keys())
++
++    def test_exact_name(self):
++        self.assertEqual(self._filter('other'), ['other'])
++
++    def test_suffix_wildcard(self):
++        self.assertEqual(self._filter('mbed-os-*'),
++                         ['mbed-os-ticker', 'mbed-os-timer'])
++
++    def test_prefix_wildcard(self):
++        self.assertEqual(self._filter('*-timer'),
++                         ['mbed-os-timer', 'tests-drivers-timer'])
++
++    def test_middle_wildcard(self):
++        self.assertEqual(self._filter('tests-*-timer'),
++                         ['tests-drivers-timer'])
++
++    def test_both_ends_wildcard(self):
++        self.assertEqual(self._filter('*drivers*'),
++                         ['tests-drivers-i2c', 'tests-drivers-timer'])
++
++    def test_multiple_patterns(self):
++        self.assertEqual(self._filter('*-timer,other'),
++                         ['mbed-os-timer', 'other', 'tests-drivers-timer'])
++
++    def test_question_mark(self):
++        self.assertEqual(self._filter('mbed-os-tim??'), ['mbed-os-timer'])
++
++    def test_values_preserved(self):
++        result = create_filtered_test_list(self.tests, '*-i2c', None)
++        self.assertIs(result['tests-drivers-i2c'],
++                      self.tests['tests-drivers-i2c'])
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

@@ -1,0 +1,39 @@
+--- /dev/null
++++ b/tests/test_document_grader.py
+@@ -0,0 +1,33 @@
++from __future__ import print_function, division
++
++
++import unittest
++import svgpathtools as sp
++from svgpathtools import Document, Path, Line, CubicBezier, QuadraticBezier, Arc, Move, Close
++from svgpathtools import LineTo, QuadraticBezierTo, CubicBezierTo, ArcTo, HorizontalLineTo, VerticalLineTo
++
++
++class TestDocument(unittest.TestCase):
++    def setUp(self):
++        self.doc = Document()
++
++    def test_add_path_to_empty_group(self):
++        empty = self.doc.add_group(group_attribs={'id': 'empty'})
++        path = Path(Line(0, 0, 1, 1))
++        self.doc.add_path(path, group=empty)
++        expected_output = '<svg xmlns:svg="http://www.w3.org/2000/svg"><g id="empty"><path d="M 0 0 L 1 1"/></g></svg>'
++        self.assertEqual(str(self.doc), expected_output)
++
++    def test_add_path_to_root(self):
++        path = Path(Line(0, 0, 1, 1))
++        self.doc.add_path(path)
++        expected_output = '<svg xmlns:svg="http://www.w3.org/2000/svg"><path d="M 0 0 L 1 1"/></svg>'
++        self.assertEqual(str(self.doc), expected_output)
++
++    def test_add_path_to_existing_group(self):
++        empty = self.doc.add_group(group_attribs={'id': 'existing'})
++        self.doc.add_path(Path(Line(0, 0, 1, 1)), group=empty)
++        self.doc.add_path(Path(Line(0, 0, 1, 1)), group=empty)
++        expected_output = '<svg xmlns:svg="http://www.w3.org/2000/svg"><g id="existing"><path d="M 0 0 L 1 1"/><path d="M 0 0 L 1 1"/></g></svg>'
++        self.assertEqual(str(self.doc), expected_output)
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,54 @@
+--- /dev/null
++++ b/tests/test_loader_grader.py
+@@ -0,0 +1,49 @@
++import pytest
++from unittest import mock
++from scrapy_loader_upkeep import ItemLoader
++from scrapy.utils.python import flatten
++from scrapy.http import TextResponse
++from scrapy import Item, Field
++
++
++@pytest.fixture(scope='function')
++def loader():
++    item_class = type("TestItem", (Item,), {'title': Field()})
++    loader = ItemLoader(item=item_class())
++    loader.stats = mock.Mock()
++    yield loader
++
++
++def test_add_css_1(loader):
++    loader.add_css('title', 'article h2::text')
++    loader.stats.inc_value.assert_has_calls(
++        [
++            mock.call("parser/TestItemLoader/title/css/1"),
++        ]
++    )
++    assert loader.stats.inc_value.call_count == 1
++
++
++def test_add_css_2(loader):
++    loader.add_css('title', [
++        'article h2::text',
++        'article .product-title::text',
++    ])
++    loader.stats.inc_value.assert_has_calls(
++        [
++            mock.call("parser/TestItemLoader/title/css/1"),
++            mock.call("parser/TestItemLoader/title/css/2"),
++        ]
++    )
++    assert loader.stats.inc_value.call_count == 2
++
++
++def test_add_css_named(loader):
++    loader.add_css('title', [
++        ('Name from h1', 'h1::text'),
++        ('Name from meta tag', 'meta[value="title"]::attr(content)'),
++    ])
++    loader.stats.inc_value.assert_has_calls(
++        [
++            mock.call("parser/TestItemLoader/title/css/1"),
++            mock.call("parser/TestItemLoader/title/css/2"),
++        ]
++    )

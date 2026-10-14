@@ -1,0 +1,138 @@
+--- /dev/null
++++ b/tests/model/test_positionfixes_grader.py
+@@ -0,0 +1,24 @@
++import os
++import pytest
++import numpy as np
++from shapely.geometry import LineString
++import trackintel as ti
++from trackintel import Positionfixes
++
++
++@pytest.fixture
++def testdata_geolife():
++    """Read geolife test data from files."""
++    pfs, _ = ti.io.dataset_reader.read_geolife(os.path.join("tests", "data", "geolife"))
++    return pfs
++
++
++class TestPositionfixes:
++    """Tests for the Positionfixes class."""
++
++    def test_generate_triplegs_with_string_user_id(self, testdata_geolife):
++        """Test if generate_triplegs works correctly with string user_ids."""
++        pfs = testdata_geolife.copy()
++        pfs["user_id"] = "test"
++        pfs, _ = pfs.as_positionfixes.generate_triplegs()
++        assert isinstance(pfs["user_id"][0], str)
+--- /dev/null
++++ b/tests/preprocessing/test_positionfixes_grader.py
+@@ -0,0 +1,101 @@
++import datetime
++import os
++import sys
++from pandas import Timestamp
++import geopandas as gpd
++import numpy as np
++import pandas as pd
++import pytest
++from geopandas.testing import assert_geodataframe_equal
++from shapely.geometry import Point
++import trackintel as ti
++
++
++@pytest.fixture
++def geolife_pfs_sp_long():
++    """Read geolife_long and generate sp."""
++    pfs, _ = ti.io.dataset_reader.read_geolife(os.path.join("tests", "data", "geolife_long"))
++    pfs, sp = pfs.as_positionfixes.generate_staypoints(method="sliding", dist_threshold=25, time_threshold=5)
++    return pfs, sp
++
++
++@pytest.fixture
++def example_positionfixes():
++    """Positionfixes for tests."""
++    p1 = Point(8.5067847, 47.4)
++    p2 = Point(8.5067847, 47.5)
++    p3 = Point(8.5067847, 47.6)
++
++    t1 = pd.Timestamp("1971-01-01 00:00:00", tz="utc")
++    t2 = pd.Timestamp("1971-01-01 05:00:00", tz="utc")
++    t3 = pd.Timestamp("1971-01-02 07:00:00", tz="utc")
++
++    list_dict = [
++        {"user_id": 0, "tracked_at": t1, "geometry": p1},
++        {"user_id": 0, "tracked_at": t2, "geometry": p2},
++        {"user_id": 1, "tracked_at": t3, "geometry": p3},
++    ]
++    pfs = gpd.GeoDataFrame(data=list_dict, geometry="geometry", crs="EPSG:4326")
++    return pfs
++
++
++@pytest.fixture
++def example_staypoints():
++    """Staypoints for tests."""
++    s1 = Point(8.5067847, 47.4)
++    s2 = Point(8.5067847, 47.5)
++    s3 = Point(8.5067847, 47.6)
++
++    t1 = pd.Timestamp("1971-01-01 00:00:00", tz="utc")
++    t2 = pd.Timestamp("1971-01-01 05:00:00", tz="utc")
++    t3 = pd.Timestamp("1971-01-02 07:00:00", tz="utc")
++
++    list_dict = [
++        {"user_id": 0, "started_at": t1, "finished_at": t2, "geometry": s1},
++        {"user_id": 1, "started_at": t3, "finished_at": t3, "geometry": s2},
++    ]
++    sp = gpd.GeoDataFrame(data=list_dict, geometry="geometry", crs="EPSG:4326")
++    return sp
++
++
++@pytest.fixture
++def example_locations():
++    """Locations for tests."""
++    l1 = Point(8.5067847, 47.4)
++    l2 = Point(8.5067847, 47.5)
++    l3 = Point(8.5067847, 47.6)
++
++    list_dict = [
++        {"user_id": 0, "geometry": l1},
++        {"user_id": 1, "geometry": l2},
++        {"user_id": 1, "geometry": l3},
++    ]
++    loc = gpd.GeoDataFrame(data=list_dict, geometry="geometry", crs="EPSG:4326")
++    return loc
++
++
++class TestGenerateTriples:
++    """Tests for the generate_triplegs function."""
++
++    def test_generate_triplegs_with_string_user_id(self, example_positionfixes):
++        """Test if generate_triplegs works correctly with string user_ids."""
++        pfs = example_positionfixes.copy()
++        pfs["user_id"] = "test"
++        pfs, _ = ti.preprocessing.positionfixes.generate_triplegs(pfs)
++        assert isinstance(pfs["user_id"][0], str)
++
++    def test_generate_triplegs_with_int_user_id(self, example_positionfixes):
++        """Test if generate_triplegs works correctly with int user_ids."""
++        pfs = example_positionfixes.copy()
++        pfs["user_id"] = 1
++        pfs, _ = ti.preprocessing.positionfixes.generate_triplegs(pfs)
++        assert isinstance(pfs["user_id"][0], int)
++
++    def test_generate_triplegs_with_float_user_id(self, example_positionfixes):
++        """Test if generate_triplegs works correctly with float user_ids."""
++        pfs = example_positionfixes.copy()
++        pfs["user_id"] = 1.0
++        pfs, _ = ti.preprocessing.positionfixes.generate_triplegs(pfs)
++        assert isinstance(pfs["user_id"][0], float)
++
++    def test_generate_triplegs_with_mixed_user_id(self, example_positionfixes):
++        """Test if generate_triplegs works correctly with mixed user_ids."""
++        pfs = example_positionfixes.copy()
++        pfs["user_id"] = [1, 1.0, "test"]
++        pfs, _ = ti.preprocessing.positionfixes.generate_triplegs(pfs)
++        assert isinstance(pfs["user_id"][0], int)
++        assert isinstance(pfs["user_id"][1], float)
++        assert isinstance(pfs["user_id"][2], str)

@@ -1,0 +1,116 @@
+--- /dev/null
++++ b/tests/test_binary_quadratic_model_grader.py
+@@ -0,0 +1,108 @@
++import unittest
++import random
++import itertools
++import tempfile
++import shutil
++import json
++import collections
++from os import path
++import jsonschema
++import numpy as np
++import dimod
++from dimod.io.json import bqm_json_schema
++
++
++try:
++    import networkx as nx
++    _networkx = True
++except ImportError:
++    _networkx = False
++
++
++try:
++    import pandas as pd
++    _pandas = True
++except ImportError:
++    _pandas = False
++
++
++def assert_bqm_equal(this, that):
++    this_adj = this.adj
++    that_adj = that.adj
++    this_linear = this.linear
++    that_linear = that.linear
++    this_quadratic = this.quadratic
++    that_quadratic = that.quadratic
++    this_offset = this.offset
++    that_offset = that.offset
++
++    assert set(this_adj.keys()) == set(that_adj.keys()), "this variables != that variables"
++
++    assert len(this_adj) == len(that_adj), "this variables != that variables"
++
++    for u in this_adj:
++        assert len(this_adj[u]) == len(that_adj[u]), "adjacency lengths don't match"
++        for v in this_adj[u]:
++            assert u in that_adj[v], "undirected graph check failed"
++            assert v in that_adj[u], "undirected graph check failed"
++            assert this_adj[u][v] == that_adj[u][v]
++
++    assert this_linear == that_linear, "linear terms don't match"
++    assert this_quadratic == that_quadratic, "quadratic terms don't match"
++    assert this_offset == that_offset, "offsets don't match"
++
++
++class TestBinaryQuadraticModel(unittest.TestCase):
++    def setUp(self):
++        self.bqm = dimod.BinaryQuadraticModel({
++                'a': 1,
++                'b': 1,
++                'c': 1,
++                'd': 1,
++                'e': 1,
++                'f': 1,
++                },
++                {
++                ('a','b'): -1,
++                ('a','c'): -1,
++                ('a','d'): -1,
++                ('a','e'): -1,
++                ('a','f'): -1,
++                ('b','c'): -1,
++                ('b','d'): -1,
++                ('b','e'): -1,
++                ('b','f'): -1,
++                ('c','d'): -1,
++                ('c','e'): -1,
++                ('c','f'): -1,
++                ('d','e'): -1,
++                ('d','f'): -1,
++                ('e','f'): -1,
++                }, 0.0, dimod.SPIN)
++
++    def test_fix_variables_multiple(self):
++        bqm = dimod.BinaryQuadraticModel({
++                'a': 1,
++                'b': 1,
++                'c': 1,
++                'd': 1,
++                'e': 1,
++                'f': 1,
++                },
++                {
++                ('a','b'): -1,
++                ('a','c'): -1,
++                ('a','d'): -1,
++                ('a','e'): -1,
++                ('a','f'): -1,
++                ('b','c'): -1,
++                ('b','d'): -1,
++                ('b','e'): -1,
++                ('b','f'): -1,
++                ('c','d'): -1,
++                ('c','e'): -1,
++                ('c','f'): -1,
++                ('d','e'): -1,
++                ('d','f'): -1,
++                ('e','f'): -1,
++                }, 0.0, dimod.SPIN)
++
++        bqm.fix_variables({"a": 1, "c": 0})
++        self.assertEqual(len(bqm.variables), 4)
++        self.assertEqual(bqm.linear["a"], 0)
++        self.assertEqual(bqm.linear["c"], 0)

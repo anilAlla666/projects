@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/test_amr_grader.py
+@@ -0,0 +1,13 @@
++import unittest
++from amr import *
++
++
++class TestAMR(unittest.TestCase):
++    def test_top_property(self):
++        amr1 = AMR.parse_AMR_line("(top1 :node \"test\")")
++        amr2 = AMR.parse_AMR_line("(top2 :node \"test\")")
++        assert amr1.compare(amr2) == [1, 1, 1, 1]
++        assert amr2.compare(amr1) == [1, 1, 1, 1]
++        assert amr1.compare(amr1) == [1, 1, 1, 1]
++        assert amr2.compare(amr2) == [1, 1, 1, 1]
++
++
++if __name__ == '__main__':
++    unittest.main()

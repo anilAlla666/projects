@@ -1,0 +1,73 @@
+--- /dev/null
++++ b/tests/test_SeqLike_grader.py
+@@ -0,0 +1,44 @@
++import tempfile
++from copy import deepcopy
++import numpy as np
++import pytest
++from Bio import SeqIO
++from Bio.Seq import Seq
++from Bio.SeqRecord import SeqRecord
++from hypothesis import given
++from hypothesis.strategies import composite, integers, sampled_from, text
++from seqlike.codon_tables import codon_table_to_codon_map, ecoli_codon_table, yeast_codon_table, ecoli_codon_map
++from seqlike.SeqLike import AA, NT, STANDARD_AA, STANDARD_NT, SeqLike, aaSeqLike
++from seqlike.MutationSet import MutationSet
++from . import test_path
++
++
++ALPHABETS = [NT, AA, STANDARD_NT, STANDARD_AA]
++
++
++NT_TYPES = ["NT", "DNA", "RNA", "dna", "nt", "rna"]
++
++
++AA_TYPES = ["AA", "aa"]
++
++
++SEQ_TYPES = NT_TYPES + AA_TYPES
++
++
++@composite
++def string_sequences(draw, alphabet: str = None, min_size: int = 1) -> tuple:
++    """Composite Hypothesis strategy to generate strings from one of the alphabets.
++
++    This test handles the cases where seq_type, sequence, and alphabet are all set.
++    """
++    max_size = draw(integers(min_value=min_size, max_value=1000))
++    if not alphabet:
++        alphabet = draw(sampled_from(ALPHABETS))
++    sequence = draw(text(alphabet=alphabet, min_size=min_size, max_size=max_size))
++    if alphabet in [NT, STANDARD_NT]:
++        seq_type = draw(sampled_from(NT_TYPES))
++    elif alphabet in [AA, STANDARD_AA]:
++        seq_type = draw(sampled_from(AA_TYPES))
++    return sequence, seq_type, alphabet
++
++
++def test__deepcopy__():
++    for seqstr, seq_type in [("TCGCACACTGCA", "nt"), ("GEGDATYGKLTLKFICTT", "aa")]:
++        s = SeqLike(seqstr, seq_type=seq_type, description="test")
++        assert deepcopy(s).to_str() == seqstr
++        assert deepcopy(s).id == s.id
++        assert deepcopy(s).description == s.description == "test"
++        # deepcopy returns a new object, so it should not match the original
++        assert deepcopy(s) != s
+--- /dev/null
++++ b/tests/test_codon_tables_grader.py
+@@ -0,0 +1,14 @@
++import pytest
++from seqlike import aaSeqLike
++from seqlike.codon_tables import (
++    codon_table_to_codon_map,
++    human_codon_table,
++    ecoli_codon_table,
++    sort_codon_table_by_frequency,
++)
++
++
++def test_adding_entries_to_codon_table_does_not_affect_other_codon_tables():
++    table1 = human_codon_table.copy()
++    table1["-"] = {"---": 1}
++    table1["X"] = {"NNN": 1}
++    assert "".join(sorted(table1.keys())) == "*-ACDEFGHIKLMNPQRSTVWXY"

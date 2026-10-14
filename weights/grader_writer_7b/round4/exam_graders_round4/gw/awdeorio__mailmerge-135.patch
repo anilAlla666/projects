@@ -1,0 +1,13 @@
+--- /dev/null
++++ b/tests/test_main_grader.py
+@@ -0,0 +1,10 @@
++import pytest
++from mailmerge import main
++
++
++def test_read_csv_database(tmp_path):
++    """Test reading CSV database with BOM"""
++    path = tmp_path / "test.csv"
++    path.write_text("\ufeffname,email\nJohn Doe,john@example.com")
++    data = list(main.read_csv_database(path))
++    assert len(data) == 1

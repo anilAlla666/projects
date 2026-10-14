@@ -1,0 +1,126 @@
+--- /dev/null
++++ b/unittests/test_launchers_grader.py
+@@ -0,0 +1,110 @@
++import os
++import pytest
++import reframe.core.launchers as launchers
++from reframe.core.backends import getlauncher
++from reframe.core.schedulers import Job, JobScheduler
++
++
++@pytest.fixture(params=[
++    'alps', 'launcherwrapper', 'local', 'mpiexec', 'mpirun',
++    'srun', 'srunalloc', 'ssh', 'upcrun', 'upcxx-run', 'lrun', 'lrun-gpu'
++])
++def launcher(request):
++    if request.param == 'launcherwrapper':
++        # We set the registered_name for the LauncherWrapper just for
++        # convenience for the rest of the unit tests
++        wrapper_cls = launchers.LauncherWrapper
++        wrapper_cls.registered_name = 'launcherwrapper'
++        return wrapper_cls(
++            getlauncher('alps')(), 'ddt', ['--offline']
++        )
++
++    return getlauncher(request.param)()
++
++
++@pytest.fixture
++def make_job():
++    class FakeJobScheduler(JobScheduler):
++        def make_job(self, *args, **kwargs):
++            return Job(*args, **kwargs)
++
++        def emit_preamble(self, job):
++            pass
++
++        def submit(self, job):
++            pass
++
++    return FakeJobScheduler()
++
++
++@pytest.fixture
++def minimal_job(make_job):
++    return make_job.make_job('host', 'user', 'fake_job', 'fake_stdout',
++                            'fake_stderr', 1, 1, 1, 1, 1, 1, 1, 1, 1,
++                            {'foo': None})
++
++
++def test_srun_env_var(monkeypatch):
++    monkeypatch.setenv('SLURM_CPUS_PER_TASK', '2')
++    monkeypatch.setenv('SRUN_CPUS_PER_TASK', '')
++
++    launcher = getlauncher('srun')()
++    job = Job('host', 'user', 'fake_job', 'fake_stdout', 'fake_stderr',
++              1, 1, 1, 1, 1, 1, 1, 1, 1, {'foo': None})
++
++    command = launcher.run_command(job)
++    assert command == 'srun --cpus-per-task=2 --foo'
++
++    # Test that SRUN_CPUS_PER_TASK takes precedence over SLURM_CPUS_PER_TASK
++    monkeypatch.setenv('SRUN_CPUS_PER_TASK', '4')
++    command = launcher.run_command(job)
++    assert command == 'srun --cpus-per-task=4 --foo'
++
++
++def test_srun_no_env_vars(monkeypatch):
++    monkeypatch.delenv('SLURM_CPUS_PER_TASK', raising=False)
++    monkeypatch.delenv('SRUN_CPUS_PER_TASK', raising=False)
++
++    launcher = getlauncher('srun')()
++    job = Job('host', 'user', 'fake_job', 'fake_stdout', 'fake_stderr',
++              1, 1, 1, 1, 1, 1, 1, 1, 1, {'foo': None})
++
++    command = launcher.run_command(job)
++    assert command == 'srun --foo'
++
++
++def test_srunalloc_env_var(monkeypatch):
++    monkeypatch.setenv('SLURM_CPUS_PER_TASK', '2')
++    monkeypatch.setenv('SRUN_CPUS_PER_TASK', '')
++
++    launcher = getlauncher('srunalloc')()
++    job = Job('host', 'user', 'fake_job', 'fake_stdout', 'fake_stderr',
++              4, 2, 1, 1, 1, 1, 4, 1, 1, {'foo': None})
++
++    command = launcher.run_command(job)
++    assert command == ('srun '
++                       '--job-name=fake_job '
++                       '--time=0:10:0 '
++                       '--output=fake_stdout '
++                       '--error=fake_stderr '
++                       '--ntasks=4 '
++                       '--ntasks-per-node=2 '
++                       '--ntasks-per-core=1 '
++                       '--ntasks-per-socket=1 '
++                       '--cpus-per-task=2 '
++                       '--exclusive '
++                       '--hint=multithread '
++                       '--gres=gpu:4 '
++                       '--fake '
++                       '--foo')
++
++
++def test_srunalloc_no_env_vars(monkeypatch):
++    monkeypatch.delenv('SLURM_CPUS_PER_TASK', raising=False)
++    monkeypatch.delenv('SRUN_CPUS_PER_TASK', raising=False)
++
++    launcher = getlauncher('srunalloc')()
++    job = Job('host', 'user', 'fake_job', 'fake_stdout', 'fake_stderr',
++              4, 2, 1, 1, 1, 1, 4, 1, 1, {'foo': None})
++
++    command = launcher.run_command(job)
++    assert command == ('srun '
++                       '--job-name=fake_job '
++                       '--output=fake_job.out '
++                       '--error=fake_job.err '
++                       '--ntasks=4 '
++                       '--ntasks-per-node=2 '
++                       '--ntasks-per-core=1 '
++                       '--ntasks-per-socket=1 '
++                       '--exclusive '
++                       '--hint=multithread '
++                       '--gres=gpu:4 '
++                       '--fake '
++                       '--foo')

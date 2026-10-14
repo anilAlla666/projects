@@ -1,0 +1,169 @@
+--- /dev/null
++++ b/tests/test_client_grader.py
+@@ -0,0 +1,166 @@
++"""
++Tests the ability to connect to the SAPI server with the `dwave.cloud.qpu.Client`.
++
++test_mock_solver_loading.py duplicates some of these tests against a mock server.
++"""
++
++
++from __future__ import absolute_import
++import json
++import unittest
++import warnings
++import requests.exceptions
++from plucky import merge
++from dwave.cloud.config import load_config
++from dwave.cloud.client import Client
++from dwave.cloud.solver import Solver
++from dwave.cloud.exceptions import (
++    SolverAuthenticationError, SolverError, SolverNotFoundError)
++from dwave.cloud.testing import mock
++import dwave.cloud
++from tests import config
++
++
++@mock.patch.object(dwave.cloud.config, 'load_config', return_value=config.TEST_CONFIG)
++class TestSolverLoading(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls, load_config):
++        cls.endpoint = config.TEST_CONFIG.endpoint
++        cls.token = config.TEST_CONFIG.token
++        cls.permissive_ssl = config.TEST_CONFIG.permissive_ssl
++        cls.proxy = config.TEST_CONFIG.proxy
++
++        cls.load_config = load_config
++
++        # instantiate a client to use across tests
++        cls.client = Client(
++            cls.endpoint, cls.token, permissive_ssl=cls.permissive_ssl,
++            proxy=cls.proxy)
++
++        # create a fake solver for testing
++        cls.fake_solver = Solver(
++            id='fake_solver',
++            url='/solvers/fake_solver/',
++            parameters={
++                'h': {'type': 'array'},
++                'J': {'type': 'array'}
++            },
++            properties={
++                'chip_id': 'fake_chip',
++                'description': 'this is a fake solver',
++                'is_qpu': True,
++                'is_software': False,
++                'is_simulated': False,
++                'is_beta': False,
++                'is_sampled': False,
++                'is_online': True,
++                'num_qubits': 10,
++                'num_readout_nodes': 10,
++                'num_active_qubits': 10,
++                'num_programming_cycles': 10,
++                'num_analog_cycles': 10,
++                'annealing_time_per_cycle_ns': 10,
++                'readout_time_per_cycle_ns': 10,
++                'coupling_map': [],
++                'num_reads_range': [1, 1],
++                'problem_type': ['ising', 'qubo'],
++                'supported_problem_types': ['ising', 'qubo'],
++                'max_anneal_schedule_points': 1,
++                'num_anneals_per_chain': 1,
++                'num_chains': 1,
++                'chain_strength_min': 1,
++                'chain_strength_max': 1,
++                'beta_range': [1, 1],
++                'temperature_range': [1, 1]
++            })
++
++    def setUp(self):
++        # reset the mock responses
++        self.client._reset_responses()
++
++    def test_filter_by_property_with_none(self):
++        # filter by property that might be None
++        # note: this would fail without patching operator.{eq, gt, lt, ge, le}
++        res = self.client.get_solvers(name='fake_solver')
++        self.assertEqual(res, [self.fake_solver])
++
++        res = self.client.get_solvers(name=None)
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(properties__vfyc=None)
++        self.assertEqual(res, [self.fake_solver])
++
++        res = self.client.get_solvers(properties__vfyc__gt=1)
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(properties__vfyc__lt=1)
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(properties__vfyc__ge=1)
++        self.assertEqual(res, [self.fake_solver])
++
++        res = self.client.get_solvers(properties__vfyc__le=1)
++        self.assertEqual(res, [self.fake_solver])
++
++        res = self.client.get_solvers(properties__vfyc__ne=1)
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(properties__vfyc__not_eq=1)
++        self.assertEqual(res, [])
++
++    def test_filter_by_invalid_property(self):
++        # filter by property that doesn't exist
++        res = self.client.get_solvers(non_existing_key=None)
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__gt=1)
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__lt=1)
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__ge=1)
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__le=1)
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__ne=1)
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__not_eq=1)
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__in=[1, 2])
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__not_in=[1, 2])
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__contains=[1, 2])
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__not_contains=[1, 2])
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__contains=1)
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__not_contains=1)
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__issubset=[1, 2])
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__issuperset=[1, 2])
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__covers=[1, 2])
++        self.assertEqual(res, [])
++
++        res = self.client.get_solvers(non_existing_key__within=[1, 2])
++        self.assertEqual(res, [])
++
++
++if __name__ == '__main__':
++    unittest.main()

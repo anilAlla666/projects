@@ -1,0 +1,37 @@
+diff --git a/tests/unit/test_snow2_fix.py b/tests/unit/test_snow2_fix.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/unit/test_snow2_fix.py
+@@ -0,0 +1,30 @@
++import pytest
++import numpy as np
++import porespy as ps
++
++class TestSnow2Fix:
++    def test_boundary_width_on_both_ends(self):
++        im = ps.generators.blobs(shape=[200, 200])
++        try:
++            snow2 = ps.networks.snow2(im, boundary_width=[[5, 15], [10, 10]])
++        except TypeError as e:
++            assert "must be of integral type" not in str(e), "Padding widths should be integers"
++        else:
++            assert isinstance(snow2, ps.networks.NetworkResults), "Function should return a NetworkResults object"
++
++    def test_boundary_width_on_one_end(self):
++        im = ps.generators.blobs(shape=[200, 200])
++        try:
++            snow2 = ps.networks.snow2(im, boundary_width=[[5, 15], 10])
++        except TypeError as e:
++            assert "must be of integral type" not in str(e), "Padding widths should be integers"
++        else:
++            assert isinstance(snow2, ps.networks.NetworkResults), "Function should return a NetworkResults object"
++
++if __name__ == '__main__':
++    t = TestSnow2Fix()
++    self = t
++    t.setup_class()
++    for item in t.__dir__():
++        if item.startswith('test'):
++            print(f'Running test: {item}')
++            t.__getattribute__(item)()

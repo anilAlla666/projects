@@ -1,0 +1,98 @@
+--- /dev/null
++++ b/commentjson/tests/test_commentjson_grader.py
+@@ -0,0 +1,144 @@
++try:
++    import json
++except ImportError:
++    import simplejson as json
++
++
++import commentjson
++import os
++import unittest
++from six import iteritems
++
++
++class TestCommentJson(unittest.TestCase):
++    def setUp(self):
++        self.test_json = {}
++        self.path = os.path.dirname(os.path.abspath(__file__))
++        self.files = ('sample', 'line_comment', 'inline_last_float',
++                      'inline_last_int', 'nested_object', 'string_with_hash',
++                      'string_with_inline_comment',
++                      'inline_has_special_characters',
++                      'array_with_hash',
++                      'inline_last_quote')
++
++        for file_ in self.files:
++            fpath = os.path.join(self.path, file_)
++
++            with open('%s-uncommented.json' % fpath) as fp:
++                uncommented = fp.read()
++            with open('%s-commented.json' % fpath) as fp:
++                commented = fp.read()
++
++            self.test_json.update({
++                file_: {
++                    'uncommented': uncommented,
++                    'commented': commented,
++                },
++            })
++
++    def tearDown(self):
++        for file_ in self.files:
++            os.remove('%s-commented.json' % os.path.join(
++                self.path, file_,
++            ))
++
++    def test_dumps_trailing_comma(self):
++        data = {'key': 'value'}
++        self.assertEqual(json.dumps(data)[:-1], commentjson.dumps(data))
++
++        data = ['item1', 'item2']
++        self.assertEqual(json.dumps(data)[:-1], commentjson.dumps(data))
++
++        data = [{'key': 'value'}]
++        self.assertEqual(json.dumps(data)[:-1], commentjson.dumps(data))
++
++    def test_dumps_trailing_comma_enabled(self):
++        data = {'key': 'value'}
++        self.assertEqual(json.dumps(data), commentjson.dumps(data, trailing_commas=True))
++
++        data = ['item1', 'item2']
++        self.assertEqual(json.dumps(data), commentjson.dumps(data, trailing_commas=True))
++
++        data = [{'key': 'value'}]
++        self.assertEqual(json.dumps(data), commentjson.dumps(data, trailing_commas=True))
++
++    def test_dumps_trailing_comma_disabled(self):
++        data = {'key': 'value'}
++        self.assertEqual(json.dumps(data)[:-1], commentjson.dumps(data, trailing_commas=False))
++
++        data = ['item1', 'item2']
++        self.assertEqual(json.dumps(data)[:-1], commentjson.dumps(data, trailing_commas=False))
++
++        data = [{'key': 'value'}]
++        self.assertEqual(json.dumps(data)[:-1], commentjson.dumps(data, trailing_commas=False))
++
++    def test_load(self):
++        for file_ in self.files:
++            rfp = open(os.path.join(self.path, '%s-commented.json' % file_),
++                       'r')
++            uncommented = self.test_json[file_]['uncommented']
++            assert commentjson.load(rfp, allow_trailing_commas=True) == json.loads(uncommented)
++            rfp.close()
++
++    def test_load_with_kwargs(self):
++        def test_hook(loaded_dict):
++            return {}
++
++        test_kwargs = dict(object_hook=test_hook)
++        rfp = open(os.path.join(self.path, 'sample-commented.json'), 'r')
++
++        self.assertEqual(commentjson.load(rfp, allow_trailing_commas=True, **test_kwargs), {})
++        rfp.close()
++
++
++if __name__ == '__main__':
++    unittest.main()

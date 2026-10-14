@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_ast_decompiler_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++from .decompiler import decompile
++
++
++@pytest.mark.parametrize(
++    ("input_code", "expected_output"),
++    [
++        ("def a():\n    \"\"\"\n    Docstring.\n    \"\"\"\n    return 1\n", "def a():\n    \"\"\"\n    Docstring.\n    \"\"\"\n    return 1\n"),
++        ('def f(x):\n    """Docstring."""\n    print(x)\n', 'def f(x):\n    """Docstring."""\n    print(x)\n'),
++    ],
++)
++def test_docstrings(input_code, expected_output):
++    assert decompile(input_code) == expected_output

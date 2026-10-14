@@ -1,0 +1,136 @@
+--- /dev/null
++++ b/tests/test_recorder_test_grader.py
+@@ -0,0 +1,100 @@
++import socket
++import sys
++import time
++import lightstep.constants
++import lightstep.recorder
++import lightstep.tracer
++from basictracer.span import BasicSpan
++from basictracer.context import SpanContext
++from opentracing.logs import ERROR_KIND, STACK, ERROR_OBJECT
++import pytest
++from lightstep.crouton import ttypes
++
++
++class MockConnection(object):
++    """MockConnection is used to debug and test Runtime.
++    """
++
++    def __init__(self):
++        self.reports = []
++        self.ready = False
++
++    def open(self):
++        self.ready = True
++
++    def report(self, _, report):
++        """Mimic the Thrift client's report method. Instead of sending report
++            requests save them to a list.
++        """
++        self.reports.append(report)
++        return ttypes.ReportResponse()
++
++    def close(self):
++        pass
++
++    def clear(self):
++        """Delete the current report requests.
++        """
++        self.reports[:] = []
++
++
++def test_sampled():
++    mock_connection = MockConnection()
++    recorder = lightstep.recorder.Recorder(use_http=True)
++    tracer = lightstep.tracer.Tracer(recorder=recorder)
++
++    span = tracer.start_span(operation_name="test")
++    span.set_tag(lightstep.constants.SAMPLED_KEY, True)
++    span.finish()
++
++    assert len(recorder._span_records) == 1
++    assert recorder.flush(mock_connection)
++    spans = recorder.converter.get_span_records(mock_connection.reports[0])
++    assert spans[0].flags == 1
++
++    span = tracer.start_span(operation_name="test")
++    span.set_tag(lightstep.constants.SAMPLED_KEY, False)
++    span.finish()
++
++    assert len(recorder._span_records) == 2
++    assert recorder.flush(mock_connection)
++    spans = recorder.converter.get_span_records(mock_connection.reports[1])
++    assert spans[0].flags == 0
++
++
++def test_sampled_inject_extract():
++    mock_connection = MockConnection()
++    recorder = lightstep.recorder.Recorder(use_http=True)
++    tracer = lightstep.tracer.Tracer(recorder=recorder)
++
++    span = tracer.start_span(operation_name="test")
++    span.set_tag(lightstep.constants.SAMPLED_KEY, True)
++    span.finish()
++
++    assert len(recorder._span_records) == 1
++    assert recorder.flush(mock_connection)
++    spans = recorder.converter.get_span_records(mock_connection.reports[0])
++    assert spans[0].flags == 1
++
++    carrier = {}
++    tracer.inject(span.context, lightstep.propagation.LightStepFormat.TEXT_MAP, carrier)
++    assert carrier["lightstep-span-flags"] == "1"
++
++    extracted_span = tracer.extract(lightstep.propagation.LightStepFormat.TEXT_MAP, carrier)
++    assert extracted_span.flags == 1
++
++    span = tracer.start_span(operation_name="test")
++    span.set_tag(lightstep.constants.SAMPLED_KEY, False)
++    span.finish()
++
++    assert len(recorder._span_records) == 2
++    assert recorder.flush(mock_connection)
++    spans = recorder.converter.get_span_records(mock_connection.reports[1])
++    assert spans[0].flags == 0
++
++    carrier = {}
++    tracer.inject(span.context, lightstep.propagation.LightStepFormat.TEXT_MAP, carrier)
++    assert carrier["lightstep-span-flags"] == "0"
++
++    extracted_span = tracer.extract(lightstep.propagation.LightStepFormat.TEXT_MAP, carrier)
++    assert extracted_span.flags == 0
+--- /dev/null
++++ b/tests/test_lightstep_binary_propagator_test_grader.py
+@@ -0,0 +1,26 @@
++import unittest
++import lightstep
++from lightstep.propagation import LightStepFormat
++
++
++class LightStepBinaryPropagatorTest(unittest.TestCase):
++    def setUp(self):
++        self._tracer = lightstep.Tracer(
++                periodic_flush_seconds=0,
++                collector_host='localhost')
++
++    def tracer(self):
++        return self._tracer
++
++    def tearDown(self):
++        self._tracer.flush()
++
++    def testSampledFlag(self):
++        carrier = bytearray()
++        span = self.tracer().start_span('Sending request')
++        span.set_baggage_item('checked', 'baggage')
++        span.set_tag(lightstep.constants.SAMPLED_KEY, True)
++
++        self.tracer().inject(span.context, LightStepFormat.LIGHTSTEP_BINARY, carrier)
++
++        result = self.tracer().extract(LightStepFormat.LIGHTSTEP_BINARY, carrier)
++        self.assertEqual(span.context.span_id, result.span_id)
++        self.assertEqual(span.context.trace_id, result.trace_id)
++        self.assertEqual(span.context.baggage, result.baggage)
++        self.assertEqual(span.context.sampled, result.sampled)

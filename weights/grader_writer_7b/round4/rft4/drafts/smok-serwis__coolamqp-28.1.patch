@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_attach_consumer_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++from coolamqp.attaches import Consumer
++
++
++@pytest.mark.parametrize('qos', [None, 0, 1])
++def test_qos(qos):
++    q = Consumer(queue='foo', on_message=lambda x: None, qos=qos)
++    assert q.qos == (0, qos)
++
++
++def test_invalid_qos():
++    with pytest.raises(ValueError):
++        Consumer(queue='foo', on_message=lambda x: None, qos=(0, 'bar'))

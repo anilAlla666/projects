@@ -1,0 +1,84 @@
+--- /dev/null
++++ b/tests/test_gs_pip_install_grader.py
+@@ -0,0 +1,82 @@
++"""Tests for `gs_pip_install` package."""
++
++
++import unittest
++import tempfile
++import shutil
++import os
++from unittest import mock
++from click.testing import CliRunner
++from gs_pip_install import gs_pip_install
++
++
++class TestInstall(unittest.TestCase):
++    example_packages = ['package', 'versioned_package==1.3.1']
++
++    download_dir = 'gs_packages'
++
++    req_dir = 'requirements'
++
++    req_file = os.path.join(req_dir, 'requirements_gcs.txt')
++
++    def setUp(self):
++        mock.patch('google.cloud')
++        self.test_dir = tempfile.mkdtemp()
++        os.mkdir(os.path.join(self.test_dir, self.req_dir))
++        os.mkdir(os.path.join(self.test_dir, self.download_dir))
++        for package in self.example_packages:
++            with open(os.path.join(self.test_dir, self.req_file), 'a') as f:
++                f.write(f'{package}\n')
++            # Create empty files for packages
++            with open(os.path.join(self.test_dir, self.download_dir, package), 'x'):
++                pass
++
++    def tearDown(self):
++        shutil.rmtree(self.test_dir)
++
++    @mock.patch('subprocess.check_output')
++    def test_install_packages_with_target_dir(self, mock_subprocess):
++        package_dest = os.path.join(self.test_dir, self.download_dir)
++        test_target_dir = 'some_dir'
++
++        gs_pip_install.install_packages(
++            packages_download_dir=package_dest, target_dir=test_target_dir
++        )
++        for package in self.example_packages:
++            mock_subprocess.call_count == 2
++            mock_subprocess.assert_any_call(
++                [
++                    f"{os.environ['TEST_PYTHON']}",
++                    "-m",
++                    "pip",
++                    "install",
++                    "--quiet",
++                    "--no-deps",
++                    '--upgrade',
++                    "-t",
++                    test_target_dir,
++                    f"{os.path.join(package_dest, package)}",
++                ]
++            )
++
++    @mock.patch('os.listdir')
++    @mock.patch('subprocess.check_output')
++    def test_install_packages_with_extras(self, mock_subprocess, mock_list_dir):
++
++        mock_list_dir.return_value = ['some_package.tar.gz']
++        gs_pip_install.install_packages(
++            packages_download_dir='some_download_dest',
++            extras={'some_package': '[extra_a, extra_b]'},
++        )
++        mock_subprocess.assert_called_once_with(
++            [
++                f"{os.environ['TEST_PYTHON']}",
++                "-m",
++                "pip",
++                "install",
++                "--quiet",
++                "--upgrade",
++                "some_download_dest/some_package.tar.gz[extra_a, extra_b]",
++            ]
++        )

@@ -1,0 +1,72 @@
+--- /dev/null
++++ b/test_zipp_grader.py
+@@ -0,0 +1,62 @@
++from __future__ import division, unicode_literals
++import io
++import zipfile
++import posixpath
++import contextlib
++import tempfile
++import shutil
++
++
++try:
++    import pathlib
++except ImportError:
++    import pathlib2 as pathlib
++
++
++try:
++    from contextlib import ExitStack
++except ImportError:
++    from contextlib2 import ExitStack
++
++
++try:
++    import unittest
++
++    unittest.TestCase.subTest
++except AttributeError:
++    import unittest2 as unittest
++
++
++import zipp
++
++
++__metaclass__ = type
++
++
++consume = tuple
++
++
++def add_dirs(zipfile):
++    """
++    Given a writable zipfile, inject directory entries for
++    any directories implied by the presence of children.
++    """
++    names = zipfile.namelist()
++    dirs = set(posixpath.dirname(name) for name in names)
++    for dir in dirs:
++        if dir and dir not in names:
++            zipfile.writestr(dir, b"")
++
++
++class TestPath(unittest.TestCase):
++    def setUp(self):
++        self.tempdirs = []
++
++    def tearDown(self):
++        for td in self.tempdirs:
++            shutil.rmtree(td)
++
++    def create_zipfile(self, *entries):
++        tfd, tmpname = tempfile.mkstemp(suffix=".zip")
++        try:
++            with io.open(tmpname, "w+b") as fp:
++                with zipfile.ZipFile(fp, "w") as zf:
++                    add_dirs(zf)
++                    for entry in entries:
++                        zf.writestr(entry[0], entry[1])
++        finally:
++            os.close(tfd)
++        return tmpname

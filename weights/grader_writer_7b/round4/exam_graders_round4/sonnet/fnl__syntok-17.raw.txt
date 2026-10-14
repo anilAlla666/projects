@@ -1,0 +1,54 @@
+I've added a new test file, `syntok/tokenizer_not_contraction_test.py`. I have not run the tests. They assert that an `n't` token's offset points at the `n`, not at the apostrophe.
+
+- **Non-replacing tests:** these cover the two examples from the issue ("n't" and "don't"), plus "I don't" and "can't". Each also checks that slicing the text at the token's offset reproduces the token value.
+- **Replacing test:** with `replace_not_contraction=True`, the issue doesn't say what offset the replacement "not" should get. I assume it should be the offset of the original `n` (2 in "don't"). If you'd rather leave that open, drop `test_replaced_not_offset`.
+
+```diff
+--- /dev/null
++++ b/syntok/tokenizer_not_contraction_test.py
+@@ -0,0 +1,45 @@
++from unittest import TestCase
++
++from syntok.tokenizer import Tokenizer
++
++
++class TestNotContractionOffsets(TestCase):
++
++    def setUp(self) -> None:
++        self.tokenizer = Tokenizer(replace_not_contraction=False)
++
++    def test_bare_nt(self):
++        text = "n't"
++        result = self.tokenizer.split(text)
++        self.assertListEqual([t.value for t in result], ["n't"])
++        self.assertListEqual([t.offset for t in result], [0])
++
++    def test_dont(self):
++        text = "don't"
++        result = self.tokenizer.split(text)
++        self.assertListEqual([t.value for t in result], ["do", "n't"])
++        self.assertListEqual([t.offset for t in result], [0, 2])
++
++    def test_cant(self):
++        text = "can't"
++        result = self.tokenizer.split(text)
++        self.assertListEqual([t.value for t in result], ["ca", "n't"])
++        self.assertListEqual([t.offset for t in result], [0, 2])
++
++    def test_dont_in_sentence(self):
++        text = "I don't know"
++        result = self.tokenizer.split(text)
++        self.assertListEqual([t.value for t in result], ["I", "do", "n't", "know"])
++        self.assertListEqual([t.offset for t in result], [0, 2, 4, 8])
++
++    def test_offsets_match_text(self):
++        text = "Prices do n't hurt, they don't."
++        for t in self.tokenizer.split(text):
++            self.assertEqual(t.value, text[t.offset:t.offset + len(t.value)])
++
++    def test_replaced_not_offset(self):
++        tokenizer = Tokenizer(replace_not_contraction=True)
++        result = tokenizer.split("don't")
++        self.assertListEqual([t.value for t in result], ["do", "not"])
++        self.assertListEqual([t.offset for t in result], [0, 2])
+```

@@ -1,0 +1,54 @@
+--- a/zarr/tests/test_util.py
++++ b/zarr/tests/test_util.py
+@@ -1,5 +1,6 @@
+ import re
++import warnings
+ from unittest import mock
+ 
+ import numpy as np
+ import pytest
+ 
+@@ -23,6 +24,43 @@
+         normalize_dimension_separator('X')
+ 
+ 
++def test_normalize_fill_value_structured_no_warning():
++    dtype = np.dtype([('a', int), ('b', int)])
++
++    # zero-valued structured fill value
++    fill = np.zeros((), dtype=dtype)[()]
++    with warnings.catch_warnings():
++        warnings.simplefilter('error')
++        result = normalize_fill_value(fill, dtype)
++    assert result == fill
++    assert result.dtype == dtype
++
++    # non-zero structured fill value is preserved
++    fill = np.array((1, 2), dtype=dtype)[()]
++    with warnings.catch_warnings():
++        warnings.simplefilter('error')
++        result = normalize_fill_value(fill, dtype)
++    assert result['a'] == 1
++    assert result['b'] == 2
++
++    # plain zero still works for structured dtype
++    with warnings.catch_warnings():
++        warnings.simplefilter('error')
++        result = normalize_fill_value(0, dtype)
++    assert result == np.zeros((), dtype=dtype)[()]
++
++
++def test_group_create_structured_fill_value_no_warning():
++    import zarr
++    dtype = [('a', int), ('b', int)]
++    fill = np.zeros((), dtype=dtype)[()]
++    group = zarr.open()
++    with warnings.catch_warnings():
++        warnings.simplefilter('error')
++        arr = group.create('foo', dtype=dtype, fill_value=fill, shape=(10, 10))
++    assert arr.shape == (10, 10)
++
++
+ def test_normalize_shape():
+     assert (100,) == normalize_shape((100,))
+     assert (100,) == normalize_shape([100])

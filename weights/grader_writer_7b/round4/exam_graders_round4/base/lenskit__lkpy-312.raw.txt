@@ -1,0 +1,84 @@
+To address the issues with the `ndcg` metric, we need to add new tests that will fail with the current implementation and pass after the fixes are applied. These tests should focus on the specific cases mentioned in the issue description.
+
+Here is a unified diff that adds two new test files (`tests/test_topn_ndcg.py`):
+
+```diff
+diff --git a/tests/test_topn_ndcg.py b/tests/test_topn_ndcg.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_topn_ndcg.py
+@@ -0,0 +1,100 @@
++import numpy as np
++import pandas as pd
++
++from lenskit.metrics.topn import ndcg
++
++
++def test_ndcg_no_k():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [1, 2]})
++
++    assert ndcg(recs, truth) != 0.7344
++    assert ndcg(recs, truth, k=2) == 0.8888
++
++
++def test_ndcg_with_k_less_than_list_length():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [2, 3, 1]})
++
++    assert ndcg(recs, truth) == 1.0
++    assert ndcg(recs, truth, k=2) != 1.21
++    assert ndcg(recs[:2], truth, k=2) == 1.0
++
++
++def test_ndcg_with_k_greater_than_list_length():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [1, 2]})
++
++    assert ndcg(recs, truth, k=3) == 0.8888
++
++
++def test_ndcg_with_empty_recommendations():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': []})
++
++    assert ndcg(recs, truth) == 0.0
++
++
++def test_ndcg_with_all_irrelevant_items():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [4, 5, 6]})
++
++    assert ndcg(recs, truth) == 0.0
++
++
++def test_ndcg_with_single_relevant_item():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [2]})
++
++    assert ndcg(recs, truth) == 1.0
++
++
++def test_ndcg_with_multiple_relevant_items():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [2, 3]})
++
++    assert ndcg(recs, truth) == 1.0
++
++
++def test_ndcg_with_tie_in_ratings():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 3.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [2, 3]})
++
++    assert ndcg(recs, truth) == 1.0
+```
+
+These tests cover various scenarios related to the `ndcg` metric, including cases where `k` is not specified, when `k` is less than the length of the recommendation list, when `k` is greater than the length of the recommendation list, when there are no recommendations, when all recommended items are irrelevant, when there is a single relevant item, when there are multiple relevant items, and when there is a tie in ratings. These tests should fail with the current implementation and pass after the fixes are applied.

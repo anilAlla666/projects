@@ -1,0 +1,58 @@
+--- /dev/null
++++ b/commentjson/tests/test_commentjson_grader.py
+@@ -0,0 +1,55 @@
++try:
++    import json
++except ImportError:
++    import simplejson as json
++
++
++import commentjson
++import os
++import unittest
++from six import iteritems
++
++
++class TestCommentJson(unittest.TestCase):
++    def setUp(self):
++        self.test_json = {}
++        self.path = os.path.dirname(os.path.abspath(__file__))
++        self.files = ('sample', 'line_comment', 'inline_last_float',
++                      'inline_last_int', 'nested_object', 'string_with_hash',
++                      'string_with_inline_comment',
++                      'inline_has_special_characters',
++                      'array_with_hash',
++                      'inline_last_quote',
++                      'trailing_comma',
++                      )
++
++        for file_ in self.files:
++            fpath = os.path.join(self.path, file_)
++
++            with open('%s-uncommented.json' % fpath) as fp:
++                uncommented = fp.read()
++            with open('%s-commented.json' % fpath) as fp:
++                commented = fp.read()
++
++            self.test_json.update({
++                file_: {
++                    'uncommented': uncommented,
++                    'commented': commented,
++                },
++            })
++
++    def tearDown(self):
++        for file_ in self.files:
++            os.remove('%s-commented.json' % os.path.join(
++                self.path, file_, ))
++
++    def test_trailing_comma(self):
++        rfp = open(os.path.join(self.path, 'trailing_comma-commented.json'),
++                   'r')
++        uncommented = self.test_json['trailing_comma']['uncommented']
++        assert commentjson.load(rfp) == json.loads(uncommented)
++        rfp.close()
++
++
++if __name__ == '__main__':
++    unittest.main()

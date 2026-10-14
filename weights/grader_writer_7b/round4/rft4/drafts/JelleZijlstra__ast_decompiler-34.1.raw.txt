@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_grader.py
+@@ -0,0 +1,14 @@
++import pytest
++from .decompiler import decompile
++
++
++@pytest.mark.parametrize(
++    ("source", "expected"),
++    [
++        ("def a():\n    \"\"\"\n    Docstring.\n    \"\"\"\n    return 1\n", 'def a():\n """\n Docstring.\n """\n return 1'),
++        ('def a():\n    """Docstring."""\n    return 1\n', 'def a():\n """Docstring."""\n return 1'),
++    ],
++)
++def test_docstrings(source, expected):
++    assert decompile(source, indent=1) == expected

@@ -1,0 +1,60 @@
+--- /dev/null
++++ b/test_amr_grader.py
+@@ -0,0 +1,60 @@
++from amr import *
++
++
++def test_parse_amr_top_property():
++    """
++    This test case checks the following:
++        - that the TOP property exists in the output
++        - that the TOP property matches the value of the root node
++    """
++    amr_string = "(a/b c \"d\")"
++    amr = AMR.parse_AMR(amr_string)
++    assert "TOP" in amr.attribute_list[0]
++    assert amr.attribute_list[0]["TOP"] == amr.node_value_list[0]
++
++
++def test_compare_amr_top_property():
++    """
++    This test case checks the following:
++        - that the top property matches between two equivalent AMRs
++        - that the top property does not match when the root node differs
++    """
++    amr_string_1 = "(a/b c \"d\")"
++    amr_string_2 = "(e/f c \"d\")"
++    amr_1 = AMR.parse_AMR(amr_string_1)
++    amr_2 = AMR.parse_AMR(amr_string_2)
++    assert compare_amrs(amr_1, amr_2)[0][2] == 1
++
++    amr_string_1 = "(a/b c \"d\")"
++    amr_string_2 = "(b/a c \"d\")"
++    amr_1 = AMR.parse_AMR(amr_string_1)
++    amr_2 = AMR.parse_AMR(amr_string_2)
++    assert compare_amrs(amr_1, amr_2)[0][2] == 0.5
++
++    amr_string_1 = "(a/b c \"d\")"
++    amr_string_2 = "(c/d e \"f\")"
++    amr_1 = AMR.parse_AMR(amr_string_1)
++    amr_2 = AMR.parse_AMR(amr_string_2)
++    assert compare_amrs(amr_1, amr_2)[0][2] == 0.0
++
++
++def test_compare_amr_top_property_with_quotes():
++    """
++    This test case checks the following:
++        - that the top property matches when the root node has quotes
++        - that the top property does not match when the root node differs
++    """
++    amr_string_1 = '(a/b "c" "d")'
++    amr_string_2 = "(e/f c \"d\")"
++    amr_1 = AMR.parse_AMR(amr_string_1)
++    amr_2 = AMR.parse_AMR(amr_string_2)
++    assert compare_amrs(amr_1, amr_2)[0][2] == 1
++
++    amr_string_1 = '(a/b "c" "d")'
++    amr_string_2 = "(b/a c \"d\")"
++    amr_1 = AMR.parse_AMR(amr_string_1)
++    amr_2 = AMR.parse_AMR(amr_string_2)
++    assert compare_amrs(amr_1, amr_2)[0][2] == 0.5

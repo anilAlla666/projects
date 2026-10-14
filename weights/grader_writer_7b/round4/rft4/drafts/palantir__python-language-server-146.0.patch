@@ -1,0 +1,26 @@
+--- /dev/null
++++ b/tests/test_pyls_plugins_grader.py
+@@ -0,0 +1,23 @@
++import os
++import shutil
++from pathlib import Path
++from unittest.mock import patch
++
++
++def test_pycode_style_no_file():
++    """Test that the default configuration works."""
++    config = None
++    document = MockDocument("")
++    assert len(list(pycode_style.lints(config, document))) == 0
++
++
++def test_pycode_style_custom_config():
++    """Test that custom configuration works."""
++    config = MockConfig({"pycodestyle": {"max-line-length": 1}})
++    document = MockDocument("#"*10)
++    assert len(list(pycode_style.lints(config, document))) == 1
++
++
++class MockConfig(object):
++    def find_parents(self, path, names):
++        return ["."]

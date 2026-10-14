@@ -1,0 +1,37 @@
+--- /dev/null
++++ b/zarr/tests/test_util_grader.py
+@@ -0,0 +1,34 @@
++import re
++from unittest import mock
++import numpy as np
++import pytest
++from zarr.core import Array
++from zarr.util import (ConstantMap, all_equal, flatten, guess_chunks, human_readable_size,
++                       info_html_report, info_text_report, is_total_slice,
++                       json_dumps, normalize_chunks,
++                       normalize_dimension_separator,
++                       normalize_fill_value, normalize_order,
++                       normalize_resize_args, normalize_shape, retry_call,
++                       tree_array_icon, tree_group_icon, tree_get_icon,
++                       tree_widget)
++
++
++def test_normalize_fill_value():
++    dtypes = [
++        np.dtype('i1'),
++        np.dtype('u1'),
++        np.dtype('i2'),
++        np.dtype('u2'),
++        np.dtype('i4'),
++        np.dtype('u4'),
++        np.dtype('i8'),
++        np.dtype('u8'),
++        np.dtype('f4'),
++        np.dtype('f8'),
++        np.dtype('c8'),
++        np.dtype('c16'),
++        np.dtype('<U1'),
++        np.dtype('>U1'),
++    ]
++    for dtype in dtypes:
++        assert normalize_fill_value(0, dtype) == 0

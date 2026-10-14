@@ -1,0 +1,68 @@
+--- /dev/null
++++ b/tests/test_commands_grader.py
+@@ -0,0 +1,68 @@
++import unittest
++from uuid import UUID
++import requests_mock
++from click.testing import CliRunner
++from alertaclient.api import Client
++from alertaclient.commands.cmd_heartbeat import cli as heartbeat_cmd
++from alertaclient.commands.cmd_heartbeats import cli as heartbeats_cmd
++from alertaclient.commands.cmd_whoami import cli as whoami_cmd
++from alertaclient.config import Config
++
++
++class CommandsTestCase(unittest.TestCase):
++    def setUp(self):
++        self.client = Client()
++
++        config = Config(config_file=None)
++        self.obj = config.options
++        self.obj['client'] = self.client
++
++        self.runner = CliRunner(echo_stdin=True)
++
++    @requests_mock.mock()
++    def test_heartbeats_cmd(self, m):
++
++        heartbeats_response = """
++        {
++          "heartbeats": [
++            {
++              "attributes": {},
++              "createTime": "2020-01-25T12:32:50.223Z",
++              "customer": null,
++              "href": "http://api.local.alerta.io:8080/heartbeat/e07d7c02-0b41-418a-b0e6-cd172e06c872",
++              "id": "e07d7c02-0b41-418a-b0e6-cd172e06c872",
++              "latency": 14,
++              "maxLatency": 2000,
++              "origin": "alerta/macbook.lan",
++              "receiveTime": "2020-01-25T12:32:50.237Z",
++              "since": 0,
++              "status": "ok",
++              "tags": [],
++              "timeout": 86400,
++              "type": "Heartbeat"
++            }
++          ]
++        }
++        """
++
++        m.get('/heartbeats', text=heartbeats_response)
++        result = self.runner.invoke(heartbeats_cmd, ['-t', 600], obj=self.obj)
++        self.assertIn('Origin', result.output)
++        self.assertEqual(result.exit_code, 0)
++
++    @requests_mock.mock()
++    def test_heartbeats_alert_cmd(self, m):
++
++        heartbeats_response = """
++        {
++          "heartbeats": []
++        }
++        """
++
++        m.get('/heartbeats', text=heartbeats_response)
++        result = self.runner.invoke(heartbeats_cmd, ['-t', 600, '--alert'], obj=self.obj)
++        self.assertIn('No heartbeats to alert about.', result.output)
++        self.assertEqual(result.exit_code, 0)

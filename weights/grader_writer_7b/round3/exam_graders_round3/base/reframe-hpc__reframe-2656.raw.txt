@@ -1,0 +1,39 @@
+Here is a unified diff that adds two new tests to `unittests/test_launchers.py`. These tests will ensure that the `SrunLauncher` correctly handles the change in behavior introduced in Slurm version 22.05.
+
+```diff
+diff --git a/unittests/test_launchers.py b/unittests/test_launchers.py
+index 3a4b5c6..7d8e9f0 100644
+--- a/unittests/test_launchers.py
++++ b/unittests/test_launchers.py
+@@ -118,6 +118,24 @@ def test_run_command_with_options(options_job):
+     assert command == 'srun --foo'
+ 
++def test_srun_no_cpus_per_task_error(simple_job):
++    simple_job.launcher.options = []
++    with pytest.raises(ValueError):
++        simple_job.launcher.run_command(simple_job)
++
++def test_srun_with_cpus_per_task(simple_job):
++    simple_job.launcher.options = []
++    simple_job.environ['SLURM_CPUS_PER_TASK'] = '2'
++    command = simple_job.launcher.run_command(simple_job)
++    assert command == 'srun --cpus-per-task=2 --foo'
++
++def test_srun_with_env_var(simple_job):
++    simple_job.launcher.options = []
++    simple_job.environ['SRUN_CPUS_PER_TASK'] = '2'
++    command = simple_job.launcher.run_command(simple_job)
++    assert command == 'srun --cpus-per-task=2 --foo'
++
+ def test_run_command_with_alloc(simple_job):
+     simple_job.launcher.options = ['--alloc']
+     command = simple_job.launcher.run_command(simple_job)
+```
+
+These tests cover different scenarios related to the `SrunLauncher`:
+
+1. `test_srun_no_cpus_per_task_error`: Ensures that an error is raised when `SLURM_CPUS_PER_TASK` is not set and `--cpus-per-task` is not provided.
+2. `test_srun_with_cpus_per_task`: Verifies that the `SrunLauncher` correctly includes `--cpus-per-task` when `SLURM_CPUS_PER_TASK` is set but `--cpus-per-task` is not provided.
+3. `test_srun_with_env_var`: Checks that the `SrunLauncher` correctly uses the `SRUN_CPUS_PER_TASK` environment variable instead of `SLURM_CPUS_PER_TASK`.
+
+These tests should fail with the current implementation and pass after applying the necessary fixes.

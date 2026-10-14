@@ -1,0 +1,224 @@
+--- /dev/null
++++ b/stacker/tests/hooks/test_aws_lambda_grader.py
+@@ -0,0 +1,203 @@
++from __future__ import print_function
++from __future__ import division
++from __future__ import absolute_import
++from future import standard_library
++standard_library.install_aliases()
++from builtins import range
++import os.path
++import os
++import unittest
++import mock
++import random
++from io import BytesIO as StringIO
++from zipfile import ZipFile
++import boto3
++import botocore
++from troposphere.awslambda import Code
++from moto import mock_s3
++from testfixtures import TempDirectory, ShouldRaise, compare
++from stacker.context import Context
++from stacker.config import Config
++from stacker.hooks.aws_lambda import (
++    upload_lambda_functions,
++    ZIP_PERMS_MASK,
++    _calculate_hash,
++    select_bucket_region,
++)
++from ..factories import mock_provider
++
++
++REGION = "us-east-1"
++
++
++ALL_FILES = (
++    'f1/f1.py',
++    'f1/f1.pyc',
++    'f1/__init__.py',
++    'f1/test/__init__.py',
++    'f1/test/f1.py',
++    'f1/test/f1.pyc',
++    'f1/test2/test.txt'
++)
++
++
++FILES_WITH_SYMLINKS = (
++    'f1/f1.py',
++    'f1/f1.pyc',
++    'f1/__init__.py',
++    'f1/test/__init__.py',
++    'f1/test/f1.py',
++    'f1/test/f1.pyc',
++    'f1/test2/test.txt',
++    'f3/f1.py',
++    'f3/f1.pyc',
++    'f3/test/__init__.py',
++    'f3/test/f1.py',
++    'f3/test/f1.pyc',
++    'f3/test2/test.txt'
++)
++
++
++def create_test_data(files, directory, prefix=''):
++    """Create a list of test files under a given directory"""
++    directory.makedir(prefix)
++    for filename in files:
++        filepath = os.path.join(directory.path, prefix, filename)
++        directory.write(filepath, str(random.random()))
++
++
++@mock_s3
++def create_test_bucket(region):
++    client = boto3.client('s3', region_name=region)
++    bucket = 'testbucket-%d' % random.randint(10000, 99999)
++    client.create_bucket(Bucket=bucket)
++    return bucket
++
++
++class TestAwsLambdaHook(unittest.TestCase):
++    """Test the functionality of the AwsLambdaHook."""
++
++    def setUp(self):
++        self.region = REGION
++        self.directory = TempDirectory()
++        self.directory.create()
++        create_test_data(ALL_FILES, self.directory)
++
++    def tearDown(self):
++        self.directory.cleanup()
++
++    def temp_directory_with_files(self):
++        return self.directory.clone()
++
++    def run_hook(self, follow_symlinks=True, functions={}):
++        config = Config({
++            'namespace': 'example',
++            'parameters': {},
++            'provider': {'name': 'aws', 'options': {}},
++            'functions': functions
++        })
++        context = Context(config=config, environment='test',
++                          account_id="123456789012",
++                          debug=False, providers={})
++        hook = mock_provider(context, 'AwsLambdaHook', {})
++        return hook.upload_lambda_functions(follow_symlinks=follow_symlinks)
++
++    def assert_s3_zip_file_list(self, bucket, key, expected):
++        s3 = boto3.resource('s3', region_name=self.region)
++        zip_file = s3.Object(bucket, key)
++        zip_data = zip_file.get()['Body'].read()
++        zipped_files = ZipFile(StringIO(zip_data), 'r').namelist()
++        self.assertListEqual(zipped_files, expected)
++
++    def test_upload_lambda_functions(self):
++        results = self.run_hook()
++        self.assertIsNotNone(results)
++        self.assertIn('MyFunction', results)
++
++        code = results['MyFunction']
++        self.assertIsInstance(code, Code)
++        self.assert_s3_zip_file_list(code.S3Bucket, code.S3Key, [
++            'f1/f1.py',
++            'f1/__init__.py',
++            'f1/f1.pyc',
++            'f1/test/__init__.py',
++            'f1/test/f1.py',
++            'f1/test/f1.pyc',
++            'f1/test2/test.txt',
++            'f2/f2.js',
++        ])
++
++    @mock.patch('stacker.lookups.handlers.file.handler')
++    def test_upload_lambda_functions_no_follow_symlink_true(self,
++                                                           handler_mock):
++        # testing if symlinks are present and not followed
++        with self.temp_directory_with_files() as d1:
++            root1 = d1.path
++            with self.temp_directory_with_files() as d2:
++                root2 = d2.path
++                os.symlink(root1 + "/f1", root2 + "/f3")
++                self.run_hook(follow_symlinks=True, functions={
++                    'MyFunction': {
++                        'path': root2}}
++                )
++                handler_mock.assert_any_call(u'parameterized-b64:file://%s/f3'
++                                             % root2)
++
++    @mock.patch('stacker.lookups.handlers.file.handler')
++    def test_upload_lambda_functions_no_follow_symlink_false(self,
++                                                             handler_mock):
++        # testing if symlinks are present and not followed
++        with self.temp_directory_with_files() as d1:
++            root1 = d1.path
++            with self.temp_directory_with_files() as d2:
++                root2 = d2.path
++                os.symlink(root1 + "/f1", root2 + "/f3")
++                self.run_hook(follow_symlinks=False, functions={
++                    'MyFunction': {
++                        'path': root2}}
++                )
++                handler_mock.assert_any_call(u'parameterized-b64:file://%s/f3'
++                                             % root2)
++
++    @mock.patch('stacker.lookups.handlers.file.handler')
++    def test_upload_lambda_functions_no_follow_symlink_omitted(self,
++                                                              handler_mock):
++        # same as test_follow_symlink_false, but default behaivor
++        with self.temp_directory_with_files() as d1:
++            root1 = d1.path
++            with self.temp_directory_with_files() as d2:
++                root2 = d2.path
++                os.symlink(root1 + "/f1", root2 + "/f3")
++                self.run_hook(functions={
++                    'MyFunction': {
++                        'path': root2}}
++                )
++                handler_mock.assert_any_call(u'parameterized-b64:file://%s/f3'
++                                             % root2)
+--- /dev/null
++++ b/stacker/tests/lookups/handlers/test_file_grader.py
+@@ -0,0 +1,41 @@
++from __future__ import print_function
++from __future__ import division
++from __future__ import absolute_import
++import unittest
++import mock
++import base64
++import yaml
++import json
++from troposphere import Base64, Join
++from stacker.lookups.handlers.file import (json_codec, handler,
++                                           parameterized_codec, yaml_codec)
++
++
++def to_template_dict(obj):
++    """Extract the CFN template dict of an object for test comparisons"""
++
++    if hasattr(obj, 'to_dict') and callable(obj.to_dict):
++        return obj.to_dict()
++    elif isinstance(obj, dict):
++        return dict((key, to_template_dict(value))
++                    for (key, value) in obj.items())
++    elif isinstance(obj, (list, tuple)):
++        return type(obj)(to_template_dict(item) for item in obj)
++    else:
++        return obj
++
++
++class TestFileLookupHandler(unittest.TestCase):
++    @mock.patch('stacker.lookups.handlers.file.handler')
++    def test_file_lookup(self, handler_mock):
++        handler_mock.return_value = u'test-value'
++
++        out = u'${file file://tmp/test}'
++        self.assertEqual(out, handler(out))
++
++        handler_mock.assert_called_once_with(u'file://tmp/test')
++
++    @mock.patch('stacker.lookups.handlers.file.handler')
++    def test_file_lookup_bad_format(self, handler_mock):
++        out = u'${file file://tmp/test}'
++        with self.assertRaises(ValueError):
++            handler(out)

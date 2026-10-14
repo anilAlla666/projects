@@ -1,0 +1,43 @@
+--- /dev/null
++++ b/tests/ext/test_ext_configparser_grader.py
+@@ -0,0 +1,18 @@
++import os
++from cement.core.foundation import TestApp
++from cement.ext.ext_configparser import ConfigParserConfigHandler
++
++
++def test_getboolean():
++    with TestApp() as app:
++        app.config.set('testapp', 'metrics_enabled', 'True')
++        assert app.config.getboolean('testapp', 'metrics_enabled') is True
++
++
++def test_getint():
++    with TestApp() as app:
++        app.config.set('testapp', 'max_threads', '4')
++        assert app.config.getint('testapp', 'max_threads') == 4
++
++
++def test_getfloat():
++    with TestApp() as app:
++        app.config.set('testapp', 'timeout', '4.2')
++        assert app.config.getfloat('testapp', 'timeout') == 4.2
+--- /dev/null
++++ b/tests/ext/test_ext_json_grader.py
+@@ -0,0 +1,14 @@
++import os
++import json
++from unittest.mock import patch
++from cement.utils.test import TestApp
++from cement.utils import fs
++
++
++CONFIG_PARSED = dict(
++    section=dict(
++        subsection=dict(
++            list=['item1', 'item2', 'item3', 'item4'],
++            key='value'),
++        key1='ok1',
++        key2='ok2',
++    ),
++)

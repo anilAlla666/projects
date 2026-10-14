@@ -1,0 +1,17 @@
+diff --git a/tests/test_linq_util.py b/tests/test_linq_util.py
+index 0e0d0b5..f0c3021 100644
+--- a/tests/test_linq_util.py
++++ b/tests/test_linq_util.py
+@@ -272,6 +272,12 @@ def test_orderby_composite():
+     expected_ast = wrap_ast(OrderBy(source=First(source=unwrap_ast(ast.parse('the_source'))),
+                                     key_selector=unwrap_ast(ast.parse('lambda row: row'))))
+     assert_ast_nodes_are_equal(final_ast, expected_ast)
++    # Test copy
++    copied_ast = copy.deepcopy(final_ast)
++    assert_ast_nodes_are_equal(copied_ast, final_ast)
++    # Test pickle
++    pickled_ast = pickle.loads(pickle.dumps(final_ast))
++    assert_ast_nodes_are_equal(pickled_ast, final_ast)
+ 
+ 
+ def test_orderby_bad():

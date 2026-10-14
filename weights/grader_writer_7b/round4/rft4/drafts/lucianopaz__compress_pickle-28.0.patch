@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,27 @@
++import pytest
++import io
++from compress_pickle.utils import _stringyfy_path, _infer_compression_from_path
++
++
++@pytest.mark.parametrize(
++    ("path", "expected"),
++    [
++        ("abc.pkl", "abc.pkl"),
++        ("abc.pkl.gz", "abc.pkl.gz"),
++        ("abc.pklz", "abc.pklz"),
++        ("abc.pkl.lz4", "abc.pkl.lz4"),
++        ("abc.pkl.bz2", "abc.pkl.bz2"),
++        ("abc.pkl.zip", "abc.pkl.zip"),
++        ("abc.pkl.tar.gz", "abc.pkl.tar.gz"),
++        ("abc.pkl.tar.bz2", "abc.pkl.tar.bz2"),
++        ("abc.pkl.tar.xz", "abc.pkl.tar.xz"),
++        ("abc.pkl.tar.zst", "abc.pkl.tar.zst"),
++        ("abc.pkl.tar.zstd", "abc.pkl.tar.zstd"),
++    ],
++)
++def test_set_default_extension(path, expected):
++    assert _set_default_extension(path, None) == expected
++    assert _set_default_extension(path, "pickle") == expected
++    assert _set_default_extension(path, "none") == expected
++    assert _set_default_extension(path, "") == expected

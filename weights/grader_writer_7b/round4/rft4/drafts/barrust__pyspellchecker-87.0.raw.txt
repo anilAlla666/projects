@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/tests/test_spellchecker_test_grader.py
+@@ -0,0 +1,25 @@
++''' Unittest class '''
++
++
++import unittest
++import os
++from spellchecker import SpellChecker
++
++
++class TestSpellChecker(unittest.TestCase):
++    ''' test the spell checker class '''
++
++    def test_contraction_handling(self):
++        """ Tests handling of contractions """
++        spell = SpellChecker()
++        self.assertEqual(spell.unknown(["don't"]), {"don't"})
++        self.assertEqual(spell.unknown(["That's"]), {"That's"})
++        self.assertEqual(spell.unknown(["it's"]), {"it's"})
++        self.assertEqual(spell.unknown(["who's"]), {"who's"})
++        self.assertEqual(spell.unknown(["they're"]), {"they're"})
++        self.assertEqual(spell.unknown(["we've"]), {"we've"})
++        self.assertEqual(spell.unknown(["can't"]), {"can't"})
++        self.assertEqual(spell.unknown(["didn't"]), {"didn't"})
++        self.assertEqual(spell.unknown(["hasn't"]), {"hasn't"})
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,40 @@
+--- /dev/null
++++ b/test_msgpack_numpy_grader.py
+@@ -0,0 +1,31 @@
++import pytest
++from . import packb, unpackb
++
++
++@pytest.mark.parametrize(
++    ('dtype', 'values'),
++    (
++        ((float, int), [[0., 0], [1., 1]]),
++        ((int, int), [[0, 0], [1, 1]]),
++        ((float, float, float), [[0., 0., 0.], [1., 1., 1.]])
++    )
++)
++def test_nested_structured_array(dtype, values):
++    structured_dtype = np.dtype([('a', dtype)])
++    arr = np.empty(2, dtype=structured_dtype)
++    arr['a'] = values
++
++    packed = packb(arr)
++    unpacked = unpackb(packed)
++
++    assert np.array_equal(unpacked, arr)
++
++
++@pytest.mark.parametrize(
++    ('outer_dtype', 'inner_dtype', 'values'),
++    (
++        ((('foo', float), ('bar', int)), [('a', float), ('b', int)], [[0., 0], [1., 1]]),
++        ((('foo', int), ('bar', int)), [('a', int), ('b', int)], [[0, 0], [1, 1]])
++    )
++)
++def test_nested_structured_array_2level(outer_dtype, inner_dtype, values):
++    structured_dtype = np.dtype(inner_dtype)
++    arr = np.empty(2, dtype=structured_dtype)
++    arr[...] = values
++    packed = packb(arr)
++    unpacked = unpackb(packed)
++    assert np.array_equal(unpacked, arr)

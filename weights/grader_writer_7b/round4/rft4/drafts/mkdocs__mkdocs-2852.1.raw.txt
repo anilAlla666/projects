@@ -1,0 +1,20 @@
+--- /dev/null
++++ b/tests/test_structure_grader.py
+@@ -0,0 +1,15 @@
++import os
++from pathlib import Path
++import pytest
++from mkdocs.structure.files import get_files
++
++
++@pytest.mark.parametrize(
++    "files",
++    [
++        ["README.md"],
++        ["README.md", "INDEX.MD"],
++        ["index.md", "README.md"],
++        ["README.md", "index.md", "test.md"],
++    ],
++)
++def test_get_files__README_and_INDEX_md(files):
++    assert len(get_files({"docs_dir": str(Path(__file__).parent / "dummy_site")}).data) == 1

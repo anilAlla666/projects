@@ -1,0 +1,64 @@
+--- /dev/null
++++ b/tests/test_plugin_pypi_grader.py
+@@ -0,0 +1,60 @@
++import os
++import subprocess
++import sys
++import pytest
++import ctl
++from ctl.exceptions import UsageError
++from util import instantiate_test_plugin
++from test_plugin_git import (
++    init_tmp_repo,
++    instantiate as instantiate_git,
++    )
++
++
++def package_repo(package_path, repo_path):
++    subprocess.call(["cp {}/* {} -r".format(package_path, repo_path)],
++                    shell=True)
++    subprocess.call(["git add *; git commit -am initial; git push;"],
++                    cwd=repo_path,
++                    shell=True)
++
++
++def instantiate(tmpdir, ctlr=None, **kwargs):
++    base_dir = os.path.join(os.path.dirname(__file__), "data", "pypi")
++    config = {
++        "config" : {
++            "config_file" : os.path.join(base_dir, "pypirc")
++        }
++    }
++    config["config"].update(**kwargs)
++    plugin = instantiate_test_plugin("pypi", "test_pypi", _ctl=ctlr, **config)
++
++    package_path = os.path.join(base_dir, "package")
++
++    git_plugin, repo_path = instantiate_git(tmpdir, ctlr)
++
++    package_repo(package_path, repo_path)
++
++    return plugin, git_plugin, repo_path
++
++
++def test_pypi_repository_config():
++    """
++    Test the 'pypi_repository' config attr
++    """
++
++    plugin, git_plugin = instantiate(None, None)
++    plugin.set_target(git_plugin.plugin_name)
++
++    # defaults
++    assert plugin.get_config('pypi_repository') == 'pypi'
++
++    # custom value
++    plugin.config.set(pypi_repository='foo')
++    assert plugin.get_config('pypi_repository') == 'foo'
++
++    # invalid value
++    with pytest.raises(ValueError):
++        plugin.config.set(pypi_repository='')
++
++    with pytest.raises(ValueError):
++        plugin.config.set(pypi_repository='bar:')

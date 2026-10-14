@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/test_grader.py
+@@ -0,0 +1,36 @@
++import pytest
++
++
++@pytest.mark.parametrize(('code',), (
++    ('datetime.datetime.now()',),
++    ('datetime.datetime.now().astimezone(utc)',),
++    ('datetime.datetime.now(tz=utc)',),
++    ('datetime.datetime.now(tz=None)',),
++    ('datetime.datetime.now(tz=time.UTC)',),
++    ('datetime.datetime.now(tz=pytz.timezone("US/Eastern"))',),
++    ('datetime.datetime.now(tz=datetime.timezone.utc)',),
++    ('datetime.datetime.now(tz="UTC")',),
++    ('datetime.datetime.now(tz="US/Eastern")',),
++    ('datetime.datetime.now(tz=time.tzlocal())',),
++    ('datetime.datetime.now(tz=time.timezones["UTC"])',),
++    ('datetime.datetime.now(tz=time.get_timezone_info("UTC"))',),
++    ('datetime.datetime.now(tz=time.get_timezone_info("US/Eastern"))',),
++    ('datetime.datetime.now(tz=time.get_timezone_info(time.tzlocal()))',),
++    ('datetime.datetime.now(tz=time.get_timezone_info(datetime.timezone.utc))',),
++    ('datetime.datetime.now(tz=time.get_timezone_info("US/Eastern"))',),
++    ('datetime.datetime.now(tz=time.get_timezone_info(time.tzlocal()))',),
++    ('datetime.datetime.now(tz=time.get_timezone_info(datetime.timezone.utc))',),
++    ('datetime.datetime.now(tz=time.get_timezone_info("US/Eastern"))',),
++    ('datetime.datetime.now(tz=time.get_timezone_info(time.tzlocal()))',),
++    ('datetime.datetime.now(tz=time.get_timezone_info(datetime.timezone.utc))',),
++    ('datetime.datetime.now(tz=time.get_timezone_info("US/Eastern"))',),
++    ('datetime.datetime.now(tz=time.get_timezone_info(time.tzlocal()))',),
++    ('datetime.datetime.now(tz=time.get_timezone_info(datetime.timezone.utc))',),
++    ('datetime.datetime.now(tz=time.get_timezone_info("US/Eastern"))',),
++))
++def test_no_error(code):
++    """Should not raise an error."""
++    assert not list(flake8_dtz.check(code))

@@ -1,0 +1,68 @@
+diff --git a/tests/admin/test_groups.py b/tests/admin/test_groups.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/admin/test_groups.py
+@@ -0,0 +1,60 @@
++from .. import util
++import duo_client.admin
++from .base import TestAdmin
++
++
++class TestGroups(TestAdmin):
++    # Uses underlying paging
++    def test_get_group_users(self):
++        response = self.client_list.get_group_users(group_id='1234')
++        response = response[0]
++        self.assertEqual(response['method'], 'GET')
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/1234/users')
++        self.assertEqual(
++            util.params_to_dict(args),
++            {
++                'account_id': [self.client.account_id],
++                'limit': ['100'],
++                'offset': ['0'],
++            })
++
++    def test_get_group_users_with_limit(self):
++        response = self.client_list.get_group_users(group_id='1234', limit=20)
++        response = response[0]
++        self.assertEqual(response['method'], 'GET')
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/1234/users')
++        self.assertEqual(
++            util.params_to_dict(args),
++            {
++                'account_id': [self.client.account_id],
++                'limit': ['20'],
++                'offset': ['0'],
++            })
++
++    def test_get_group_users_with_limit_offset(self):
++        response = self.client_list.get_group_users(group_id='1234', limit=20, offset=2)
++        response = response[0]
++        self.assertEqual(response['method'], 'GET')
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/1234/users')
++        self.assertEqual(
++            util.params_to_dict(args),
++            {
++                'account_id': [self.client.account_id],
++                'limit': ['20'],
++                'offset': ['2'],
++            })
++
++    def test_get_group_users_with_offset(self):
++        response = self.client_list.get_group_users(group_id='1234', offset=9001)
++        response = response[0]
++        self.assertEqual(response['method'], 'GET')
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/1234/users')
++        self.assertEqual(
++            util.params_to_dict(args),
++            {
++                'account_id': [self.client.account_id],
++                'limit': ['100'],
++                'offset': ['0'],
++            })

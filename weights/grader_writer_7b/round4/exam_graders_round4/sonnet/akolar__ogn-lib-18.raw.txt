@@ -1,0 +1,36 @@
+The tests below check the Capturs parser's registered callsign directly. I have not run them.
+
+On the current code, `Capturs.__destto__` is `['OGLT24', 'OGLT24-1']`. Because `Capturs` is defined after `LiveTrack24`, it also overwrites `LiveTrack24`'s entries in the parser registry. That is why one test also checks that `OGLT24` still maps to `LiveTrack24`.
+
+The registry tests assume `ParserBase.parsers` stores the parser class itself as the value, which I inferred from the existing tests but did not confirm. If it stores something else, those two assertions would need adjusting.
+
+```diff
+--- /dev/null
++++ b/tests/test_capturs_destto.py
+@@ -0,0 +1,26 @@
++from ogn_lib import parser
++
++
++def _as_list(value):
++    if isinstance(value, str):
++        return [value]
++    return list(value)
++
++
++def test_capturs_destto_contains_ogcapt():
++    assert 'OGCAPT' in _as_list(parser.Capturs.__destto__)
++
++
++def test_capturs_destto_not_lt24():
++    destto = _as_list(parser.Capturs.__destto__)
++    assert 'OGLT24' not in destto
++    assert 'OGLT24-1' not in destto
++
++
++def test_registry_ogcapt_is_capturs():
++    assert parser.ParserBase.parsers['OGCAPT'] is parser.Capturs
++
++
++def test_registry_oglt24_is_livetrack24():
++    assert parser.ParserBase.parsers['OGLT24'] is parser.LiveTrack24
+```

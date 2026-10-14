@@ -1,0 +1,79 @@
+--- /dev/null
++++ b/jenkinsapi_tests/unittests/test_build_grader.py
+@@ -0,0 +1,46 @@
++import pytest
++import pytz
++from . import configs
++import datetime
++from jenkinsapi.build import Build
++from jenkinsapi.job import Job
++
++
++@pytest.fixture(scope='function')
++def jenkins(mocker):
++    return mocker.MagicMock()
++
++
++@pytest.fixture(scope='function')
++def job(monkeypatch, jenkins):
++    def fake_poll(cls, tree=None):   # pylint: disable=unused-argument
++        return configs.JOB_DATA
++
++    monkeypatch.setattr(Job, '_poll', fake_poll)
++
++    fake_job = Job('http://', 'Fake_Job', jenkins)
++    return fake_job
++
++
++@pytest.fixture(scope='function')
++def build(job, monkeypatch):
++    def fake_poll(cls, tree=None):   # pylint: disable=unused-argument
++        return configs.BUILD_DATA
++
++    monkeypatch.setattr(Build, '_poll', fake_poll)
++
++    return Build('http://', 97, job)
++
++
++def test_get_env_vars(build):
++    expected = {
++        'FOO': 'BAR',
++        'BAZ': 'QUX',
++    }
++    build._data = {
++        'actions': [
++            {
++                '_class': 'envinject.EnvInjectBuildWrapper',
++                'buildVariablesMap': expected,
++            },
++        ],
++    }
++    assert build.get_env_vars() == expected
+--- /dev/null
++++ b/jenkinsapi_tests/unittests/test_build_scm_git_grader.py
+@@ -0,0 +1,24 @@
++import six
++import pytest
++from . import configs
++from jenkinsapi.build import Build
++from jenkinsapi.job import Job
++
++
++@pytest.fixture(scope='function')
++def jenkins(mocker):
++    return mocker.MagicMock()
++
++
++@pytest.fixture(scope='function')
++def job(monkeypatch, jenkins):
++    def fake_poll(cls, tree=None):   # pylint: disable=unused-argument
++        return configs.JOB_DATA
++
++    monkeypatch.setattr(Job, '_poll', fake_poll)
++
++    fake_job = Job('http://', 'Fake_Job', jenkins)
++    return fake_job
++
++
++def test_git_env_vars(build):
++    assert build.get_env_vars()['GIT_COMMIT'] == '7def9ed6e92580f37d00e4980c36c4d36e68f702'

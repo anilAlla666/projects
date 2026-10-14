@@ -1,0 +1,56 @@
+diff --git a/particula/tests/test_multi_mode_distributions.py b/particula/tests/test_multi_mode_distributions.py
+new file mode 100644
+index 0000000..b2d3e4f
+--- /dev/null
++++ b/particula/tests/test_multi_mode_distributions.py
+@@ -0,0 +1,100 @@
++""" Test suite for multi-mode distributions. """
++
++import numpy as np
++import pytest
++from particula import u
++from particula.util.distribution_discretization import discretize
++from particula.util.radius_cutoff import cut_rad
++
++
++def test_multi_mode_discretization():
++    """ Test multi-mode discretization. """
++    multi_mode = {
++        "mode": [5000e-9, 50e-9, 300e-9],
++        "nbins": 1000,
++        "nparticles": [1e6, 1e9, 1e7],
++        "volume": 1e-6,
++        "gsigma": [1.5, 1.2, 1.5],
++        "spacing": "logspace",
++    }
++
++    for i, mode in enumerate(multi_mode["mode"]):
++        dist = discretize(
++            interval=u.Quantity(np.linspace(mode / 2, mode * 2, multi_mode["nbins"]), "m"),
++            gsigma=multi_mode["gsigma"][i],
++            mode=mode,
++        )
++        assert dist.shape == (multi_mode["nbins"],)
++        assert dist.unit == u.dimensionless
++
++
++def test_multi_mode_cutoff():
++    """ Test multi-mode cutoff. """
++    multi_mode = {
++        "mode": [5000e-9, 50e-9, 300e-9],
++        "nbins": 1000,
++        "nparticles": [1e6, 1e9, 1e7],
++        "volume": 1e-6,
++        "gsigma": [1.5, 1.2, 1.5],
++        "spacing": "logspace",
++    }
++
++    for i, mode in enumerate(multi_mode["mode"]):
++        cutoff = cut_rad(
++            gsigma=multi_mode["gsigma"][i],
++            mode=mode,
++        )
++        assert len(cutoff) == 2
++        assert cutoff[0] < cutoff[1]
++        assert cutoff[0].unit == u.m
++        assert cutoff[1].unit == u.m

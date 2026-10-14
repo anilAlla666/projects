@@ -1,0 +1,70 @@
+Two new tests check that spans whose context has `sampled=False` are not recorded, and that sampled spans still are. I haven't run them against the current code or a fix.
+
+I assumed the fix makes the recorder skip unsampled spans in `record_span`. The tests only check `recorder._span_records` after `finish()`, so they don't depend on how or where the fix skips them.
+
+- **Recorder-level test:** builds a `BasicSpan` with an unsampled `SpanContext` and one with a sampled context, and checks only the sampled one is recorded.
+- **Tracer-level test:** starts a child span from an unsampled parent context, which inherits `sampled=False`, and checks nothing is recorded.
+
+```diff
+diff --git a/tests/sampling_test.py b/tests/sampling_test.py
+new file mode 100644
+--- /dev/null
++++ b/tests/sampling_test.py
+@@ -0,0 +1,51 @@
++import time
++
++import lightstep.recorder
++import lightstep.tracer
++from basictracer.span import BasicSpan
++from basictracer.context import SpanContext
++
++
++def _make_recorder():
++    return lightstep.recorder.Recorder(
++        component_name='sampling_test',
++        periodic_flush_seconds=0,
++        collector_host='localhost')
++
++
++def _make_span(recorder, sampled):
++    return BasicSpan(
++        lightstep.tracer._LightstepTracer(False, recorder, None),
++        operation_name='op',
++        context=SpanContext(trace_id=1000, span_id=2000, sampled=sampled),
++        start_time=time.time() - 10,
++    )
++
++
++def test_unsampled_span_not_recorded():
++    recorder = _make_recorder()
++    span = _make_span(recorder, False)
++    span.finish()
++    assert len(recorder._span_records) == 0
++
++
++def test_sampled_span_recorded():
++    recorder = _make_recorder()
++    span = _make_span(recorder, True)
++    span.finish()
++    assert len(recorder._span_records) == 1
++
++
++def test_mixed_spans_only_sampled_recorded():
++    recorder = _make_recorder()
++    _make_span(recorder, False).finish()
++    _make_span(recorder, True).finish()
++    _make_span(recorder, False).finish()
++    assert len(recorder._span_records) == 1
++
++
++def test_child_of_unsampled_parent_not_recorded():
++    tracer = lightstep.Tracer(
++        component_name='sampling_test',
++        periodic_flush_seconds=0,
++        collector_host='localhost')
++    parent = SpanContext(trace_id=1, span_id=2, sampled=False)
++    child = tracer.start_span('child', child_of=parent)
++    assert child.context.sampled is False
++    child.finish()
++    assert len(tracer.recorder._span_records) == 0
+```

@@ -1,0 +1,120 @@
+--- /dev/null
++++ b/tests/test__marker_grader.py
+@@ -0,0 +1,117 @@
++import pytest
++from repobee_csvgrades._marker import (
++    GradeSpec,
++    Issue,
++    get_authorized_issues,
++    mark_grade,
++    mark_grades,
++)
++
++
++def _mock_issue(number, title):
++    return Issue(number=number, title=title, author="test_user")
++
++
++def _get_teams():
++    return [plug.Team(name="team_{}".format(i), members=["student_{}".format(j) for j in range(10)]) for i in range(10)]
++
++
++def _get_grade_specs():
++    return [
++        GradeSpec(symbol="S+", regex="^S+$"),
++        GradeSpec(symbol="B-", regex="^B-$"),
++    ]
++
++
++def _get_hook_results_mapping():
++    return {
++        "repo_a": {
++            "1": {"data": {"title": "S+", "number": 1}},
++            "2": {"data": {"title": "B-", "number": 2}},
++        },
++        "repo_b": {
++            "3": {"data": {"title": "S+", "number": 3}},
++            "4": {"data": {"title": "B-", "number": 4}},
++        }
++    }
++
++
++def _get_grade_map():
++    grade_map = plug.GradeMap()
++    for grade in ("S+", "B-", "C"):
++        grade_map.add_grade(GradeSpec(symbol=grade, regex=".*"))
++    return grade_map
++
++
++class TestMarkGrade:
++    @pytest.fixture
++    def grade_map(self):
++        return _get_grade_map()
++
++    @pytest.fixture
++    def teams(self):
++        return _get_teams()
++
++    @pytest.fixture
++    def hook_results_mapping(self):
++        return _get_hook_results_mapping()
++
++    @pytest.fixture
++    def grade_specs(self):
++        return _get_grade_specs()
++
++    @pytest.mark.parametrize("teachers", [["admin"], []])
++    def test_unauthorized_issues_are_logged(self, teachers, grade_map, teams, grade_specs, hook_results_mapping):
++        """Test that unauthenticated issues are logged."""
++        issue = _mock_issue(number=5, title="B-")
++        hook_results_mapping["repo_c"] = {"5": {"data": {"title": "B-", "number": 5}}}
++        result = mark_grade(grade_map, hook_results_mapping, teams, ["repo_c"], teachers, grade_specs)
++        assert result == ([], None, None)
++
++    @pytest.mark.parametrize("teachers", [["admin"], []])
++    def test_unauthorized_issues_dont_affect_grade_assignment(self, teachers, grade_map, teams, grade_specs, hook_results_mapping):
++        """Test that unauthenticated issues don't affect the grading assignment"""
++        issue = _mock_issue(number=5, title="B-")
++        hook_results_mapping["repo_c"] = {"5": {"data": {"title": "B-", "number": 5}}}
++        result = mark_grade(grade_map, hook_results_mapping, teams, ["repo_c"], teachers, grade_specs)
++        assert result == ([], None, None)
++
++    def test_no_grade_assigned_if_issue_not_found_in_hook_results_mapping(self, grade_map, teams, grade_specs, hook_results_mapping):
++        """Test that no grade is assigned if there's no corresponding entry in the hook results mapping"""
++        grade_map.add_grade(GradeSpec(symbol="D", regex="^D$"))
++        hook_results_mapping.pop("repo_a")
++        result = mark_grade(grade_map, hook_results_mapping, teams, ["repo_a"], ["admin"], grade_specs)
++        assert result == ([], None, None)
++
++    def test_returns_graded_students_grade_symbol_and_author(self, grade_map, teams, grade_specs, hook_results_mapping):
++        """Test that returns the students who got graded, the grade symbol and the issue author"""
++        hook_results_mapping["repo_a"]["1"]["data"]["title"] = "S+"
++        result = mark_grade(grade_map, hook_results_mapping, teams, ["repo_a"], ["admin"], grade_specs)
++        assert result == ([str(t) for t in teams[:1]], "S+", "test_user")
++
++
++class TestMarkGrades:
++    @pytest.fixture
++    def grade_map(self):
++        return _get_grade_map()
++
++    @pytest.fixture
++    def teams(self):
++        return _get_teams()
++
++    @pytest.fixture
++    def hook_results_mapping(self):
++        return _get_hook_results_mapping()
++
++    @pytest.fixture
++    def grade_specs(self):
++        return _get_grade_specs()
++
++    def test_returns_graded_students_grade_symbol_and_author(self, grade_map, teams, grade_specs, hook_results_mapping):
++        """Test that returns the students who got graded, the grade symbol and the issue author"""
++        grade_map.add_grade(GradeSpec(symbol="D", regex="^D$"))
++        hook_results_mapping["repo_a"]["1"]["data"]["title"] = "S+"
++        result = mark_grades(grade_map, hook_results_mapping, teams, ["repo_a"], ["admin"], grade_specs)
++        expected_graded_students = [str(t) for t in teams[:1]]
++        assert set(result.keys()) == {"repo_a"}
++        assert result["repo_a"] == (expected_graded_students, "S+", "test_user")

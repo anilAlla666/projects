@@ -1,0 +1,37 @@
+--- /dev/null
++++ b/nose2/tests/unit/test_prof_plugin_grader.py
+@@ -0,0 +1,35 @@
++from nose2 import session
++from nose2.plugins import prof
++from nose2.events import StartTestRunEvent
++from nose2.tests._common import Stub, TestCase
++
++
++class TestProfPlugin(TestCase):
++    tags = ['unit']
++
++    def setUp(self):
++        self.plugin = prof.Profiler(session=session.Session())
++        self.cprofile = prof.cprofile
++        prof.cprofile = Stub()
++
++    def tearDown(self):
++        prof.cprofile = self.cprofile
++
++    def test_startTestRun_sets_executeTests(self):
++        _prof = Stub()
++        _prof.runctx = object()
++        prof.cprofile.Profile = lambda filename: _prof
++        event = StartTestRunEvent(runner=None, suite=None, result=None,
++                                  startTime=None, executeTests=None)
++        self.plugin.startTestRun(event)
++        assert event.executeTests is _prof.runctx, \
++            "executeTests was not replaced"
++
++    def test_profile_is_enabled_when_cprofile_is_importable(self):
++        prof.cprofile = object()
++        assert self.plugin.isEnabled(), "profile plugin should be enabled"
++
++    def test_profile_is_disabled_when_cprofile_is_not_importable(self):
++        prof.cprofile = None
++        assert not self.plugin.isEnabled(), "profile plugin should be disabled"

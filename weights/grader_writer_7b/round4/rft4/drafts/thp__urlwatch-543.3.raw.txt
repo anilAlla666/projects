@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/lib/urlwatch/tests/test_filters_grader.py
+@@ -0,0 +1,47 @@
++import os
++import logging
++import yaml
++from urlwatch.filters import FilterBase
++import pytest
++
++
++logger = logging.getLogger(__name__)
++
++
++TESTDATA = [
++    # Legacy string-style filter definition conversion
++    ('grep', [('grep', {})]),
++    ('grep:foo', [('grep', {'re': 'foo'})]),
++    ('beautify,grep:foo,html2text', [('beautify', {}), ('grep', {'re': 'foo'}), ('html2text', {})]),
++    ('re.sub:.*', [('re.sub', {'pattern': '.*'})]),
++    ('re.sub', [('re.sub', {})]),
++
++    # New dict-style filter definition normalization/mapping
++    ([{'grep': None}], [('grep', {})]),
++    ([{'grep': {'re': 'bla'}}], [('grep', {'re': 'bla'})]),
++    ([{'reverse': '\n\n'}], [('reverse', {'separator': '\n\n'})]),
++    (['html2text', {'grep': 'Current.*version'}, 'strip'], [
++        ('html2text', {}),
++        ('grep', {'re': 'Current.*version'}),
++        ('strip', {}),
++    ]),
++    ([{'css': 'body'}], [('css', {'selector': 'body'})]),
++    ([{'html2text': {'method': 'bs4', 'parser': 'html5lib'}}], [
++        ('html2text', {'method': 'bs4', 'parser': 'html5lib'}),
++    ]),
++]
++
++
++FILTER_TESTS = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), 'data/filter_tests.yaml'), 'r', encoding='utf8'))
++
++
++@pytest.fixture(scope="module")
++def env_with_path(tmpdir):
++    return tmpdir.join("env.sh")
++
++
++@pytest.mark.skipif(True, reason="TODO")
++def test_shellpipe_env(env_with_path, monkeypatch):
++    monkeypatch.setattr("os.environ", {"FOO": "BAR"})
++    with open(str(env_with_path), "w") as fh:
++        fh.write("#!/bin/sh\necho $FOO\n")
++    env = env_with_path.realpath().strpath
++    output = FilterBase.normalize_filter_list([{"shellpipe": env}])[0][1]["command"]
++    assert output == [env]

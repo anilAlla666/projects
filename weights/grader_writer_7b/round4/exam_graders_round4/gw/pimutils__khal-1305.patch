@@ -1,0 +1,304 @@
+--- /dev/null
++++ b/tests/test_khalendar_test_grader.py
+@@ -0,0 +1,110 @@
++import datetime as dt
++import logging
++import os
++from textwrap import dedent
++from time import sleep
++import pytest
++from freezegun import freeze_time
++import khal.khalendar.exceptions
++import khal.utils
++from khal import icalendar as icalendar_helpers
++from khal.khalendar import CalendarCollection
++from khal.khalendar.backend import CouldNotCreateDbDir
++from khal.khalendar.event import Event
++from khal.khalendar.vdir import Item
++from . import utils
++from .utils import (
++    BERLIN,
++    LOCALE_BERLIN,
++    LOCALE_SYDNEY,
++    LONDON,
++    SYDNEY,
++    CollVdirType,
++    DumbItem,
++    _get_text,
++    cal1,
++    cal2,
++    cal3,
++    normalize_component,
++)
++
++
++today = dt.date.today()
++
++
++yesterday = today - dt.timedelta(days=1)
++
++
++tomorrow = today + dt.timedelta(days=1)
++
++
++aday = dt.date(2014, 4, 9)
++
++
++bday = dt.date(2014, 4, 10)
++
++
++cday = dt.date(2014, 4, 11)
++
++
++dday = dt.date(2014, 4, 12)
++
++
++e_day = dt.date(2014, 4, 13)
++
++
++fday = dt.date(2014, 4, 14)
++
++
++gday = dt.date(2014, 4, 15)
++
++
++hday = dt.date(2014, 4, 16)
++
++
++i_day = dt.date(2014, 4, 17)
++
++
++jday = dt.date(2014, 4, 18)
++
++
++kday = dt.date(2014, 4, 19)
++
++
++l_day = dt.date(2014, 4, 20)
++
++
++mday = dt.date(2014, 4, 21)
++
++
++n_day = dt.date(2014, 4, 22)
++
++
++o_day = dt.date(2014, 4, 23)
++
++
++pday = dt.date(2014, 4, 24)
++
++
++qday = dt.date(2014, 4, 25)
++
++
++rday = dt.date(2014, 4, 26)
++
++
++sday = dt.date(2014, 4, 27)
++
++
++tday = dt.date(2014, 4, 28)
++
++
++u_day = dt.date(2014, 4, 29)
++
++
++vday = dt.date(2014, 4, 30)
++
++
++wday = dt.date(2014, 5, 1)
++
++
++xday = dt.date(2014, 5, 2)
++
++
++yday = dt.date(2014, 5, 3)
++
++
++zday = dt.date(2014, 5, 4)
++
++
++def test_birthdays_29feb(coll_vdirs_birthday, sleep_time):
++    """test how we deal with birthdays on 29th of feb in leap years"""
++    coll, vdirs = coll_vdirs_birthday
++    sleep(sleep_time)  # Make sure we get a new ctag on upload
++    vdirs[cal1].upload(DumbItem(card_29thfeb, 'leap'))
++    assert coll.needs_update()
++    coll.update_db()
++    events = list(
++        coll.get_floating(dt.datetime(2004, 1, 1, 0, 0), dt.datetime(2004, 12, 31))
++    )
++    assert len(events) == 1
++    assert events[0].summary == 'leapyear\'s 4th birthday (29th of Feb.)'
++    assert events[0].start == dt.date(2004, 2, 29)
++    events = list(
++        coll.get_floating(dt.datetime(2005, 1, 1, 0, 0), dt.datetime(2005, 12, 31))
++    )
++    assert len(events) == 1
++    assert events[0].summary == 'leapyear\'s 5th birthday (29th of Feb.)'
++    assert events[0].start == dt.date(2005, 3, 1)
++    assert list(
++        coll.get_floating(dt.datetime(2001, 1, 1), dt.datetime(2001, 12, 31))
++    )[0].summary == 'leapyear\'s 1st birthday (29th of Feb.)'
++    assert list(
++        coll.get_floating(dt.datetime(2002, 1, 1), dt.datetime(2002, 12, 31))
++    )[0].summary == 'leapyear\'s 2nd birthday (29th of Feb.)'
++    assert list(
++        coll.get_floating(dt.datetime(2003, 1, 1), dt.datetime(2003, 12, 31))
++    )[0].summary == 'leapyear\'s 3rd birthday (29th of Feb.)'
++    assert list(
++        coll.get_floating(dt.datetime(2023, 1, 1), dt.datetime(2023, 12, 31))
++    )[0].summary == 'leapyear\'s 23rd birthday (29th of Feb.)'
++    assert events[0].start == dt.date(2005, 3, 1)
+--- /dev/null
++++ b/tests/test_parse_datetime_test_grader.py
+@@ -0,0 +1,100 @@
++import datetime as dt
++from collections import OrderedDict
++import pytest
++from freezegun import freeze_time
++from khal.exceptions import DateTimeParseError, FatalError
++from khal.icalendar import new_vevent
++from khal.parse_datetime import (
++    construct_daynames,
++    eventinfofstr,
++    guessdatetimefstr,
++    guessrangefstr,
++    guesstimedeltafstr,
++    timedelta2str,
++    weekdaypstr,
++)
++from .utils import (
++    LOCALE_BERLIN,
++    LOCALE_FLOATING,
++    LOCALE_NEW_YORK,
++    _replace_uid,
++    normalize_component,
++)
++
++
++def _create_testcases(*cases):
++    return [(userinput, ('\r\n'.join(output) + '\r\n').encode('utf-8'))
++            for userinput, output in cases]
++
++
++def _construct_event(info, locale,
++                     defaulttimelen=60, defaultdatelen=1, description=None,
++                     location=None, categories=None, repeat=None, until=None,
++                     alarm=None, **kwargs):
++    info = eventinfofstr(' '.join(info), locale,
++                         dt.timedelta(days=1),
++                         dt.timedelta(hours=1),
++                         adjust_reasonably=True,
++                         defaulttimelen=defaulttimelen,
++                         defaultdatelen=defaultdatelen,
++                         **kwargs)
++    event = new_vevent(info.start, info.end, info.summary, info.description,
++                       info.location, info.categories, info.repeat,
++                       info.until, info.alarm, info.recurrence_id, info.uid,
++                       info.created, info.last_modified, info.sequence,
++                       info.status, info.priority, info.transparency,
++                       info.url, info.organizer, info.attendees, info.xprops,
++                       info.rrule, info.exrule, info.exdates, info.dtstamp,
++                       info.all_day, info.timezones, info.geo, info.classification,
++                       info.comment, info.percent_complete, info.completed,
++                       info.parent_uid, info.related_to, info.related_status,
++                       info.related_type, info.related_method, info.related_sequence,
++                       info.related_created, info.related_last_modified,
++                       info.related_dtstamp, info.related_all_day,
++                       info.related_timezones, info.related_geo, info.related_classification,
++                       info.related_comment, info.related_percent_complete,
++                       info.related_completed, info.related_parent_uid,
++                       info.related_related_to, info.related_related_status,
++                       info.related_related_type, info.related_related_method,
++                       info.related_related_sequence, info.related_related_created,
++                       info.related_related_last_modified, info.related_related_dtstamp,
++                       info.related_related_all_day, info.related_related_timezones,
++                       info.related_related_geo, info.related_related_classification,
++                       info.related_related_comment, info.related_related_percent_complete,
++                       info.related_related_completed, info.related_related_parent_uid,
++                       info.related_related_related_to, info.related_related_related_status,
++                       info.related_related_related_type, info.related_related_related_method,
++                       info.related_related_related_sequence, info.related_related_related_created,
++                       info.related_related_related_last_modified, info.related_related_related_dtstamp,
++                       info.related_related_related_all_day, info.related_related_related_timezones,
++                       info.related_related_related_geo, info.related_related_related_classification,
++                       info.related_related_related_comment, info.related_related_related_percent_complete,
++                       info.related_related_related_completed, info.related_related_related_parent_uid,
++                       info.related_related_related_related_to, info.related_related_related_related_status,
++                       info.related_related_related_related_type, info.related_related_related_related_method,
++                       info.related_related_related_related_sequence, info.related_related_related_related_created,
++                       info.related_related_related_related_last_modified, info.related_related_related_related_dtstamp,
++                       info.related_related_related_related_all_day, info.related_related_related_related_timezones,
++                       info.related_related_related_related_geo, info.related_related_related_related_classification,
++                       info.related_related_related_related_comment, info.related_related_related_related_percent_complete,
++                       info.related_related_related_related_completed, info.related_related_related_related_parent_uid,
++                       info.related_related_related_related_related_to, info.related_related_related_related_related_status,
++                       info.related_related_related_related_related_type, info.related_related_related_related_related_method,
++                       info.related_related_related_related_related_sequence, info.related_related_related_related_related_created,
++                       info.related_related_related_related_related_last_modified, info.related_related_related_related_related_dtstamp,
++                       info.related_related_related_related_related_all_day, info.related_related_related_related_related_timezones,
++                       info.related_related_related_related_related_geo, info.related_related_related_related_related_classification,
++                       info.related_related_related_related_related_comment, info.related_related_related_related_related_percent_complete,
++                       info.related_related_related_related_related_completed, info.related_related_related_related_related_parent_uid,
++                       info.related_related_related_related_related_related_to, info.related_related_related_related_related_related_status,
++                       info.related_related_related_related_related_related_type, info.related_related_related_related_related_related_method,
++                       info.related_related_related_related_related_related_sequence, info.related_related_related_related_related_related_created,
++                       info.related_related_related_related_related_related_last_modified, info.related_related_related_related_related_related_dtstamp,
++                       info.related_related_related_related_related_related_all_day, info.related_related_related_related_related_related_timezones,
++                       info.related_related_related_related_related_related_geo, info.related_related_related_related_related_related_classification,
++                       info.related_related_related_related_related_related_comment, info.related_related_related_related_related_related_percent_complete,
++                       info.related_related_related_related_related_related_completed, info.related_related_related_related_related_related_parent_uid,
++                       info.related_related_related_related_related_related_related_to, info.related_related_related_related_related_related_related_status,
++                       info.related_related_related_related_related_related_related_type, info.related_related_related_related_related_related_related_method,
++                       info.related_related_related_related_related_related_related_sequence, info.related_related_related_related_related_related_related_created,
++                       info.related_related_related_related_related_related_related_last_modified, info.related_related_related_related_related_related_related_dtstamp,
++                       info.related_related_related_related_related_related_related_all_day, info.related_related_related_related_related_related_related_timezones,
++                       info.related_related_related_related_related_related_related_geo, info.related_related_related_related_related_related_related_classification,
++                       info.related_related_related_related_related_related_related_comment, info.related_related_related_related_related_related_related_percent_complete,
++                       info.related_related_related_related_related_related_related_completed, info.related_related_related_related_related_related_related_parent_uid,
++                       info.related_related_related_related_related_related_related_related_to, info.related_related_related_related_related_related_related_related_status,
++                       info.related_related_related_related_related_related_related_related_type, info.related_related_related_related_related_related_related_related_method,
++                       info.related_related_related_related_related_related_related_related_sequence, info.related_related_related_related_related_related_related_related_created,
++                       info.related_related_related_related_related_related_related_related_last_modified, info.related_related_related_related_related_related_related_related_dtstamp,
++                       info.related_related_related_related_related_related_related_related_all_day, info.related_related_related_related_related_related_related_related_timezones,
++                       info.related_related_related_related_related_related_related_related_geo, info.related_related_related_related_related_related_related_related_classification,
++                       info.related_related_related_related_related_related_related_related_comment, info.related_related_related_related_related_related_related_related_percent_complete,
++                       info.related_related_related_related_related_related_related_related_completed, info.related_related_related_related_related_related_related_related_parent_uid,
++                       info.related_related_related_related_related_related_related_related_related_to, info.related_related_related_related_related_related_related_related_related_status,
++                       info.related_related_related_related_related_related_related_related_related_type, info.related_related_related_related_related_related_related_related_related_method,
++                       info.related_related_related_related_related_related_related_related_related_sequence, info.related_related_related_related_related_related_related_related_related_created,
++                       info.related_related_related_related_related_related_related_related_related_last_modified, info.related_related_related_related_related_related_related_related_related_dtstamp,
++                       info.related_related_related_related_related_related_related_related_related_all_day, info.related_related_related_related_related_related_related_related_related_timezones,
++                       info.related_related_related_related_related_related_related_related_related_geo, info.related_related_related_related_related_related_related_related_related_classification,
++                       info.related_related_related_related_related_related_related_related_related_comment, info.related_related_related_related_related_related_related_related_related_percent_complete,
++                       info.related_related_related_related_related_related_related_related_related_completed, info.related_related_related_related_related_related_related_related_related_parent_uid,
++                       info.related_related_related_related_related_related_related_related_related_related_to, info.related_related_related_related_related_related_related_related_related_related_status,
++                       info.related_related_related_related_related_related_related_related_related_related_type, info.related_related_related_related_related_related_related_related_related_related_method,
++                       info.related_related_related_related_related_related_related_related_related_related_sequence, info.related_related_related_related_related_related_related_related_related_related_created,
++                       info.related_related_related_related_related_related_related_related_related_related_last_modified, info.related_related_related_related_related_related_related_related_related_related_dtstamp,
++                       info.related_related_related_related_related_related_related_related_related_related_all_day, info.related_related_related_related_related_related_related_related_related_related_timezones,
++                       info.related_related_related_related_related_related_related_related_related_related_geo, info.related_related_related_related_related_related_related_related_related_related_classification,
++                       info.related_related_related_related_related_related_related_related_related_related_comment, info.related_related_related_related_related_related_related_related_related_related_percent_complete,
++                       info.related_related_related_related_related_related_related_related_related_related_completed, info.related_related_related_related_related_related_related_related_related_related_parent_uid,
++                       info.related_related_related_related_related_related_related_related_related_related_related_to, info.related_related_related_related_related_related_related_related_related_related_related_status,
++                       info.related_related_related_related_related_related_related_related_related_related_related_type, info.related_related_related_related_related_related_related_related_related_related_related_method,
++                       info.related_related_related_related_related_related_related_related_related_related_related_sequence, info.related_related_related_related_related_related_related_related_related_related_related_created,
++                       info.related_related_related_related_related_related_related_related_related_related_related_last_modified, info.related_related_related_related_related_related_related_related_related_related_related_dtstamp,
++                       info.related_related_related_related_related_related_related_related_related_related_related_all_day, info.related_related_related_related_related_related_related_related_related_related_related_timezones,
++                       info.related_related_related_related_related_related_related_related_related_related_related_geo, info.related_related_related_related_related_related_related_related_related_related_related_classification,
++                       info.related_related_related_related_related_related_related_related_related_related_related_comment, info.related_related_related_related_related_related_related_related_related_related_related_percent_complete,
++                       info.related_related_related_related_related_related_related_related_related_related_related_completed, info.related_related_related_related_related_related_related_related_related_related_related_parent_uid,
++                       info.related_related_related_related_related_related_related_related_related_related_related_related_to, info.related_related_related_related_related_related_related_related_related_related_related_related_status,
++                       info.related_related_related_related_related_related_related_related_related_related_related_related_type, info.related_related_related_related_related_related_related_related_related_related_related_related_method,
++                       info.related_related_related_related_related_related_related_related_related_related_related_related_sequence, info.related_related_related_related_related_related_related_related_related_related_related_related_created,
++                       info.related_related_related_related_related_related_related_related_related_related_related_related_last_modified, info.related_related_related_related_related_related_related_related_related_related_related_related_dtstamp,
++                       info.related_related_related_related_related_related_related_related_related_related_related_related_all_day, info.related_related_related_related_related_related_related_related_related_related_related_related_timezones,
++                       info.related_related_related_related_related_related_related_related_related_related_related_related_geo, info.related_related_related_related_related_related_related_related_related_related_related_related_classification,
++                       info.related_related_related_related_related_related_related_related_related_related_related_related_comment, info.related_related_related_related_related_related_related_related_related_related_related_related_percent_complete,
++                       info.related_related_related_related_related_related_related_related_related_related_related_related_completed, info.related_related_related_related_related_related_related_related_related_related_related_related_parent_uid,
++                       info.related_related_related_related_related_related_related_related_related_related_related_related_related_to, info.related_related_related_related_related_related_related_related_related_related_related_related_related_status,
++                       info.related_related_related_related_related_related_related_related_related_related_related_related_related_type, info.related_related_related_related_related_related_related_related_related_related_related_related_related_method,
++                       info.related_related_related_related_related_related_related_related_related_related_related_related_related_sequence, info.related_related_related_related_related_related_related_related_related_related_related_related_related_created,
++                       info.related_related_related_related_related_related_related_related_related_related_related_related_related_last_modified,

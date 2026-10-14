@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/tests/test_grader_generated.py
+@@ -0,0 +1,27 @@
++import numpy as np
++from pathlib import Path
++from unittest.mock import patch
++from io import StringIO
++
++# Assuming the Reach class is defined in reach.py
++from reach.reach import Reach
++
++def test_add_unk_token_dtype():
++    # Create a mock .vec file with a specific dtype
++    vec_content = "2 3\nhello 1.0 2.0 3.0\ngoodbye 4.0 5.0 6.0"
++    mock_file = StringIO(vec_content)
++    
++    # Load the mock .vec file with a specific dtype
++    reach_instance = Reach.load(mock_file, desired_dtype=np.float32)
++    
++    # Check if the dtype of the vectors is np.float32
++    assert reach_instance.vectors.dtype == np.float32
++    
++    # Add the <UNK> token
++    reach_instance.add_unk_token("<UNK>")
++    
++    # Check if the dtype of the vectors remains np.float32
++    assert reach_instance.vectors.dtype == np.float32
++
++if __name__ == "__main__":
++    test_add_unk_token_dtype()

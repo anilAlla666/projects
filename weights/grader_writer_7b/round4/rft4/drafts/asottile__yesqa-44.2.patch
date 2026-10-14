@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/tests/test_yesqa_test_grader.py
+@@ -0,0 +1,26 @@
++import pytest
++import yesqa
++
++
++@pytest.fixture
++def assert_rewrite(tmpdir):
++    def _assert(s, expected=None):
++        expected_retc = 0 if expected is None else 1
++        expected = s if expected is None else expected
++        f = tmpdir.join('f.py')
++        f.write(s)
++        assert yesqa.fix_file(str(f)) == expected_retc
++        assert f.read() == expected
++    return _assert
++
++
++@pytest.mark.parametrize(
++    ('cmdline_args', 'config'),
++    (
++        (('--flake8-show-source', 'false'), False),
++        ((--flake8-show-source', 'true'), True),
++        ((--flake8-show-source', 'maybe'), None),
++    ),
++)
++def test_config(cmdline_args, config, monkeypatch):
++    monkeypatch.setattr(yesqa, '_FLAKE8_SHOW_SOURCE_CONFIG', config)
++    assert yesqa._get_flake8_show_source(*cmdline_args) == config

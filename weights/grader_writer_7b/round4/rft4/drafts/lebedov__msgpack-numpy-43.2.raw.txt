@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/test_msgpack_numpy_grader.py
+@@ -0,0 +1,47 @@
++import numpy as np
++import pytest
++from . import packb, unpackb
++
++
++@pytest.mark.parametrize(
++    ('dtype', 'data'),
++    [
++        (
++            [('a', [('aa', 'i4'), ('ab', 'u1')]), ('b', [('ba', 'O')])],
++            [[[[[0, b'a'], []], [], [], []], []], [], [], []],
++        ),
++        (
++            [('a', [('aa', 'f4'), ('ab', 'U1')]), ('b', [('ba', 'O')])],
++            [[[[-0.0, b'a'], []], [], [], []], [], [], []],
++        ),
++        (
++            [('a', [('aa', 'f4'), ('ab', 'U1')]), ('b', [('ba', 'O')])],
++            [[[[-0.0, b'a'], []], [], [], []], [], [], []],
++        ),
++    ],
++)
++def test_nested_structured(dtype, data):
++    arr = np.zeros(len(data), dtype=dtype)
++    arr['a']['aa'] = [d[0] for d in data]
++    arr['a']['ab'] = [d[1] for d in data]
++    arr['b']['ba'] = [d[2] for d in data]
++
++    packed = packb(arr)
++    unpacked = unpackb(packed)
++    assert len(unpacked) == len(data)
++    for i, d in enumerate(data):
++        assert unpacked[i]['a']['aa'] == d[0]
++        assert unpacked[i]['a']['ab'] == d[1]
++        assert unpacked[i]['b']['ba'] == d[2]
++
++
++def test_issue_35():
++    """Test case from Issue 35"""
++    structured_dtype = np.dtype([("a", float), ("b", int)])
++    nested_dtype = np.dtype([("foo", structured_dtype), ("bar", structured_dtype)])
++
++    x = np.empty((10,), dtype=nested_dtype)
++    x["foo"]["a"] = np.arange(10)
++    x["foo"]["b"] = np.arange(10)
++    x["bar"]["a"] = np.arange(10) + 10
++    x["bar"]["b"] = np.arange(10) + 10
++
++    assert unpackb(packb(x)) == x

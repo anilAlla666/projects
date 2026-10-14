@@ -1,0 +1,48 @@
+I added a test file for the optional constructor argument. The tests cover `SensorHub()` and `SensorHub(bus)`, patching `sensorhub.hub.SMBus` so no real hardware is touched. I have not run them. The no-argument tests should fail on the current code with a `TypeError` and pass once the argument is optional.
+
+```diff
+diff --git a/test/test_hub_constructor.py b/test/test_hub_constructor.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_hub_constructor.py
+@@ -0,0 +1,38 @@
++from unittest.mock import Mock, patch
++
++from smbus2 import SMBus
++
++from sensorhub.hub import SensorHub
++
++
++def test_constructor_without_arguments_creates_default_bus():
++    with patch("sensorhub.hub.SMBus") as smbus_class:
++        SensorHub()
++
++    smbus_class.assert_called_once()
++
++
++def test_constructor_without_arguments_uses_created_bus_for_reads():
++    with patch("sensorhub.hub.SMBus") as smbus_class:
++        smbus_class.return_value.read_byte_data.side_effect = [0, 25]
++        hub = SensorHub()
++
++        assert hub.get_off_board_temperature() == 25
++
++    assert smbus_class.return_value.read_byte_data.call_count == 2
++
++
++def test_constructor_with_none_still_works():
++    with patch("sensorhub.hub.SMBus") as smbus_class:
++        SensorHub(None)
++
++    smbus_class.assert_called_once()
++
++
++def test_constructor_with_bus_uses_given_bus_and_does_not_create_one():
++    bus = Mock(SMBus)
++    bus.read_byte_data.side_effect = [0, 30]
++    with patch("sensorhub.hub.SMBus") as smbus_class:
++        hub = SensorHub(bus)
++        assert hub.get_off_board_temperature() == 30
++
++    smbus_class.assert_not_called()
+```

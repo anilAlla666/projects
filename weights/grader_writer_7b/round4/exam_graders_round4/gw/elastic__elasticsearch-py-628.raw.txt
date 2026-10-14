@@ -1,0 +1,41 @@
+--- /dev/null
++++ b/test_elasticsearch/test_helpers_grader.py
+@@ -0,0 +1,24 @@
++import mock
++import time
++import threading
++from elasticsearch import helpers, Elasticsearch
++from elasticsearch.serializer import JSONSerializer
++from .test_cases import TestCase
++
++
++class TestChunkActions(TestCase):
++    def setUp(self):
++        super(TestChunkActions, self).setUp()
++        self.actions = [({'index': {}}, {'some': 'data', 'i': i}) for i in range(100)]
++
++    def test_bytes_actions_are_not_encoded(self):
++        actions = [{'index': {}}]
++        data = b'\xc3\xa9'
++        actions.append(data)
++        self.assertEquals(1, len(list(helpers._chunk_actions(actions, 100000, 1, JSONSerializer()))))
++
++    def test_unicode_actions_are_encoded(self):
++        actions = [{'index': {}}]
++        data = u'é'
++        actions.append(data)
++        self.assertEquals(1, len(list(helpers._chunk_actions(actions, 100000, 1, JSONSerializer()))))
+--- /dev/null
++++ b/test_elasticsearch/test_transport_grader.py
+@@ -0,0 +1,10 @@
++from __future__ import unicode_literals
++import time
++from elasticsearch.transport import Transport, get_host_info
++from elasticsearch.connection import Connection
++from elasticsearch.connection_pool import DummyConnectionPool
++from elasticsearch.exceptions import ConnectionError, ImproperlyConfigured
++from .test_cases import TestCase
++
++
++class DummyConnection(Connection):
++    def __init__(self, **kwargs): pass

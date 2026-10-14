@@ -1,0 +1,38 @@
+diff --git a/zarr/tests/test_util.py b/zarr/tests/test_util.py
+index 1234567..abcdef8 100644
+--- a/zarr/tests/test_util.py
++++ b/zarr/tests/test_util.py
+@@ -1,6 +1,7 @@
+ import re
+ from unittest import mock
++from warnings import catch_warnings
+ 
+ import numpy as np
+ import pytest
+@@ -237,6 +238,27 @@ def test_all_equal():
+     assert not all_equal(None, np.array([None, 10]))
+ 
+ 
++def test_normalize_fill_value_structured_array():
++    # Create a structured array
++    dt = [('a', int), ('b', int)]
++    arr = np.zeros((), dtype=dt)
++
++    # Test with a structured array fill value
++    fill_value = arr[()]
++    normalized_fill_value = normalize_fill_value(fill_value, dt)
++    assert normalized_fill_value == fill_value
++
++    # Test with a different structured array fill value
++    fill_value = np.zeros((), dtype=dt)[()]
++    normalized_fill_value = normalize_fill_value(fill_value, dt)
++    assert normalized_fill_value == fill_value
++
++    # Test with a non-zero fill value
++    fill_value = np.array([(1, 2)], dtype=dt)[0]
++    normalized_fill_value = normalize_fill_value(fill_value, dt)
++    assert normalized_fill_value == fill_value
++
+ 
+ def test_json_dumps_numpy_dtype():
+     assert json_dumps(np.int64(0)) == json_dumps(0)

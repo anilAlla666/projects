@@ -1,0 +1,38 @@
+To address the issue of permissive parsing of DELTA values in `khal`, we need to ensure that leading `+` signs in DELTA values are ignored when parsing. This can be achieved by modifying the `guesstimedeltafstr` function to handle such cases.
+
+Here’s a unified diff that includes a new test case in `tests/parse_datetime_test.py` to verify the fix:
+
+```diff
+diff --git a/tests/parse_datetime_test.py b/tests/parse_datetime_test.py
+index 3a2b3c4..5d6e7f8 100644
+--- a/tests/parse_datetime_test.py
++++ b/tests/parse_datetime_test.py
+@@ -537,6 +537,15 @@ def test_repeat_localized():
+     for data_list, vevent in test_set_repeat_localized:
+         with freeze_time('2014-02-16 12:00:00'):
+             event = _construct_event(data_list.split(),
+                                      description='please describe the event',
+                                      repeat='daily',
+                                      until='05.06.2015',
+                                      locale=LOCALE_BERLIN)
+             assert normalize_component(_replace_uid(event).to_ical()) == \
+                 normalize_component(vevent)
+ 
++def test_delta_with_leading_plus():
++    for data_list, vevent in [
++            ('+1h', 'DTSTART;TZID=UTC:20140216T130000'),
++            ('+1h 30m', 'DTSTART;TZID=UTC:20140216T133000'),
++            ('+1h30m', 'DTSTART;TZID=UTC:20140216T133000'),
++            ('+1h30m 45s', 'DTSTART;TZID=UTC:20140216T133045'),
++    ]:
++        event = _construct_event(data_list.split(), locale=LOCALE_BERLIN)
++        assert event.dtstart.strftime('%Y%m%dT%H%M%S') == vevent.split('\n')[1].split(':')[1].strip()
++
+ test_set_alarm = _create_testcases(
+     ('8:00 Äwesöme Event',
+      ['BEGIN:VEVENT',
+```
+
+This diff introduces a new test case `test_delta_with_leading_plus` that checks various DELTA strings with leading `+` signs. The expected output is verified by comparing the `dtstart` attribute of the constructed event with the corresponding line from the provided VEVENT string.
+
+By running these tests before and after applying the fix, you should observe that the new test fails with the current implementation and passes once the fix is applied.

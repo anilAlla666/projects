@@ -1,0 +1,49 @@
+--- /dev/null
++++ b/networkx/algorithms/tests/test_cuts_grader.py
+@@ -0,0 +1,13 @@
++"""Unit tests for the :mod:`networkx.algorithms.cuts` module."""
++
++
++import networkx as nx
++
++
++class TestMinimumNodeCut:
++    def test_adjacent_nodes(self):
++        G = nx.Graph()
++        G.add_nodes_from([0, 1])
++        G.add_edge(0, 1)
++        node_cut = nx.minimum_node_cut(G, 0, 1)
++        assert(node_cut == set())
+--- /dev/null
++++ b/networkx/algorithms/connectivity/tests/test_cuts_grader.py
+@@ -0,0 +1,25 @@
++import pytest
++import networkx as nx
++from networkx.algorithms import flow
++from networkx.algorithms.connectivity import minimum_st_edge_cut
++from networkx.algorithms.connectivity import minimum_st_node_cut
++from networkx.utils import arbitrary_element
++
++
++flow_funcs = [
++    flow.boykov_kolmogorov,
++    flow.dinitz,
++    flow.edmonds_karp,
++    flow.preflow_push,
++    flow.shortest_augmenting_path,
++]
++
++
++def _generate_no_biconnected(max_attempts=50):
++    attempts = 0
++    while True:
++        G = nx.fast_gnp_random_graph(100, 0.0575, seed=42)
++        if nx.is_connected(G) and not nx.is_biconnected(G):
++            attempts = 0
++            yield G
++        else:
++            if attempts >= max_attempts:
++                msg = f"Tried {attempts} times: no suitable Graph."
++                raise Exception(msg)
++            else:
++                attempts += 1

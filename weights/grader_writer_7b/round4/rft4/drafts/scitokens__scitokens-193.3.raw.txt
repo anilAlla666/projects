@@ -1,0 +1,158 @@
+--- /dev/null
++++ b/tests/test_keycache_grader.py
+@@ -0,0 +1,109 @@
++"""
++Test the keycache
++"""
++
++
++import os, stat
++import sys
++import tempfile
++import shutil
++import unittest
++from unittest import mock
++from scitokens.utils.keycache import KeyCache
++from scitokens.utils.errors import UnableToCreateCache
++from cryptography.hazmat.primitives.asymmetric.rsa import generate_private_key
++from cryptography.hazmat.backends import default_backend
++from cryptography.hazmat.primitives import serialization
++
++
++try:
++    from urllib.error import URLError
++except ImportError:
++    from urllib2 import URLError
++
++
++import create_webserver
++
++
++class TestKeyCache(unittest.TestCase):
++    """
++    Test the creation of a simple SciToken
++    """
++
++    def setUp(self):
++
++        # Force the keycache to create a cache in a new directory
++        self.tmp_dir = tempfile.mkdtemp()
++        self.old_xdg = os.environ.get('XDG_CACHE_HOME', None)
++        os.environ['XDG_CACHE_HOME'] = self.tmp_dir
++        # Clear the cache
++        self.keycache = KeyCache()
++
++    def tearDown(self):
++
++        # Cleanup the temporary directory
++        shutil.rmtree(self.tmp_dir)
++        if self.old_xdg is None:
++            del os.environ['XDG_CACHE_HOME']
++        else:
++            os.environ['XDG_CACHE_HOME'] = self.old_xdg
++
++    @mock.patch('requests.request')
++    def test_fetch_pubkey(self, request_mock):
++        """
++        Test fetching a public key
++        """
++        # Mock the response from requests.get
++        public_numbers = generate_private_key(
++            public_exponent=65537,
++            key_size=2048,
++            backend=default_backend()
++        ).public_key().public_numbers()
++        response = mock.Mock()
++        response.content = "{}/{}".format(public_numbers.n, public_numbers.e)
++        response.status_code = 200
++        request_mock.return_value = response
++
++        self.keycache.addkeyinfo("http://example.com/", "test",
++                                 None,
++                                 cache_timer=60,
++                                 next_update=-1)
++        public_key = self.keycache.getkeyinfo("http://example.com/",
++                                              "test",
++                                              insecure=True)
++        self.assertIsNotNone(public_key)
++
++    @mock.patch('requests.request')
++    def test_fetch_pubkey_http_error(self, request_mock):
++        """
++        Test fetching a public key
++        """
++        # Mock the response from requests.get
++        response = mock.Mock()
++        response.content = "Not Found"
++        response.status_code = 404
++        request_mock.return_value = response
++
++        self.keycache.addkeyinfo("http://example.com/", "test",
++                                 None,
++                                 cache_timer=60,
++                                 next_update=-1)
++        public_key = self.keycache.getkeyinfo("http://example.com/",
++                                              "test",
++                                              insecure=True)
++        self.assertIsNone(public_key)
++
++    @mock.patch('requests.request')
++    def test_fetch_pubkey_https_error(self, request_mock):
++        """
++        Test fetching a public key
++        """
++        # Mock the response from requests.get
++        response = mock.Mock()
++        response.content = "No SSL cert"
++        response.status_code = 500
++        request_mock.return_value = response
++
++        self.keycache.addkeyinfo("http://example.com/", "test",
++                                 None,
++                                 cache_timer=60,
++                                 next_update=-1)
++        public_key = self.keycache.getkeyinfo("http://example.com/",
++                                              "test",
++                                              insecure=False)
++        self.assertIsNone(public_key)
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/tests/test_scitoken_grader.py
+@@ -0,0 +1,32 @@
++"""
++Unit tests for the scitokens module.
++"""
++
++
++import os
++import sys
++import unittest
++from scitokens.scitokens import SciToken
++from scitokens.tools.admin_create_token import main as admin_create_token
++from scitokens.tools.admin_verify_token import main as admin_verify_token
++from scitokens.utils.enforce import Enforcer
++from cryptography.hazmat.primitives.asymmetric.rsa import generate_private_key
++from cryptography.hazmat.backends import default_backend
++from cryptography.hazmat.primitives import serialization
++from datetime import timedelta
++
++
++class TestScitoken(unittest.TestCase):
++    """
++    Unit tests for the scitokens module.
++    """
++
++    def test_any_audience_claim(self):
++        """
++        Verify that tokens with the ANY audience claim are still considered valid.
++        """
++        enforcer = Enforcer()
++        token = SciToken({"sub": "alice", "aud": "ANY"})
++        self.assertTrue(enforcer.verify_token(token))
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,57 @@
+To address the `ZeroDivisionError` when passing in data containing all zeros, we need to modify the `normalize` function to handle cases where the maximum value is zero. Here’s how you can update the `normalize` function:
+
+```python
+def normalize(data: List, width: int) -> List:
+    """Normalize the data and return it."""
+
+    # We offset by the minimum if there's a negative.
+    data_offset = []
+    min_datum = find_min(data)
+    if min_datum < 0:
+        min_datum = abs(min_datum)
+        for datum in data:
+            data_offset.append([d + min_datum for d in datum])
+    else:
+        data_offset = data
+    min_datum = find_min(data_offset)
+    max_datum = find_max(data_offset)
+
+    # Handle the case where max_datum is zero
+    if max_datum == 0:
+        return [[0] * len(datum) for datum in data]
+
+    # max_dat / width is the value for a single tick. norm_factor is the
+    # inverse of this value
+    # If you divide a number to the value of single tick, you will find how
+    # many ticks it does contain basically.
+    norm_factor = width / float(max_datum)
+    normal_data = []
+    for datum in data_offset:
+        normal_data.append([v * norm_factor for v in datum])
+
+    return normal_data
+```
+
+Now, let's write a test to ensure that this fix works correctly. We'll add a new test function to `tests/test_termgraph.py`.
+
+```diff
++def test_normalize_with_all_zeros():
++    data = [[0, 0], [0, 0]]
++    width = 100
++    expected = [[0, 0], [0, 0]]
++    result = tg.normalize(data, width)
++    assert result == expected
++
++def test_normalize_with_positive_and_zero():
++    data = [[0, 0], [10, 20]]
++    width = 100
++    expected = [[0, 0], [10, 20]]
++    result = tg.normalize(data, width)
++    assert result == expected
+```
+
+These tests check two scenarios:
+1. When the data contains only zeros, the normalized result should also be all zeros.
+2. When the data contains both positive and zero values, the normalization should work as expected.
+
+With these changes, the existing tests should still pass, and the new tests should fail before applying the fix and pass after applying the fix.

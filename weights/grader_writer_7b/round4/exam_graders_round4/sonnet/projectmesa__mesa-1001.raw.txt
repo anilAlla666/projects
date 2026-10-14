@@ -1,0 +1,80 @@
+I've added a new test file for the public `NetworkGrid.remove_agent(agent)` method. I haven't run it. It should fail on the current code because the public method doesn't exist, and pass once it does.
+
+The tests check that:
+- Removal takes the agent off its node's agent list and sets `agent.pos` to `None`.
+- A node is empty again once its only agent is removed.
+- Removing one agent from a shared node leaves the other agents there.
+- An agent can be placed again after removal.
+
+I defined a small agent class inside the file instead of importing `MockAgent`, so the tests don't depend on other test modules.
+
+```diff
+diff --git a/tests/test_network_grid_remove_agent.py b/tests/test_network_grid_remove_agent.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_network_grid_remove_agent.py
+@@ -0,0 +1,62 @@
++import unittest
++
++import networkx as nx
++
++from mesa.space import NetworkGrid
++
++
++class _Agent:
++    def __init__(self, unique_id):
++        self.unique_id = unique_id
++        self.pos = None
++
++
++class TestNetworkGridRemoveAgent(unittest.TestCase):
++    def setUp(self):
++        self.space = NetworkGrid(nx.complete_graph(4))
++        self.agents = []
++        for i, pos in enumerate([0, 1, 1]):
++            a = _Agent(i)
++            self.agents.append(a)
++            self.space.place_agent(a, pos)
++
++    def test_remove_agent_single(self):
++        agent = self.agents[0]
++        assert agent.pos == 0
++        assert agent in self.space.G.nodes[0]["agent"]
++
++        self.space.remove_agent(agent)
++
++        assert agent.pos is None
++        assert agent not in self.space.G.nodes[0]["agent"]
++        assert self.space.is_cell_empty(0)
++        assert agent not in self.space.get_all_cell_contents()
++
++    def test_remove_agent_shared_node(self):
++        agent = self.agents[1]
++        other = self.agents[2]
++
++        self.space.remove_agent(agent)
++
++        assert agent.pos is None
++        assert agent not in self.space.G.nodes[1]["agent"]
++        assert other in self.space.G.nodes[1]["agent"]
++        assert other.pos == 1
++        assert len(self.space.G.nodes[1]["agent"]) == 1
++
++    def test_remove_then_place_again(self):
++        agent = self.agents[0]
++        self.space.remove_agent(agent)
++        self.space.place_agent(agent, 3)
++        assert agent.pos == 3
++        assert agent in self.space.G.nodes[3]["agent"]
++        assert agent not in self.space.G.nodes[0]["agent"]
++
++    def test_remove_all(self):
++        for a in self.agents:
++            self.space.remove_agent(a)
++        assert self.space.get_all_cell_contents() == []
++        assert all(a.pos is None for a in self.agents)
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

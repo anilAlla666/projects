@@ -1,0 +1,136 @@
+--- /dev/null
++++ b/src/qibo/tests/test_backends_grader.py
+@@ -0,0 +1,107 @@
++import numpy as np
++import pytest
++from qibo import gates
++
++
++GATES = [
++    ("H", (0,), np.array([[1, 1], [1, -1]]) / np.sqrt(2)),
++    ("X", (0,), np.array([[0, 1], [1, 0]])),
++    ("Y", (0,), np.array([[0, -1j], [1j, 0]])),
++    ("Z", (1,), np.array([[1, 0], [0, -1]])),
++    ("S", (2,), np.array([[1, 0], [0, 1j]])),
++    ("T", (2,), np.array([[1, 0], [0, np.exp(1j * np.pi / 4.0)]])),
++    (
++        "CNOT",
++        (0, 1),
++        np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]]),
++    ),
++    ("CZ", (1, 3), np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])),
++    (
++        "SWAP",
++        (2, 4),
++        np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]]),
++    ),
++    (
++        "FSWAP",
++        (2, 4),
++        np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, -1]]),
++    ),
++    (
++        "TOFFOLI",
++        (1, 2, 3),
++        np.array(
++            [
++                [1, 0, 0, 0, 0, 0, 0, 0],
++                [0, 1, 0, 0, 0, 0, 0, 0],
++                [0, 0, 1, 0, 0, 0, 0, 0],
++                [0, 0, 0, 1, 0, 0, 0, 0],
++                [0, 0, 0, 0, 1, 0, 0, 0],
++                [0, 0, 0, 0, 0, 1, 0, 0],
++                [0, 0, 0, 0, 0, 0, 0, 1],
++                [0, 0, 0, 0, 0, 0, 1, 0],
++            ]
++        ),
++    ),
++    ("RX", lambda x: np.array([[np.cos(x / 2.0), -1j * np.sin(x / 2.0)], [-1j * np.sin(x / 2.0), np.cos(x / 2.0)]])),
++    (
++        "RY",
++        lambda x: np.array(
++            [[np.cos(x / 2.0), -np.sin(x / 2.0)], [np.sin(x / 2.0), np.cos(x / 2.0)]]
++        ),
++    ),
++    ("RZ", lambda x: np.diag([np.exp(-1j * x / 2.0), np.exp(1j * x / 2.0)])),
++    ("U1", lambda x: np.diag([1, np.exp(1j * x)])),
++    ("CU1", lambda x: np.diag([1, 1, 1, np.exp(1j * x)])),
++]
++
++
++def test_light_cone_parametrization(backend):
++    """Test that the light cone keeps the parametrization of gates."""
++    depth = 3
++    qubits = 4
++    circuit = gates.Circuit(qubits)
++    for _ in range(depth):
++        for qubit in range(qubits):
++            circuit += gates.U3(qubit, 0, 0, 0)
++        cnots_even = np.arange(0, qubits - 1, 2)
++        cnots_odd = np.arange(1, qubits - 1, 2)
++        for row in cnots_even:
++            circuit += gates.CNOT(row, row + 1)
++        for row in cnots_odd:
++            circuit += gates.CNOT(row, row + 1)
++
++    parameters = np.random.rand(qubits * depth, 3)
++    circuit.set_parameters(parameters)
++    assert circuit.get_parameters() == parameters
++
++    cone = circuit.light_cone(0, 2)[0]
++    assert cone.get_parameters() == parameters
++
++    # Check that the parameters are kept even if we reset the circuit.
++    cone.reset()
++    assert cone.get_parameters() == parameters
++
++
++def test_light_cone_parametrization_copies(backend):
++    """Test that the light cone keeps the parametrization of copied circuits."""
++    depth = 3
++    qubits = 4
++    circuit = gates.Circuit(qubits)
++    for _ in range(depth):
++        for qubit in range(qubits):
++            circuit += gates.U3(qubit, 0, 0, 0)
++        cnots_even = np.arange(0, qubits - 1, 2)
++        cnots_odd = np.arange(1, qubits - 1, 2)
++        for row in cnots_even:
++            circuit += gates.CNOT(row, row + 1)
++        for row in cnots_odd:
++            circuit += gates.CNOT(row, row + 1)
++
++    parameters = np.random.rand(qubits * depth, 3)
++    circuit.set_parameters(parameters)
++    assert circuit.get_parameters() == parameters
++
++    cone = circuit.copy(True)
++    cone = cone.light_cone(0, 2)[0]
++    assert cone.get_parameters() == parameters
+--- /dev/null
++++ b/src/qibo/tests/test_gates_abstract_grader.py
+@@ -0,0 +1,25 @@
++"""Tests methods defined in `qibo/gates/abstract.py` and `qibo/gates/gates.py`."""
++
++
++import pytest
++from qibo import gates
++
++
++def test_controlled_by():
++    gate = gates.RX(0, 0.1234).controlled_by(1, 2, 3)
++    assert gate.target_qubits == (0,)
++    assert gate.control_qubits == (1, 2, 3)
++    assert gate.is_controlled_by
++    assert isinstance(gate, gates.RX)
++    with pytest.raises(RuntimeError):
++        gate = gates.CNOT(0, 1).controlled_by(2)
++
++
++def test_on_qubits_controlled_by():
++    gate = gates.H(0).controlled_by(1, 2)
++    gate = gate.on_qubits({0: 5, 1: 4, 2: 6})
++    assert gate.target_qubits == (5,)
++    assert gate.control_qubits == (4, 6)
++    assert isinstance(gate, gates.H)
++    assert gate.is_controlled_by

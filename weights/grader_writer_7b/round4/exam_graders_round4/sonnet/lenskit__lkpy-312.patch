@@ -1,0 +1,49 @@
+diff --git a/tests/test_topn_ndcg_truncate.py b/tests/test_topn_ndcg_truncate.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_topn_ndcg_truncate.py
+@@ -0,0 +1,45 @@
++import numpy as np
++import pandas as pd
++
++from pytest import approx
++
++from lenskit.metrics.topn import ndcg
++
++
++def _truth():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    return truth.set_index('item')
++
++
++def test_ndcg_no_k_truncates_truth_to_recs():
++    truth = _truth()
++    recs = pd.DataFrame({'item': [1, 2]})
++
++    # ideal over 2 items: 5 + 4 = 9; achieved: 3 + 5 = 8
++    assert ndcg(recs, truth, k=2) == approx(8 / 9)
++    assert ndcg(recs, truth) == approx(8 / 9)
++
++
++def test_ndcg_k_truncates_recs():
++    truth = _truth()
++    recs = pd.DataFrame({'item': [2, 3, 1]})
++
++    assert ndcg(recs, truth) == approx(1.0)
++    assert ndcg(recs[:2], truth, k=2) == approx(1.0)
++    assert ndcg(recs, truth, k=2) == approx(1.0)
++
++
++def test_ndcg_k_larger_than_recs():
++    truth = _truth()
++    recs = pd.DataFrame({'item': [1, 2]})
++
++    assert ndcg(recs, truth, k=5) == approx(8 / 9)
++
++
++def test_ndcg_no_rating_no_k_truncates():
++    truth = pd.DataFrame({'item': [1, 2, 3]}).set_index('item')
++    recs = pd.DataFrame({'item': [1, 2]})
++
++    assert ndcg(recs, truth, k=2) == approx(1.0)
++    assert ndcg(recs, truth) == approx(1.0)

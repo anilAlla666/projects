@@ -1,0 +1,121 @@
+--- /dev/null
++++ b/control/tests/test_sisotool_test_grader.py
+@@ -0,0 +1,110 @@
++"""sisotool_test.py"""
++
++
++from control.exception import ControlMIMONotImplemented
++import matplotlib.pyplot as plt
++import numpy as np
++from numpy.testing import assert_array_almost_equal
++import pytest
++from control.sisotool import sisotool, rootlocus_pid_designer
++from control.rlocus import _RLClickDispatcher
++from control.xferfcn import TransferFunction
++from control.statesp import StateSpace
++from control import c2d
++
++
++@pytest.mark.usefixtures("mplcleanup")
++class TestSisotool:
++    """These are tests for the sisotool in sisotool.py."""
++
++    @pytest.fixture
++    def tsys(self, request):
++        """Return a generic SISO transfer function"""
++        dt = getattr(request, 'param', 0)
++        return TransferFunction([1000], [1, 25, 100, 0], dt)
++
++    @pytest.fixture
++    def sys222(self):
++        """2-states square system (2 inputs x 2 outputs)"""
++        A222 = [[4., 1.],
++                [2., -3]]
++        B222 = [[5., 2.],
++                [-3., -3.]]
++        C222 = [[2., -4],
++                [0., 1.]]
++        D222 = [[3., 2.],
++                [1., -1.]]
++        return StateSpace(A222, B222, C222, D222)
++
++    @pytest.fixture
++    def sys221(self):
++        """2-states, 2 inputs x 1 output"""
++        A221 = [[4., 1.],
++                [2., -3]]
++        B221 = [[5., 2.],
++                [-3., -3.]]
++        C221 = [[2., -4]]
++        D221 = [[3., 2.]]
++        return StateSpace(A221, B221, C221, D221)
++
++    @pytest.fixture
++    def sys121(self):
++        """1-state, 2 inputs x 1 output"""
++        A121 = [[-3]]
++        B121 = [[5.],
++                [-3.]]
++        C121 = [[2., -4]]
++        D121 = [[3., 2.]]
++        return StateSpace(A121, B121, C121, D121)
++
++    @pytest.fixture
++    def sys111(self):
++        """1-state, 1 input x 1 output"""
++        A111 = [[-3]]
++        B111 = [[5.]]
++        C111 = [[2.]]
++        D111 = [[3.]]
++        return StateSpace(A111, B111, C111, D111)
++
++    @pytest.fixture
++    def sys112(self):
++        """1-state, 1 input x 2 outputs"""
++        A112 = [[-3]]
++        B112 = [[5.]]
++        C112 = [[2., -4],
++                [0., 1.]]
++        D112 = [[3., 2.]]
++        return StateSpace(A112, B112, C112, D112)
++
++    @pytest.fixture
++    def sys122(self):
++        """1-state, 2 inputs x 2 outputs"""
++        A122 = [[-3]]
++        B122 = [[5., 2.],
++                [-3., -3.]]
++        C122 = [[2., -4],
++                [0., 1.]]
++        D122 = [[3., 2.],
++                [1., -1.]]
++        return StateSpace(A122, B122, C122, D122)
++
++    @pytest.fixture
++    def sys123(self):
++        """1-state, 2 inputs x 3 outputs"""
++        A123 = [[-3]]
++        B123 = [[5., 2.],
++                [-3., -3.]]
++        C123 = [[2., -4, 0],
++                [0., 1., 0],
++                [0., 0., 1.]]
++        D123 = [[3., 2., 1.],
++                [1., -1., 0.]]
++        return StateSpace(A123, B123, C123, D123)
++
++    @pytest.mark.skipif(plt.get_current_fig_manager().toolbar is None,
++                        reason="Requires the zoom toolbar")
++    def test_sisotool_initial_gain(self, tsys):
++        sisotool(tsys, initial_gain=1.2)
++        # kvect keyword should give deprecation warning
++        with pytest.warns(DeprecationWarning):
++            sisotool(tsys, kvect=1.2)
++
++    def test_sisotool_mimo(self,  sys222, sys221):
++        # a 2x2 should not raise an error:
++        sisotool(sys222)
++
++        # but 2 input, 1 output should
++        with pytest.raises(ControlMIMONotImplemented):
++            sisotool(sys221)

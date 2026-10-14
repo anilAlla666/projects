@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/test_resolution_grader.py
+@@ -0,0 +1,33 @@
++from unittest.mock import Mock, patch
++import pytest
++
++
++try:
++    from django.core.urlresolvers import Resolver404
++except ImportError:
++    from django.urls import Resolver404
++
++
++from webmention.resolution import url_resolves, fetch_and_validate_source, SourceFetchError, TargetNotFoundError
++
++
++@patch("requests.get")
++def test_fetch_and_validate_source_happy_path(mock_get, test_source, test_target):
++    mock_response = Mock()
++    mock_response.status_code = 200
++    mock_response.text = '<a href="{href}">{href}</a>'.format(href=test_target)
++    mock_get.return_value = mock_response
++
++    assert fetch_and_validate_source(test_source, test_target) == mock_response.text
++
++
++@patch("requests.get")
++def test_fetch_and_validate_source_when_source_does_not_contain_target(mock_get, test_source, test_target):
++    mock_response = Mock()
++    mock_response.status_code = 200
++    mock_response.text = "foo"
++    mock_get.return_value = mock_response
++
++    with pytest.raises(TargetNotFoundError):
++        fetch_and_validate_source(test_source, test_target)

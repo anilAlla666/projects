@@ -1,0 +1,54 @@
+diff --git a/tests/test_synced_values_inplace.py b/tests/test_synced_values_inplace.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_synced_values_inplace.py
+@@ -0,0 +1,63 @@
++# Tests that calling values()/items() on synced dicts does not modify
++# the underlying nested objects in place.
++import shutil
++import tempfile
++import unittest
++
++import signac
++
++
++class SyncedValuesInPlaceTest(unittest.TestCase):
++    def setUp(self):
++        self._tmp = tempfile.mkdtemp()
++        self.project = signac.init_project('test_values', root=self._tmp)
++
++    def tearDown(self):
++        shutil.rmtree(self._tmp, ignore_errors=True)
++
++    def test_statepoint_values_does_not_change_nested_type(self):
++        job = self.project.open_job({'a': {'b': 'c'}}).init()
++        before = type(job.sp.a)
++        job.sp.values()
++        self.assertIs(type(job.sp.a), before)
++
++    def test_document_values_does_not_change_nested_type(self):
++        job = self.project.open_job({'x': 1}).init()
++        job.doc = {'a': {'b': 'c'}}
++        before = type(job.doc.a)
++        job.doc.values()
++        self.assertIs(type(job.doc.a), before)
++        self.assertEqual(job.doc.a.b, 'c')
++
++    def test_document_items_does_not_change_nested_type(self):
++        job = self.project.open_job({'x': 2}).init()
++        job.doc = {'a': {'b': 'c'}}
++        before = type(job.doc.a)
++        job.doc.items()
++        self.assertIs(type(job.doc.a), before)
++
++    def test_nested_modification_still_syncs_after_values(self):
++        job = self.project.open_job({'x': 3}).init()
++        job.doc = {'a': {'b': 'c'}}
++        job.doc.values()
++        job.doc.a.b = 'd'
++        other = self.project.open_job(id=job.id)
++        self.assertEqual(other.doc.a.b, 'd')
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,43 @@
+--- /dev/null
++++ b/auth0/v3/test/management/test_auth0_grader.py
+@@ -0,0 +1,43 @@
++import unittest
++from ...management.actions import Actions
++from ...management.attack_protection import AttackProtection
++from ...management.auth0 import Auth0
++from ...management.blacklists import Blacklists
++from ...management.client_grants import ClientGrants
++from ...management.clients import Clients
++from ...management.connections import Connections
++from ...management.custom_domains import CustomDomains
++from ...management.device_credentials import DeviceCredentials
++from ...management.email_templates import EmailTemplates
++from ...management.emails import Emails
++from ...management.grants import Grants
++from ...management.guardian import Guardian
++from ...management.hooks import Hooks
++from ...management.jobs import Jobs
++from ...management.log_streams import LogStreams
++from ...management.logs import Logs
++from ...management.organizations import Organizations
++from ...management.prompts import Prompts
++from ...management.resource_servers import ResourceServers
++from ...management.roles import Roles
++from ...management.rules import Rules
++from ...management.rules_configs import RulesConfigs
++from ...management.stats import Stats
++from ...management.tenants import Tenants
++from ...management.tickets import Tickets
++from ...management.user_blocks import UserBlocks
++from ...management.users import Users
++from ...management.users_by_email import UsersByEmail
++
++
++class TestAuth0(unittest.TestCase):
++    def setUp(self):
++        self.domain = "user.some.domain"
++        self.token = "a-token"
++        self.a0 = Auth0(self.domain, self.token, rest_options={})
++
++    def test_rest_options_are_passed_to_all_subclasses(self):
++        self.assertIsNotNone(self.a0.rest_client.options)

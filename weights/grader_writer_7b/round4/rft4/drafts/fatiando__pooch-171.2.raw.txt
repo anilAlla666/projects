@@ -1,0 +1,81 @@
+--- /dev/null
++++ b/pooch/tests/test_utils_grader.py
+@@ -0,0 +1,81 @@
++"""
++Test the utility functions.
++"""
++
++
++import os
++import hashlib
++from pathlib import Path
++import tempfile
++from tempfile import NamedTemporaryFile, TemporaryDirectory
++import pytest
++from ..core import Pooch
++from ..utils import (
++    make_registry,
++    parse_url,
++    make_local_storage,
++    file_hash,
++    hash_matches,
++    temporary_file,
++    unique_file_name,
++)
++from .utils import check_tiny_data, capture_log
++
++
++DATA_DIR = str(Path(__file__).parent / "data" / "store")
++
++
++REGISTRY = (
++    "tiny-data.txt baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d\n"
++)
++
++
++REGISTRY_RECURSIVE = (
++    "subdir/tiny-data.txt baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d\n"
++    "tiny-data.txt baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d\n"
++)
++
++
++def test_make_local_storage():
++    "Check that we can make a cache directory safely"
++    with TemporaryDirectory() as tmp:
++        path = os.path.join(tmp, "testcache")
++        make_local_storage(path)
++        assert Path(path).is_dir()
++        # Make sure it's safe to call twice
++        make_local_storage(path)
++        assert Path(path).is_dir()
++
++
++def test_make_local_storage_parallel(caplog):
++    "Check that we can make a cache directory safely in parallel"
++    from multiprocessing.pool import Pool
++
++    caplog.set_level(10)  # debug level
++    with TemporaryDirectory() as tmp:
++        path = os.path.join(tmp, "testcache")
++
++        def mkstorage(i):
++            make_local_storage(path)
++            return i
++
++        pool = Pool(processes=4)
++        result = pool.map(mkstorage, range(4))
++        pool.close()
++        pool.join()
++        assert len(result) == 4
++        assert all(isinstance(r, int) for r in result)
++        assert Path(path).is_dir()
++        # Check that there were no warnings
++        log_lines = [record.message for record in caplog.records]
++        assert len(log_lines) == 0
++
++
++def test_make_local_storage_no_create():
++    "Check that we can make a cache directory without creating it"
++    path = "/some/invalid/path/to/cache"
++    make_local_storage(path, create=False)
++    assert not Path(path).is_dir()

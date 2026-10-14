@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/tests/test_spellchecker_test_grader.py
+@@ -0,0 +1,32 @@
++''' Unittest class '''
++
++
++import unittest
++import os
++from spellchecker import SpellChecker
++
++
++class TestSpellChecker(unittest.TestCase):
++    ''' test the spell checker class '''
++
++    def test_tokenize_and_split(self):
++        ''' test tokenize and split '''
++        spell = SpellChecker()
++        res = ['this', 'is', 'a', 'test', 'of', 'this']
++        self.assertEqual(spell.split_words('This is a test of this'), res)
++        res = ['that', 's', 'how', 't', 'and', 's', 'don', 't', 'fit']
++        self.assertEqual(spell.split_words(
++            "That's how t and s don't fit."), res)
++        res = ['that', 'is', 'how', 'that', 's', 'and', 'don', 't', 'do', 'not', 'fit']
++        self.assertEqual(spell.split_words(
++            "That is how that's and don't do not fit."), res)
++
++    def test_load_custom_dictionary(self):
++        ''' test loading a custom dictionary '''
++        here = os.path.dirname(__file__)
++        filepath = '{}/resources/custom_dictionary.json.gz'.format(here)
++        spell = SpellChecker(local_dictionary=filepath)
++        self.assertEqual("mañana" in spell, False)
++
++
++if __name__ == '__main__':
++    unittest.main()

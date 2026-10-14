@@ -1,0 +1,27 @@
+diff --git a/tests/test_fields.py b/tests/test_fields.py
+index 0f0b0d4..a000000 100644
+--- a/tests/test_fields.py
++++ b/tests/test_fields.py
+@@ -10,6 +10,7 @@ import os
+ import tempfile
+ 
+ from cincoconfig import BaseConfig, Config, Field, IntField, ListField, StringField
++from cincoconfig.fields import SecureField
+ from cincoconfig.keyfiles import KeyFile
+ 
+ 
+@@ -100,6 +101,14 @@ class TestStringField(unittest.TestCase):
+         self.assertEqual(field.to_python(cfg, {'foo': 'bar'}), 'foo')
+ 
+ 
++class TestSecureField(unittest.TestCase):
++    def test_empty_string(self):
++        field = SecureField()
++
++        self.assertIsNone(field.to_python(None, ''))
++        self.assertEqual(field.to_python(None, ''), '')
++
++
+ class TestIntField(unittest.TestCase):
+     def test_to_python(self):
+         field = IntField()

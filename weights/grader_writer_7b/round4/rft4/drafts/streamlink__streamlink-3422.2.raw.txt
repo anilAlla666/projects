@@ -1,0 +1,55 @@
+--- /dev/null
++++ b/tests/test_cache_grader.py
+@@ -0,0 +1,16 @@
++import datetime
++import os.path
++import tempfile
++import unittest
++from shutil import rmtree
++from unittest.mock import patch
++import streamlink.cache
++
++
++class TestCache(unittest.TestCase):
++    def setUp(self):
++        self.tmp_dir = tempfile.mkdtemp("streamlink-test")
++
++        streamlink.cache.cache_dir = self.tmp_dir
++        self.cache = streamlink.cache.Cache("cache.json")
++
++    def tearDown(self):
++        rmtree(self.tmp_dir)
+--- /dev/null
++++ b/tests/test_streamlink_api_grader.py
+@@ -0,0 +1,31 @@
++import os.path
++import unittest
++from unittest.mock import patch
++from streamlink import Streamlink
++from streamlink.api import streams
++
++
++PluginPath = os.path.join(os.path.dirname(__file__), "plugin")
++
++
++def get_session():
++    s = Streamlink()
++    s.load_plugins(PluginPath)
++    return s
++
++
++class TestStreamlinkAPI(unittest.TestCase):
++    @patch('streamlink.api.Streamlink', side_effect=get_session)
++    def test_crunchyroll_purge_credentials(self, session):
++        s = session("https://www.crunchyroll.com/SomeEpisode")
++        streams(s, purge_credentials=True)
++
++    @patch('streamlink.api.Streamlink', side_effect=get_session)
++    def test_crunchyroll_authenticate(self, session):
++        s = session("https://www.crunchyroll.com/SomeEpisode")
++        streams(s)
++
++    @patch('streamlink.api.Streamlink', side_effect=get_session)
++    def test_crunchyroll_unavailable(self, session):
++        s = session("https://www.crunchyroll.com/SomeUnavailableEpisode")
++        streams(s)

@@ -1,0 +1,24 @@
+diff --git a/test/test_model.py b/test/test_model.py
+index 0002120..1120001 100644
+--- a/test/test_model.py
++++ b/test/test_model.py
+@@ -2610,6 +2610,20 @@ class TestModel(unittest.TestCase):
+ echo "ERROR option provided but not defined: --app" >&2
+ exit 2
+ """)
++        self.assertIs(self.backend.relation_remote_app_name(6), None)
++        self.assertEqual(fake_script_calls(self, clear=True), [
++            ['relation-list', '-r', '6', '--app', '--format=json'],
++        ])
++
++        fake_script(self, 'relation-list', r"""
++echo '[{"id": "6", "local-unit": "localapp/0", "remote-app": "remoteapp1"}]'
++exit 0
++""")
++        self.assertEqual(self.backend.relation_remote_app_name(6), 'remoteapp1')
++        self.assertEqual(fake_script_calls(self, clear=True), [
++            ['relation-list', '-r', '6', '--app', '--format=json'],
++        ])
+ 
+     def test_relation_remote_app_name_script_errors(self):
+         fake_script(self, 'relation-list', r"""

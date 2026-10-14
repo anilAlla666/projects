@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/test/unit/test_snow2_boundary_width.py
+@@ -0,0 +1,50 @@
++import numpy as np
++import porespy as ps
++
++ps.settings.tqdm['disable'] = True
++
++
++class Snow2BoundaryWidthTest:
++
++    def setup_class(self):
++        np.random.seed(0)
++        self.im2D = ps.generators.blobs(shape=[100, 100], porosity=0.65,
++                                        blobiness=1.5)
++        np.random.seed(1)
++        self.im3D = ps.generators.blobs(shape=[40, 40, 40], porosity=0.65,
++                                        blobiness=1.5)
++
++    def test_full_spec_matches_mixed_spec_2d(self):
++        # Mixed spec already works; full spec used to raise TypeError
++        a = ps.networks.snow2(self.im2D, boundary_width=[[5, 15], 10],
++                              parallelization=None)
++        b = ps.networks.snow2(self.im2D, boundary_width=[[5, 15], [10, 10]],
++                              parallelization=None)
++        assert a.regions.shape == b.regions.shape
++        assert a.regions.max() == b.regions.max()
++        assert a.network['pore.coords'].shape == b.network['pore.coords'].shape
++
++    def test_full_spec_uniform_matches_scalar_2d(self):
++        a = ps.networks.snow2(self.im2D, boundary_width=5,
++                              parallelization=None)
++        b = ps.networks.snow2(self.im2D, boundary_width=[[5, 5], [5, 5]],
++                              parallelization=None)
++        assert a.regions.shape == b.regions.shape
++        assert a.regions.max() == b.regions.max()
++        assert a.network['pore.coords'].shape == b.network['pore.coords'].shape
++
++    def test_asymmetric_full_spec_2d_runs(self):
++        b = ps.networks.snow2(self.im2D, boundary_width=[[3, 7], [2, 9]],
++                              parallelization=None)
++        assert b.network['pore.coords'].shape[0] > 0
++        assert b.regions.ndim == 2
++
++    def test_full_spec_3d(self):
++        a = ps.networks.snow2(self.im3D, boundary_width=[[3, 5], 4, [4, 4]],
++                              parallelization=None)
++        b = ps.networks.snow2(self.im3D,
++                              boundary_width=[[3, 5], [4, 4], [4, 4]],
++                              parallelization=None)
++        assert a.regions.shape == b.regions.shape
++        assert a.regions.max() == b.regions.max()
++        assert a.network['pore.coords'].shape == b.network['pore.coords'].shape

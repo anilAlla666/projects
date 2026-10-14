@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/tests/test_parsers_validation_grader.py
+@@ -0,0 +1,49 @@
++from unittest import TestCase
++from spdx.parsers import validations
++from spdx import utils
++
++
++class TestValidations(TestCase):
++    maxDiff = None
++
++    def test_invalid_doc_name_value_is_detected(self):
++        doc_name = "A\nB\nC"
++        validation = validations.validate_document_name(doc_name)
++        expected_error_message = (
++            "DocumentName must be single line of text, "
++            f"extra characters detected starting at line 2, got: \n{doc_name}"
++        )
++        self.assertEqual(expected_error_message, str(validation))
++
++    def test_valid_doc_name_value_passes(self):
++        doc_name = "A"
++        validation = validations.validate_document_name(doc_name)
++        self.assertIsNone(validation)
++
++    def test_invalid_doc_namespace_value_is_detected(self):
++        doc_namespace = "http://spdx.org/spdxdocs/spdx-tool-example-1.0#SPDXRef-EXAMPLE"
++        validation = validations.validate_document_namespace(doc_namespace)
++        expected_error_message = (
++            'Invalid DocumentNamespace value, must contain a scheme (e.g. "https:") '
++            f'and should not contain the "#" delimiter, got: {doc_namespace}'
++        )
++        self.assertEqual(expected_error_message, str(validation))
++
++    def test_valid_doc_namespace_value_passes(self):
++        doc_namespace = "https://spdx.org/spdxdocs/spdx-tool-example-1.0"
++        validation = validations.validate_document_namespace(doc_namespace)
++        self.assertIsNone(validation)
++
++    def test_invalid_review_date_value_is_detected(self):
++        review_date = "A\nB\nC"
++        validation = validations.validate_review_date(review_date)
++        expected_error_message = (
++            "ReviewDate value must be date in ISO 8601 format, "
++            f"extra characters detected starting at line 2, got: \n{review_date}"
++        )
++        self.assertEqual(expected_error_message, str(validation))
++
++    def test_valid_review_date_value_passes(self):
++        review_date = "2020-05-28T00:00:00Z"
++        validation = validations.validate_review_date(review_date)
++        self.assertIsNone(validation)

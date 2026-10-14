@@ -1,0 +1,129 @@
+--- /dev/null
++++ b/test_typing_inspect_grader.py
+@@ -0,0 +1,118 @@
++import sys
++import pytest
++from typing_inspect import (
++    is_generic_type, is_callable_type, is_new_type, is_tuple_type, is_union_type,
++    is_optional_type, is_final_type, is_literal_type, is_typevar, is_classvar,
++    is_forward_ref, get_origin, get_parameters, get_last_args, get_args, get_bound,
++    get_constraints, get_generic_type, get_generic_bases, get_last_origin,
++    typed_dict_keys, get_forward_arg, WITH_FINAL, WITH_LITERAL, LEGACY_TYPING, WITH_NEWTYPE,
++)
++from unittest import TestCase, main, skipIf, skipUnless
++from typing import (
++    Union, Callable, Optional, TypeVar, Sequence, AnyStr, Mapping,
++    MutableMapping, Iterable, Generic, List, Any, Dict, Tuple, NamedTuple,
++)
++from mypy_extensions import TypedDict as METypedDict
++from typing_extensions import TypedDict as TETypedDict
++from typing_extensions import Final
++from typing_extensions import Literal
++from typing_extensions import NewType as NewType_
++
++
++if sys.version_info < (3, 5, 3):
++    WITH_CLASSVAR = False
++    CLASSVAR_GENERIC = []
++    CLASSVAR_TYPEVAR = []
++else:
++    from typing import ClassVar
++    WITH_CLASSVAR = True
++    CLASSVAR_GENERIC = [ClassVar[List[int]], ClassVar]
++    CLASSVAR_TYPEVAR = [ClassVar[int]]
++
++
++if sys.version_info < (3, 5, 3):
++    WITH_CALLABLE_VARARG_KWARGS = False
++else:
++    from collections import OrderedDict
++    WITH_CALLABLE_VARARG_KWARGS = True
++
++
++PY36 = sys.version_info >= (3, 6, 0)
++
++
++class TestTypingInspect(TestCase):
++    @skipIf(
++        (3, 5, 2) > sys.version_info[:3] >= (3, 5, 0),
++        "get_args doesn't work in Python 3.5.0 and 3.5.1 for type"
++        " List and ForwardRef arg"
++    )
++    def test_get_forward_arg(self):
++        tp = List["FRef"]
++        fr = get_args(tp)[0]
++        self.assertEqual(get_forward_arg(fr), "FRef")
++        self.assertEqual(get_forward_arg(tp), None)
++
++    def test_list_type(self):
++        self.assertEqual(get_parameters(List), (object,))
++
++    def test_mapping_type(self):
++        self.assertEqual(get_parameters(Mapping), (object, object))
++
++    def test_tuple_type(self):
++        self.assertEqual(get_parameters(Tuple), (object,) * 2)
++
++    def test_sequence_type(self):
++        self.assertEqual(get_parameters(Sequence), (object,))
++
++    def test_anystr_type(self):
++        self.assertEqual(get_parameters(AnyStr), (str, bytes))
++
++    def test_iterable_type(self):
++        self.assertEqual(get_parameters(Iterable), (object,))
++
++    def test_namedtuple_type(self):
++        Point = NamedTuple('Point', [('x', int), ('y', int)])
++        self.assertEqual(get_parameters(Point), (int, int))
++
++    def test_dict_type(self):
++        self.assertEqual(get_parameters(Dict), (object, object))
++
++    def test_frozenset_type(self):
++        self.assertEqual(get_parameters(Frozenset), (object,))
++
++    def test_set_type(self):
++        self.assertEqual(get_parameters(Set), (object,))
++
++    def test_ordereddict_type(self):
++        self.assertEqual(get_parameters(OrderedDict), (object, object))
++
++    def test_typevar(self):
++        T = TypeVar('T')
++        S = TypeVar('S', int, str)
++        S2 = TypeVar('S2', int, str, bool)
++        self.assertEqual(get_parameters(T), ())
++        self.assertEqual(get_parameters(S), (int, str))
++        self.assertEqual(get_parameters(S2), (int, str, bool))
++
++    def test_typevar_with_bounds(self):
++        T = TypeVar('T', bound=int)
++        S = TypeVar('S', int, str)
++        S2 = TypeVar('S2', int, str, bool)
++        TB = TypeVar('TB', bound=int)
++        self.assertEqual(get_bound(T), None)
++        self.assertEqual(get_bound(TB), int)
++
++    def test_constraints(self):
++        T = TypeVar('T')
++        TC = TypeVar('TC', int, str)
++        self.assertEqual(get_constraints(T), ())
++        self.assertEqual(get_constraints(TC), (int, str))
++
++    def test_generic_type(self):
++        T = TypeVar('T')
++        class Node(Generic[T]): pass
++        self.assertIs(get_generic_type(Node()), Node)
++        if not LEGACY_TYPING:
++            self.assertIs(get_generic_type(Node[int]()), Node[int])
++            self.assertIs(get_generic_type(Node[T]()), Node[T],)
++        else:
++            # Node[int]() was creating an object of NEW type Node[~T]
++            # and Node[T]() was creating an object of NEW type Node[~T]
++            pass
++        self.assertIs(get_generic_type(1), int)
++
++
++if __name__ == '__main__':
++    main()

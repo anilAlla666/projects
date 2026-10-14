@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/tests/test_expressions_grader.py
+@@ -0,0 +1,14 @@
++import datetime
++import math
++import unittest
++from sqlglot import alias, exp, parse_one
++
++
++class TestExpressions(unittest.TestCase):
++    maxDiff = None
++
++    def test_strtoxxx(self):
++        self.assertEqual(
++            exp.StrToHex(this=exp.Literal.string("abc")).args["this"].name, "ABC"
++        )
+--- /dev/null
++++ b/tests/dialects/test_redshift_grader.py
+@@ -0,0 +1,30 @@
++from tests.dialects.test_dialect import Validator
++
++
++class TestRedshift(Validator):
++    dialect = "redshift"
++
++    def test_redshift(self):
++        self.validate_identity("SELECT * FROM #x")
++        self.validate_identity("SELECT INTERVAL '5 day'")
++        self.validate_identity("foo$")
++        self.validate_identity("$foo")
++
++        self.validate_all(
++            "SELECT SNAPSHOT, type",
++            write={
++                "": "SELECT SNAPSHOT, type",
++                "redshift": 'SELECT "SNAPSHOT", "type"',
++            },
++        )
++
++        self.validate_all(
++            "STRTOHEX('abc')",
++            write={
++                "redshift": "FROM_BASE('abc', 16)",
++            },
++        )
++
++        self.validate_all(
++            "STRTOHEX('abc')",
++            write={
++                "redshift": "FROM_BASE('abc', 16)",
++            },
++        )

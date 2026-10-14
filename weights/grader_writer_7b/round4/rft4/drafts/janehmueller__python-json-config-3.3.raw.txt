@@ -1,0 +1,21 @@
+--- /dev/null
++++ b/tests/test_config_node_test_grader.py
+@@ -0,0 +1,17 @@
++from unittest import TestCase
++from pickle import dumps, loads
++from python_json_config.config_node import ConfigNode
++
++
++class ConfigNodeTest(TestCase):
++    def setUp(self):
++        self.config_dict = {
++            'key1': 1,
++            'key2': {
++                'key3': 3,
++                'key4': { 'key5': 5 }
++            }
++        }
++
++    def test_pickling(self):
++        node = ConfigNode(self.config_dict)
++        self.assertEqual(loads(dumps(node)), node)

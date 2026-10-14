@@ -1,0 +1,275 @@
+--- /dev/null
++++ b/tests/test_topn_hit_grader.py
+@@ -0,0 +1,24 @@
++import logging
++import numpy as np
++import pandas as pd
++from pytest import approx
++from lenskit.metrics.topn import hit
++from lenskit.util.test import demo_recs
++from lenskit import topn
++
++
++_log = logging.getLogger(__name__)
++
++
++def _test_hit(items, rel, **kwargs):
++    recs = pd.DataFrame({'item': items})
++    truth = pd.DataFrame({'item': rel}).set_index('item')
++    return hit(recs, truth, **kwargs)
++
++
++def test_hit_bulk_k(demo_recs):
++    "bulk and normal match"
++    train, test, recs = demo_recs
++    assert test['user'].value_counts().max() > 5
++
++    rla = topn.RecListAnalysis()
++    rla.add_metric(hit, name='hk', k=5)
++    rla.add_metric(hit)
++    # metric without the bulk capabilities
++    rla.add_metric(lambda *a, **k: hit(*a, **k), name='ind_hk', k=5)
++    rla.add_metric(lambda *a: hit(*a), name='ind_h')
++    res = rla.compute(recs, test)
++
++    print(res)
++    _log.info('recall mismatches:\n%s',
++              res[res.hit != res.ind_h])
++
++    assert res.hit.values == approx(res.ind_h.values)
++    assert res.hk.values == approx(res.ind_hk.values)
+--- /dev/null
++++ b/tests/test_topn_ndcg_grader.py
+@@ -0,0 +1,24 @@
++import numpy as np
++import pandas as pd
++from pytest import approx
++from lenskit.metrics.topn import ndcg
++
++
++def test_ndcg_no_k():
++    """Test that ndcg works when no k is specified."""
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [1, 2]})
++
++    assert ndcg(recs, truth) == approx(ndcg(recs, truth, k=2))
++
++
++def test_ndcg_k_less_than_rec_len():
++    """Test that ndcg works when k is less than the length of the recommendation list."""
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [2, 3, 1]})
++
++    assert ndcg(recs, truth) == approx(ndcg(recs, truth, k=2))
++    assert ndcg(recs[:2], truth, k=2) == approx(ndcg(recs, truth, k=2))
++
++
++def test_ndcg_k_greater_than_truth_len():
++    """Test that ndcg works when k is greater than the length of the truth list."""
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [1, 2]})
++
++    assert ndcg(recs, truth) == approx(ndcg(recs, truth, k=4))
+--- /dev/null
++++ b/tests/test_topn_precision_grader.py
+@@ -0,0 +1,24 @@
++import logging
++import numpy as np
++import pandas as pd
++from pytest import approx
++from lenskit.metrics.topn import precision
++from lenskit.util.test import demo_recs
++from lenskit import topn
++
++
++_log = logging.getLogger(__name__)
++
++
++def _test_prec(items, rel, **kwargs):
++    recs = pd.DataFrame({'item': items})
++    truth = pd.DataFrame({'item': rel}).set_index('item')
++    return precision(recs, truth, **kwargs)
++
++
++def test_precision_bulk_k(demo_recs):
++    "bulk and normal match"
++    train, test, recs = demo_recs
++    assert test['user'].value_counts().max() > 5
++
++    rla = topn.RecListAnalysis()
++    rla.add_metric(precision, name='pk', k=5)
++    rla.add_metric(precision)
++    # metric without the bulk capabilities
++    rla.add_metric(lambda *a, **k: precision(*a, **k), name='ind_pk', k=5)
++    rla.add_metric(lambda *a: precision(*a), name='ind_p')
++    res = rla.compute(recs, test)
++
++    print(res)
++    _log.info('precision mismatches:\n%s',
++              res[res.precision != res.ind_p])
++
++    assert res.precision.values == approx(res.ind_p.values)
++    assert res.pk.values == approx(res.ind_pk.values)
+--- /dev/null
++++ b/tests/test_topn_recall_grader.py
+@@ -0,0 +1,24 @@
++import logging
++import numpy as np
++import pandas as pd
++from pytest import approx
++from lenskit.metrics.topn import recall
++from lenskit.util.test import demo_recs
++from lenskit import topn
++
++
++_log = logging.getLogger(__name__)
++
++
++def _test_recall(items, rel, **kwargs):
++    recs = pd.DataFrame({'item': items})
++    truth = pd.DataFrame({'item': rel}).set_index('item')
++    return recall(recs, truth, **kwargs)
++
++
++def test_recall_bulk_k(demo_recs):
++    "bulk and normal match"
++    train, test, recs = demo_recs
++    assert test['user'].value_counts().max() > 5
++
++    rla = topn.RecListAnalysis()
++    rla.add_metric(recall, name='rk', k=5)
++    rla.add_metric(recall)
++    # metric without the bulk capabilities
++    rla.add_metric(lambda *a, **k: recall(*a, **k), name='ind_rk', k=5)
++    rla.add_metric(lambda *a: recall(*a), name='ind_r')
++    res = rla.compute(recs, test)
++
++    print(res)
++    _log.info('recall mismatches:\n%s',
++              res[res.recall != res.ind_r])
++
++    assert res.recall.values == approx(res.ind_r.values)
++    assert res.rk.values == approx(res.ind_rk.values)
+--- /dev/null
++++ b/tests/test_topn_rank_grader.py
+@@ -0,0 +1,24 @@
++import logging
++import numpy as np
++import pandas as pd
++from pytest import approx
++from lenskit.metrics.topn import rank
++from lenskit.util.test import demo_recs
++from lenskit import topn
++
++
++_log = logging.getLogger(__name__)
++
++
++def _test_rank(items, rel, **kwargs):
++    recs = pd.DataFrame({'item': items})
++    truth = pd.DataFrame({'item': rel}).set_index('item')
++    return rank(recs, truth, **kwargs)
++
++
++def test_rank_bulk_k(demo_recs):
++    "bulk and normal match"
++    train, test, recs = demo_recs
++    assert test['user'].value_counts().max() > 5
++
++    rla = topn.RecListAnalysis()
++    rla.add_metric(rank, name='rk', k=5)
++    rla.add_metric(rank)
++    # metric without the bulk capabilities
++    rla.add_metric(lambda *a, **k: rank(*a, **k), name='ind_rk', k=5)
++    rla.add_metric(lambda *a: rank(*a), name='ind_r')
++    res = rla.compute(recs, test)
++
++    print(res)
++    _log.info('rank mismatches:\n%s',
++              res[res.rank != res.ind_r])
++
++    assert res.rank.values == approx(res.ind_r.values)
++    assert res.rk.values == approx(res.ind_rk.values)
+--- /dev/null
++++ b/tests/test_topn_spearman_grader.py
+@@ -0,0 +1,24 @@
++import logging
++import numpy as np
++import pandas as pd
++from pytest import approx
++from lenskit.metrics.topn import spearman
++from lenskit.util.test import demo_recs
++from lenskit import topn
++
++
++_log = logging.getLogger(__name__)
++
++
++def _test_spearman(items, rel, **kwargs):
++    recs = pd.DataFrame({'item': items})
++    truth = pd.DataFrame({'item': rel}).set_index('item')
++    return spearman(recs, truth, **kwargs)
++
++
++def test_spearman_bulk_k(demo_recs):
++    "bulk and normal match"
++    train, test, recs = demo_recs
++    assert test['user'].value_counts().max() > 5
++
++    rla = topn.RecListAnalysis()
++    rla.add_metric(spearman, name='sk', k=5)
++    rla.add_metric(spearman)
++    # metric without the bulk capabilities
++    rla.add_metric(lambda *a, **k: spearman(*a, **k), name='ind_sk', k=5)
++    rla.add_metric(lambda *a: spearman(*a), name='ind_s')
++    res = rla.compute(recs, test)
++
++    print(res)
++    _log.info('spearman mismatches:\n%s',
++              res[res.spearman != res.ind_s])
++
++    assert res.spearman.values == approx(res.ind_s.values)
++    assert res.sk.values == approx(res.ind_sk.values)
+--- /dev/null
++++ b/tests/test_topn_wrmse_grader.py
+@@ -0,0 +1,24 @@
++import logging
++import numpy as np
++import pandas as pd
++from pytest import approx
++from lenskit.metrics.topn import wrmse
++from lenskit.util.test import demo_recs
++from lenskit import topn
++
++
++_log = logging.getLogger(__name__)
++
++
++def _test_wrmse(items, rel, **kwargs):
++    recs = pd.DataFrame({'item': items})
++    truth = pd.DataFrame({'item': rel}).set_index('item')
++    return wrmse(recs, truth, **kwargs)
++
++
++def test_wrmse_bulk_k(demo_recs):
++    "bulk and normal match"
++    train, test, recs = demo_recs
++    assert test['user'].value_counts().max() > 5
++
++    rla = topn.RecListAnalysis()
++    rla.add_metric(wrmse, name='wk', k=5)
++    rla.add_metric(wrmse)
++    # metric without the bulk capabilities
++    rla.add_metric(lambda *a, **k: wrmse(*a, **k), name='ind_wk', k=5)
++    rla.add_metric(lambda *a: wrmse(*a), name='ind_w')
++    res = rla.compute(recs, test)
++
++    print(res)
++    _log.info('wrmse mismatches:\n%s',
++              res[res.wrmse != res.ind_w])
++
++    assert res.wrmse.values == approx(res.ind_w.values)
++    assert res.wk.values == approx(res.ind_wk.values)

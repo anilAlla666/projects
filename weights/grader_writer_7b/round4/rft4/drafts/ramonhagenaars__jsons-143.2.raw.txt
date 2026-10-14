@@ -1,0 +1,51 @@
+--- /dev/null
++++ b/tests/test_jsonserializable_grader.py
+@@ -0,0 +1,45 @@
++import datetime
++from unittest import TestCase
++import jsons
++
++
++class TestJsonSerializable(TestCase):
++    def test_jsonserializable_with_zoneinfo(self):
++        import zoneinfo
++        tz = zoneinfo.ZoneInfo('Europe/London')
++        now = datetime.datetime.now(tz)
++        now_dict = {'year': now.year,
++                    'month': now.month,
++                    'day': now.day,
++                    'hour': now.hour,
++                    'minute': now.minute,
++                    'second': now.second,
++                    'microsecond': now.microsecond,
++                    'tzinfo': {'key': 'Europe/London'}}
++        now_jstr = '{"year": {}, "month": {}, "day": {}, "hour": {}, "minute": {}, "second": {}, "microsecond": {}, "tzinfo": {"key": "Europe/London"}}'.format(
++            now.year, now.month, now.day, now.hour, now.minute, now.second, now.microsecond)
++
++        class Foo(jsons.JsonSerializable):
++            def __init__(self, year: int, month: int, day: int, hour: int, minute: int, second: int, microsecond: int, tzinfo: dict):
++                self.year = year
++                self.month = month
++                self.day = day
++                self.hour = hour
++                self.minute = minute
++                self.second = second
++                self.microsecond = microsecond
++                self.tzinfo = zoneinfo.ZoneInfo(tzinfo['key'])
++
++        foo = Foo(now.year, now.month, now.day, now.hour, now.minute, now.second, now.microsecond, now_dict['tzinfo'])
++        foo_dict = jsons.dump(foo)
++        foo_jstr = jsons.dumps(foo)
++
++        self.assertDictEqual(foo_dict, now_dict)
++        self.assertEqual(foo_jstr, now_jstr)
++
++        loaded = Foo.from_json(now_dict)
++        self.assertEqual(loaded.year, now.year)
++        self.assertEqual(loaded.month, now.month)
++        self.assertEqual(loaded.day, now.day)
++        self.assertEqual(loaded.hour, now.hour)
++        self.assertEqual(loaded.minute, now.minute)
++        self.assertEqual(loaded.second, now.second)
++        self.assertEqual(loaded.microsecond, now.microsecond)
++        self.assertEqual(loaded.tzinfo.key, 'Europe/London')

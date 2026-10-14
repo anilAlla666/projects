@@ -1,0 +1,33 @@
+--- /dev/null
++++ b/tests/test_creation/test_mathematical_combination_grader.py
+@@ -0,0 +1,32 @@
++import pandas as pd
++import pytest
++from feature_engine.creation import MathematicalCombination
++
++
++def test_ignore_na_false(df_with_na):
++    with pytest.raises(ValueError):
++        MathematicalCombination(
++            variables_to_combine=["Age", "Marks"], ignore_na=False
++        ).fit_transform(df_with_na)
++
++
++def test_ignore_na_true(df_with_na):
++    transformer = MathematicalCombination(
++        variables_to_combine=["Age", "Marks"], ignore_na=True
++    )
++
++    X = transformer.fit_transform(df_with_na)
++
++    ref = pd.DataFrame.from_dict(
++        {
++            "Name": ["tom", "nick", "krish", "jack"],
++            "City": ["London", "Manchester", "Liverpool", "Bristol"],
++            "Age": [20, 21, 19, 18],
++            "Marks": [0.9, 0.8, 0.7, 0.6],
++            "sum(Age-Marks)": [20.9, 21.8, 19.7, 18.6],
++        }
++    )
++
++    pd.testing.assert_frame_equal(X, ref)

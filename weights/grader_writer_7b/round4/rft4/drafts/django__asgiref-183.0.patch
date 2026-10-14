@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/test_wsgi_grader.py
+@@ -0,0 +1,29 @@
++import pytest
++from asgiref.testing import ApplicationCommunicator
++from asgiref.wsgi import WsgiToAsgi
++
++
++@pytest.mark.parametrize("value", ["hello", "world"])
++@pytest.mark.parametrize("encoding", ["utf-8", "ascii"])
++@pytest.mark.asyncio
++async def test_wsgi_non_ascii(value, encoding):
++    """
++    Verifies that the WSGI wrapper can handle unicode values correctly.
++    """
++
++    def wsgi_application(environ, start_response):
++        assert environ["SCRIPT_NAME"] == ""
++        assert environ["PATH_INFO"] == f"/{value}/"
++        start_response("200 OK", [])
++        return []
++
++    application = WsgiToAsgi(wsgi_application)
++    instance = ApplicationCommunicator(
++        application,
++        {
++            "type": "http",
++            "http_version": "1.0",
++            "method": "GET",
++            "path": f"/{value}/",
++            "query_string": b"",
++            "headers": [],
++        },
++    )
++    await instance.send_input({"type": "http.request"})

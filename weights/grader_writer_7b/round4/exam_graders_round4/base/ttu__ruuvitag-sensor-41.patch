@@ -1,0 +1,51 @@
+diff --git a/tests/test_ruuvitag_sensor_fix.py b/tests/test_ruuvitag_sensor_fix.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_ruuvitag_sensor_fix.py
+@@ -0,0 +1,52 @@
++from unittest import TestCase
++from unittest.mock import patch
++
++from ruuvitag_sensor.ruuvi import RuuviTagSensor
++from ruuvitag_sensor.ruuvitag import RuuviTag
++
++
++class TestRuuviTagSensorFix(TestCase):
++
++    def get_data(self, mac, bt_device):
++        # Simulate RuuviTag data with trailing NULLs removed
++        data = '043E2A0201030157168974A5F41E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'
++        return data[26:]
++
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_data',
++           get_data)
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationDummy.get_data',
++           get_data)
++    def test_tag_update_is_valid_with_fixed_firmware(self):
++        tag = RuuviTag('48:2C:6A:1E:59:3D')
++
++        state = tag.state
++        self.assertEqual(state, {})
++
++        state = tag.update()
++        self.assertEqual(state['temperature'], 24)
++        self.assertEqual(state['pressure'], 995)
++        self.assertEqual(state['humidity'], 30)
++
++    def get_data_with_nulls(self, mac, bt_device):
++        # Simulate RuuviTag data with trailing NULLs
++        data = '043E2A0201030157168974A5F41E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD\x00\x00'
++        return data[26:]
++
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_data',
++           get_data_with_nulls)
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationDummy.get_data',
++           get_data_with_nulls)
++    def test_tag_update_is_valid_with_broken_firmware(self):
++        tag = RuuviTag('48:2C:6A:1E:59:3D')
++
++        state = tag.state
++        self.assertEqual(state, {})
++
++        state = tag.update()
++        self.assertIsNone(state)

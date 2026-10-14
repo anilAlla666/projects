@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/tests/test_time_machine_grader.py
+@@ -0,0 +1,25 @@
++from __future__ import annotations
++import asyncio
++import datetime as dt
++import os
++import sys
++import time
++import typing
++import uuid
++from contextlib import contextmanager
++from importlib.util import module_from_spec
++from importlib.util import spec_from_file_location
++from unittest import SkipTest
++from unittest import TestCase
++from unittest import mock
++import pytest
++from dateutil import tz
++
++
++import time_machine
++
++
++NANOSECONDS_PER_SECOND = time_machine.NANOSECONDS_PER_SECOND
++
++
++EPOCH = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc).timestamp()
++
++
++class TestEscapeHatch(TestCase):
++    @pytest.fixture(scope="function", autouse=True)
++    def setup_teardown_escape_hatch(self):
++        time_machine.setup_test_environment()
++        yield
++        time_machine.tear_down_test_environment()

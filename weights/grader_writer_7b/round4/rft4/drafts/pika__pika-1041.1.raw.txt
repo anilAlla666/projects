@@ -1,0 +1,71 @@
+--- /dev/null
++++ b/tests/unit/test_heartbeat_tests_grader.py
+@@ -0,0 +1,69 @@
++"""
++Tests for pika.heartbeat
++
++"""
++
++
++import unittest
++import mock
++from pika import connection, frame, heartbeat
++import pika.exceptions
++
++
++INTERVAL = 5
++
++
++class HeartbeatTests(unittest.TestCase):
++    INTERVAL = 5
++
++    def setUp(self):
++        self.mock_conn = mock.Mock(spec=connection.Connection)
++        self.mock_conn.bytes_received = 100
++        self.mock_conn.bytes_sent = 100
++        self.mock_conn.heartbeat = mock.Mock(spec=heartbeat.HeartbeatChecker)
++        self.obj = heartbeat.HeartbeatChecker(self.mock_conn, self.INTERVAL)
++
++    def tearDown(self):
++        del self.obj
++        del self.mock_conn
++
++    @mock.patch('pika.heartbeat.HeartbeatChecker._setup_timer')
++    def test_start_timer_not_active(self, setup_timer):
++        self.obj._start_timer()
++        setup_timer.assert_not_called()
++
++    @mock.patch('pika.heartbeat.HeartbeatChecker._setup_timer')
++    def test_start_timer_active(self, setup_timer):
++        self.mock_conn.heartbeat = self.obj
++        self.obj._start_timer()
++        self.assertTrue(setup_timer.called)
++
++    def test_active_none(self):
++        self.assertIsNone(self.obj.active)
++
++    def test_active_false(self):
++        self.mock_conn.heartbeat = mock.Mock(spec=heartbeat.HeartbeatChecker)
++        self.assertFalse(self.obj.active)
++
++    def test_active_true(self):
++        self.mock_conn.heartbeat = self.obj
++        self.assertTrue(self.obj.active)
++
++    def test_has_received_data_false(self):
++        self.obj._bytes_received = 100
++        self.assertFalse(self.obj._has_received_data)
++
++    def test_has_received_data_true(self):
++        self.mock_conn.bytes_received = 128
++        self.obj._bytes_received = 100
++        self.assertTrue(self.obj._has_received_data)
++
++    def test_has_sent_data_false(self):
++        self.obj._bytes_sent = 100
++        self.assertFalse(self.obj._has_sent_data)
++
++    def test_has_sent_data_true(self):
++        self.mock_conn.bytes_sent = 128
++        self.obj._bytes_sent = 100
++        self.assertTrue(self.obj._has_sent_data)

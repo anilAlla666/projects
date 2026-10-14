@@ -1,0 +1,39 @@
+--- /dev/null
++++ b/tests/test_yaml_source_grader.py
+@@ -0,0 +1,34 @@
++import pytest
++from unittest.mock import Mock, patch
++from dnry.config.yaml.source import YamlSource
++
++
++@pytest.fixture(name="source")
++def _source():
++    return YamlSource("config.yaml", required=False)
++
++
++class TestYamlSourceLoad:
++    @patch('os.path.exists', Mock(return_value=True))
++    @patch('open')
++    def test_load_should_not_call_open_if_required_and_file_exists(
++        self,
++        mock_open: Mock,
++        source: YamlSource,
++    ):
++        # act
++        result = source.load(None, None)
++
++        # assert
++        assert len(mock_open.call_args_list) == 0
++
++    @patch('os.path.exists', Mock(return_value=False))
++    @patch('open')
++    def test_load_should_call_open_if_required_and_file_doesnt_exist(
++        self,
++        mock_open: Mock,
++        source: YamlSource,
++    ):
++        # act
++        result = source.load(None, None)
++
++        # assert
++        assert len(mock_open.call_args_list) == 1

@@ -1,0 +1,59 @@
+--- /dev/null
++++ b/tests/test_template_handlers/test_http_grader.py
+@@ -0,0 +1,31 @@
++import json
++import pytest
++from sceptre.exceptions import (
++    TemplateBucketNotFoundError,
++    TemplatePathNotFoundError,
++    TemplateSchemaMismatchError,
++    TemplateUserdataError
++)
++from sceptre.template_handlers.http import Http
++from unittest.mock import patch
++
++
++class TestHttp(object):
++    @patch('sceptre.template_handlers.http.Http._get_template')
++    def test_handle_with_bad_bucket(self, mock_get_template):
++        handler = Http("http_handler", {'bucket': 'invalid-bucket', 'key': 'some-key'})
++        with pytest.raises(TemplateBucketNotFoundError):
++            handler.handle()
++
++    @patch('sceptre.template_handlers.http.Http._get_template')
++    def test_handle_with_bad_path(self, mock_get_template):
++        handler = Http("http_handler", {'bucket': 'valid-bucket', 'key': 'some/key/that/is/not/found'})
++        with pytest.raises(TemplatePathNotFoundError):
++            handler.handle()
++
++    @patch('sceptre.template_handlers.http.Http._get_template')
++    def test_handle_with_invalid_json(self, mock_get_template):
++        handler = Http("http_handler", {'bucket': 'valid-bucket', 'key': 'some/key/with/invalid/json'})
++        with pytest.raises(TemplateUserdataError):
++            handler.handle()
++
++    @patch('sceptre.template_handlers.http.Http._get_template')
++    def test_handle_with_invalid_yaml(self, mock_get_template):
++        handler = Http("http_handler", {'bucket': 'valid-bucket', 'key': 'some/key/with/invalid/yaml'})
++        with pytest.raises(TemplateUserdataError):
++            handler.handle()
+--- /dev/null
++++ b/tests/test_template_handlers/test_template_handlers_grader.py
+@@ -0,0 +1,12 @@
++import pytest
++from sceptre.exceptions import TemplateHandlerArgumentsInvalidError
++from sceptre.template_handlers import TemplateHandler
++
++
++class MockTemplateHandler(TemplateHandler):
++    def __init__(self, *args, **kwargs):
++        super(MockTemplateHandler, self).__init__(*args, **kwargs)
++
++    def schema(self):
++        return {
++            "type": "object",
++            "properties": {
++                "argument": {"type": "string"}
++            },
++            "required": ["argument"]
++        }

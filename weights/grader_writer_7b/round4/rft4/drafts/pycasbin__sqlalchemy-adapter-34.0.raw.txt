@@ -1,0 +1,166 @@
+--- /dev/null
++++ b/tests/test_adapter_grader.py
+@@ -0,0 +1,169 @@
++from casbin_sqlalchemy_adapter import Adapter
++from casbin_sqlalchemy_adapter import Base
++from casbin_sqlalchemy_adapter import CasbinRule
++from casbin_sqlalchemy_adapter.adapter import Filter
++from sqlalchemy import create_engine
++from sqlalchemy.orm import sessionmaker
++import casbin
++import os
++
++
++def get_fixture(path):
++    dir_path = os.path.split(os.path.realpath(__file__))[0] + "/"
++    return os.path.abspath(dir_path + path)
++
++
++def get_enforcer():
++    engine = create_engine("sqlite://")
++    # engine = create_engine('sqlite:///' + os.path.split(os.path.realpath(__file__))[0] + '/test.db', echo=True)
++    adapter = Adapter(engine)
++
++    session = sessionmaker(bind=engine)
++    Base.metadata.create_all(engine)
++    s = session()
++    s.query(CasbinRule).delete()
++    s.add(CasbinRule(ptype='p', v0='alice', v1='data1', v2='read'))
++    s.add(CasbinRule(ptype='p', v0='bob', v1='data2', v2='write'))
++    s.add(CasbinRule(ptype='p', v0='data2_admin', v1='data2', v2='read'))
++    s.add(CasbinRule(ptype='p', v0='data2_admin', v1='data2', v2='write'))
++    s.add(CasbinRule(ptype='g', v0='alice', v1='data2_admin'))
++    s.commit()
++    s.close()
++
++    return casbin.Enforcer(get_fixture('rbac_model.conf'), adapter)
++
++
++class TestAdapter(TestCase):
++    def setUp(self):
++        engine = create_engine("sqlite://")
++        Base.metadata.create_all(engine)
++        session = sessionmaker(bind=engine)
++        s = session()
++        s.query(CasbinRule).delete()
++        s.commit()
++        s.close()
++
++    def test_save_policy(self):
++        enforcer = get_enforcer()
++        enforcer.add_policy('p', 'admin', 'data1', 'read')
++        enforcer.add_policy('p', 'admin', 'data1', 'write')
++        enforcer.add_policy('p', 'admin', 'data2', 'read')
++        enforcer.add_policy('p', 'admin', 'data2', 'write')
++        enforcer.add_grouping_policy('admin', 'alice')
++
++        self.assertEqual(len(enforcer.get_policy()), 4)
++        self.assertEqual(len(enforcer.get_grouping_policy()), 1)
++
++        # reset
++        enforcer.save_policy()
++
++        self.assertEqual(len(enforcer.get_policy()), 4)
++        self.assertEqual(len(enforcer.get_grouping_policy()), 1)
++
++    def test_add_policy(self):
++        enforcer = get_enforcer()
++        enforcer.add_policy('p', 'admin', 'data1', 'read')
++        enforcer.add_policy('p', 'admin', 'data1', 'write')
++        enforcer.add_policy('p', 'admin', 'data2', 'read')
++        enforcer.add_policy('p', 'admin', 'data2', 'write')
++        enforcer.add_grouping_policy('admin', 'alice')
++
++        self.assertEqual(len(enforcer.get_policy()), 4)
++        self.assertEqual(len(enforcer.get_grouping_policy()), 1)
++
++        # reset
++        enforcer.save_policy()
++
++        enforcer.add_policy('p', 'admin', 'data1', 'read')
++        enforcer.add_policy('p', 'admin', 'data1', 'write')
++        enforcer.add_policy('p', 'admin', 'data2', 'read')
++        enforcer.add_policy('p', 'admin', 'data2', 'write')
++        enforcer.add_grouping_policy('admin', 'alice')
++
++        self.assertEqual(len(enforcer.get_policy()), 4)
++        self.assertEqual(len(enforcer.get_grouping_policy()), 1)
++
++    def test_remove_policy(self):
++        enforcer = get_enforcer()
++        enforcer.add_policy('p', 'admin', 'data1', 'read')
++        enforcer.add_policy('p', 'admin', 'data1', 'write')
++        enforcer.add_policy('p', 'admin', 'data2', 'read')
++        enforcer.add_policy('p', 'admin', 'data2', 'write')
++        enforcer.add_grouping_policy('admin', 'alice')
++
++        self.assertEqual(len(enforcer.get_policy()), 4)
++        self.assertEqual(len(enforcer.get_grouping_policy()), 1)
++
++        # reset
++        enforcer.save_policy()
++
++        enforcer.remove_policy('p', 'admin', 'data1', 'read')
++        enforcer.remove_policy('p', 'admin', 'data1', 'write')
++        enforcer.remove_policy('p', 'admin', 'data2', 'read')
++        enforcer.remove_policy('p', 'admin', 'data2', 'write')
++        enforcer.remove_grouping_policy('admin', 'alice')
++
++        self.assertEqual(len(enforcer.get_policy()), 0)
++        self.assertEqual(len(enforcer.get_grouping_policy()), 0)
++
++    def test_remove_filtered_policy(self):
++        enforcer = get_enforcer()
++        enforcer.add_policy('p', 'admin', 'data1', 'read')
++        enforcer.add_policy('p', 'admin', 'data1', 'write')
++        enforcer.add_policy('p', 'admin', 'data2', 'read')
++        enforcer.add_policy('p', 'admin', 'data2', 'write')
++        enforcer.add_grouping_policy('admin', 'alice')
++
++        self.assertEqual(len(enforcer.get_policy()), 4)
++        self.assertEqual(len(enforcer.get_grouping_policy()), 1)
++
++        # reset
++        enforcer.save_policy()
++
++        enforcer.remove_filtered_policy('p', 'admin', 0, 'data1')
++        enforcer.remove_filtered_policy('p', 'admin', 0, 'data2')
++        enforcer.remove_filtered_policy('p', 'admin', 1, 'write')
++        enforcer.remove_filtered_policy('p', 'admin', 2, 'read')
++        enforcer.remove_filtered_policy('g', 'admin', 0, 'alice')
++
++        self.assertEqual(len(enforcer.get_policy()), 0)
++        self.assertEqual(len(enforcer.get_grouping_policy()), 0)
++
++    def test_batch_operations(self):
++        enforcer = get_enforcer()
++
++        # reset
++        enforcer.save_policy()
++
++        enforcer.add_policies('p', [['alice', 'data1', 'read'], ['alice', 'data1', 'write']])
++        enforcer.add_policies('p', [['alice', 'data2', 'read'], ['alice', 'data2', 'write']])
++        enforcer.add_gearings_policies('g', [['alice', 'group1'], ['alice', 'group2']])
++
++        self.assertEqual(len(enforcer.get_policy()), 4)
++        self.assertEqual(len(enforcer.get_grouping_policy()), 2)
++
++        # reset
++        enforcer.save_policy()
++
++        enforcer.add_policies('p', [['alice', 'data1', 'read'], ['alice', 'data1', 'write']])
++        enforcer.add_policies('p', [['alice', 'data2', 'read'], ['alice', 'data2', 'write']])
++        enforcer.add_gearings_policies('g', [['alice', 'group1'], ['alice', 'group2']])
++
++        self.assertEqual(len(enforcer.get_policy()), 4)
++        self.assertEqual(len(enforcer.get_grouping_policy()), 2)
++
++        # reset
++        enforcer.save_policy()
++
++        enforcer.remove_policies('p', [['alice', 'data1', 'read'], ['alice', 'data1', 'write']])
++        enforcer.remove_policies('p', [['alice', 'data2', 'read'], ['alice', 'data2', 'write']])
++        enforcer.remove_gearings_policies('g', [['alice', 'group1'], ['alice', 'group2']])
++
++        self.assertEqual(len(enforcer.get_policy()), 0)
++        self.assertEqual(len(enforcer.get_grouping_policy()), 0)

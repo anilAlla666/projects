@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/tests/test_multimethod_grader.py
+@@ -0,0 +1,35 @@
++import unittest
++from multimethod import multimethod
++
++
++class Metaclass(type):
++    pass
++
++
++class TestSubscripting(unittest.TestCase):
++    def test_subscripted_metaclass(self):
++        """
++        Subclasses of built-in metaclasses can be used as type hints
++        """
++
++        @multimethod
++        def foo(x: Metaclass):
++            return 'foo'
++
++        class FooClass(Metaclass):  # noqa: F811
++            pass
++
++        self.assertEqual(foo(FooClass()), 'foo')
++
++    def test_builtin_metaclass(self):
++        """
++        Built-in metaclasses can be used as type hints
++        """
++
++        @multimethod
++        def bar(x: type):
++            return 'bar'
++
++        self.assertEqual(bar(object), 'bar')

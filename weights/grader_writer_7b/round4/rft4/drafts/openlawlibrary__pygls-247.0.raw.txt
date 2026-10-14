@@ -1,0 +1,63 @@
+--- /dev/null
++++ b/tests/test_types_grader.py
+@@ -0,0 +1,18 @@
++from pygls.lsp.types import Location, Position, Range
++
++
++def test_position():
++    assert Position(line=1, character=2) == Position(line=1, character=2)
++    assert Position(line=1, character=2) != Position(line=2, character=2)
++    assert Position(line=1, character=2) <= Position(line=2, character=2)
++    assert Position(line=2, character=2) >= Position(line=2, character=0)
++    assert Position(line=1, character=2) != 'something else'
++    assert "1:2" == repr(Position(line=1, character=2))
++
++    p = Position(line=1, character=2)
++    p.line = 3
++    assert p.line == 3
++
++    p.character = 4
++    assert p.character == 4
+--- /dev/null
++++ b/tests/test_protocol_grader.py
+@@ -0,0 +1,40 @@
++import json
++from concurrent.futures import Future
++from functools import partial
++from pathlib import Path
++from typing import Optional
++from unittest.mock import Mock
++import pytest
++from pygls.exceptions import JsonRpcException, JsonRpcInvalidParams
++from pygls.lsp import Model, get_method_params_type
++from pygls.lsp.types import ClientCapabilities, InitializeParams, InitializeResult
++from pygls.protocol import JsonRPCNotification, JsonRPCRequestMessage, JsonRPCResponseMessage
++from pygls.protocol import deserialize_message as _deserialize_message
++
++
++TEST_METHOD = 'test_method'
++
++
++class FeatureParams(Model):
++    class InnerType(Model):
++        inner_field: str
++
++    field_a: str
++    field_b: Optional[InnerType] = None
++
++
++def dummy_message(idx=0):
++    body = json.dumps({"key": idx})
++    message = '\r\n'.join([
++        'Content-Length: ' + str(len(body)),
++        'Content-Type: application/vscode-jsonrpc; charset=utf-8',
++        '',
++        body,
++    ])
++    return message.encode("utf-8")
++
++
++def test_shutdown_should_send_null_response(client_server):
++    _, server = client_server
++    server.shutdown()
++    assert {'jsonrpc': '2.0', 'id': 1} == server.lsp._pending_responses[1].result()

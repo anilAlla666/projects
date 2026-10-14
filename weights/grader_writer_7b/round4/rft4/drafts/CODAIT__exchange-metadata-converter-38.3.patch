@@ -1,0 +1,17 @@
+--- /dev/null
++++ b/tests/test_converters_grader.py
+@@ -0,0 +1,14 @@
++from __future__ import absolute_import, print_function, unicode_literals
++
++
++import unittest
++import os
++from ruamel.yaml import YAML
++from exchange_metadata_converter.converters import *
++
++
++class TestConverter(unittest.TestCase):
++    def test_dataset_name(self):
++        converter = DatasetToKubernetesCRD()
++        crd = converter.convert(YAML().load(open(os.path.join(os.path.dirname(__file__), "test-dataset.yaml"))))
++        self.assertEqual(crd["spec"]["name"], "finance-proposition-bank")

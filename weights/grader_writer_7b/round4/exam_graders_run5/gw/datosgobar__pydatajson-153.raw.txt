@@ -1,0 +1,48 @@
+--- /dev/null
++++ b/tests/test_federation_grader.py
+@@ -0,0 +1,44 @@
++import unittest
++import os
++import re
++
++
++try:
++    from mock import patch, MagicMock
++except ImportError:
++    from unittest.mock import patch, MagicMock
++
++
++from .context import pydatajson
++from pydatajson.federation import *
++from ckanapi.errors import NotFound
++
++
++SAMPLES_DIR = os.path.join("tests", "samples")
++
++
++class HarvestCatalogToCkanTestCase(unittest.TestCase):
++    @classmethod
++    def get_sample(cls, sample_filename):
++        return os.path.join(SAMPLES_DIR, sample_filename)
++
++    @classmethod
++    def setUpClass(cls):
++        cls.catalog = pydatajson.DataJson(cls.get_sample('full_data.json'))
++        cls.portal_url = 'http://example.com'
++        cls.apikey = 'apikey'
++        cls.catalog_id = cls.catalog.get('identifier', re.sub(
++            r'[^a-z-_]+', '', cls.catalog['title']).lower())
++
++    @patch('pydatajson.federation.RemoteCKAN', autospec=True)
++    def test_harvests_all_datasets_if_none_passed(self, mock_portal):
++        def mock_call_action(action, data_dict=None):
++            if action == 'package_search':
++                return {'results': [{'id': 'dataset_1'}, {'id': 'dataset_2'}]}
++            elif action == 'package_update':
++                return {'id': data_dict['id']}
++            else:
++                self.fail('should not be called')
++
++        mock_portal.return_value.call_action = mock_call_action
++        res_ids = harvest_catalog_to_ckan(self.catalog, self.portal_url, self.apikey, self.catalog_id)
++        self.assertEqual(['dataset_1', 'dataset_2'], res_ids)

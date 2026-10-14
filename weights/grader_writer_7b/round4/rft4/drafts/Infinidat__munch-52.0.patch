@@ -1,0 +1,48 @@
+--- /dev/null
++++ b/tests/test_munch_grader.py
+@@ -0,0 +1,44 @@
++import json
++import pickle
++from collections import namedtuple
++import pytest
++from munch import DefaultFactoryMunch, AutoMunch, DefaultMunch, Munch, munchify, unmunchify
++
++
++def test_from_yml():
++    m = Munch.fromYAML("""
++        name: john
++        age: 25
++        friends:
++            - john
++            - jenny""")
++    assert m.name == 'john'
++    assert m.age == 25
++    assert m.friends[0] == 'john'
++
++    dm = DefaultMunch.fromYAML(None, """
++        name: john
++        age: 25
++        friends:
++            - john
++            - jenny""")
++    assert dm.name == 'john'
++    assert dm.age == 25
++    assert dm.friends[0] == 'john'
++
++    try:
++        Munch.fromYAML(None, """
++            name: john
++            age: 25
++            friends:
++                - john
++                - jenny""")  # noqa
++    except TypeError as e:
++        assert str(e) == "Invalid default factory specified for root level."
++
++
++def test_to_yml():
++    m = Munch(name='john', age=25, friends=('john', 'jenny'))
++    assert m.toYAML() == "{age: 25, friends: [john, jenny], name: john}\n"
++
++    dm = DefaultMunch(42, name='john', age=25, friends=('john', 'jenny'))
++    assert dm.toYAML() == "{age: 25, friends: [john, jenny], name: john}\n"

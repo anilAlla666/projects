@@ -1,0 +1,14 @@
+--- /dev/null
++++ b/tests/test_nbformat_grader.py
+@@ -0,0 +1,12 @@
++import pytest
++from pathlib import Path
++
++
++def test_pathlike_read():
++    """Test that we can read notebooks using pathlib paths."""
++    p = Path(__file__).parent / "test2.ipynb"
++    assert p.exists()
++
++    nb = read(p, as_version=4)
++    assert len(nb.cells) == 4

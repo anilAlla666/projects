@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_upgrade_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++
++
++@pytest.mark.parametrize('code', [
++    # https://github.com/asottile/pyupgrade/issues/352
++    "from six import reraise\n"
++    "try:\n"
++    "   pass\n"
++    "except:\n"
++    "   reraise(type(), None, tb=None)\n",
++])
++def test_reraise_with_tb_none(code):
++    assert code == upgrade(code)

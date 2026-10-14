@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/tests/test_tastykitchen_grader.py
+@@ -0,0 +1,24 @@
++from recipe_scrapers.tastykitchen import TastyKitchen
++from tests import ScraperTest
++
++
++class TestTastyKitchenScraper(ScraperTest):
++    scraper_class = TastyKitchen
++
++    def test_canonical_url(self):
++        self.assertEqual(
++            "https://www.tastykitchen.com/recipes/photos/chicken-salad-bowl-with-tahini-dressing",
++            self.harvester_class.canonical_url(),
++        )
++
++    def test_total_time(self):
++        self.assertEqual(None, self.harvester_class.total_time())
++
++    def test_preparation_time(self):
++        self.assertEqual(20, self.harvester_class.prep_time())
++
++    def test_cooking_time(self):
++        self.assertEqual(25, self.harvester_class.cook_time())
++
++    def test_total_time(self):
++        self.assertEqual(45, self.harvester_class.total_time())
+--- /dev/null
++++ b/tests/library/test_utils_grader.py
+@@ -0,0 +1,24 @@
++import unittest
++from recipe_scrapers._utils import get_minutes
++
++
++class TestUtils(unittest.TestCase):
++    def test_get_minutes_handles_pau_pum(self):
++        text = "Pá-Pum"
++        self.assertEqual(None, get_minutes(text))
++
++    def test_get_minutes_handles_unknown_formats(self):
++        text = "unknown format"
++        self.assertEqual(None, get_minutes(text))
++
++    iso8601_fixtures = {
++        "PT1H": 60,
++        "PT20M": 20,
++        "PT2H10M": 130,
++        "PT0H9M30S": 10,
++        "PT1H15M": 75,
++    }
++
++    def test_get_minutes_returns_none_if_no_match(self):
++        self.assertIsNone(get_minutes(""))

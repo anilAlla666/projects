@@ -1,0 +1,48 @@
+--- /dev/null
++++ b/tests/test_toml_sort_grader.py
+@@ -0,0 +1,39 @@
++"""Test the toml_sort module."""
++
++
++from __future__ import annotations
++from pathlib import Path
++from typing import Any, Callable, Dict, List
++import pytest
++from toml_sort import TomlSort
++from toml_sort.tomlsort import (
++    CommentConfiguration,
++    FormattingConfiguration,
++    SortConfiguration,
++)
++
++
++def test_empty_array():
++    """Test that an empty array does not cause an error."""
++    unsorted_input = "[tool.foo]\nbar = []"
++    expected_output = "[tool.foo]\nbar = []"
++    assert TomlSort(unsorted_input).sorted() == expected_output
++
++
++@pytest.mark.parametrize(
++    "unsorted_fixture,sorted_fixture,args",
++    [
++        (
++            "empty-array",
++            "empty-array",
++            {
++                "sort_config": SortConfiguration(table_keys=False),
++                "format_config": FormattingConfiguration(
++                    spaces_before_inline_comment=1
++                ),
++            },
++        ),
++    ],
++)
++def test_tomlsort(
++    get_fixture: Callable[[str | List[str]], Path],
++    unsorted_fixture: str,
++    sorted_fixture: str,
++    args: Dict[str, Any],
++) -> None:
++    """Make sure that output of TomlSort.sorted() function matches what we
++    expect."""

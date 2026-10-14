@@ -1,0 +1,73 @@
+--- /dev/null
++++ b/tests/test_create_empty_entity.py
+@@ -0,0 +1,64 @@
++import esper
++
++
++class Position:
++    def __init__(self, x=0, y=0):
++        self.x = x
++        self.y = y
++
++
++class Velocity:
++    def __init__(self, x=0, y=0):
++        self.x = x
++        self.y = y
++
++
++def test_empty_entity_exists():
++    world = esper.World()
++    entity = world.create_entity()
++    assert world.entity_exists(entity)
++
++
++def test_entity_ids_still_increment():
++    world = esper.World()
++    first = world.create_entity()
++    second = world.create_entity()
++    assert second == first + 1
++    assert world.entity_exists(first)
++    assert world.entity_exists(second)
++
++
++def test_empty_entity_has_no_components():
++    world = esper.World()
++    entity = world.create_entity()
++    assert world.components_for_entity(entity) == ()
++    assert not world.has_component(entity, Position)
++
++
++def test_add_component_to_empty_entity_later():
++    world = esper.World()
++    entity = world.create_entity()
++    pos = Position(1, 2)
++    world.add_component(entity, pos)
++    assert world.entity_exists(entity)
++    assert world.component_for_entity(entity, Position) is pos
++    assert list(world.get_component(Position)) == [(entity, pos)]
++
++
++def test_empty_entity_not_in_component_queries():
++    world = esper.World()
++    empty = world.create_entity()
++    other = world.create_entity(Position(), Velocity())
++    result = [e for e, _ in world.get_component(Position)]
++    assert result == [other]
++    assert empty not in result
++
++
++def test_delete_empty_entity_immediate():
++    world = esper.World()
++    entity = world.create_entity()
++    world.delete_entity(entity, immediate=True)
++    assert not world.entity_exists(entity)
++
++
++def test_delete_empty_entity_delayed():
++    world = esper.World()
++    entity = world.create_entity()
++    assert world.entity_exists(entity)
++    world.delete_entity(entity)
++    world.process()
++    assert not world.entity_exists(entity)

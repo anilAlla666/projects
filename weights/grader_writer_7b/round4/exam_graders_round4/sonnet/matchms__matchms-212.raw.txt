@@ -1,0 +1,109 @@
+I've added a new test file that calls `find_matches` with 1D arrays of m/z values only. It runs both the numba-compiled version and the pure-Python version (`py_func`). I haven't run it.
+
+On the current code these calls fail. The function indexes `[idx, 0]`, which raises a typing error under numba and an `IndexError` in plain Python. Once `find_matches` takes only m/z arrays, the tests should pass. They do not constrain `collect_peak_pairs`, which can keep its 2D input.
+
+```diff
+--- /dev/null
++++ b/tests/test_find_matches_mz_only.py
+@@ -0,0 +1,61 @@
++"""Test that find_matches works on plain (sorted) m/z arrays only."""
++import numpy
++import pytest
++from matchms.similarity.spectrum_similarity_functions import find_matches
++
++
++def _run(numba_compiled, mz1, mz2, tolerance, shift):
++    if numba_compiled:
++        return find_matches(mz1, mz2, tolerance=tolerance, shift=shift)
++    return find_matches.py_func(mz1, mz2, tolerance=tolerance, shift=shift)
++
++
++@pytest.mark.parametrize("numba_compiled", [True, False])
++def test_find_matches_mz_only_shifted(numba_compiled):
++    mz1 = numpy.array([100, 200, 300, 500], dtype="float")
++    mz2 = numpy.array([105, 205.1, 300, 304.99, 500.1], dtype="float")
++
++    matches = _run(numba_compiled, mz1, mz2, 0.2, -5.0)
++    assert list(matches) == [(0, 0), (1, 1), (2, 3)], "Expected different matches."
++
++
++@pytest.mark.parametrize("numba_compiled", [True, False])
++def test_find_matches_mz_only_no_shift(numba_compiled):
++    mz1 = numpy.array([100, 200, 300, 500], dtype="float")
++    mz2 = numpy.array([105, 205.1, 300, 500.1], dtype="float")
++
++    matches = _run(numba_compiled, mz1, mz2, 0.2, 0.0)
++    assert list(matches) == [(2, 2), (3, 3)], "Expected different matches."
++
++
++@pytest.mark.parametrize("numba_compiled", [True, False])
++def test_find_matches_mz_only_no_matches(numba_compiled):
++    mz1 = numpy.array([100, 200, 300, 500], dtype="float")
++    mz2 = numpy.array([105, 205.1, 300, 500.1], dtype="float")
+
++    matches = _run(numba_compiled, mz1, mz2, 0.2, -20.0)
++    assert list(matches) == [], "Expected empty list of matches."
++
++
++@pytest.mark.parametrize("numba_compiled", [True, False])
++def test_find_matches_mz_only_multiple_matches_per_peak(numba_compiled):
++    mz1 = numpy.array([100.0, 200.0], dtype="float")
++    mz2 = numpy.array([99.9, 100.1, 200.05, 250.0], dtype="float")
++
++    matches = _run(numba_compiled, mz1, mz2, 0.2, 0.0)
++    assert list(matches) == [(0, 0), (0, 1), (1, 2)], "Expected different matches."
+```
+
+I left a stray blank line without a `+` prefix in the no-matches test, which will break the patch. Here is the corrected version of that hunk:
+
+```diff
+--- /dev/null
++++ b/tests/test_find_matches_mz_only.py
+@@ -0,0 +1,61 @@
++"""Test that find_matches works on plain (sorted) m/z arrays only."""
++import numpy
++import pytest
++from matchms.similarity.spectrum_similarity_functions import find_matches
++
++
++def _run(numba_compiled, mz1, mz2, tolerance, shift):
++    if numba_compiled:
++        return find_matches(mz1, mz2, tolerance=tolerance, shift=shift)
++    return find_matches.py_func(mz1, mz2, tolerance=tolerance, shift=shift)
++
++
++@pytest.mark.parametrize("numba_compiled", [True, False])
++def test_find_matches_mz_only_shifted(numba_compiled):
++    mz1 = numpy.array([100, 200, 300, 500], dtype="float")
++    mz2 = numpy.array([105, 205.1, 300, 304.99, 500.1], dtype="float")
++
++    matches = _run(numba_compiled, mz1, mz2, 0.2, -5.0)
++    assert list(matches) == [(0, 0), (1, 1), (2, 3)], "Expected different matches."
++
++
++@pytest.mark.parametrize("numba_compiled", [True, False])
++def test_find_matches_mz_only_no_shift(numba_compiled):
++    mz1 = numpy.array([100, 200, 300, 500], dtype="float")
++    mz2 = numpy.array([105, 205.1, 300, 500.1], dtype="float")
++
++    matches = _run(numba_compiled, mz1, mz2, 0.2, 0.0)
++    assert list(matches) == [(2, 2), (3, 3)], "Expected different matches."
++
++
++@pytest.mark.parametrize("numba_compiled", [True, False])
++def test_find_matches_mz_only_no_matches(numba_compiled):
++    mz1 = numpy.array([100, 200, 300, 500], dtype="float")
++    mz2 = numpy.array([105, 205.1, 300, 500.1], dtype="float")
++
++    matches = _run(numba_compiled, mz1, mz2, 0.2, -20.0)
++    assert list(matches) == [], "Expected empty list of matches."
++
++
++@pytest.mark.parametrize("numba_compiled", [True, False])
++def test_find_matches_mz_only_multiple_matches_per_peak(numba_compiled):
++    mz1 = numpy.array([100.0, 200.0], dtype="float")
++    mz2 = numpy.array([99.9, 100.1, 200.05, 250.0], dtype="float")
++
++    matches = _run(numba_compiled, mz1, mz2, 0.2, 0.0)
++    assert list(matches) == [(0, 0), (0, 1), (1, 2)], "Expected different matches."
+```

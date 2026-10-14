@@ -1,0 +1,15 @@
+--- /dev/null
++++ b/tests/test_plugins_grader.py
+@@ -0,0 +1,11 @@
++from __future__ import annotations
++
++
++import pytest
++from _pytest.monkeypatch import MonkeyPatch
++from pyupgrade._main import _get_rewrite_settings
++from pyupgrade._plugins.six_calls import visit_Call
++
++
++def test_visit_Call_six_reraise_with_tb_keyword(monkeypatch: MonkeyPatch) -> None:
++    monkeypatch.setattr(_get_rewrite_settings(), "min_version", (3,))
++    assert visit_Call(ast.parse('raise exc.with_traceback(None)').body[0].value) is None

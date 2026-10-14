@@ -1,0 +1,87 @@
+--- /dev/null
++++ b/tests/test_expressions_grader.py
+@@ -0,0 +1,56 @@
++import datetime
++import math
++import unittest
++from sqlglot import alias, exp, parse_one
++
++
++class TestExpressions(unittest.TestCase):
++    maxDiff = None
++
++    def test_str_to_base(self):
++        self.assertEqual(
++            exp.StrToBase("ABC", 16).args["this"].sql(dialect="trino"),
++            "FROM_BASE('ABC', 16)",
++        )
++        self.assertEqual(
++            exp.StrToBase("ABC", 16).args["this"].sql(dialect="postgres"),
++            "TO_NUMBER('ABC', 16)",
++        )
++        self.assertEqual(
++            exp.StrToBase("ABC", 16).args["this"].sql(dialect="snowflake"),
++            "TO_BINARY('ABC', 16)",
++        )
++
++    def test_str_to_base_int(self):
++        self.assertEqual(
++            exp.StrToBaseInt("ABC", 16).args["this"].sql(dialect="trino"),
++            "CAST(FROM_BASE('ABC', 16) AS INT)",
++        )
++        self.assertEqual(
++            exp.StrToBaseInt("ABC", 16).args["this"].sql(dialect="postgres"),
++            "TO_INTEGER('ABC', 16)",
++        )
++        self.assertEqual(
++            exp.StrToBaseInt("ABC", 16).args["this"].sql(dialect="snowflake"),
++            "TO_NUMBER('ABC', 16)",
++        )
++
++    def test_str_to_base_bigint(self):
++        self.assertEqual(
++            exp.StrToBaseBigint("ABC", 16).args["this"].sql(dialect="trino"),
++            "CAST(FROM_BASE('ABC', 16) AS BIGINT)",
++        )
++        self.assertEqual(
++            exp.StrToBaseBigint("ABC", 16).args["this"].sql(dialect="postgres"),
++            "TO_BIGINT('ABC', 16)",
++        )
++        self.assertEqual(
++            exp.StrToBaseBigint("ABC", 16).args["this"].sql(dialect="snowflake"),
++            "TO_NUMBER('ABC', 16)",
++        )
++
++    def test_truncate_date(self):
++        self.assertEqual(
++            exp.TruncateDate(this=exp.identifier("a"), unit=exp.stringliteral("day")).sql(dialect="bigquery"),
++            "TRUNCATE_DATE(`a`, 'DAY')",
++        )
+--- /dev/null
++++ b/tests/dialects/test_redshift_grader.py
+@@ -0,0 +1,24 @@
++from tests.dialects.test_dialect import Validator
++
++
++class TestRedshift(Validator):
++    dialect = "redshift"
++
++    def test_str_to_base(self):
++        self.validate_all(
++            "STR_TO_BASE('ABC', 16)",
++            write={
++                "redshift": "FROM_BASE('ABC', 16)",
++                "trino": "FROM_BASE('ABC', 16)",
++                "snowflake": "TO_BINARY('ABC', 16)",
++                "postgres": "TO_NUMBER('ABC', 16)",
++            },
++        )
++        self.validate_all(
++            "STR_TO_BASE_INT('ABC', 16)",
++            write={
++                "redshift": "CAST(FROM_BASE('ABC', 16) AS INT)",
++                "trino": "CAST(FROM_BASE('ABC', 16) AS INT)",
++                "snowflake": "TO_NUMBER('ABC', 16)",
++                "postgres": "TO_INTEGER('ABC', 16)",
++            },
++        )

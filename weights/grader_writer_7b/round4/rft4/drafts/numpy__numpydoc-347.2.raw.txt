@@ -1,0 +1,149 @@
+--- /dev/null
++++ b/numpydoc/tests/test_numpydoc_grader.py
+@@ -0,0 +1,64 @@
++import pytest
++from io import StringIO
++from copy import deepcopy
++from numpydoc.numpydoc import (
++    mangle_docstrings, _clean_text_signature, update_config
++)
++from numpydoc.xref import DEFAULT_LINKS
++from sphinx.ext.autodoc import ALL
++from sphinx.util import logging
++
++
++class MockConfig():
++    numpydoc_use_plots = False
++    numpydoc_use_blockquotes = True
++    numpydoc_show_class_members = True
++    numpydoc_show_inherited_class_members = True
++    numpydoc_class_members_toctree = True
++    numpydoc_xref_param_type = False
++    numpydoc_xref_aliases = {}
++    numpydoc_xref_aliases_complete = deepcopy(DEFAULT_LINKS)
++    numpydoc_xref_ignore = set()
++    templates_path = []
++    numpydoc_edit_link = False
++    numpydoc_citation_re = '[a-z0-9_.-]+'
++    numpydoc_attributes_as_param_list = True
++    numpydoc_validation_checks = set()
++    numpydoc_validation_exclude = set()
++
++
++class MockBuilder():
++    config = MockConfig()
++
++
++class MockApp():
++    config = MockConfig()
++    builder = MockBuilder()
++    translator = None
++
++    def __init__(self):
++        pass
++
++    def emit(self, *args):
++        pass
++
++
++def test_mangle_docstring_validation_exclude():
++    def function_with_bad_docstring():
++        """
++        This docstring will raise docstring validation warnings."""
++    app = MockApp()
++    app.config.numpydoc_validation_checks = {"all"}
++    app.config.numpydoc_validation_exclude = [r"^foo$"]
++    # Call update_config to construct regexp from config value
++    update_config(app)
++    # Setup for catching warnings
++    status, warning = StringIO(), StringIO()
++    logging.setup(app, status, warning)
++    # Run mangle docstrings on function_with_bad_docstring
++    mangle_docstrings(
++        app,
++        'function',
++        function_with_bad_docstring.__name__,
++        function_with_bad_docstring,
++        None,
++        function_with_bad_docstring.__doc__.split('\n'),
++    )
++    # Validation is skipped due to exclude pattern matching fn name, therefore
++    # no warnings expected
++    assert warning.getvalue() == ""
+--- /dev/null
++++ b/numpydoc/tests/test_validate_grader.py
+@@ -0,0 +1,67 @@
++import pytest
++import numpydoc.validate
++import numpydoc.tests
++
++
++validate_one = numpydoc.validate.validate
++
++
++class BadDocStringCases:
++    @pytest.fixture(params=[[], [["BadParameters"]]])
++    def bad_parameter_cases(self, request):
++        return request.param
++
++    @pytest.fixture(params=[[], [["BadReturns"]]])
++    def bad_return_cases(self, request):
++        return request.param
++
++    @pytest.fixture(params=[[], [["BadExamples"]]])
++    def bad_example_cases(self, request):
++        return request.param
++
++    @pytest.fixture(params=[[], [["BadAttributes"]]])
++    def bad_attribute_cases(self, request):
++        return request.param
++
++    @pytest.fixture(params=[[], [["BadMethods"]]])
++    def bad_methods_cases(self, request):
++        return request.param
++
++    @pytest.fixture(params=[[], [["BadRaises"]]])
++    def bad_raises_cases(self, request):
++        return request.param
++
++    @pytest.fixture(params=[[], [["BadWarns"]]])
++    def bad_warns_cases(self, request):
++        return request.param
++
++    @pytest.fixture(params=[[], [["BadNotes"]]])
++    def bad_notes_cases(self, request):
++        return request.param
++
++    @pytest.fixture(params=[[], [["BadReferences"]]])
++    def bad_references_cases(self, request):
++        return request.param
++
++    @pytest.fixture(params=[[], [["BadSections"]]])
++    def bad_sections_cases(self, request):
++        return request.param
++
++    @pytest.fixture(params=[[], [["BadGenericDocStrings"]]])
++    def bad_generic_doc_strings_cases(self, request):
++        return request.param
++
++    @pytest.fixture
++    def valid_docs(self):
++        return {
++            "GoodDocStrings": [
++                "one_liner",
++                "plot",
++                "parameter_with_default",
++                "multi_line_parameters",
++                "return_description",
++                "attribute_description",
++                "method_with_examples",
++            ]
++        }
++
++
++class TestValidateClass(BadDocStringCases):
++    def test_unknown_section(self, capsys):
++        result = validate_one("non.existing.module")
++        assert result["warnings"][0][1] == (
++            "Unknown section: unknown_section."
++        )

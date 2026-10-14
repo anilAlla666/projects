@@ -1,0 +1,119 @@
+I've added one new test file for the filter-ordering bug; I haven't run it against the current code or a fix.
+
+The tests pass `@context -@excluded_context +project` and several reorderings of it through `parse_arguments`. They check that the parser no longer exits with `unrecognized arguments: +project`, and that each filter lands in the right set (contexts, projects, excluded contexts, excluded projects).
+
+I couldn't see what `subset` returns, so I don't know whether the sets hold names with or without the `@`/`+` prefix. The tests strip the prefix characters before comparing, so they pass either way.
+
+The first test is the exact command from the issue. If the parser still rejects `+project`, `parse_arguments` calls `exit` and the test fails with `SystemExit`.
+
+
+<invoke name="bash">
+<parameter name="command">cat > tests/unittests/arguments/test_filter_order.py <<'EOF'
+""" Unit tests for the ordering of context and project filters on the command line. """
+
+import sys
+import unittest
+from unittest.mock import mock_open, patch
+
+from next_action.arguments import config, parse_arguments
+
+
+def names(values):
+    """ Normalize filter names by stripping prefix characters. """
+    return {value.lstrip("-@+") for value in values}
+
+
+@patch.object(config, "open", mock_open(read_data=""))
+class FilterOrderTest(unittest.TestCase):
+    """ Test that filters can be combined in any order. """
+
+    def check(self, argv, contexts, projects, excluded_contexts, excluded_projects):
+        """ Parse the arguments and check the resulting filters. """
+        with patch.object(sys, "argv", ["next-action"] + argv):
+            namespace = parse_arguments()[1]
+        self.assertEqual(contexts, names(namespace.contexts))
+        self.assertEqual(projects, names(namespace.projects))
+        self.assertEqual(excluded_contexts, names(namespace.excluded_contexts))
+        self.assertEqual(excluded_projects, names(namespace.excluded_projects))
+
+    def test_project_after_context_and_excluded_context(self):
+        """ Test a project after a context and an excluded context. """
+        self.check(["@context", "-@excluded_context", "+project"], {"context"}, {"project"}, {"excluded_context"},
+                   set())
+
+    def test_context_after_excluded_context(self):
+        """ Test a context after an excluded context. """
+        self.check(["-@excluded_context", "@context", "+project"], {"context"}, {"project"}, {"excluded_context"},
+                   set())
+
+    def test_excluded_project_in_between(self):
+        """ Test an excluded project between included filters. """
+        self.check(["@context", "-+excluded_project", "+project"], {"context"}, {"project"}, set(),
+                   {"excluded_project"})
+
+    def test_all_kinds_mixed(self):
+        """ Test all four kinds of filters mixed. """
+        self.check(["+p1", "-@c2", "@c1", "-+p2", "+p3"], {"c1"}, {"p1", "p3"}, {"c2"}, {"p2"})
+EOF
+git diff --stat 2>/dev/null; echo done</parameter>
+</invoke>
+
+<invoke name="bash">
+<parameter name="command">ls tests/unittests/arguments/</parameter>
+</invoke>
+
+
+Here is the diff for the new file:
+
+```diff
+diff --git a/tests/unittests/arguments/test_filter_order.py b/tests/unittests/arguments/test_filter_order.py
+new file mode 100644
+--- /dev/null
++++ b/tests/unittests/arguments/test_filter_order.py
+@@ -0,0 +1,41 @@
++""" Unit tests for the ordering of context and project filters on the command line. """
++
++import sys
++import unittest
++from unittest.mock import mock_open, patch
++
++from next_action.arguments import config, parse_arguments
++
++
++def names(values):
++    """ Normalize filter names by stripping prefix characters. """
++    return {value.lstrip("-@+") for value in values}
++
++
++@patch.object(config, "open", mock_open(read_data=""))
++class FilterOrderTest(unittest.TestCase):
++    """ Test that filters can be combined in any order. """
++
++    def check(self, argv, contexts, projects, excluded_contexts, excluded_projects):
++        """ Parse the arguments and check the resulting filters. """
++        with patch.object(sys, "argv", ["next-action"] + argv):
++            namespace = parse_arguments()[1]
++        self.assertEqual(contexts, names(namespace.contexts))
++        self.assertEqual(projects, names(namespace.projects))
++        self.assertEqual(excluded_contexts, names(namespace.excluded_contexts))
++        self.assertEqual(excluded_projects, names(namespace.excluded_projects))
++
++    def test_project_after_context_and_excluded_context(self):
++        """ Test a project after a context and an excluded context. """
++        self.check(["@context", "-@excluded_context", "+project"], {"context"}, {"project"}, {"excluded_context"},
++                   set())
++
++    def test_context_after_excluded_context(self):
++        """ Test a context after an excluded context. """
++        self.check(["-@excluded_context", "@context", "+project"], {"context"}, {"project"}, {"excluded_context"},
++                   set())
++
++    def test_excluded_project_in_between(self):
++        """ Test an excluded project between included filters. """
++        self.check(["@context", "-+excluded_project", "+project"], {"context"}, {"project"}, set(),
++                   {"excluded_project"})
++
++    def test_all_kinds_mixed(self):
++        """ Test all four kinds of filters mixed. """
++        self.check(["+p1", "-@c2", "@c1", "-+p2", "+p3"], {"c1"}, {"p1", "p3"}, {"c2"}, {"p2"})
+```

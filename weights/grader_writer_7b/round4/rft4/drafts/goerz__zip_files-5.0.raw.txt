@@ -1,0 +1,51 @@
+--- /dev/null
++++ b/tests/test_zip_files_grader.py
+@@ -0,0 +1,42 @@
++"""Tests for `zip-files` executable."""
++
++
++import io
++from pathlib import Path
++from zipfile import ZipInfo, ZipFile
++import pytest
++from click.testing import CliRunner
++from pkg_resources import parse_version
++from test_zip_folder import _check_exit_code, _prepare_folder_with_git_excludes
++from zip_files import __version__
++from zip_files.zip_files import zip_files
++
++
++ROOT = Path(__file__).parent / 'root'
++
++
++@pytest.mark.parametrize("mode", ["zip", "gzip"])
++def test_preserve_permissions(mode, tmp_path):
++    """Check that file permissions are preserved when zipping"""
++    runner = CliRunner()
++    outfile = tmp_path / 'archive.zip'
++    folder = tmp_path / 'folder_with_files'
++    folder.mkdir()
++    text_file = folder / "text.txt"
++    binary_file = folder / "binary.bin"
++    text_file.write_text("This is some text.")
++    binary_file.write_bytes(b"\x00\x01\xfe\xff")
++    # Make sure that the file has execute permission
++    text_file.chmod(0o755)
++    # Also ensure the file has read-only permission
++    binary_file.chmod(0o444)
++
++    result = runner.invoke(
++        zip_files,
++        [
++            "--debug",
++            "-o",
++            str(outfile),
++            "--compression",
++            mode,
++            str(folder),
++        ],
++    )
++    _check_exit_code(result)
++    with ZipFile(outfile) as zipfile:
++        info = zipfile.getinfo("folder_with_files/text.txt")
++        assert info.external_attr & 0o755 == 0o755

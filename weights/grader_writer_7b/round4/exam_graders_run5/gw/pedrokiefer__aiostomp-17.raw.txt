@@ -1,0 +1,13 @@
+--- /dev/null
++++ b/tests/test_protocol_grader.py
+@@ -0,0 +1,11 @@
++from unittest import TestCase
++from aiostomp.protocol import Protocol
++
++
++class TestProtocol(TestCase):
++    def test_parse_data_with_incomplete_command(self):
++        protocol = Protocol()
++        protocol.feed_data(b"ME")
++        protocol.feed_data(b"SSAGE\n\n\n")
++        self.assertEqual(len(protocol.frames_ready), 1)

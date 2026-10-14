@@ -1,0 +1,37 @@
+--- /dev/null
++++ b/tests/test_flake8_gl_codeclimate_grader.py
+@@ -0,0 +1,31 @@
++"""
++Test Flake8GlCodeClimate
++
++:copyright: (c) 2018 by Felix Becker.
++:license: MIT, see LICENSE for more details.
++"""
++
++
++import os
++from flake8.main.application import Application
++from flake8_gl_codeclimate import GlCodeClimateFormatter
++
++
++def test_relative_file_path(tmpdir):
++    """
++    Test that relative file paths have no leading './'.
++
++    See https://github.com/awelzel/flake8-gl-codeclimate/issues/24
++    """
++    filename = os.path.join(str(tmpdir), "test.py")
++    with open(filename, "w") as f:
++        f.write("#\n")
++
++    app = Application(
++        version="test",
++        plugin_manager=GlCodeClimateFormatter(),
++        options={
++            "config": "",
++            "tee_output": True,
++            "exclude": [],
++            "max_line_length": 80,
++        },
++    )
++    app.run(["--format", "gl-codeclimate", filename])

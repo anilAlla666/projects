@@ -1,0 +1,19 @@
+diff --git a/tst/test_data_tools.py b/tst/test_data_tools.py
+index 6b0d0a5..e0c3708 100644
+--- a/tst/test_data_tools.py
++++ b/tst/test_data_tools.py
+@@ -157,6 +157,14 @@ class DataToolsTest(TestCase):
+             self.assertEqual(aggregated[i].get('number2'), num * 2)
+ 
+ 
++    def test_aggregate_with_units(self):
++        data = generate_test_data(51)
++        aggregated, warnings = aggregate(data, 5, units=['number'])
++
++        for i in range(1,5):
++            self.assertEqual(aggregated[i].get('number__unit'), 'count')
++
++
+     def test_aggregate_empty_window(self):
+         data = generate_test_data(5)
+         aggregated, warnings = aggregate(data, 10, 'max', aggregate_always=True)

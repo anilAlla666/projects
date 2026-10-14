@@ -1,0 +1,33 @@
+```diff
+diff --git a/test/test_hub_constructor.py b/test/test_hub_constructor.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/test/test_hub_constructor.py
+@@ -0,0 +1,20 @@
++from pytest import fixture, raises
++
++from sensorhub.hub import SensorHub
++
++
++@fixture
++def sensor_hub():
++    return SensorHub(None)
++
++
++def test_constructor_without_argument_fails(sensor_hub):
++    with raises(TypeError):
++        SensorHub()
++
++
++def test_constructor_with_none_argument_passes(sensor_hub):
++    assert isinstance(sensor_hub, SensorHub)
+```
+
+This new test file `test_hub_constructor.py` contains two tests:
+
+1. `test_constructor_without_argument_fails`: This test ensures that calling the constructor without any arguments raises a `TypeError`. This is because the constructor now requires a positional argument.
+
+2. `test_constructor_with_none_argument_passes`: This test ensures that calling the constructor with `None` as the argument does not raise any exceptions and returns an instance of `SensorHub`.
+
+These tests will fail when run against the current codebase and should pass after the issue is fixed. They do not depend on any specific details left open by the issue, focusing solely on the change in the constructor signature.

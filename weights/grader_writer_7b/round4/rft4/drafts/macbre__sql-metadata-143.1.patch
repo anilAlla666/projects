@@ -1,0 +1,38 @@
+--- /dev/null
++++ b/tests/test_parser_grader.py
+@@ -0,0 +1,35 @@
++from sql_metadata import Parser
++
++
++def test_leading_digits():
++    parser = Parser('SELECT t.val as value, count(*) FROM 0020_big_table as t WHERE id BETWEEN 10 AND 20 GROUP BY val')
++    assert '0020_big_table' in parser.tables
++
++    parser = Parser('SELECT t.val as value, count(*) FROM 0020_big_table AS t WHERE id BETWEEN 10 AND 20 GROUP BY val')
++    assert '0020_big_table' in parser.tables
++
++    parser = Parser('SELECT t.val as value, count(*) FROM 0020_big_table T WHERE id BETWEEN 10 AND 20 GROUP BY val')
++    assert '0020_big_table' in parser.tables
++
++    parser = Parser('SELECT t.val as value, count(*) FROM 0020_big_table as T WHERE id BETWEEN 10 AND 20 GROUP BY val')
++    assert '0020_big_table' in parser.tables
++
++
++def test_leading_digits_multiple():
++    parser = Parser(
++        """SELECT t.val as value, count(*) FROM 0020_big_table AS t JOIN 0021_small_table AS t ON t.id = t.id WHERE id BETWEEN 10 AND 20 GROUP BY val"""
++    )
++    assert '0020_big_table' in parser.tables
++    assert '0021_small_table' in parser.tables
++
++    parser = Parser(
++        """SELECT t.val as value, count(*) FROM 0020_big_table AS t JOIN 0021_small_table AS t ON t.id = t.id WHERE id BETWEEN 10 AND 20 GROUP BY val"""
++    )
++    assert '0020_big_table' in parser.tables
++    assert '0021_small_table' in parser.tables
++
++    parser = Parser(
++        """SELECT t.val as value, count(*) FROM 0020_big_table AS t JOIN 0021_small_table AS t ON t.id = t.id WHERE id BETWEEN 10 AND 20 GROUP BY val"""
++    )
++    assert '0020_big_table' in parser.tables
++    assert '0021_small_table' in parser.tables

@@ -1,0 +1,83 @@
+--- /dev/null
++++ b/tests/test_telegram_methods_grader.py
+@@ -0,0 +1,85 @@
++import pytest
++from unittest.mock import patch
++from telegram import VERSION
++from telegram.utils import AsyncResult
++from telegram.client import Telegram, MESSAGE_HANDLER_TYPE
++
++
++API_ID = 1
++
++
++API_HASH = 'hash'
++
++
++PHONE = '+71234567890'
++
++
++LIBRARY_PATH = '/lib/'
++
++
++DATABASE_ENCRYPTION_KEY = 'changeme1234'
++
++
++@pytest.fixture
++def telegram():
++    with patch('telegram.client.TDJson'):
++        with patch('telegram.client.threading'):
++            tg = Telegram(
++                api_id=API_ID,
++                api_hash=API_HASH,
++                phone=PHONE,
++                library_path=LIBRARY_PATH,
++                database_encryption_key=DATABASE_ENCRYPTION_KEY,
++            )
++    return tg
++
++
++class TestTelegram__remove_handler:
++    def test_remove_handler_should_not_raise_on_non_registered_handler(self, telegram):
++        telegram._handlers[MESSAGE_HANDLER_TYPE] = []
++        telegram.remove_handler(handler_type=MESSAGE_HANDLER_TYPE, func=lambda x: x)
++
++    def test_remove_handler_should_remove_handler(self, telegram):
++        telegram._handlers[MESSAGE_HANDLER_TYPE] = [lambda x: x]
++
++        telegram.remove_handler(handler_type=MESSAGE_HANDLER_TYPE, func=lambda x: x)
++
++        assert len(telegram._handlers[MESSAGE_HANDLER_TYPE]) == 0
++
++    def test_remove_handler_should_remove_handler_from_all_update_types(self, telegram):
++        telegram._handlers = {MESSAGE_HANDLER_TYPE: [lambda x: x]}
++
++        telegram.remove_handler(handler_type=MESSAGE_HANDLER_TYPE, func=lambda x: x)
++
++        assert len(telegram._handlers[MESSAGE_HANDLER_TYPE]) == 0
++
++    def test_remove_handler_should_only_remove_given_function(self, telegram):
++        telegram._handlers[MESSAGE_HANDLER_TYPE] = [
++            lambda x: x,
++            lambda x: x,
++            lambda y: y,
++        ]
++
++        telegram.remove_handler(handler_type=MESSAGE_HANDLER_TYPE, func=lambda x: x)
++
++        assert len(telegram._handlers[MESSAGE_HANDLER_TYPE]) == 2
++
++    def test_remove_handler_should_work_for_multiple_updates(self, telegram):
++        telegram._handlers = {
++            MESSAGE_HANDLER_TYPE: [lambda x: x],
++            'another_update_type': [lambda x: x],
++        }
++
++        telegram.remove_handler(handler_type=MESSAGE_HANDLER_TYPE, func=lambda x: x)
++
++        assert len(telegram._handlers[MESSAGE_HANDLER_TYPE]) == 0
++        assert len(telegram._handlers['another_update_type']) == 1
++
++    def test_remove_handler_should_throw_error_if_unknown_type(self, telegram):
++        with pytest.raises(KeyError):
++            telegram.remove_handler(handler_type='unknown', func=lambda x: x)

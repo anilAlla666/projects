@@ -1,0 +1,30 @@
+diff --git a/tests/test_empty_data.py b/tests/test_empty_data.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_empty_data.py
+@@ -0,0 +1,25 @@
++from unittest.mock import patch
++from io import StringIO
++import pytest
++from termgraph import termgraph as tg
++
++
++def test_chart_handles_empty_data():
++    with patch("sys.stdout", new=StringIO()) as output:
++        args = {
++            "colors": None,
++            "data": [0, 0],
++            "width": 100,
++            "format": "{:,}",
++            "suffix": '',
++            "no_labels": False,
++            "no_values": False,
++            "vertical": False,
++            "stacked": False,
++            "histogram": False,
++            "different_scale": False,
++        }
++        labels = ['iOS', 'Android']
++        tg.chart(**args, labels=labels)
++        output = output.getvalue().strip()
++        assert output == ""

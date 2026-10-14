@@ -1,0 +1,55 @@
+--- /dev/null
++++ b/tests/unit/test_sql_analyser_grader.py
+@@ -0,0 +1,51 @@
++from __future__ import annotations
++import unittest
++from django_migration_linter.sql_analyser import (
++    analyse_sql_statements,
++    get_sql_analyser_class,
++)
++
++
++class PostgresqlSqlAnalyserTestCase(SqlAnalyserTestCase):
++    database_vendor = "postgresql"
++
++    def test_create_index_condition(self):
++        sql = "CREATE INDEX CONCURRENTLY ON \"films\" (\"release_date\") WHERE \"release_date\" IS NOT NULL;"
++        self.assertValidSql(sql)
++
++    def test_create_index_condition_with_table_creation(self):
++        sql = [
++            'CREATE TABLE "films" ("release_date" date);',
++            'CREATE INDEX CONCURRENTLY ON "films" ("release_date") WHERE "release_date" IS NOT NULL;',
++        ]
++        self.assertValidSql(sql)
++
++    def test_create_index_condition_without_table_creation(self):
++        sql = 'CREATE TABLE "films" ("release_date" date);'
++        self.assertValidSql(sql)
++        sql = [
++            'CREATE TABLE "films" ("release_date" date);',
++            'CREATE INDEX CONCURRENTLY ON "films" ("release_date");',
++        ]
++        self.assertValidSql(sql)
++        sql = [
++            'CREATE TABLE "other_table" ("release_date" date);',
++            'CREATE INDEX CONCURRENTLY ON "films" ("release_date");',
++        ]
++        self.assertValidSql(sql)
++        sql = [
++            'CREATE TABLE "other_table" ("release_date" date);',
++            'CREATE INDEX CONCURRENTLY ON "other_table" ("release_date");',
++        ]
++        self.assertValidSql(sql)
++        sql = [
++            'CREATE TABLE "other_table" ("release_date" date);',
++            'CREATE INDEX CONCURRENTLY ON "films" ("release_date") WHERE "release_date" IS NOT NULL;',
++        ]
++        self.assertValidSql(sql)
++
++    def test_create_index_condition_with_default(self):
++        sql = [
++            'CREATE TABLE "films" ("release_date" date DEFAULT CURRENT_DATE);',
++            'CREATE INDEX CONCURRENTLY ON "films" ("release_date") WHERE "release_date" IS NOT NULL;',
++        ]
++        self.assertValidSql(sql)

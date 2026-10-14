@@ -1,0 +1,50 @@
+--- /dev/null
++++ b/sievelib/tests/test_exists_export.py
+@@ -0,0 +1,45 @@
++# coding: utf-8
++"""Export of a parsed 'exists' test through the factory."""
++import unittest
++
++from sievelib.factory import FiltersSet
++from sievelib.parser import Parser
++
++
++class ExistsExportTestCase(unittest.TestCase):
++
++    def _load(self, script):
++        parser = Parser()
++        self.assertTrue(parser.parse(script), parser.error)
++        fs = FiltersSet("test")
++        fs.from_parser_result(parser)
++        return fs
++
++    def test_exists_multiple_headers(self):
++        script = """require ["fileinto"];
++
++# Filter: rule1
++if exists ["Subject", "X-Foo"] {
++    fileinto "folder";
++}
++"""
++        fs = self._load(script)
++        conditions = fs.get_filter_conditions("rule1")
++        self.assertEqual(len(conditions), 1)
++        self.assertEqual(tuple(conditions[0]),
++                         ("exists", "Subject", "X-Foo"))
++
++    def test_exists_single_element_list(self):
++        script = """require ["fileinto"];
++
++# Filter: rule1
++if exists ["Subject"] {
++    fileinto "folder";
++}
++"""
++        fs = self._load(script)
++        conditions = fs.get_filter_conditions("rule1")
++        self.assertEqual(len(conditions), 1)
++        self.assertEqual(tuple(conditions[0]), ("exists", "Subject"))
++
++
++if __name__ == "__main__":
++    unittest.main()

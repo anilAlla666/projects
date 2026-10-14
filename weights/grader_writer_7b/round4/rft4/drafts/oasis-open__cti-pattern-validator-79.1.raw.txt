@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/tests/test_v20_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++from stix2patterns.v20.validator import PatternValidator
++
++
++def test_invalid_hashes_wildcard():
++    pattern = "[file:hashes[*] = '8665c8d477534008b3058b72e2dae8ae']"
++    validator = PatternValidator()
++    results = validator.validate_pattern(pattern, "2.0")
++
++    assert len(results) == 1
++    assert results[0] == "FAIL: Wildcard subscription of hashes is not supported"
++
++
++if __name__ == "__main__":
++    pytest.main()
+--- /dev/null
++++ b/tests/test_v21_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++from stix2patterns.v21.validator import PatternValidator
++
++
++def test_invalid_hashes_wildcard():
++    pattern = "[file:hashes[*] = '8665c8d477534008b3058b72e2dae8ae']"
++    validator = PatternValidator()
++    results = validator.validate_pattern(pattern, "2.1")
++
++    assert len(results) == 1
++    assert results[0] == "FAIL: Wildcard subscription of hashes is not supported"
++
++
++if __name__ == "__main__":
++    pytest.main()

@@ -1,0 +1,61 @@
+--- /dev/null
++++ b/tests/test_cookiecutter_invocation_grader.py
+@@ -0,0 +1,30 @@
++"""
++test_cookiecutter_invocation.
++
++Tests to make sure that cookiecutter can be called from the cli without
++using the entry point set up for the package.
++"""
++
++
++import os
++import subprocess
++import sys
++from unittest.mock import patch
++import pytest
++from cookiecutter import utils
++
++
++@pytest.fixture
++def project_dir():
++    """Return test project folder name and remove it after the test."""
++    yield 'fake-project-templated'
++
++    if os.path.isdir('fake-project-templated'):
++        utils.rmtree('fake-project-templated')
++
++
++@pytest.mark.usefixtures('clean_system')
++def test_should_invoke_main_with_git_ssh(monkeypatch, project_dir):
++    """Should create a project and exit with 0 code on cli invocation."""
++    with patch.object(sys, 'argv', ['cookiecutter', 'git@github.com:test/repo.git']):
++        monkeypatch.setenv('PYTHONPATH', '.')
++        exit_code = subprocess.check_call([sys.executable, '-m', 'cookiecutter.cli'])
++    assert exit_code == 0
++    assert os.path.isdir(project_dir)
+--- /dev/null
++++ b/tests/vcs/test_is_vcs_installed_grader.py
+@@ -0,0 +1,22 @@
++"""Collection of tests around VCS detection."""
++
++
++import pytest
++from cookiecutter import vcs
++
++
++@pytest.mark.parametrize(
++    'which_return, result',
++    [
++        ('', False),
++        (None, False),
++        (False, False),
++        ('/usr/local/bin/git', True),
++        ('/usr/local/bin/hg', True),
++    ],
++)
++def test_is_vcs_installed(mocker, which_return, result):
++    """Verify `is_vcs_installed` function correctly handles `which` answer."""
++    mocker.patch('cookiecutter.vcs.which', autospec=True, return_value=which_return)
++    assert vcs.is_vcs_installed('git') == result
++    assert vcs.is_vcs_installed('hg') == result

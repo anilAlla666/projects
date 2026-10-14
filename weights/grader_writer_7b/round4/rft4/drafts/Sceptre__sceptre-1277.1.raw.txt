@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/tests/test_template_handlers/test_http_grader.py
+@@ -0,0 +1,29 @@
++import json
++import pytest
++from sceptre.exceptions import (
++    UnsupportedTemplateFileTypeError,
++    StackDoesNotExistError
++)
++from sceptre.template_handlers.http import Http
++from unittest.mock import patch
++
++
++class TestHttp(object):
++    def test_handler_raises_stack_does_not_exist_error_on_404_status_code(
++            self, requests_mock
++    ):
++        url = "https://raw.githubusercontent.com/acme/bucket.yaml"
++        requests_mock.get(url, status_code=404)
++        template_handler = Http(
++            name="vpc",
++            arguments={"url": url},
++        )
++        with pytest.raises(StackDoesNotExistError):
++            template_handler.handle()
++
++    def test_handler_raises_exception_on_other_status_code(self, requests_mock):
++        url = "https://raw.githubusercontent.com/acme/bucket.yaml"
++        requests_mock.get(url, status_code=418)
++        template_handler = Http(
++            name="vpc",
++            arguments={"url": url},
++        )
++        with pytest.raises(Exception):
++            template_handler.handle()
+--- /dev/null
++++ b/tests/test_template_handlers/test_template_handlers_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++from sceptre.exceptions import TemplateHandlerArgumentsInvalidError
++from sceptre.template_handlers import TemplateHandler
++
++
++class MockTemplateHandler(TemplateHandler):
++    def __init__(self, *args, **kwargs):
++        super(MockTemplateHandler, self).__init__(*args, **kwargs)
++
++    def schema(self):
++        return {
++            "type": "object",
++            "properties": {},
++        }

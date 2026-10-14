@@ -1,0 +1,164 @@
+--- /dev/null
++++ b/tests/test_util_grader.py
+@@ -0,0 +1,105 @@
++from importlib.metadata import EntryPoint
++import pytest
++from flask import Flask
++from flask_multipass import Multipass
++from flask_multipass.auth import AuthProvider
++from flask_multipass.core import _MultipassState
++from flask_multipass.exceptions import AuthenticationFailed
++from flask_multipass.identity import IdentityProvider
++from flask_multipass.util import (classproperty, get_state, resolve_provider_type, convert_provider_data, login_view,
++                                  get_canonical_provider_map, validate_provider_map, SupportsMeta, get_provider_base,
++                                  convert_app_data)
++
++
++def test_resolve_provider_type_with_ep_group(mocker):
++    ep_mock = mocker.patch('flask_multipass.util.importlib_entry_points')
++    ep_group_mock = mocker.patch('flask_multipass.util.importlib_metadata_entry_points')
++
++    base_class = AuthProvider
++    expected_type = 'foo'
++    ep_mock.return_value = []
++    ep_group_mock.return_value = []
++
++    assert resolve_provider_type(base_class, expected_type) is None
++
++    ep_mock.assert_called_once_with(name='auth_provider')
++    ep_group_mock.assert_called_once_with(group='flask_multipass.auth_provider', name=expected_type)
++
++
++def test_resolve_provider_type_no_ep_found(mocker):
++    ep_mock = mocker.patch('flask_multipass.util.importlib_entry_points')
++    ep_group_mock = mocker.patch('flask_multipass.util.importlib_metadata_entry_points')
++
++    base_class = AuthProvider
++    expected_type = 'foo'
++    ep_mock.return_value = []
++    ep_group_mock.return_value = []
++
++    assert resolve_provider_type(base_class, expected_type) is None
++
++    ep_mock.assert_called_once_with(name='auth_provider')
++    ep_group_mock.assert_called_once_with(group='flask_multipass.auth_provider', name=expected_type)
++
++
++def test_resolve_provider_type_with_ep(mocker):
++    ep_mock = mocker.patch('flask_multipass.util.importlib_entry_points')
++    ep_group_mock = mocker.patch('flask_multipass.util.importlib_metadata_entry_points')
++
++    base_class = AuthProvider
++    expected_type = 'foo'
++    ep_mock.return_value = [EntryPoint(name='foo', value='flask_multipass.foo')]
++    ep_group_mock.return_value = []
++
++    assert resolve_provider_type(base_class, expected_type) == 'foo'
++
++    ep_mock.assert_called_once_with(name='auth_provider')
++    ep_group_mock.assert_called_once_with(group='flask_multipass.auth_provider', name=expected_type)
++
++
++def test_resolve_provider_type_multiple_eps_found(mocker):
++    ep_mock = mocker.patch('flask_multipass.util.importlib_entry_points')
++    ep_group_mock = mocker.patch('flask_multipass.util.importlib_metadata_entry_points')
++
++    base_class = AuthProvider
++    expected_type = 'foo'
++    ep_mock.return_value = [EntryPoint(name='foo', value='flask_multipass.foo')]
++    ep_group_mock.return_value = [
++        EntryPoint(name='foo', value='flask_multipass.foo'),
++        EntryPoint(name='foo', value='flask_multipass.bar')
++    ]
++
++    with pytest.raises(ValueError):
++        resolve_provider_type(base_class, expected_type)
++
++    ep_mock.assert_called_once_with(name='auth_provider')
++    ep_group_mock.assert_called_once_with(group='flask_multipass.auth_provider', name=expected_type)
++
++
++@pytest.fixture
++def supports_base():
++    class Base(metaclass=SupportsMeta):
++        __support_attrs__ = {'has_foo': 'foo'}
++        has_foo = True
++
++        def foo(self):
++            pass
++
++    return Base
++
++
++def test_importlib_metadata_entrypoints_has_expected_signature(mocker):
++    mock_func = mocker.Mock()
++    mocker.patch('flask_multipass.util.importlib_metadata_entrypoints', mock_func)
++
++    resolve_provider_type(AuthProvider, 'foo')
++
++    mock_func.assert_called_once_with(group='flask_multipass.auth_provider', name='foo')
+--- /dev/null
++++ b/tests/providers/ldap/test_util_grader.py
+@@ -0,0 +1,61 @@
++from collections import OrderedDict
++from unittest.mock import MagicMock, call
++from urllib.parse import urlsplit
++import ldap
++import pytest
++from flask_multipass.exceptions import MultipassException
++from flask_multipass.providers.ldap.globals import current_ldap
++from flask_multipass.providers.ldap.util import LDAPContext, build_search_filter, find_one, ldap_context, to_unicode
++from flask_multipass.util import convert_app_data
++
++
++@pytest.mark.parametrize(('base_dn', 'search_filter', 'data', 'expected'), (
++    ('dc=example,dc=com', '(&(mail=alain.dissoir@mail.com)(objectCategory=user))',
++     {'dn': 'uid=alain,ou=people,dc=example,dc=com', 'mail': ['alain.dissoir@mail.com']},
++     ('uid=alain,ou=people,dc=example,dc=com', 'alain.dissoir@mail.com')),
++    ('dc=example,dc=com', '(&(mail=alain.dissoir@mail.com)(objectCategory=user))',
++     {'dn': 'uid=alain,ou=people,dc=example,dc=com', 'mail': ['alain.dissoir@mail.com', 'other@example.com']},
++     ('uid=alain,ou=people,dc=example,dc=com', 'alain.dissoir@mail.com')),
++    ('dc=example,dc=com', '(&(mail=alain.dissoir@mail.com)(objectCategory=user))',
++     {'dn': 'uid=alain,ou=people,dc=example,dc=com', 'mail': ['other@example.com', 'alain.dissoir@mail.com']},
++     ('uid=alain,ou=people,dc=example,dc=com', 'alain.dissoir@mail.com')),
++))
++def test_find_one(base_dn, search_filter, data, expected):
++    results = [OrderedDict(data)]
++    conn = MagicMock(search_s=magic_search(results), simple_bind_s=lambda *a: None)
++
++    with ldap_context({'uri': 'ldaps://localhost:636', 'bind_dn': '', 'bind_password': ''}) as ctx:
++        ctx.connection = conn
++        assert find_one(ctx, base_dn, search_filter) == expected
++
++    assert len(conn.simple_bind_s.call_args_list) == 1
++    assert len(conn.search_s.call_args_list) == 1
++
++
++def magic_search(results):
++    def wrapper(base_dn, scope, filterstr, attrlist=None, attrsonly=0, sizelimit=0, timelimit=0, count_limit=0,
++                    escape=True):
++        assert isinstance(base_dn, str)
++        assert scope in (ldap.SCOPE_BASE, ldap.SCOPE_ONELEVEL, ldap.SCOPE_SUBTREE)
++        assert isinstance(filterstr, str)
++        assert isinstance(attrlist, list)
++        assert isinstance(attrsonly, int)
++        assert isinstance(sizelimit, int)
++        assert isinstance(timelimit, int)
++        assert isinstance(count_limit, int)
++        assert isinstance(escape, bool)
++        return results
++
++    return wrapper
++
++
++def test_ldap_context_with_tls():
++    settings = {
++        'uri': 'ldaps://ldap.example.com:636',
++        'bind_dn': '',
++        'bind_password': ''
++    }
++
++    with ldap_context(settings) as ctx:
++        assert ctx.settings['uri'] == 'ldaps://ldap.example.com:636'
++        assert ctx.settings['verify_cert']
++        assert ctx.settings['cert_file'] is None

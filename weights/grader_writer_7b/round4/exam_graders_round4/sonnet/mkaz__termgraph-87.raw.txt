@@ -1,0 +1,78 @@
+The diff below adds `tests/test_zero_data.py` with three tests for the all-zeros case from the issue. The tests have not been run. Each one fails on the current code with `ZeroDivisionError` and should pass once the fix is in.
+
+- **`normalize`:** one test checks that all-zero data comes back with the same shape and every value equal to 0.
+- **`chart`:** one test checks that all-zero data does not raise.
+- **Multi-series:** one test checks that multi-series data (two values per label) does not raise.
+
+The tests check only that nothing raises and that the normalized values are zero, so they don't depend on the exact output the fix produces. The args dict is a superset of the one in the issue, with extra keys that `chart` may read.
+
+```diff
+--- /dev/null
++++ b/tests/test_zero_data.py
+@@ -0,0 +1,59 @@
++from io import StringIO
++from unittest.mock import patch
++
++from termgraph import termgraph as tg
++
++
++def _args(**overrides):
++    args = {
++        "filename": "-",
++        "title": None,
++        "width": 100,
++        "format": "{:,}",
++        "suffix": "",
++        "no_labels": False,
++        "no_values": False,
++        "color": None,
++        "vertical": False,
++        "stacked": False,
++        "histogram": False,
++        "different_scale": False,
++        "calendar": False,
++        "start_dt": None,
++        "custom_tick": "",
++        "delim": "",
++        "verbose": False,
++        "label_before": False,
++        "version": False,
++        "bins": 5,
++    }
++    args.update(overrides)
++    return args
++
++
++def test_normalize_all_zeros_does_not_raise():
++    result = tg.normalize([[0], [0]], 100)
++    assert len(result) == 2
++    assert all(len(row) == 1 for row in result)
++    assert all(v == 0 for row in result for v in row)
++
++
++def test_normalize_all_zeros_multiple_columns():
++    result = tg.normalize([[0, 0], [0, 0], [0, 0]], 50)
++    assert len(result) == 3
++    assert all(len(row) == 2 for row in result)
++    assert all(v == 0 for row in result for v in row)
++
++
++def test_chart_all_zeros_does_not_raise():
++    with patch("sys.stdout", new=StringIO()):
++        tg.chart(
++            colors=None,
++            data=[[0], [0]],
++            args=_args(),
++            labels=["iOS", "Android"],
++        )
++
++
++def test_chart_all_zeros_multiple_series_does_not_raise():
++    with patch("sys.stdout", new=StringIO()):
++        tg.chart(
++            colors=[],
++            data=[[0, 0], [0, 0]],
++            args=_args(),
++            labels=["iOS", "Android"],
++        )
+```

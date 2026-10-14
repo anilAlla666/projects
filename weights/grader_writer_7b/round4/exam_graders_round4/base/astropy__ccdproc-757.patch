@@ -1,0 +1,49 @@
+diff --git a/ccdproc/tests/test_combiner_generator.py b/ccdproc/tests/test_combiner_generator.py
+new file mode 100644
+index 0000000..b2a3f4d
+--- /dev/null
++++ b/ccdproc/tests/test_combiner_generator.py
+@@ -0,0 +1,45 @@
++# Licensed under a 3-clause BSD style license - see LICENSE.rst
++
++import numpy as np
++from astropy.nddata import CCDData
++from ccdproc.combiner import Combiner, combine
++import pytest
++
++
++def test_combiner_accepts_generator():
++    # Create some sample CCDData objects
++    ccd1 = CCDData(np.ones((3, 3)), unit="adu")
++    ccd2 = CCDData(np.ones((3, 3)), unit="adu")
++    ccd3 = CCDData(np.ones((3, 3)), unit="adu")
++
++    # Use a generator expression to create a sequence of CCDData objects
++    ccd_gen = (ccd for ccd in [ccd1, ccd2, ccd3])
++
++    # Initialize Combiner with the generator
++    combiner = Combiner(ccd_gen)
++
++    # Perform combination using the average_combine method
++    result = combiner.average_combine()
++
++    # Check if the result is as expected
++    expected_result = np.ones((3, 3))
++    np.testing.assert_array_equal(result.data, expected_result)
++
++
++def test_combine_accepts_generator():
++    # Create some sample CCDData objects
++    ccd1 = CCDData(np.ones((3, 3)), unit="adu")
++    ccd2 = CCDData(np.ones((3, 3)), unit="adu")
++    ccd3 = CCDData(np.ones((3, 3)), unit="adu")
++
++    # Use a generator expression to create a sequence of CCDData objects
++    ccd_gen = (ccd for ccd in [ccd1, ccd2, ccd3])
++
++    # Combine the CCDData objects using the combine function
++    result = combine(ccd_gen, method='average')
++
++    # Check if the result is as expected
++    expected_result = np.ones((3, 3))
++    np.testing.assert_array_equal(result.data, expected_result)

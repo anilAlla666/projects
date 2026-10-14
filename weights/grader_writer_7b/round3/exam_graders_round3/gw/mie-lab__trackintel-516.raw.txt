@@ -1,0 +1,247 @@
+diff --git a/tests/model/test_positionfixes.py b/tests/model/test_positionfixes.py
+index 0e1f0b0..d0c0001 100644
+--- a/tests/model/test_positionfixes.py
++++ b/tests/model/test_positionfixes.py
+@@ -1,10 +1,11 @@
+ import os
++import warnings
+ 
+ import pytest
+ import numpy as np
+ 
+-from shapely.geometry import LineString
++from shapely.geometry import LineString, Point
+ 
+ import trackintel as ti
+ from trackintel import Positionfixes
+@@ -62,10 +63,10 @@ class TestPositionfixes:
+         assert Positionfixes._check(testdata_geolife)
+ 
+     def test_check_missing_columns(self, testdata_geolife):
+-        """Test if check returns False if column is missing"""
++        """Test if check returns False if column is missing or has wrong dtype"""
+         assert not Positionfixes._check(testdata_geolife.drop(columns="user_id"))
+-        assert not Positionfixes._check(testdata_geolife.drop(columns="tracked_at"))
+-        assert not Positionfixes._check(testdata_geolife.drop(columns="geom"))
++        assert not Positionfixes._check(testdata_geolife.drop(columns="tracked_at").astype({"tracked_at": str}))
++        assert not Positionfixes._check(testdata_geolife.drop(columns="geom").astype({"geom": str}))
+ 
+     def test_check_empty_df(self, testdata_geolife):
+         """Test if check returns False if DataFrame is empty"""
+@@ -73,10 +74,10 @@ class TestPositionfixes:
+         """Test if check returns False if tracked at column has no tz"""
+         testdata_geolife["tracked_at"] = testdata_geolife["tracked_at"].dt.tz_localize(None)
+         assert not Positionfixes._check(testdata_geolife)
+-    
++
+     def test_check_false_geometry_type(self, testdata_geolife):
+-        """Test if check returns False if geometry type is wrong"""
+-        testdata_geolife["geom"] = LineString(
++        """Test if check returns False if geometry type is wrong or has wrong dtype"""
++        testdata_geolife["geom"] = LineString([(13.476808430, 48.573711823), (13.506804, 48.939008), (13.4664690, 48.5706414)])
+         assert not Positionfixes._check(testdata_geolife)
+ 
+     def test_check_ignore_false_geometry_type(self, testdata_geolife):
+@@ -85,3 +86,11 @@ class TestPositionfixes:
+         """Test if check returns True if geometry type is wrong but validate_geometry is set to False"""
+         testdata_geolife["geom"] = LineString(
+             [(13.476808430, 48.573711823), (13.506804, 48.939008), (13.4664690, 48.5706414)]
++        )
++        assert Positionfixes._check(testdata_geolife, validate_geometry=False)
++
++    def test_check_string_dtype(self, testdata_geolife):
++        """Test if check returns True if dtype is string"""
++        testdata_geolife["user_id"] = testdata_geolife["user_id"].astype(str)
++        testdata_geolife["tracked_at"] = testdata_geolife["tracked_at"].astype(str)
++        assert Positionfixes._check(testdata_geolife)
+diff --git a/tests/preprocessing/test_positionfixes.py b/tests/preprocessing/test_positionfixes.py
+index 0101101..0111101 100644
+--- a/tests/preprocessing/test_positionfixes.py
++++ b/tests/preprocessing/test_positionfixes.py
+@@ -526,6 +526,10 @@ class TestGenerateTriples:
+             pfs = pfs.loc[(pfs["conti_tpl"] == 1) & (pfs["user_id"] == 1)]
+             # check if the cuts are appropriate
+             assert (pfs["diff"] > gap_threshold).all()
++            # check if the cut does not happen within a single tpl
++            pfs["diff"] = (
++                (pfs["tracked_at"] - pfs["tracked_at"].shift(1)).dt.total_seconds() / 60
++            ).shift(-1)
+             assert (pfs["diff"] <= gap_threshold).any()
+ 
+     def test_sp_tpls_overlap(self, geolife_pfs_sp_long):
+@@ -544,6 +548,10 @@ class TestGenerateTriples:
+             diff = diff.values[1:]
+ 
+             # all values have to be greater than zero
++            # check if there is no overlap
++            assert (diff > 0).all()
++            # check if there is no gap
++            assert (diff < 1).all()
+             assert (diff >= 0).all()
+ 
+     def test_generate_triplegs_between_staypoints(self, geolife_pfs_sp_long):
+@@ -551,6 +559,10 @@ class TestGenerateTriples:
+         pfs, sp = geolife_pfs_sp_long
+         pfs, tpls = pfs.as_positionfixes.generate_triplegs(sp, method="between_staypoints")
+ 
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+@@ -560,6 +572,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+@@ -570,6 +586,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+@@ -580,6 +600,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+@@ -590,6 +614,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+@@ -600,6 +628,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+@@ -610,6 +642,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+@@ -620,6 +656,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+@@ -630,6 +670,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+@@ -640,6 +684,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+@@ -650,6 +708,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+@@ -660,6 +722,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+@@ -670,6 +736,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+@@ -680,6 +750,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+@@ -690,6 +764,10 @@ class TestGenerateTriples:
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
++        assert len(tpls) == len(sp) - 1
++        # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls) == len(sp) - 1
+         # check if the number of triplegs is equal to the number of staypoints minus one
+         assert len(tpls

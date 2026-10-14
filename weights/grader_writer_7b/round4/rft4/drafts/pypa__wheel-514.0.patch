@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/tests/cli/test_unpack_grader.py
+@@ -0,0 +1,14 @@
++from __future__ import annotations
++import os
++import stat
++from pathlib import Path
++from wheel.cli.unpack import unpack
++
++
++def test_unpack_permissions(wheel_paths, tmp_path):
++    """
++    Verify that 'wheel unpack' preserves file permissions.
++    """
++    for wheel_path in wheel_paths:
++        unpack(wheel_path, str(tmp_path))
++        assert all(
++            stat.S_IMODE(os.lstat(p).st_mode) == 0o644 for p in Path(tmp_path).rglob("*")
++        )

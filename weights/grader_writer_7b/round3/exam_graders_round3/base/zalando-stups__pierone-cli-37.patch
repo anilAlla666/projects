@@ -1,0 +1,28 @@
+diff --git a/tests/test_cli.py b/tests/test_cli.py
+index 0a1b2c3..4d5e6f7 100644
+--- a/tests/test_cli.py
++++ b/tests/test_cli.py
+@@ -208,6 +208,25 @@ def test_cves_with_missing_layer(monkeypatch, tmpdir):
+     response.json.side_effect = [
+         pierone_service_payload,
+         clair_service_payload
++    ]
++
++def test_cves_with_couldnt_figure_out(monkeypatch, tmpdir):
++    pierone_service_payload = {
++        'layers': [
++            {'id': 'layer1', 'features': []}
++        ]
++    }
++    clair_service_payload = {
++        'Vulnerabilities': [],
++        'Features': []
++    }
++
++    response = MagicMock()
++    response.json.side_effect = [
++        pierone_service_payload,
++        clair_service_payload
+     ]
+ 
+     runner = CliRunner()

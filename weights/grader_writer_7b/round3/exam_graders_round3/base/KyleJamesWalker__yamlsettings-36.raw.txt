@@ -1,0 +1,52 @@
+To address the issue, we need to ensure that all non-variable characters in the environment variable keys are replaced with underscores before updating the `YAMLDict` object. This can be achieved by modifying the `_set_env_var` function in the `update_from_env` method.
+
+Here's the updated code:
+
+### yamlsettings/helpers.py
+```python
+def update_from_env(yaml_dict, prefix=None):
+    '''
+    Override YAML settings with values from the environment variables.
+
+        - The letter '_' is delimit the hierarchy of the YAML settings such
+          that the value of 'config.databases.local' will be overridden
+          by CONFIG_DATABASES_LOCAL.
+    '''
+    prefix = prefix or ""
+
+    def _set_env_var(path, node):
+        env_path = "{0}{1}{2}".format(
+            prefix.upper(),
+            '_' if prefix else '',
+            '_'.join([str(key).replace('-', '_').upper() for key in path])
+        )
+        env_val = os.environ.get(env_path, None)
+        if env_val is not None:
+            # convert the value to a YAML-defined type
+            env_dict = yamldict.load('val: {0}'.format(env_val))
+            return env_dict.val
+        else:
+            return None
+
+    # traverse yaml_dict with the callback function
+    yaml_dict.traverse(_set_env_var)
+```
+
+Now, let's add a test to verify that this fix works as expected.
+
+### tests/test_update_from_env.py
+```python
+import os
+import yamlsettings
+from yamlsettings.yamldict import YAMLDict
+
+def test_update_from_env():
+    os.environ['FOO-BAR'] = 'barbaz'
+
+    settings = YAMLDict({'foo-bar': None})
+    yamlsettings.update_from_env(settings)
+
+    assert settings['foo_bar'] == 'barbaz'
+```
+
+This test sets an environment variable with hyphens and checks if it correctly updates the `YAMLDict` object with underscores. If the fix is correct, the test should pass.

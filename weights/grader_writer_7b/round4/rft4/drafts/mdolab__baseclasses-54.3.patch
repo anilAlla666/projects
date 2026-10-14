@@ -1,0 +1,39 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,34 @@
++import pytest
++from pprint import pformat
++from baseclasses.utils import CaseInsensitiveDict, CaseInsensitiveSet
++
++
++def test_pprint():
++    sensitive = {
++        "b-longstring": 2,
++        "a-longstring": 1,
++        "c-longstring": 3,
++        "e-longstring": 5,
++        "d-longstring": 4,
++    }
++    insensitive = CaseInsensitiveDict(sensitive)
++
++    assert pformat(sensitive) == pformat(insensitive)
++
++
++def test_pprint_case_insensitive_set():
++    sensitive = ["b-longstring", "a-longstring", "c-longstring", "e-longstring", "d-longstring"]
++    insensitive = CaseInsensitiveSet(sensitive)
++
++    assert pformat(sensitive) == pformat(insensitive)
++
++
++def test_pprint_case_insensitive_dict_with_list_values():
++    sensitive = {
++        "b-longstring": [1, 2],
++        "a-longstring": [3, 4],
++        "c-longstring": [5, 6],
++        "e-longstring": [7, 8],
++        "d-longstring": [9, 10],
++    }
++    insensitive = CaseInsensitiveDict(sensitive)
++
++    assert pformat(sensitive) == pformat(insensitive)

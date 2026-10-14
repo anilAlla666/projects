@@ -1,0 +1,112 @@
+To address the issue of shadowing the Python keyword `int` when importing `pyteal`, we need to stop submodules from being exported directly. This can be achieved by modifying the `__init__.py` files to only export the necessary classes and functions.
+
+Here's the updated code:
+
+### pyteal/__init__.py
+```python
+# abstract types
+from .ast.expr import Expr
+from .ast.leafexpr import LeafExpr
+from .ast.addr import Addr
+from .ast.bytes import Bytes
+from .ast.err import Err
+from .ast.int import Int, EnumInt
+from .ast.arg import Arg
+from .ast.txn import TxnType, TxnField, TxnExpr, TxnaExpr, TxnArray, TxnObject, Txn
+from .ast.gtxn import GtxnExpr, GtxnaExpr, TxnGroup, Gtxn
+from .ast.global_ import Global, GlobalField
+from .ast.app import App, AppField, OnComplete
+from .ast.asset import AssetHolding, AssetParam
+from .ast.array import Array
+from .ast.tmpl import Tmpl
+from .ast.nonce import Nonce
+from .ast.unaryexpr import UnaryExpr, Btoi, Itob, Len, Sha256, Sha512_256, Keccak256, Not, BitwiseNot, Pop, Return, Balance
+from .ast.binaryexpr import BinaryExpr, Add, Minus, Mul, Div, BitwiseAnd, BitwiseOr, BitwiseXor, Mod, Eq, Neq, Lt, Le, Gt, Ge
+from .ast.ed25519verify import Ed25519Verify
+from .ast.substring import Substring
+from .ast.naryexpr import NaryExpr, And, Or, Concat
+from .ast.if_ import If
+from .ast.cond import Cond
+from .ast.seq import Seq
+from .ast.assert_ import Assert
+from .ast.scratch import ScratchSlot, ScratchLoad, ScratchStore
+from .ast.maybe import MaybeValue
+
+# basic types
+from .types.tealtype import TealType
+
+# errors
+from .errors.tealinternalerror import TealInternalError
+from .errors.tealtyperror import TealTypeError
+from .errors.tealinputerror import TealInputError
+
+# compiler
+from .compiler.compileteal import compileTeal
+
+# util
+from .util.execute import execute
+
+# config
+from .config.config import MAX_GROUP_SIZE
+```
+
+### pyteal/ast/__init__.py
+```python
+# abstract types
+from .expr import Expr
+from .leafexpr import LeafExpr
+from .addr import Addr
+from .bytes import Bytes
+from .err import Err
+from .int import Int, EnumInt
+from .arg import Arg
+from .txn import TxnType, TxnField, TxnExpr, TxnaExpr, TxnArray, TxnObject, Txn
+from .gtxn import GtxnExpr, GtxnaExpr, TxnGroup, Gtxn
+from .global_ import Global, GlobalField
+from .app import App, AppField, OnComplete
+from .asset import AssetHolding, AssetParam
+from .array import Array
+from .tmpl import Tmpl
+from .nonce import Nonce
+from .unaryexpr import UnaryExpr, Btoi, Itob, Len, Sha256, Sha512_256, Keccak256, Not, BitwiseNot, Pop, Return, Balance
+from .binaryexpr import BinaryExpr, Add, Minus, Mul, Div, BitwiseAnd, BitwiseOr, BitwiseXor, Mod, Eq, Neq, Lt, Le, Gt, Ge
+from .ed25519verify import Ed25519Verify
+from .substring import Substring
+from .naryexpr import NaryExpr, And, Or, Concat
+from .if_ import If
+from .cond import Cond
+from .seq import Seq
+from .assert_ import Assert
+from .scratch import ScratchSlot, ScratchLoad, ScratchStore
+from .maybe import MaybeValue
+```
+
+### pyteal/ir/__init__.py
+```python
+from .ops import Op, Mode
+from .tealcomponent import TealComponent
+from .tealop import TealOp
+from .teallabel import TealLabel
+```
+
+These changes ensure that only the necessary classes and functions are exported, preventing the shadowing of the Python keyword `int`.
+
+### Tests
+To verify that the fix works as expected, we can add a test case that attempts to use the `int` function after importing `pyteal`. The test should fail before the fix and pass after the fix.
+
+#### New Test File: `test_pyteal.py`
+```python
+import unittest
+from pyteal import *
+
+class TestPyTeal(unittest.TestCase):
+    def test_int_function(self):
+        # Before the fix, this would raise an error because 'int' is shadowed
+        result = int(5)
+        self.assertEqual(result, 5)
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+This test will fail if the `int` function is still shadowed by the `pyteal.ast.int` module. After applying the fix, the test should pass.

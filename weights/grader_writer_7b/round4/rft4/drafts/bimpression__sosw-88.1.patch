@@ -1,0 +1,77 @@
+--- /dev/null
++++ b/sosw/managers/test/unit/test_ecology_grader.py
+@@ -0,0 +1,72 @@
++import boto3
++import logging
++import time
++import unittest
++import os
++from collections import defaultdict
++from unittest.mock import MagicMock, patch
++
++
++logging.getLogger('botocore').setLevel(logging.WARNING)
++
++
++os.environ["STAGE"] = "test"
++
++
++os.environ["autotest"] = "True"
++
++
++from sosw.labourer import Labourer
++from sosw.managers.ecology import EcologyManager
++from sosw.test.variables import TEST_ECOLOGY_CLIENT_CONFIG
++
++
++class ecology_manager_UnitTestCase(unittest.TestCase):
++    TEST_CONFIG = TEST_ECOLOGY_CLIENT_CONFIG
++
++    LABOURER = Labourer(id='some_function', arn='arn:aws:lambda:us-west-2:000000000000:function:some_function')
++
++    def setUp(self):
++        """
++        We keep copies of main parameters here, because they may differ from test to test and cleanup needs them.
++        This is responsibility of the test author to update these values if required from test.
++        """
++
++        self.patcher = patch("sosw.app.get_config")
++        self.get_config_patch = self.patcher.start()
++
++        self.config = self.TEST_CONFIG.copy()
++
++        self.manager = EcologyManager(custom_config=self.config)
++
++    def tearDown(self):
++        self.get_config_patch.stop()
++
++    @patch.object(boto3.client, "describe_function", return_value={'Configuration': {'Timeout': 42}})
++    def test_get_max_labourer_duration__calls_lambda(self, mock_lambda_api):
++        ec = EcologyManager()
++
++        # We expect to call Lambda API exactly once per Labourer.
++        for _ in range(10):
++            ec.get_max_labourer_duration(Labourer(id="some_id", arn="some_arn"))
++
++        mock_lambda_api.assert_called_once()
++
++    @patch.object(boto3.client, "describe_function", return_value={'Configuration': {'Timeout': 42}})
++    def test_get_max_labourer_duration__returns_value_from_lambda(self, mock_lambda_api):
++        ec = EcologyManager()
++
++        # We expect to call Lambda API exactly once per Labourer.
++        for i in range(10):
++            ec.get_max_labourer_duration(Labourer(id="some_id", arn="some_arn"))
++
++        self.assertEqual(mock_lambda_api.call_count, 10)
++
++        # Check we returned value from Lambda API
++        for i in range(10):
++            result = ec.get_max_labourer_duration(Labourer(id="some_id", arn=f"some_arn_{i}"))
++            self.assertEqual(result, 42)
++
++    def test_get_max_labourer_duration__no_arn_raises_exception(self):
++        ec = EcologyManager()
++
++        with self.assertRaises(ValueError):
++            ec.get_max_labourer_duration(Labourer(id="some_id"))

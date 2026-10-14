@@ -1,0 +1,90 @@
+--- /dev/null
++++ b/tests/test_telegram_methods_grader.py
+@@ -0,0 +1,87 @@
++import pytest
++from unittest.mock import patch
++from telegram import VERSION
++from telegram.utils import AsyncResult
++from telegram.client import Telegram, MESSAGE_HANDLER_TYPE
++
++
++API_ID = 1
++
++
++API_HASH = 'hash'
++
++
++PHONE = '+71234567890'
++
++
++LIBRARY_PATH = '/lib/'
++
++
++DATABASE_ENCRYPTION_KEY = 'changeme1234'
++
++
++@pytest.fixture
++def telegram():
++    with patch('telegram.client.TDJson'):
++        with patch('telegram.client.threading'):
++            tg = Telegram(
++                api_id=API_ID,
++                api_hash=API_HASH,
++                phone=PHONE,
++                library_path=LIBRARY_PATH,
++                database_encryption_key=DATABASE_ENCRYPTION_KEY,
++            )
++    return tg
++
++
++class TestTelegram__remove_update_handler:
++    def test_remove_update_handler(self, telegram):
++        # create handler
++        telegram.add_message_handler(lambda x: print(x))
++
++        # get handler id
++        handlers = list(telegram._update_handlers[MESSAGE_HANDLER_TYPE])
++        handler_id = handlers[0].__code__.co_varnames[0]
++
++        # remove handler
++        telegram.remove_update_handler(handler_id)
++
++        # check if it's removed
++        assert len(telegram._update_handlers[MESSAGE_HANDLER_TYPE]) == 0
++
++    def test_remove_update_handler_raises_exception_if_not_found(self, telegram):
++        # create handler
++        telegram.add_message_handler(lambda x: print(x))
++
++        # try to remove non-existing handler
++        with pytest.raises(ValueError):
++            telegram.remove_update_handler('non_existing_handler')
++
++
++class TestTelegram__add_update_handler:
++    def test_add_update_handler(self, telegram):
++        # add handler
++        telegram.add_message_handler(lambda x: print(x))
++
++        # check if it's added
++        handlers = list(telegram._update_handlers[MESSAGE_HANDLER_TYPE])
++        assert len(handlers) == 1
++        assert handlers[0].__name__ == '<lambda>'
++
++    def test_add_update_handler_raises_exception_if_handler_exists(self, telegram):
++        # add handler
++        telegram.add_message_handler(lambda x: print(x))
++
++        # try to add same handler again
++        with pytest.raises(ValueError):
++            telegram.add_message_handler(lambda x: print(x))
++
++    def test_add_update_handler_raises_exception_if_wrong_handler_name(self, telegram):
++        # wrong handler name
++        with pytest.raises(ValueError):
++            telegram.add_update_handler(MESSAGE_HANDLER_TYPE, 'wrong_handler')
++
++    def test_add_update_handler_raises_exception_if_wrong_handler(self, telegram):
++        # wrong handler
++        with pytest.raises(ValueError):
++            telegram.add_update_handler(MESSAGE_HANDLER_TYPE, 'wrong_handler')

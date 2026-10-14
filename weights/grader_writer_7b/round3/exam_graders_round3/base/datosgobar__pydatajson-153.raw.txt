@@ -1,0 +1,42 @@
+To address the issues mentioned, we need to add tests that will verify the behavior of the `harvest_catalog_to_ckan` function when passed an empty dataset list and when some of the dataset harvesting operations fail.
+
+Here's how you can write these tests:
+
+```diff
+diff --git a/tests/test_federation.py b/tests/test_federation.py
+index 3b4d5e6..f7a8b9c 100644
+--- a/tests/test_federation.py
++++ b/tests/test_federation.py
+@@ -349,6 +349,26 @@ class PushCatalogThemesTestCase(unittest.TestCase):
+         res_names = push_new_themes(self.catalog, 'portal_url', 'apikey')
+         try:
+             self.assertItemsEqual([], res_names)
++        except AttributeError:
++            self.assertCountEqual([], res_names)
++
++class HarvestCatalogToCkanTestCase(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.catalog = pydatajson.DataJson(cls.get_sample('full_data.json'))
++        cls.portal_url = 'http://example.com/ckan'
++        cls.apikey = 'apikey'
++        cls.catalog_id = cls.catalog.get('identifier', re.sub(r'[^a-z-_]+', '', cls.catalog['title']).lower())
++
++    def test_harvest_catalog_with_empty_dataset_list(self):
++        result = harvest_catalog_to_ckan(self.catalog, self.portal_url, self.apikey, self.catalog_id, dataset_list=[])
++        self.assertEqual(result, [])
++
++    def test_harvest_catalog_with_some_failures(self):
++        with patch.object(pydatajson.federation, 'harvest_dataset_to_ckan') as mock_harvest:
++            mock_harvest.side_effect = [None, Exception('Error'), None]
++            result = harvest_catalog_to_ckan(self.catalog, self.portal_url, self.apikey, self.catalog_id)
++            self.assertEqual(len(result), 2)
+```
+
+These tests cover the following scenarios:
+
+1. **Empty Dataset List**: The `test_harvest_catalog_with_empty_dataset_list` method checks that calling `harvest_catalog_to_ckan` with an empty dataset list returns an empty list.
+
+2. **Some Failures**: The `test_harvest_catalog_with_some_failures` method uses a mock to simulate some failures during the dataset harvesting process. It ensures that the function continues to process other datasets even if some fail, and that it returns a list containing only the successfully harvested datasets.
+
+These tests should fail with the current implementation and pass after applying the necessary fixes to the `harvest_catalog_to_ckan` function.

@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,26 @@
++from typing import Mapping
++import pytest
++from wn import WordNet
++
++
++@pytest.mark.parametrize("relation", ["hypernym", "hyponym"])
++def test_relation_name_is_untagged(relation: str) -> None:
++    wn = WordNet()
++    for synset in wn.synsets("dog"):
++        assert relation in synset.relations().keys()
++
++
++@pytest.mark.parametrize("relation", ["hypernym", "hyponym"])
++def test_relation_name_with_tag(relation: str) -> None:
++    wn = WordNet()
++    for synset in wn.synsets("dog"):
++        for relname, sss in synset.relations().items():
++            assert relation == relname.split("-")[0]
++
++
++@pytest.mark.parametrize("relation", ["hypernym", "hyponym"])
++def test_relation_name_is_not_empty(relation: str) -> None:
++    wn = WordNet()
++    for synset in wn.synsets("dog"):
++        for relname, sss in synset.relations().items():
++            assert len(relname) > 0

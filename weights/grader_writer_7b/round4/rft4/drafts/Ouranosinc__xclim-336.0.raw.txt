@@ -1,0 +1,146 @@
+--- /dev/null
++++ b/tests/test_ensembles_grader.py
+@@ -0,0 +1,141 @@
++import glob
++import os
++import sys
++import numpy as np
++import pandas as pd
++import pytest
++import xarray as xr
++from xclim import ensembles
++
++
++TESTS_HOME = os.path.abspath(os.path.dirname(__file__))
++
++
++TESTS_DATA = os.path.join(TESTS_HOME, "testdata")
++
++
++class TestEnsembleStats:
++    nc_files_simple = glob.glob(
++        os.path.join(TESTS_DATA, "EnsembleStats", "*1950-2100*.nc")
++    )
++
++    nc_files = glob.glob(os.path.join(TESTS_DATA, "EnsembleStats", "*.nc"))
++
++    nc_file = os.path.join(TESTS_DATA, "EnsembleStats", "model1_1950-2100.nc")
++
++    def test_checktimes(self):
++        time_flag, time_all = ensembles._ens_checktimes(self.nc_files)
++        assert time_flag
++        assert pd.DatetimeIndex(time_all).min() == pd.Timestamp("1950-01-01 00:00:00")
++        assert pd.DatetimeIndex(time_all).max() == pd.Timestamp("2100-12-31 00:00:00")
++
++    def test_checktimes_nofreq(self):
++        time_flag, time_all = ensembles._ens_checktimes(
++            self.nc_files, freq=None, time_dim="time"
++        )
++        assert time_flag
++        assert pd.DatetimeIndex(time_all).min() == pd.Timestamp("1950-01-01 00:00:00")
++        assert pd.DatetimeIndex(time_all).max() == pd.Timestamp("2100-12-31 00:00:00")
++
++    def test_create_ensemble(self):
++        ds = ensembles.create_ensemble([self.nc_file], chunks={"time": 10})
++        assert isinstance(ds, xr.Dataset)
++        assert "time" in ds.dims
++        assert "realization" in ds.dims
++
++        ds = ensembles.create_ensemble([self.nc_file], mf_flag=True)
++        assert isinstance(ds, xr.Dataset)
++        assert "time" in ds.dims
++        assert "realization" in ds.dims
++
++    def test_create_ensemble_mf(self):
++        mffiles = [
++            [os.path.join(TESTS_DATA, "EnsembleStats", "model1_1950-2100.nc")],
++            [
++                os.path.join(TESTS_DATA, "EnsembleStats", "model2_1950-2100.nc"),
++                os.path.join(TESTS_DATA, "EnsembleStats", "model3_1950-2100.nc"),
++            ],
++            [os.path.join(TESTS_DATA, "EnsembleStats", "model4_1950-2100.nc")],
++        ]
++        ds = ensembles.create_ensemble(mffiles, mf_flag=True)
++        assert isinstance(ds, xr.Dataset)
++        assert "time" in ds.dims
++        assert "realization" in ds.dims
++
++    def test_calculate_ensemble_statistics(self):
++        ds = xr.open_dataset(self.nc_file)
++        ens = ensembles.calculate_ensemble_statistics(ds, ["tas"])
++        assert isinstance(ens, xr.Dataset)
++        assert "time" in ens.dims
++        assert "realization" in ens.dims
++
++    def test_calculate_ensemble_statistics_multivar(self):
++        ds = xr.open_dataset(self.nc_file)
++        ens = ensembles.calculate_ensemble_statistics(ds, ["tas", "pr"])
++        assert isinstance(ens, xr.Dataset)
++        assert "time" in ens.dims
++        assert "realization" in ens.dims
++
++    def test_calculate_ensemble_statistics_mf(self):
++        mffiles = [
++            [os.path.join(TESTS_DATA, "EnsembleStats", "model1_1950-2100.nc")],
++            [
++                os.path.join(TESTS_DATA, "EnsembleStats", "model2_1950-2100.nc"),
++                os.path.join(TESTS_DATA, "EnsembleStats", "model3_1950-2100.nc"),
++            ],
++            [os.path.join(TESTS_DATA, "EnsembleStats", "model4_1950-2100.nc")],
++        ]
++        ds = ensembles.create_ensemble(mffiles, mf_flag=True)
++        ens = ensembles.calculate_ensemble_statistics(ds, ["tas"])
++        assert isinstance(ens, xr.Dataset)
++        assert "time" in ens.dims
++        assert "realization" in ens.dims
++
++    def test_calculate_ensemble_statistics_wildcard(self):
++        mffiles = [
++            os.path.join(TESTS_DATA, "EnsembleStats", "model1_1950-2100.nc"),
++            os.path.join(TESTS_DATA, "EnsembleStats", "model2_1950-2100.nc"),
++            os.path.join(TESTS_DATA, "EnsembleStats", "model3_1950-2100.nc"),
++            os.path.join(TESTS_DATA, "EnsembleStats", "model4_1950-2100.nc"),
++        ]
++        ds = ensembles.create_ensemble(mffiles, mf_flag=True)
++        ens = ensembles.calculate_ensemble_statistics(ds, ["tas"])
++        assert isinstance(ens, xr.Dataset)
++        assert "time" in ens.dims
++        assert "realization" in ens.dims
++
++    def test_calculate_ensemble_statistics_mf_wildcard(self):
++        mffiles = [
++            [os.path.join(TESTS_DATA, "EnsembleStats", "model1_1950-2100.nc")],
++            [
++                os.path.join(TESTS_DATA, "EnsembleStats", "model2_1950-2100.nc"),
++                os.path.join(TESTS_DATA, "EnsembleStats", "model3_1950-2100.nc"),
++            ],
++            [os.path.join(TESTS_DATA, "EnsembleStats", "model4_1950-2100.nc")],
++        ]
++        ds = ensembles.create_ensemble(mffiles, mf_flag=True)
++        ens = ensembles.calculate_ensemble_statistics(ds, ["tas"])
++        assert isinstance(ens, xr.Dataset)
++        assert "time" in ens.dims
++        assert "realization" in ens.dims
++
++    def test_kmeans_rsqcutoff_with_graphs(self):
++        pytest.importorskip("sklearn", minversion="0.22")
++        ds = xr.open_dataset(self.nc_file)
++
++        # use random state variable to ensure consistent clustering in tests:
++        [ids, cluster, fig_data] = ensembles.kmeans_reduce_ensemble(
++            data=ds.data, method={"rsq_cutoff": 0.9}, random_state=42, make_graph=True,
++        )
++
++        assert ids == [0, 1, 3, 4, 6, 7, 8, 9, 10, 11, 12, 15, 20, 22]
++        assert len(ids) == 14
++
++        # Test max cluster option
++        [ids, cluster, fig_data] = ensembles.kmeans_reduce_ensemble(
++            data=ds.data,
++            method={"rsq_cutoff": 0.9},
++            random_state=42,
++            make_graph=True,
++            max_clusters=10,
++        )
++        assert ids == [0, 1, 3, 4, 6, 7, 10, 11, 18, 20]
++        assert len(ids) == 10

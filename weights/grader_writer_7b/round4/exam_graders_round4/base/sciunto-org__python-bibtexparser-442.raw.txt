@@ -1,0 +1,53 @@
+```diff
+diff --git a/tests/test_model_setitem.py b/tests/test_model_setitem.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_model_setitem.py
+@@ -0,0 +1,45 @@
++from bibtexparser.model import Entry, Field
++
++
++def test_setitem_new_field():
++    entry = Entry("article", "key", [], 1, "raw")
++    entry["new_key"] = "new_value"
++    assert len(entry.fields) == 1
++    assert entry.fields[0].key == "new_key"
++    assert entry.fields[0].value == "new_value"
++
++
++def test_setitem_existing_field():
++    entry = Entry("article", "key", [Field("existing_key", "old_value")], 1, "raw")
++    entry["existing_key"] = "new_value"
++    assert len(entry.fields) == 1
++    assert entry.fields[0].key == "existing_key"
++    assert entry.fields[0].value == "new_value"
++
++
++def test_setitem_overwrite_field():
++    entry = Entry("article", "key", [Field("existing_key", "old_value")], 1, "raw")
++    entry.set_field(Field("existing_key", "overwrite_value"))
++    entry["existing_key"] = "new_value"
++    assert len(entry.fields) == 1
++    assert entry.fields[0].key == "existing_key"
++    assert entry.fields[0].value == "new_value"
++
++
++def test_setitem_with_none_value():
++    entry = Entry("article", "key", [], 1, "raw")
++    entry["none_key"] = None
++    assert len(entry.fields) == 1
++    assert entry.fields[0].key == "none_key"
++    assert entry.fields[0].value is None
+```
+
+This new test file `test_model_setitem.py` contains several tests to ensure that the `__setitem__` method works correctly:
+
+1. **Test setting a new field**: It checks if adding a new field through `__setitem__` results in a single field being added to the entry.
+
+2. **Test setting an existing field**: It verifies that updating an existing field through `__setitem__` updates the value of the existing field.
+
+3. **Test overwriting a field with `set_field` and then `__setitem__`**: It ensures that even after overwriting a field using `set_field`, subsequent updates via `__setitem__` work as expected.
+
+4. **Test setting a field with `None` value**: It checks if setting a field with `None` as its value is handled correctly.
+
+These tests will fail on the current code because the `__setitem__` method is not implemented. Once the implementation is added, these tests should pass.

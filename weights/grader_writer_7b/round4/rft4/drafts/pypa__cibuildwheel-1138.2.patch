@@ -1,0 +1,32 @@
+--- /dev/null
++++ b/unit_test/test_utils_test_grader.py
+@@ -0,0 +1,26 @@
++from cibuildwheel.util import format_safe, prepare_command
++
++
++def test_prepare_command():
++    assert prepare_command("python -m {project}", project="project") == "python -m project"
++    assert prepare_command("python -m {something}", project="project") == "python -m {something}"
++    assert (
++        prepare_command("python -m {something.abc}", project="project")
++        == "python -m {something.abc}"
++    )
++
++    assert (
++        prepare_command("python -m {something.abc[4]:3f}", project="project")
++        == "python -m {something.abc[4]:3f}"
++    )
++
++    # test backslashes in the replacement
++    assert (
++        prepare_command(
++            "command {wheel} \\Users\\Temp\\output_dir", wheel="\\Temporary Files\\cibw"
++        )
++        == "command \\Temporary Files\\cibw \\Users\\Temp\\output_dir"
++    )
++
++    # test some unusual syntax that used to trip up the str.format approach
++    assert (
++        prepare_command("{a}{a,b}{b:.2e}{c}{d%s}{e:3}{f[0]}", a="42", b="3.14159")
++        == "42{a,b}{b:.2e}{c}{d%s}{e:3}{f[0]}"
++    )

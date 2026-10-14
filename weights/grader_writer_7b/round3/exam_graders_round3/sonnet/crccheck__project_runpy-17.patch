@@ -1,0 +1,26 @@
+--- a/test_project_runpy.py
++++ b/test_project_runpy.py
+@@ -172,5 +172,23 @@
+         self.assertEqual(original_sql, record.args[1])
+ 
+ 
++    def test_filter_handles_none_sql(self):
++        logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=(1.0, None, ()))
++        self.assertTrue(logging_filter.filter(record))
++
++    def test_filter_handles_none_sql_without_params(self):
++        logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=(1.0, None))
++        self.assertTrue(logging_filter.filter(record))
++
++    def test_none_sql_through_logger(self):
++        logger = logging.getLogger('foo.sql.none')
++        logger.addHandler(logging.NullHandler())
++        logger.addFilter(ReadableSqlFilter())
++        # should not raise
++        logger.warning('(%.3f) %s; args=%s', 0.1, None, ())
++
++
+ if __name__ == '__main__':
+     unittest.main()

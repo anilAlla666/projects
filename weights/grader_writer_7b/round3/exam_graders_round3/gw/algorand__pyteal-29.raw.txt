@@ -1,0 +1,112 @@
+diff --git a/tests/test_ast.py b/tests/test_ast.py
+index 0e1d0a0..f1b000c 100644
+--- a/tests/test_ast.py
++++ b/tests/test_ast.py
+@@ -1,5 +1,5 @@
+ from pyteal import *
+-from pyteal.ast import *
++from pyteal import ast
+ 
+ 
+ def test_int():
+@@ -10,7 +10,7 @@ def test_int():
+     assert isinstance(Int(5), ast.Int)
+ 
+ 
+-def test_bytes():
++def test_bytes_literal():
+     assert isinstance(Bytes("hello"), ast.Bytes)
+     assert isinstance(Bytes("hello", offset=1), ast.Bytes)
+     assert isinstance(Bytes("hello", length=1), ast.Bytes)
+@@ -18,7 +18,7 @@ def test_bytes():
+     assert isinstance(Bytes("hello", offset=1, length=1), ast.Bytes)
+ 
+ 
+-def test_addr():
++def test_address_literal():
+     assert isinstance(Addr("abc"), ast.Addr)
+     assert isinstance(Addr("abc", offset=1), ast.Addr)
+     assert isinstance(Addr("abc", length=1), ast.Addr)
+@@ -26,7 +26,7 @@ def test_addr():
+     assert isinstance(Addr("abc", offset=1, length=1), ast.Addr)
+ 
+ 
+-def test_err():
++def test_error_literal():
+     assert isinstance(Err(), ast.Err)
+ 
+ 
+@@ -34,7 +34,7 @@ def test_global():
+     assert isinstance(Global(GroupSize), ast.Global)
+ 
+ 
+-def test_txn():
++def test_transaction_field():
+     assert isinstance(TxnField.ApplicationID, ast.TxnField)
+     assert isinstance(TxnField.OnCompletion, ast.TxnField)
+     assert isinstance(TxnField.Accounts[0], ast.TxnField)
+@@ -42,7 +42,7 @@ def test_txn():
+     assert isinstance(TxnField.Amount, ast.TxnField)
+ 
+ 
+-def test_gtxn():
++def test_group_transaction_field():
+     assert isinstance(GtxnField.ApplicationID, ast.GtxnField)
+     assert isinstance(GtxnField.OnCompletion, ast.GtxnField)
+     assert isinstance(GtxnField.Accounts[0], ast.GtxnField)
+@@ -50,7 +50,7 @@ def test_gtxn():
+     assert isinstance(GtxnField.Amount, ast.GtxnField)
+ 
+ 
+-def test_app():
++def test_application_field():
+     assert isinstance(AppField.Params[0], ast.AppField)
+     assert isinstance(AppField.Params[0].MinTxnFee, ast.AppField)
+     assert isinstance(AppField.Params[0].MinTxnFee, ast.EnumInt)
+@@ -58,7 +58,7 @@ def test_app():
+     assert isinstance(AppField.Params[0].MinTxnFee, ast.EnumInt)
+ 
+ 
+-def test_asset():
++def test_asset_param():
+     assert isinstance(AssetParam.Total, ast.AssetParam)
+     assert isinstance(AssetParam.Decimals, ast.AssetParam)
+     assert isinstance(AssetParam.Round, ast.AssetParam)
+diff --git a/tests/test_ir.py b/tests/test_ir.py
+index 0100000..0621000 100644
+--- a/tests/test_ir.py
++++ b/tests/test_ir.py
+@@ -1,5 +1,5 @@
+ from pyteal import *
+-from pyteal.ir import *
++from pyteal import ir
+ 
+ 
+ def test_op():
+@@ -10,7 +10,7 @@ def test_op():
+     assert isinstance(Op.Add, ir.Op)
+ 
+ 
+-def test_tealcomponent():
++def test_component():
+     assert isinstance(TealComponent(), ir.TealComponent)
+ 
+ 
+@@ -18,7 +18,7 @@ def test_tealcomponent():
+     assert isinstance(TealComponent().addComment("comment"), ir.TealComponent)
+ 
+ 
+-def test_tealop():
++def test_operation():
+     assert isinstance(TealOp(ir.Op.Add), ir.TealOp)
+     assert isinstance(TealOp(ir.Op.Add, [1]), ir.TealOp)
+     assert isinstance(TealOp(ir.Op.Add, [1, 2]), ir.TealOp)
+@@ -26,7 +26,7 @@ def test_tealop():
+     assert isinstance(TealOp(ir.Op.Add, [1, 2, 3]), ir.TealOp)
+ 
+ 
+-def test_teallabel():
++def test_label():
+     assert isinstance(TealLabel(), ir.TealLabel)
+     assert isinstance(TealLabel().setLabel("label"), ir.TealLabel)
+     assert isinstance(TealLabel().setLine(1), ir.TealLabel)

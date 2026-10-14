@@ -1,0 +1,57 @@
+To address the issue where the `@inject` decorator should override the value if it is `None`, we need to add tests that ensure this behavior. The tests should fail with the current implementation and pass after the fix.
+
+Here's a unified diff that adds a new test file `test_inject.py`:
+
+```diff
+diff --git a/test_inject.py b/test_inject.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/test_inject.py
+@@ -0,0 +1,52 @@
++import unittest
++from ioccontainer.inject import inject_decorator, Container
++
++class TestInject(unittest.TestCase):
++    def setUp(self):
++        self.container = Container()
++        self.container.register(MyService)
++
++    def test_inject_override_none(self):
++        @inject_decorator(self.container)
++        def my_function(my_service=None):
++            return my_service
++
++        result = my_function()
++        self.assertIsInstance(result, MyService)
++
++    def test_inject_no_override(self):
++        @inject_decorator(self.container)
++        def my_function(my_service=MyService()):
++            return my_service
++
++        result = my_function()
++        self.assertIsInstance(result, MyService)
++
++    def test_inject_with_arg(self):
++        @inject_decorator(self.container)
++        def my_function(my_service=None):
++            return my_service
++
++        result = my_function(MyService())
++        self.assertIsInstance(result, MyService)
++
++if __name__ == '__main__':
++    unittest.main()
++
++class MyService:
++    pass
+```
+
+Explanation of the tests:
+
+1. `test_inject_override_none`: This test checks that when no argument is provided, the injected service overrides the `None` value.
+2. `test_inject_no_override`: This test checks that when a default value is provided, the injected service does not override it.
+3. `test_inject_with_arg`: This test checks that when an argument is explicitly provided, the injected service does not override it.
+
+These tests will fail with the current implementation because the `@inject` decorator always uses the provided parameter regardless of its value. After fixing the issue, these tests should pass.

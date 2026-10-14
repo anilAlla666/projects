@@ -1,0 +1,114 @@
+--- /dev/null
++++ b/tests/unit/test_utils_test_grader.py
+@@ -0,0 +1,109 @@
++import base64
++import json
++import os
++import os.path
++import shutil
++import sys
++import tarfile
++import tempfile
++import pytest
++import six
++from docker.client import Client
++from docker.constants import DEFAULT_DOCKER_API_VERSION
++from docker.errors import DockerException, InvalidVersion
++from docker.utils import (
++    parse_repository_tag, parse_host, convert_filters, kwargs_from_env,
++    create_host_config, Ulimit, LogConfig, parse_bytes, parse_env_file,
++    exclude_paths, convert_volume_binds, decode_json_header, tar,
++    split_command, create_ipam_config, create_ipam_pool, parse_devices,
++)
++from docker.utils.utils import create_endpoint_config
++from docker.utils.ports import build_port_bindings, split_port
++from .. import base
++from ..helpers import make_tree
++
++
++TEST_CERT_DIR = os.path.join(
++    os.path.dirname(__file__),
++    'testdata/certs',
++)
++
++
++class ParseHostTest(base.BaseTestCase):
++    def test_ipv6_address(self):
++        for proto in ('tcp', 'udp'):
++            for url in (
++                '[::1]',
++                '[::1]:8080',
++                '[::1]:8080/path',
++                '[fe80::20c:29ff:fec9:c2db]:8080',
++                '[fe80::20c:29ff:fec9:c2db]:8080/path',
++            ):
++                self.assertEqual(
++                    '{0}://{1}:8080'.format(proto, url),
++                    parse_host('{0}://{1}'.format(proto, url)),
++                )
++        for proto in ('http', 'https'):
++            for url in (
++                '[::1]',
++                '[::1]/path',
++                '[fe80::20c:29ff:fec9:c2db]',
++                '[fe80::20c:29ff:fec9:c2db]/path',
++            ):
++                self.assertEqual(
++                    '{0}://{1}/path'.format(proto, url),
++                    parse_host('{0}://{1}'.format(proto, url)),
++                )
++        for proto in ('unix', 'npipe'):
++            for url in (
++                '[::1]',
++                '[::1]/path',
++                '[fe80::20c:29ff:fec9:c2db]',
++                '[fe80::20c:29ff:fec9:c2db]/path',
++            ):
++                self.assertEqual(
++                    '{0}://{1}'.format(proto, url),
++                    parse_host('{0}://{1}'.format(proto, url)),
++                )
++        for proto in ('tcp', 'udp', 'http', 'https', 'unix', 'npipe'):
++            self.assertEqual(
++                '{0}://[::1]'.format(proto),
++                parse_host('[::1]'),
++            )
++            self.assertEqual(
++                '{0}://[::1]/path'.format(proto),
++                parse_host('[::1]/path'),
++            )
++            self.assertEqual(
++                '{0}://[fe80::20c:29ff:fec9:c2db]'.format(proto),
++                parse_host('[fe80::20c:29ff:fec9:c2db]'),
++            )
++            self.assertEqual(
++                '{0}://[fe80::20c:29ff:fec9:c2db]/path'.format(proto),
++                parse_host('[fe80::20c:29ff:fec9:c2db]/path'),
++            )
++
++    def test_invalid_ipv6_address(self):
++        for proto in ('tcp', 'udp', 'http', 'https', 'unix', 'npipe'):
++            with self.assertRaises(DockerException):
++                parse_host('{0}://[{1}]'.format(proto, 'invalid::ipv6'))
++            with self.assertRaises(DockerException):
++                parse_host('{0}://[{1}]'.format(proto, 'invalid::ipv6/path'))
++
++    def test_invalid_tcp_ports(self):
++        with self.assertRaises(DockerException):
++            parse_host('tcp://:12345')
++        with self.assertRaises(DockerException):
++            parse_host('tcp://0.0.0.0:')
++        with self.assertRaises(DockerException):
++            parse_host('tcp://localhost:')
++        with self.assertRaises(DockerException):
++            parse_host('tcp://[::1]')
++        with self.assertRaises(DockerException):
++            parse_host('tcp://[::1]:')
++        with self.assertRaises(DockerException):
++            parse_host('tcp://[::1]:/')
++        with self.assertRaises(DockerException):
++            parse_host('tcp://[::1]:/path')
++        with self.assertRaises(DockerException):
++            parse_host('tcp://[::1]:invalidport')
++        with self.assertRaises(DockerException):
++            parse_host('tcp://[::1]:invalidport/path')

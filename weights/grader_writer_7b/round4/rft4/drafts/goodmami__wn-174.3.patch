@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/tests/test_wn_grader.py
+@@ -0,0 +1,54 @@
++import pytest
++from wn._core import WordNet, RelationType
++
++
++@pytest.mark.parametrize("relation_name", ["hyponym", "hypernym"])
++def test_relation_names(relation_name):
++    wng = WordNet.fromfile("data/good-mami.sqlite")
++    s = wng.synsets("bird")[0]
++    expected = f"{relation_name}_{s.pos()}"
++    assert s.relations(relation_name)[expected][0].pos() == s.pos()
++
++
++@pytest.mark.parametrize("relation_name", ["hyponym", "hypernym"])
++def test_relation_names_expand(relation_name):
++    wng = WordNet.fromfile("data/good-mami.sqlite")
++    s = wng.synsets("bird")[0]
++    wne = WordNet.fromfile("data/expand-good-mami.sqlite")
++    se = wne.synsets("oiseau")[0]
++    assert s.expand()[relation_name][se.id()][0].id() == se.id()
++
++
++def test_relations_with_missing_expanded_id():
++    wne = WordNet.fromfile("data/expand-good-mami.sqlite")
++    s = wne.synsets("oiseau")[0]
++    assert s.expand().hypernym[s.id()][0].id() == s.id()
++
++
++@pytest.mark.parametrize("relation_name", ["hyponym", "hypernym"])
++def test_relation_names_expand_lexicons(relation_name):
++    wng = WordNet.fromfile("data/good-mami.sqlite")
++    s = wng.synsets("bird")[0]
++    wne = WordNet.fromfile("data/expand-good-mami.sqlite")
++    se = wne.synsets("oiseau")[0]
++    expected = f"{relation_name}_{s.pos()}"
++    assert s.expand(relation_name, lexicons="fr")[expected][se.id()][0].id() == se.id()
++
++
++def test_relations_with_missing_expanded_id_expand_lexicons():
++    wne = WordNet.fromfile("data/expand-good-mami.sqlite")
++    s = wne.synsets("oiseau")[0]
++    assert s.expand(lexicons="fr").hypernym[s.id()][0].id() == s.id()
++
++
++def test_relation_names_expand_lexicons_infer():
++    wng = WordNet.fromfile("data/good-mami.sqlite")
++    s = wng.synsets("bird")[0]
++    wne = WordNet.fromfile("data/expand-good-mami.sqlite")
++    se = wne.synsets("oiseau")[0]
++    expected = f"{RelationType.HYPERNYM.name.lower()}_{s.pos()}"
++    assert s.expand(relation_name=expected, lexicons="fr")[expected][se.id()][0].id() == se.id()

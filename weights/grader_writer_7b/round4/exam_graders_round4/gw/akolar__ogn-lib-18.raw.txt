@@ -1,0 +1,123 @@
+--- /dev/null
++++ b/tests/test_parser_grader.py
+@@ -0,0 +1,101 @@
++import os
++import pytest
++from datetime import datetime, timedelta, time
++from ogn_lib import exceptions, parser, constants
++
++
++def get_messages(n_messages=float('inf')):
++    test_dir = os.path.dirname(os.path.realpath(__file__))
++
++    with open(os.path.join(test_dir, 'messages.txt'), 'r') as f:
++        lines = f.readlines()
++
++    messages = []
++    for i, l in enumerate(lines):
++        if i >= n_messages:
++            break
++
++        messages.append(l.strip())
++
++    return messages
++
++
++class TestCapturs:
++    def test_process(self):
++        parser.Capturs.parse_message(
++            "FLRDDEEF1>OGCAPT,qAS,CAPTURS:/065144h4837.56N/00233.80E'000/000/")
++
++    def test_preprocess(self):
++        msg_original = ("FLRDDEEF1>OGCAPT,qAS,CAPTURS:/065144h4837.56N/"
++                        "00233.80E'000/000/")
++        msg = parser.Capturs._preprocess_message(msg_original)
++
++        assert msg == msg_original[:-1]
++
++
++class TestServerParser:
++    def test_parse_message_beacon(self, mocker):
++        msg = ('LKHS>APRS,TCPIP*,qAC,GLIDERN2:/211635h4902.45NI01429.51E&'
++               '000/000/A=001689')
++
++        data = parser.ServerParser.parse_message(msg)
++        assert data['from'] == 'LKHS'
++        assert data['destto'] == 'APRS'
++        assert data['timestamp'].time() == time(21, 16, 35)
++        assert data['latitude'] == 49.04083333333333
++        assert data['longitude'] == 14.491833333333334
++        assert not data['heading']
++        assert not data['ground_speed']
++        assert abs(data['altitude'] - 514.8) < 1
++        assert data['raw'] == msg
++        assert data['beacon_type'] == constants.BeaconType.server_beacon
++        assert 'comment' not in data
++
++    def test_parse_message_status(self, mocker):
++        msg = (
++            'LKHS>APRS,TCPIP*,qAC,GLIDERN2:/211635h v0.2.6.ARM CPU:0.2 '
++            'RAM:777.7/972.2MB NTP:3.1ms/-3.8ppm 4.902V 0.583A +33.6C 14/'
++            '16Acfts[1h] RF:+62-0.8ppm/+33.66dB/+19.4dB@10km[112619]/+25.0'
++            'dB@10km[8/15]')
++
++        data = parser.ServerParser.parse_message(msg)
++        assert data['from'] == 'LKHS'
++        assert data['destto'] == 'APRS'
++        assert data['timestamp'].time() == time(21, 16, 35)
++        assert not data['latitude']
++        assert not data['longitude']
++        assert 'heading' not in data
++        assert 'ground_speed' not in data
++        assert not data['altitude']
++        assert data['raw'] == msg
++        assert data['beacon_type'] == constants.BeaconType.server_status
++        assert data['raw']
++        assert data['comment'].startswith('v0.2.6')
++
++    def test_parse_beacon_comment(self, mocker):
++        msg = ('LKHS>APRS,TCPIP*,qAC,GLIDERN2:/211635h4902.45NI01429.51E&'
++               '000/000/A=001689 comment')
++        data = parser.ServerParser.parse_message(msg)
++
++        assert data['comment'] == 'comment'
++
++    def test_parse_live_track_24(self, mocker):
++        msg = ('LKHS>APRS,TCPIP*,qAC,GLIDERN2:/211635h4902.45NI01429.51E&'
++               '000/000/A=001689 LT24 1234567890')
++        data = parser.ServerParser.parse_message(msg)
++
++        assert data['comment']['id'] == '1234567890'
++        assert data['comment']['vertical_speed'] == 0
++        assert data['comment']['source'] == 'LKHS'
++
++    def test_parse_capturs(self, mocker):
++        msg = ('LKHS>APRS,TCPIP*,qAC,GLIDERN2:/211635h4902.45NI01429.51E&'
++               '000/000/A=001689 CAPT 1234567890')
++        data = parser.ServerParser.parse_message(msg)
++
++        assert data['comment']['id'] == '1234567890'
++        assert data['comment']['vertical_speed'] == 0
++        assert data['comment']['source'] == 'LKHS'
++
++    def test_parse_glidertrack(self, mocker):
++        msg = ('LKHS>APRS,TCPIP*,qAC,GLIDERN2:/211635h4902.45NI01429.51E&'
++               '000/000/A=001689 GLTRK 1234567890')
++        data = parser.ServerParser.parse_message(msg)
++
++        assert data['comment']['id'] == '1234567890'
++        assert data['comment']['vertical_speed'] == 0
++        assert data['comment']['source'] == 'LKHS'
+--- /dev/null
++++ b/tests/test_ogn_lib_grader.py
+@@ -0,0 +1,10 @@
++import ogn_lib
++
++
++def test_entry_points():
++    ogn_lib.OgnClient
++    ogn_lib.Parser
++    ogn_lib.AirplaneType
++    ogn_lib.AddressType
++    ogn_lib.BeaconType
++    ogn_lib.LiveTrack24

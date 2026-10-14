@@ -1,0 +1,41 @@
+--- /dev/null
++++ b/tests/test_components_grader.py
+@@ -0,0 +1,13 @@
++import unittest
++from universe import components
++
++
++class SpeciesComponentTestCase(unittest.TestCase):
++    def test_singularity_name_collision(self):
++        data = {'singular_name': 'test', 'plural_name': 'tests', 'growth_rate': 5}
++        component = components.SpeciesComponent()
++        serialized = component.serialize(data)
++
++        self.assertEqual(serialized, {
++            'singular_name': 'test',
++            'plural_name': 'tests',
++            'growth_rate': 5})
+--- /dev/null
++++ b/tests/test_engine_grader.py
+@@ -0,0 +1,21 @@
++import unittest
++from universe import engine
++
++
++class UpdateSystemTestCase(unittest.TestCase):
++    def setUp(self):
++        self.state = {'turn': 2500, 'width': 1000, 'entities': {}}
++        self.updates = {}
++
++    def test_register_component_order(self):
++        self.state['entities'] = {0: {'type': 'ship', 'x': 480, 'y': 235, 'queue': [{'target_id': 1, 'warp': 10}]}}
++        self.updates[0] = [
++            {'seq': 0, 'x_t': 422, 'y_t': 210, 'warp': 10},
++            {'seq': 1, 'x_t': 460, 'y_t': 215, 'warp': 10}
++        ]
++
++        S = engine.GameState(self.state, self.updates)
++        S.generate()
++
++        self.assertEqual(S.manager.get_updates(0), [
++            {'seq': 0, 'x_t': 422, 'y_t': 210, 'warp': 10}, {'seq': 1, 'x_t': 460, 'y_t': 215, 'warp': 10}])

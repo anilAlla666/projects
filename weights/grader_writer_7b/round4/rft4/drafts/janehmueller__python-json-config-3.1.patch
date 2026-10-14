@@ -1,0 +1,38 @@
+--- /dev/null
++++ b/tests/test_config_node_test_grader.py
+@@ -0,0 +1,35 @@
++from unittest import TestCase
++import pickle
++from python_json_config.config_node import ConfigNode
++
++
++class ConfigNodeTest(TestCase):
++    def setUp(self):
++        self.config_dict = {
++            'key1': 1,
++            'key2': {
++                'key3': 3,
++                'key4': { 'key5': 5 }
++            }
++        }
++
++    def test_pickling(self):
++        node = ConfigNode(self.config_dict)
++
++        # Pickle the config node.
++        serialized_node = pickle.dumps(node)
++        deserialized_node = pickle.loads(serialized_node)
++
++        # Make sure all attributes are still available after deserialization.
++        self.assertEqual(deserialized_node.key1, 1)
++        self.assertEqual(deserialized_node.key2.key3, 3)
++        self.assertEqual(deserialized_node.key2.key4.key5, 5)
++
++        # Test update.
++        deserialized_node.update('key2.key4', {'new_key': 1337})
++        self.assertEqual(deserialized_node.key2.key4.new_key, 1337)
++
++        # Test deletion.
++        del deserialized_node.key2.key3
++        with self.assertRaises(AttributeError):
++            deserialized_node.key2.key3

@@ -1,0 +1,66 @@
+I've added a test file that checks `values()` and `items()` leave nested synced objects as they were, without assuming whether they return `SyncedDict` or plain `dict`. I haven't run it. It should fail on the current code, where `values()` turns nested synced objects into plain `dict`s.
+
+The file is `tests/test_synced_values_inplace.py`, and it has four tests:
+- **Statepoint type check:** `job.sp.values()` must not change `type(job.sp.a)`.
+- **Document type check:** the same check for `job.doc.values()`.
+- **`items()` type check:** `job.doc.items()` must not change the type of nested synced objects.
+- **Sync after `values()`:** after `job.doc.values()`, setting `job.doc.a.b = 'd'` must still be written to disk. It is checked by reading the value back through a freshly opened job with the same id.
+
+The open question in the issue, whether `values()` should return `SyncedDict` or `dict` objects, does not affect any of these checks.
+
+```diff
+diff --git a/tests/test_synced_values_inplace.py b/tests/test_synced_values_inplace.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_synced_values_inplace.py
+@@ -0,0 +1,63 @@
++# Tests that calling values()/items() on synced dicts does not modify
++# the underlying nested objects in place.
++import shutil
++import tempfile
++import unittest
++
++import signac
++
++
++class SyncedValuesInPlaceTest(unittest.TestCase):
++    def setUp(self):
++        self._tmp = tempfile.mkdtemp()
++        self.project = signac.init_project('test_values', root=self._tmp)
++
++    def tearDown(self):
++        shutil.rmtree(self._tmp, ignore_errors=True)
++
++    def test_statepoint_values_does_not_change_nested_type(self):
++        job = self.project.open_job({'a': {'b': 'c'}}).init()
++        before = type(job.sp.a)
++        job.sp.values()
++        self.assertIs(type(job.sp.a), before)
++
++    def test_document_values_does_not_change_nested_type(self):
++        job = self.project.open_job({'x': 1}).init()
++        job.doc = {'a': {'b': 'c'}}
++        before = type(job.doc.a)
++        job.doc.values()
++        self.assertIs(type(job.doc.a), before)
++        self.assertEqual(job.doc.a.b, 'c')
++
++    def test_document_items_does_not_change_nested_type(self):
++        job = self.project.open_job({'x': 2}).init()
++        job.doc = {'a': {'b': 'c'}}
++        before = type(job.doc.a)
++        job.doc.items()
++        self.assertIs(type(job.doc.a), before)
++
++    def test_nested_modification_still_syncs_after_values(self):
++        job = self.project.open_job({'x': 3}).init()
++        job.doc = {'a': {'b': 'c'}}
++        job.doc.values()
++        job.doc.a.b = 'd'
++        other = self.project.open_job(id=job.id)
++        self.assertEqual(other.doc.a.b, 'd')
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

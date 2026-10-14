@@ -1,0 +1,96 @@
+--- /dev/null
++++ b/tests/test_util_ast_grader.py
+@@ -0,0 +1,32 @@
++import ast
++from typing import Callable, cast
++import pytest
++from func_adl.util_ast import (
++    _realign_indent,
++    as_ast,
++    function_call,
++    lambda_args,
++    lambda_body_replace,
++    lambda_build,
++    lambda_call,
++    lambda_is_identity,
++    lambda_is_true,
++    lambda_test,
++    lambda_unwrap,
++    parse_as_ast,
++    rewrite_func_as_lambda,
++    scan_for_metadata,
++)
++
++
++def test_parse_continues_one_line():
++    "Make sure we do not let our confusion confuse the user - bomb correctly here"
++    found = []
++
++    class my_obj:
++        def do_it(self, x: Callable):
++            found.append(parse_as_ast(x))
++            return self
++
++    with pytest.raises(ValueError) as e:
++        my_obj().do_it(lambda x: x + 1).do_it(lambda x: x * 2)
++
++    assert "two" in str(e.value)
+--- /dev/null
++++ b/tests/ast/test_func_adl_ast_utils_grader.py
+@@ -0,0 +1,50 @@
++import ast
++from typing import cast
++from func_adl.ast.func_adl_ast_utils import (
++    FuncADLNodeTransformer,
++    FuncADLNodeVisitor,
++    change_extension_functions_to_calls,
++    is_call_of,
++)
++
++
++class my_call_catcher(FuncADLNodeTransformer):
++    def __init__(self):
++        self.count = 0
++        self.args = []
++        self.call_order = []
++
++    def call_dude(self, node, args):
++        self.count += 1
++        self.args = args
++        return node
++
++    def call_dude1(self, node, args):
++        self.call_order += ["dude1"]
++        for a in args:
++            self.visit(a)
++        return node
++
++    def call_dude2(self, node, args):
++        self.call_order += ["dude2"]
++        for a in args:
++            self.visit(a)
++
++
++class my_call_vcatcher(FuncADLNodeVisitor):
++    def __init__(self):
++        self.count = 0
++        self.call_order = []
++
++    def call_dude(self, node):
++        self.count += 1
++        return node
++
++    def call_dude1(self, node):
++        self.call_order += ["dude1"]
++        return node
++
++    def call_dude2(self, node):
++        self.call_order += ["dude2"]
++        return node
++
++
++def test_node_visit_function_ast_with_object_args_norec():
++    start = ast.parse("dude1(10)")
++    e = my_call_vcatcher()
++    e.visit(start)
++    assert e.count == 0

@@ -1,0 +1,142 @@
+--- /dev/null
++++ b/tests/test_enochecker_grader.py
+@@ -0,0 +1,154 @@
++import functools
++import sys
++import tempfile
++import time
++from logging import DEBUG
++import enochecker
++import pytest
++from enochecker import (
++    CHECKER_METHODS,
++    BaseChecker,
++    BrokenServiceException,
++    OfflineException,
++    Result,
++    assert_equals,
++    assert_in,
++    ensure_bytes,
++    ensure_unicode,
++    parse_args,
++    run,
++    serve_once,
++    snake_caseify,
++)
++
++
++STORAGE_DIR: str = "/tmp/enochecker_test"
++
++
++def temp_storage_dir(func):
++    @functools.wraps(func)
++    def wrapper(*args, **kwargs):
++        global STORAGE_DIR
++        try:
++            with tempfile.TemporaryDirectory() as tmpdirname:
++                STORAGE_DIR = tmpdirname
++                return func(*args, **kwargs)
++        finally:
++            STORAGE_DIR = "/tmp/enochecker_test"
++
++    return wrapper
++
++
++class CheckerExampleImpl(BaseChecker):
++    def check_getflag(self) -> Result:
++        if self.flag == self.team_db.get("flag", ""):
++            return Result.CORRECT
++        elif self.flag:
++            return Result.WRONG
++        else:
++            return Result.NOFLAG
++
++    def check_putflag(self) -> Result:
++        self.team_db.store_flag(self.flag)
++        return Result.CORRECT
++
++    def check_havoc(self) -> Result:
++        self.debug(f"Havocing for {self.time_remaining} seconds")
++        return Result.INCONCLUSIVE
++
++    def check_getnoise(self) -> Result:
++        if self.flag == self.team_db.get("noise", ""):
++            return Result.CORRECT
++        elif self.flag:
++            return Result.WRONG
++        else:
++            return Result.NOFLAG
++
++    def check_putnoise(self) -> Result:
++        self.team_db.store_noise(self.flag)
++        return Result.CORRECT
++
++
++@pytest.mark.parametrize("method", CHECKER_METHODS)
++def test_checkers_run_all(method):
++    checker = CheckerExampleImpl(method=method)
++    checker.run()
++
++
++@temp_storage_dir
++def test_checker_deprecated_fields(caplog):
++    CheckerExampleImpl(method="putflag").run()
++
++    CheckerExampleImpl(method="getflag", flag="ENOFLAG").run()
++
++    CheckerExampleImpl(method="putnoise", flag="buzzzz! :)").run()
++
++    CheckerExampleImpl(method="getnoise", flag="buzzzz! :)").run()
++
++    CheckerExampleImpl(method="havoc").run()
++
++    CheckerExampleImpl(method="putflag", round=100).run()
++
++    CheckerExampleImpl(method="getflag", flag="ENOFLAG", round=100).run()
++
++    CheckerExampleImpl(method="putnoise", flag="buzzzz! :", round=100).run()
++
++    CheckerExampleImpl(method="getnoise", flag="buzzzz! :", round=100).run()
++
++    CheckerExampleImpl(method="havoc", round=100).run()
++
++    CheckerExampleImpl(method="putflag", team="TeamOne").run()
++
++    CheckerExampleImpl(method="getflag", flag="ENOFLAG", team="TeamOne").run()
++
++    CheckerExampleImpl(method="putnoise", flag="buzzzz! :", team="TeamOne").run()
++
++    CheckerExampleImpl(method="getnoise", flag="buzzzz! :", team="TeamOne").run()
++
++    CheckerExampleImpl(method="havoc", team="TeamOne").run()
++
++    assert "round" in caplog.text
++    assert "team" in caplog.text
++
++
++@temp_storage_dir
++def test_checker_deprecated_properties(caplog):
++    CheckerExampleImpl(round=100).run()
++
++    CheckerExampleImpl(team="TeamOne").run()
++
++    assert "round" in caplog.text
++    assert "team" in caplog.text
++
++
++@temp_storage_dir
++def test_checker_deprecated_arguments(caplog):
++    CheckerExampleImpl(round=100).run()
++
++    CheckerExampleImpl(team="TeamOne").run()
++
++    assert "round" in caplog.text
++    assert "team" in caplog.text
++
++
++def main():
++    pytest.main(sys.argv)
++
++
++if __name__ == "__main__":
++    main()

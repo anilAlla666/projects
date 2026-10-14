@@ -1,0 +1,57 @@
+--- /dev/null
++++ b/tests/test_environ_grader.py
+@@ -0,0 +1,54 @@
++import textwrap
++import pytest
++from honcho import environ
++from honcho import compat
++
++
++def ep(*args, **kwargs):
++    p = environ.ProcessList()
++    for arg in args:
++        p.add_process(arg[0], arg[1])
++    p.expand(**kwargs)
++    return p
++
++
++@pytest.fixture
++def procfile_content(request):
++    return request.param
++
++
++@pytest.fixture
++def expected_error(request):
++    return request.param
++
++
++@pytest.fixture(params=[
++    "",
++    "invalid:command",
++    "invalid: command",
++    "invalid:command with spaces",
++    "invalid:command\twith\ttabs",
++    "invalid:command\nwith\nnewlines",
++    "invalid:command\rwith\rnewlines",
++    "invalid:command\x0Bwith\x0Bvertical\tabs",
++    "invalid:command\x0Cwith\x0Chorizontal\ttabs",
++    "invalid:command\x00with\x00null\toctets",
++])
++def bad_procfile_content(request):
++    return request.param
++
++
++@pytest.mark.parametrize('procfile_content,expected_error', [
++    ("invalid:command", environ.InvalidProcfileError),
++    ("invalid: command", environ.InvalidProcfileError),
++    ("invalid:command with spaces", environ.InvalidProcfileError),
++    ("invalid:command\twith\ttabs", environ.InvalidProcfileError),
++    ("invalid:command\nwith\nnewlines", environ.InvalidProcfileError),
++    ("invalid:command\rwith\rnewlines", environ.InvalidProcfileError),
++    ("invalid:command\x0Bwith\x0Bvertical\tabs", environ.InvalidProcfileError),
++    ("invalid:command\x0Cwith\x0Chorizontal\ttabs", environ.InvalidProcfileError),
++    ("invalid:command\x00with\x00null\toctets", environ.InvalidProcfileError),
++])
++def test_check_raises_for_invalid_procfile(procfile_content, expected_error):
++    with pytest.raises(expected_error) as excinfo:
++        environ.check(textwrap.dedent(procfile_content))

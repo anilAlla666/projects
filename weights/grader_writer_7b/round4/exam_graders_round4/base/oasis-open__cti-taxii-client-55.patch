@@ -1,0 +1,29 @@
+diff --git a/tests/test_collection_url.py b/tests/test_collection_url.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_collection_url.py
+@@ -0,0 +1,45 @@
++import unittest
++from taxii2client import Collection
++
++class TestCollectionURL(unittest.TestCase):
++    def setUp(self):
++        self.base_url = 'http://localhost:5000/trustgroup1/collections/91a7b528-80eb-42ed-a74d-c6fbd5a26116'
++        self.user = 'user1'
++        self.password = 'Password1'
++
++    def test_get_object_with_trailing_slash(self):
++        collection = Collection(f'{self.base_url}/', user=self.user, password=self.password)
++        with self.assertRaises(requests.exceptions.HTTPError) as context:
++            collection.get_object('indicator--252c7c11-daf2-42bd-843b-be65edca9f61')
++        self.assertEqual(context.exception.response.status_code, 404)
++
++    def test_get_object_without_trailing_slash(self):
++        collection = Collection(self.base_url, user=self.user, password=self.password)
++        try:
++            collection.get_object('indicator--252c7c11-daf2-42bd-843b-be65edca9f61')
++        except requests.exceptions.HTTPError as e:
++            self.fail(f"Request failed with exception: {e}")
++
++if __name__ == '__main__':
++    unittest.main()

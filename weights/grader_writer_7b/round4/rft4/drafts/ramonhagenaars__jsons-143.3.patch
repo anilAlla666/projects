@@ -1,0 +1,31 @@
+--- /dev/null
++++ b/tests/test_jsonserializable_grader.py
+@@ -0,0 +1,24 @@
++import datetime
++from unittest import TestCase
++import jsons
++
++
++class TestJsonSerializable(TestCase):
++    def test_zone_info_serialization(self):
++        from zoneinfo import ZoneInfo
++        dt = datetime.datetime(2020, 10, 31, 12, tzinfo=ZoneInfo("America/Los_Angeles"))
++        serialized_dt = jsons.dump(dt)
++        expected_result = {
++            'date': '2020-10-31',
++            'time': '12:00:00',
++            'timezone': {
++                'key': 'America/Los_Angeles'
++            }
++        }
++        self.assertDictEqual(serialized_dt, expected_result)
++
++    def test_zone_info_deserialization(self):
++        from zoneinfo import ZoneInfo
++        dt = jsons.load({
++            'date': '2020-10-31',
++            'time': '12:00:00',
++            'timezone': {
++                'key': 'America/Los_Angeles'
++            }
++        }, datetime.datetime)

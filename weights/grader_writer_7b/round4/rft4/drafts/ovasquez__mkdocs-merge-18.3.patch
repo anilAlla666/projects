@@ -1,0 +1,119 @@
+--- /dev/null
++++ b/mkdocsmerge/tests/test_merge_test_grader.py
+@@ -0,0 +1,64 @@
++"""
++Tests for the MkDocs Merge package
++"""
++
++
++import unittest
++import mkdocsmerge.merge
++
++
++class TestSiteMerges(unittest.TestCase):
++    """
++    Test class for MkDocs Merge. Will be separated when necessary.
++    """
++
++    def setUp(self):
++        print('Test: ' + self._testMethodName)
++
++    def test_index_page_section(self):
++        """
++        Verifies merging of a single site's nav to the global nav's data with unification
++        of the sub-sites with the same site_name
++        """
++        site_name = 'Projects'
++        # Create original and expected data structures
++        global_nav = [{'Home': 'index.md'},
++                      {'About': 'menu/about.md'},
++                      {site_name: [
++                          {'First': 'projects/first.md'},
++                          {'Second': 'projects/second.md'}
++                      ]}]
++
++        site_nav = [{'Index': 'projects/index.md'}]
++
++        expected = [{'Home': 'index.md'},
++                    {'About': 'menu/about.md'},
++                    {site_name: [
++                        {'Index': 'projects/index.md'},
++                        {'First': 'projects/first.md'},
++                        {'Second': 'projects/second.md'},
++                    ]}]
++
++        mkdocsmerge.merge.update_navs(site_nav, 'projects', print_func=lambda x: None)
++        self.assertEqual(site_nav, expected)
++
++    def test_index_page_section_unify(self):
++        """
++        Verifies merging of a single site's nav to the global nav's data with unification
++        of the sub-sites with the same site_name
++        """
++        site_name = 'Projects'
++        # Create original and expected data structures
++        global_nav = [{'Home': 'index.md'},
++                      {'About': 'menu/about.md'},
++                      {site_name: [
++                          {'First': 'projects/first.md'},
++                          {'Second': 'projects/second.md'}
++                      ]}]
++
++        site_nav = [{'Index': 'projects/index.md'}]
++
++        expected = [{'Home': 'index.md'},
++                    {'About': 'menu/about.md'},
++                    {site_name: [
++                        {'Index': 'projects/index.md'},
++                        {'First': 'projects/first.md'},
++                        {'Second': 'projects/second.md'},
++                    ]}]
++
++        mkdocsmerge.merge.merge_single_site(
++            global_nav, site_name, site_nav, True)
++        self.assertEqual(global_nav, expected)
+--- /dev/null
++++ b/mkdocsmerge/tests/test_utils_grader.py
+@@ -0,0 +1,44 @@
++from pathlib import Path
++from mkdocsmerge.utils import (
++    copy_files, find_files_in_folder, get_relative_paths, read_file_content,
++    write_file_content, update_navs, merge_single_site, run_merge)
++
++
++def test_copy_files(tmpdir):
++    """Verifies copying files works correctly."""
++    root = tmpdir.mkdir("root")
++    subdir = root.mkdir("subdir")
++    subdir.join("file.txt").write("content")
++
++    assert len(find_files_in_folder(root)) == 0
++    copy_files(str(subdir), str(root))
++    assert len(find_files_in_folder(root)) == 1
++    assert read_file_content(Path(root) / "file.txt") == "content"
++
++
++def test_merge_single_site():
++    """Verifies merging of a single site's nav to the global nav's data with unification
++    of the sub-sites with the same site_name"""
++    site_name = 'Projects'
++    # Create original and expected data structures
++    global_nav = [{'Home': 'index.md'},
++                  {'About': 'menu/about.md'},
++                  {site_name: [
++                      {'First': 'projects/first.md'},
++                      {'Second': 'projects/second.md'}
++                  ]}]
++
++    site_nav = [{'Index': 'projects/index.md'}]
++
++    expected = [{'Home': 'index.md'},
++                {'About': 'menu/about.md'},
++                {site_name: [
++                    {'Index': 'projects/index.md'},
++                    {'First': 'projects/first.md'},
++                    {'Second': 'projects/second.md'},
++                ]}]
++
++    merge_single_site(global_nav, site_name, site_nav, True)
++    assert global_nav == expected

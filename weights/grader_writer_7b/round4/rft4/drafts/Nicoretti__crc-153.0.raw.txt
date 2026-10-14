@@ -1,0 +1,134 @@
+--- /dev/null
++++ b/test/unit/test_crc_grader.py
+@@ -0,0 +1,140 @@
++import io
++import string
++import unittest
++from collections import namedtuple
++import pytest
++from crc._crc import (
++    Byte,
++    Calculator,
++    Configuration,
++    Crc8,
++    Crc16,
++    Register,
++    TableBasedRegister,
++    _generate_template,
++    create_lookup_table,
++)
++
++
++Fixture = namedtuple("Fixture", "data checksum")
++
++
++class TestDigest:
++    def test_digest_stable(self):
++        data = bytearray(b"Hello World!")
++        c = Calculator(Crc8.BLUETOOTH)
++        assert c.digest(data) == 81
++        assert c.digest(data) == 81
++        assert c.digest(data) == 81
++        assert c.digest(data) == 81
++
++    def test_digest_unstable(self):
++        data = bytearray(b"Hello World!")
++        c = Calculator(Crc8.AUTODIN_I)
++        assert c.digest(data) == 138
++        assert c.digest(data) == 138
++        assert c.digest(data) == 138
++        assert c.digest(data) == 138
++
++
++class TestTableBasedRegister:
++    def test_init(self):
++        tbr = TableBasedRegister(Configuration())
++        assert tbr.register == 0
++
++    def test_update_with_bytes(self):
++        data = b"Hello World!"
++        tbr = TableBasedRegister(Configuration())
++        result = tbr.update(data)
++        assert result == 138
++        assert tbr.register == 138
++
++    def test_update_with_iterable(self):
++        data = iter([b"H", b"e", b"l", b"l", b"o"])
++        tbr = TableBasedRegister(Configuration())
++        result = tbr.update(data)
++        assert result == 138
++        assert tbr.register == 138
++
++    def test_update_with_int(self):
++        tbr = TableBasedRegister(Configuration())
++        result = tbr.update(138)
++        assert result == 138
++        assert tbr.register == 138
++
++    def test_reverse(self):
++        tbr = TableBasedRegister(Configuration(), 0x0102030405060708)
++        assert tbr.reverse() == 0x0807060504030201
++
++    def test_digest(self):
++        tbr = TableBasedRegister(
++            Configuration(reverse_output=True), 0x0102030405060708
++        )
++        assert tbr.digest() == 0x8765432109abcdef
++
++    def test_digest_unstable(self):
++        tbr = TableBasedRegister(
++            Configuration(reverse_output=False, reverse_input=True),
++            0x0102030405060708,
++        )
++        assert tbr.digest() == 0x8765432109abcdef
++        assert tbr.digest() == 0x8765432109abcdef
++        assert tbr.digest() == 0x8765432109abcdef
++
++
++class TestBasicRegister:
++    def test_init(self):
++        br = Register(Configuration())
++        assert br.register == 0
++
++    def test_update_with_bytes(self):
++        data = b"Hello World!"
++        br = Register(Configuration())
++        result = br.update(data)
++        assert result == 138
++        assert br.register == 138
++
++    def test_update_with_iterable(self):
++        data = iter([b"H", b"e", b"l", b"l", b"o"])
++        br = Register(Configuration())
++        result = br.update(data)
++        assert result == 138
++        assert br.register == 138
++
++    def test_update_with_int(self):
++        br = Register(Configuration())
++        result = br.update(138)
++        assert result == 138
++        assert br.register == 138
++
++    def test_reverse(self):
++        br = Register(Configuration(), 0x0102030405060708)
++        assert br.reverse() == 0x0807060504030201
++
++    def test_digest(self):
++        br = Register(
++            Configuration(reverse_output=True), 0x0102030405060708
++        )
++        assert br.digest() == 0x8765432109abcdef
++
++    def test_digest_unstable(self):
++        br = Register(
++            Configuration(reverse_output=False, reverse_input=True),
++            0x0102030405060708,
++        )
++        assert br.digest() == 0x8765432109abcdef
++        assert br.digest() == 0x8765432109abcdef
++        assert br.digest() == 0x8765432109abcdef
++
++
++if __name__ == "__main__":
++    unittest.main()

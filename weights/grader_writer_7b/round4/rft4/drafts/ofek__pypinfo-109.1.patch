@@ -1,0 +1,147 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,125 @@
++from freezegun import freeze_time
++import copy
++import pytest
++from pypinfo import core
++from pypinfo.fields import PythonVersion
++
++
++ROWS = [
++    ['python_version', 'percent', 'download_count'],
++    ['2.7', '51.7%', '342250'],
++    ['3.6', '21.1%', '139745'],
++    ['3.5', '17.2%', '114254'],
++    ['3.4', '7.6%', '50584'],
++    ['3.3', '1.0%', '6666'],
++    ['3.7', '0.7%', '4516'],
++    ['2.6', '0.7%', '4451'],
++    ['3.2', '0.0%', '138'],
++    ['None', '0.0%', '13'],
++]
++
++
++@freeze_time("2020-07-14 07:11:49")
++def test_format_json():
++    # Arrange
++    # Data from pycodestyle in 2017-10
++    # pypinfo -sd 2017-10-01 -ed 2017-10-31 -pc -l 100 --json pycodestyle pyversion
++    rows = [
++        ['python_version', 'percent', 'download_count'],
++        ['2.7', '0.54', '587705'],
++        ['3.6', '0.21', '227800'],
++        ['3.5', '0.16', '169851'],
++        ['3.4', '0.078', '84599'],
++        ['3.3', '0.0091', '9953'],
++        ['3.7', '0.0044', '4770'],
++        ['2.6', '0.0041', '4476'],
++        ['3.2', '0.0003', '326'],
++        ['2.8', '3.7e-06', '4'],
++        ['None', '2.8e-06', '3'],
++    ]
++    query_info = {
++        'cached': False,
++        'bytes_processed': 18087095002,
++        'bytes_billed': 18087936000,
++        'estimated_cost': '0.09',
++    }
++    indent = None
++    expected = (
++        '{"last_update":"2020-07-14 07:11:49",'
++        '"query":'
++        '{"bytes_billed":18087936000,'
++        '"bytes_processed":18087095002,'
++        '"cached":false,'
++        '"estimated_cost":"0.09"},'
++        '"rows":['
++        '{"download_count":587705,"percent":"0.54","python_version":"2.7"},'
++        '{"download_count":227800,"percent":"0.21","python_version":"3.6"},'
++        '{"download_count":169851,"percent":"0.16","python_version":"3.5"},'
++        '{"download_count":84599,"percent":"0.078","python_version":"3.4"},'
++        '{"download_count":9953,"percent":"0.0091","python_version":"3.3"},'
++        '{"download_count":4770,"percent":"0.0044","python_version":"3.7"},'
++        '{"download_count":4476,"percent":"0.0041","python_version":"2.6"},'
++        '{"download_count":326,"percent":"0.0003","python_version":"3.2"},'
++        '{"download_count":4,"percent":"3.7e-06","python_version":"2.8"},'
++        '{"download_count":3,"percent":"2.8e-06","python_version":"None"}]}'
++    )
++
++    # Act
++    output = core.format_json(rows, query_info, indent)
++
++    # Assert
++    assert output == expected
++
++
++class MockResponse:
++    def __init__(self, status_code, content=None):
++        self.status_code = status_code
++        self.content = content
++
++
++@pytest.fixture
++def mock_response_success(monkeypatch):
++    monkeypatch.setattr(core.requests, "get", lambda _: MockResponse(200))
++
++
++@pytest.fixture
++def mock_response_failure(monkeypatch):
++    monkeypatch.setattr(core.requests, "get", lambda _: MockResponse(404))
++
++
++@pytest.mark.parametrize(
++    "date_param",
++    [
++        "2018-09",
++        "2018-09-15",
++        "-30",
++        "-2",
++        "-1",
++    ],
++)
++def test_get_download_stats(mock_response_success, date_param):
++    # Arrange
++    name = "numpy"
++    fields = ["pyversion"]
++    date_field = "day"
++    start_date = "2018-08-15"
++    end_date = "2018-09-15"
++    expected_query = (
++        f"SELECT DISTINCT {date_field} as day, python_version "
++        f"FROM `the-psf.pypi.downloads_{name}` "
++        f"WHERE {date_field} >= '{start_date}' AND {date_field} <= '{end_date}' "
++        f"ORDER BY day"
++    )
++    client = core.create_client()
++
++    # Act
++    response = core.get_download_stats(client, name, fields, date_field, start_date, end_date, date_param)
++
++    # Assert
++    assert response.query == expected_query
++    assert len(response.rows) == 30
++    assert response.last_update == "2018-09-15 00:00:00"
++    assert response.bytes_processed == 22944669
++    assert response.bytes_billed == 22944669
++    assert response.cached is True
++    assert response.estimated_cost == "0.01"
++    assert response.cache_policy == ""
++    assert response.cache_state == ""
++    assert response.cache_expiration == ""
++    assert response.cache_hit_ratio == ""
++    assert response.cache_hit_bytes == ""
++    assert response.cache_miss_bytes == ""
++    assert response.download_count == 1128678
++    assert response.row_count == 25
++    assert response.avg_row_size == 25
++    assert response.avg_row_size_compressed == 18
++    assert response.row_byte_size == 64253510
++    assert response.row_byte_size_compressed == 46632729
++    assert response.data_location == "US"
++    assert response.schema_fields[0]["mode"] == "NULLABLE"
++    assert response.schema_fields[0]["name"] == "day"
++    assert response.schema_fields[0]["type"] == "STRING"
++    assert response.schema_fields[1]["mode"] == "NULLABLE"
++    assert response.schema_fields[1]["name"] == "python_version"
++    assert response.schema_fields[1]["type"] == "STRING"

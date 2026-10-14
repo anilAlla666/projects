@@ -1,0 +1,43 @@
+To address the issue of the unrecognised argument error when filtering on project after context and excluded context, we need to ensure that the parser correctly handles the `+project` argument. The existing test file `tests/unittests/arguments/test_parser.py` should be updated to include a test case that checks for this specific scenario.
+
+Here is the unified diff against the test files:
+
+```diff
+@@ -242,6 +242,25 @@ class ParserTestCase(unittest.TestCase):
+         self.assertEqual([call(USAGE_MESSAGE),
+                           call("next-action: error: argument -d/--due: invalid date: not_a_date\n")],
+                          mock_stderr_write.call_args_list)
+ 
+     @patch.object(sys, "argv", ["next-action", "--due", "2019-02-30"])
+     @patch.object(sys.stderr, "write")
+     def test_invalid_date(self, mock_stderr_write):
+         """ Test that the argument parser exits if the option is invalid. """
+         self.assertRaises(SystemExit, parse_arguments)
+         self.assertEqual([call(USAGE_MESSAGE),
+                           call("next-action: error: argument -d/--due: invalid date: 2019-02-30\n")],
+                          mock_stderr_write.call_args_list)
+ 
+     @patch.object(sys, "argv", ["next-action", "--due", "2019-02-15-12"])
+     @patch.object(sys.stderr, "write")
+     def test_too_long(self, mock_stderr_write):
+         """ Test that the argument parser exits if the option is invalid. """
+         self.assertRaises(SystemExit, parse_arguments)
+         self.assertEqual([call(USAGE_MESSAGE),
+                           call("next-action: error: argument -d/--due: invalid date: 2019-02-15-12\n")],
+                          mock_stderr_write.call_args_list)
+ 
++    @patch.object(sys, "argv", ["next-action", "@context", "-@excluded_context", "+project"])
++    @patch.object(sys.stderr, "write")
++    def test_project_filter(self, mock_stderr_write):
++        """ Test that the argument parser does not raise an error for the +project filter. """
++        try:
++            parse_arguments()
++        except SystemExit as e:
++            self.fail(f"SystemExit raised unexpectedly: {e}")
++
+ 
+ @patch.object(config, "open", mock_open(read_data=""))
+ class ReferenceTest(ParserTestCase):
+```
+
+This test case ensures that the parser does not raise a `SystemExit` when encountering the `+project` filter. If the fix is correct, this test will pass, indicating that the issue has been resolved.

@@ -1,0 +1,20 @@
+--- /dev/null
++++ b/tests/test_http_protocol_grader.py
+@@ -0,0 +1,15 @@
++import asyncio
++from twisted.python.failure import Failure
++from twisted.internet.task import deferLater
++from twisted.web.http_headers import Headers
++from twisted.test.proto_helpers import MemoryReactorClock
++from daphne.http_protocol import HTTPFactory, WebRequest
++
++
++class TestHttpProtocol(object):
++    def setup_method(self):
++        self.reactor = MemoryReactorClock()
++        self.app = lambda scope, receive, send: None
++        self.httpfactory = HTTPFactory(self.app, reactor=self.reactor)
++
++    def test_connection_lost_no_client_addr(self):
++        req = WebRequest(None, self.httpfactory)
++        req.process().addCallback(req.connectionLost, Failure(Exception()))

@@ -1,0 +1,150 @@
+--- /dev/null
++++ b/tests/cli/version/test_version_grader.py
+@@ -0,0 +1,27 @@
++from hatch.project.core import Project
++
++
++def test_set_static(hatch, helpers, temp_dir):
++    project_name = 'My.App'
++
++    with temp_dir.as_cwd():
++        hatch('new', project_name)
++
++    path = temp_dir / 'my-app'
++
++    project = Project(path)
++    config = dict(project.raw_config)
++    config['project']['version'] = '1.2.3'
++    config['project']['dynamic'].remove('version')
++    project.save_config(config)
++
++    with path.as_cwd():
++        result = hatch('version', 'minor,rc')
++
++    assert result.exit_code == 1, result.output
++    assert result.output == helpers.dedent(
++        """
++        Cannot set version when it is statically defined by the `project.version` field
++        """
++    )
+--- /dev/null
++++ b/tests/backend/builders/hooks/test_version_grader.py
+@@ -0,0 +1,125 @@
++import re
++import sys
++import textwrap
++import pytest
++from hatchling.builders.hooks.version import VersionBuildHook
++from hatchling.metadata.core import ProjectMetadata
++from hatchling.plugin.manager import PluginManager
++from hatchling.utils.constants import DEFAULT_BUILD_SCRIPT
++
++
++@pytest.fixture(scope='session')
++def pattern():
++    return re.compile(r'^# \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+\d{2}:00Z$')
++
++
++@pytest.fixture(scope='function')
++def config():
++    return {
++        'path': 'src/foo/_version.py',
++        'pattern': r"""^#(?P<date>\d{4}-\d{2}-\d{2})T(?P<time>\d{2}:\d{2}:\d{2})\+(?P<tz>[\-+]?\d{2}):00Z$""",
++    }
++
++
++@pytest.fixture(scope='function')
++def metadata(tmp_path):
++    return ProjectMetadata(
++        str(tmp_path),
++        PluginManager(),
++        {
++            'project': {'name': 'foo', 'dynamic': ['version']},
++            'tool': {
++                'hatch': {
++                    'build': {
++                        'scripts': [
++                            {
++                                'id': 'baz',
++                                'requires': ['setuptools'],
++                                'hooks': {
++                                    'version': {
++                                        'path': f'{DEFAULT_BUILD_SCRIPT}',
++                                        'pattern': r'''^#(?P<date>\d{4}-\d{2}-\d{2})T(?P<time>\d{2}:\d{2}:\d{2})\+(?P<tz>[\-+]?\d{2}):00Z$''',
++                                    },
++                                    'custom': {},
++                                },
++                            },
++                        ]
++                    },
++                    'metadata': {'hooks': {'custom': {}}},
++                }
++            },
++        },
++    )
++
++
++class TestInitialize:
++    def test_no_hooks(self, tmp_path, config, metadata):
++        config['hooks'] = {}
++
++        hook = VersionBuildHook(str(tmp_path), config, None, metadata, '', '')
++        hook.initialize([], {})
++
++    def test_custom_hook(self, tmp_path, config, metadata):
++        config['hooks'] = {'custom': {}}
++
++        hook = VersionBuildHook(str(tmp_path), config, None, metadata, '', '')
++        hook.initialize([], {})
++
++    def test_multiple_hooks(self, tmp_path, config, metadata):
++        config['hooks'] = {'one': {}, 'two': {}}
++
++        hook = VersionBuildHook(str(tmp_path), config, None, metadata, '', '')
++        hook.initialize([], {})
++
++
++class TestGetVersionData:
++    def test_no_hooks(self, tmp_path, config, metadata):
++        config['hooks'] = {}
++
++        hook = VersionBuildHook(str(tmp_path), config, None, metadata, '', '')
++        data = hook.get_version_data()
++
++        assert data == {'date': None, 'time': None, 'tz': None}
++
++    def test_custom_hook(self, tmp_path, config, metadata):
++        config['hooks'] = {'custom': {}}
++
++        hook = VersionBuildHook(str(tmp_path), config, None, metadata, '', '')
++        data = hook.get_version_data()
++
++        assert data == {'date': None, 'time': None, 'tz': None}
++
++    def test_multiple_hooks(self, tmp_path, config, metadata):
++        config['hooks'] = {'one': {}, 'two': {}}
++
++        hook = VersionBuildHook(str(tmp_path), config, None, metadata, '', '')
++        data = hook.get_version_data()
++
++        assert data == {'date': None, 'time': None, 'tz': None}
++
++
++class TestSetVersion:
++    def test_no_hooks(self, tmp_path, config, metadata):
++        config['hooks'] = {}
++
++        hook = VersionBuildHook(str(tmp_path), config, None, metadata, '', '')
++        hook.set_version('0.1.0', {})
++
++    def test_custom_hook(self, tmp_path, config, metadata):
++        config['hooks'] = {'custom': {}}
++
++        hook = VersionBuildHook(str(tmp_path), config, None, metadata, '', '')
++        hook.set_version('0.1.0', {})
++
++    def test_multiple_hooks(self, tmp_path, config, metadata):
++        config['hooks'] = {'one': {}, 'two': {}}
++
++        hook = VersionBuildHook(str(tmp_path), config, None, metadata, '', '')
++        hook.set_version('0.1.0', {})

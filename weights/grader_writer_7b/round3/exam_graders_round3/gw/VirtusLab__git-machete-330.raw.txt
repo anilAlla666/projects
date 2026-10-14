@@ -1,0 +1,503 @@
+diff --git a/tests/test_cli.py b/tests/test_cli.py
+index 0e1d0a1..b0c0008 100644
+--- a/tests/test_cli.py
++++ b/tests/test_cli.py
+@@ -1,6 +1,7 @@
+ import argparse
+ import os
++from typing import List
+ 
+ from git_machete.cli import (
+     CommandLineOptions,
+@@ -10,6 +11,7 @@ from git_machete.git_operations import GitOperations
+ from git_machete.options import OptionType
+ from git_machete.utils import ascii_only
+ 
++
+ class TestCli:
+ 
+     @staticmethod
+@@ -17,6 +19,7 @@ class TestCli:
+         return {
+             "add": ["--dry-run"],
+             "checkout": [],
++            "check": [],
+             "delete": [],
+             "edit": [],
+             "log": [],
+@@ -24,6 +27,7 @@ class TestCli:
+             "pull": [],
+             "push": [],
+             "rebase": [],
++            "status": [],
+             "traverse": [],
+             "update": [],
+             "version": []
+@@ -32,6 +36,7 @@ class TestCli:
+         return [
+             "--dry-run",
+             "--force",
++            "--ignore-merged",
+             "--no-edit-merge",
+             "--no-interactive-rebase",
+             "--no-push",
+@@ -40,6 +45,7 @@ class TestCli:
+             "--no-push-untracked",
+             "--no-sync-github-prs",
+             "--no-unset-override",
++            "--only-roots",
+             "--push",
+             "--push-untracked",
+             "--squash",
+@@ -48,6 +54,7 @@ class TestCli:
+             "--sync-github-prs",
+             "--unset-override",
+             "--verbose",
++            "--with-remote-tracking-branches",
+         ]
+ 
+     @staticmethod
+@@ -55,6 +62,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -63,6 +71,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -70,6 +79,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -79,6 +89,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",
++            "--no-debug",
+             "--start-from",
+             "--whole",
+             "--yes",
+@@ -87,6 +98,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -95,6 +107,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -102,6 +115,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -111,6 +125,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",
++            "--no-debug",
+             "--start-from",
+             "--whole",
+             "--yes",
+@@ -119,6 +134,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -127,6 +143,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -134,6 +151,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -143,6 +161,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",
++            "--no-debug",
+             "--start-from",
+             "--whole",
+             "--yes",
+@@ -151,6 +170,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -159,6 +179,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -166,6 +187,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -175,6 +197,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",
++            "--no-debug",
+             "--start-from",
+             "--whole",
+             "--yes",
+@@ -183,6 +206,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -191,6 +215,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -198,6 +223,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -207,6 +233,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",
++            "--no-debug",
+             "--start-from",
+             "--whole",
+             "--yes",
+@@ -215,6 +242,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -223,6 +251,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -230,6 +259,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -239,6 +269,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",
++            "--no-debug",
+             "--start-from",
+             "--whole",
+             "--yes",
+@@ -247,6 +278,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -255,6 +287,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -262,6 +295,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -271,6 +305,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",
++            "--no-debug",
+             "--start-from",
+             "--whole",
+             "--yes",
+@@ -279,6 +314,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -287,6 +323,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -294,6 +331,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -303,6 +341,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",
++            "--no-debug",
+             "--start-from",
+             "--whole",
+             "--yes",
+@@ -311,6 +350,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -319,6 +359,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -326,6 +367,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -335,6 +377,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",
++            "--no-debug",
+             "--start-from",
+             "--whole",
+             "--yes",
+@@ -343,6 +386,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -351,6 +395,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -358,6 +403,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -367,6 +413,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",
++            "--no-debug",
+             "--start-from",
+             "--whole",
+             "--yes",
+@@ -375,6 +422,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -383,6 +431,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -390,6 +439,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -399,6 +449,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",
++            "--no-debug",
+             "--start-from",
+             "--whole",
+             "--yes",
+@@ -407,6 +458,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -415,6 +467,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -422,6 +475,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -431,6 +485,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",
++            "--no-debug",
+             "--start-from",
+             "--whole",
+             "--yes",
+@@ -439,6 +494,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -447,6 +503,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -454,6 +511,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -463,6 +521,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",
++            "--no-debug",
+             "--start-from",
+             "--whole",
+             "--yes",
+@@ -471,6 +530,7 @@ class TestCli:
+         return [
+             "--all",
+             "--color",
++            "--debug",
+             "--down-fork-point",
+             "--fork-point",
+             "--inferred",
+@@ -479,6 +539,7 @@ class TestCli:
+             "--list-commits-with-hashes",
+             "--list-commits",
+             "--merge",
++            "--no-detect-squash-merges",
+             "--no-list-commits",
+             "--no-list-commits-with-hashes",
+             "--no-list-commits-with-sha1",
+@@ -486,6 +547,7 @@ class TestCli:
+             "--no-no-edit-merge",
+             "--no-no-interactive-rebase",
+             "--no-no-push",
++            "--no-no-detect-squash-merges",
+             "--no-no-push-untracked",
+             "--no-no-sync-github-prs",
+             "--no-no-unset-override",
+@@ -495,6 +557,7 @@ class TestCli:
+             "--no-stat",
+             "--no-whole",
+             "--no-yes",

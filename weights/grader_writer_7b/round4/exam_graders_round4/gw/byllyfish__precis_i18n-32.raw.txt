@@ -1,0 +1,13 @@
+--- /dev/null
++++ b/tests/test_profile_grader.py
+@@ -0,0 +1,10 @@
++import pytest
++from precis_i18n import ProfileFactory
++
++
++def test_nickname_enforce():
++    p = ProfileFactory.get_profile("nickname")
++    assert p.enforce("\x1fb\x1f") == "b"
++    assert p.enforce("\t c\r\n") == "c"
++    assert p.enforce("\x1f\t c\r\n\x1f") == "c"
++    assert p.enforce("\x1f\t c\r\n\x1f\x1f") == "c"

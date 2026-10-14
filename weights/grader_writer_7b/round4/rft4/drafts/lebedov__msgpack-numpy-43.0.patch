@@ -1,0 +1,90 @@
+--- /dev/null
++++ b/test_msgpack_numpy_grader.py
+@@ -0,0 +1,103 @@
++from __future__ import absolute_import, division, print_function
++
++
++import sys
++import unittest
++import numpy as np
++import msgpack_numpy as m
++
++
++m.patch()
++
++
++def assert_equal(a, b):
++    """Test function which can handle arrays."""
++    if isinstance(a, np.ndarray):
++        assert a.shape == b.shape
++        assert a.dtype == b.dtype
++        assert np.all(a == b)
++    else:
++        assert a == b
++
++
++class TestMsgPackNumpy(unittest.TestCase):
++    def setUp(self):
++        # Define some standard dtypes
++        self.ints = np.array(range(10), dtype=np.int)
++        self.floats = np.array(np.linspace(0., 1., 10), dtype=np.float)
++        self.complexes = np.array([1j] * 10, dtype=np.complex)
++        self.bytes_ = np.array(['Hello World!'] * 10, dtype=np.object_)
++        self.string_ = np.array(['Hello World!'] * 10, dtype=np.unicode_)
++        self.uint8s = np.random.randint(0, 256, size=(10,), dtype=np.uint8)
++        self.bools = np.random.randint(0, 2, size=(10,), dtype=bool)
++        self.nested_ints = np.empty((10,), dtype=[('a', int)])
++        self.nested_floats = np.empty((10,), dtype=[('a', float)])
++        self.nested_complexes = np.empty((10,), dtype=[('a', complex)])
++        self.nested_string_ = np.empty((10,), dtype=[('a', str)])
++        self.nested_bools = np.empty((10,), dtype=[('a', bool)])
++        self.nested_uint8s = np.empty((10,), dtype=[('a', np.uint8)])
++
++    def test_roundtrip_standard_dtypes(self):
++        for arr in [self.ints, self.floats, self.complexes, self.bytes_,
++                    self.string_, self.uint8s, self.bools]:
++            packed = m.packb(arr)
++            unpacked = m.unpackb(packed)
++            assert_equal(unpacked, arr)
++
++    def test_roundtrip_nested_dtypes(self):
++        for arr in [self.nested_ints, self.nested_floats,
++                    self.nested_complexes, self.nested_string_,
++                    self.nested_bools, self.nested_uint8s]:
++            packed = m.packb(arr)
++            unpacked = m.unpackb(packed)
++            assert_equal(unpacked, arr)
++
++    def test_roundtrip_structured_dtypes(self):
++        structured_dtype = np.dtype([('a', float), ('b', int)])
++        arr = np.empty((10,), dtype=structured_dtype)
++        arr['a'] = np.arange(10.)
++        arr['b'] = np.arange(10)
++        packed = m.packb(arr)
++        unpacked = m.unpackb(packed)
++        assert_equal(unpacked, arr)
++
++    def test_roundtrip_nested_structured_dtypes(self):
++        structured_dtype = np.dtype([('a', float), ('b', int)])
++        nested_dtype = np.dtype([('foo', structured_dtype),
++                                 ('bar', structured_dtype)])
++        x = np.empty((10,), dtype=nested_dtype)
++        x['foo']['a'] = np.arange(10.)
++        x['foo']['b'] = np.arange(10)
++        x['bar']['a'] = np.arange(10.) + 10.
++        x['bar']['b'] = np.arange(10) + 10
++        packed = m.packb(x)
++        unpacked = m.unpackb(packed)
++        assert_equal(unpacked, x)
++
++    @unittest.skipIf(sys.version_info[0] >= 3, "Python 3 does not have long")
++    def test_long_roundtrip(self):
++        long_value = 2**64 - 1
++        arr = np.array(long_value, dtype=np.long)
++        packed = m.packb(arr)
++        unpacked = m.unpackb(packed)
++        assert_equal(unpacked, arr)
++
++
++if __name__ == '__main__':
++    unittest.main()

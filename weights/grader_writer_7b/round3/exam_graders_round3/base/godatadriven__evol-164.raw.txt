@@ -1,0 +1,42 @@
+To address the issue with elitism not working as expected, we need to write tests that verify the behavior of the `mutate` method when `elitist` is set to `True`. These tests should fail with the current implementation and pass after the fix.
+
+Here's a unified diff against the test files:
+
+```diff
+diff --git a/tests/test_population.py b/tests/test_population.py
+index 340b2e1..d2a3f4b 100644
+--- a/tests/test_population.py
++++ b/tests/test_population.py
+@@ -339,6 +339,27 @@ class TestPopulationCopy:
+     def test_combine_nothing(self):
+         with raises(ValueError):
+             Population.combine()
++
++class TestElitism:
++
++    def test_elitism_with_one_individual(self, simple_individuals):
++        pop = Population(simple_individuals, eval_function=lambda x: x)
++        pop.evaluate()
++        pop.mutate(lambda x: x + 1, elitist=True)
++        assert pop.current_best.fitness == 0
++
++    def test_elitism_with_multiple_individuals(self, simple_individuals):
++        pop = Population(simple_individuals, eval_function=lambda x: x)
++        pop.evaluate()
++        pop.mutate(lambda x: x + 1, elitist=True)
++        assert all(individual.fitness == 0 for individual in pop.individuals if individual != pop.current_best)
++
++    def test_elitism_with_zero_probability(self, simple_individuals):
++        pop = Population(simple_individuals, eval_function=lambda x: x)
++        pop.evaluate()
++        pop.mutate(lambda x: x + 1, probability=0, elitist=True)
++        assert all(individual.fitness == 0 for individual in pop.individuals)
+```
+
+These tests cover different scenarios related to elitism:
+
+1. **One Individual**: Tests that the current best individual remains unchanged when elitism is enabled.
+2. **Multiple Individuals**: Ensures that only the current best individual remains unchanged, while others are mutated.
+3. **Zero Probability**: Verifies that even with zero mutation probability, the current best individual remains unchanged.
+
+These tests should fail with the current implementation and pass after the fix.

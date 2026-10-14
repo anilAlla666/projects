@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/tests/test_updater_grader.py
+@@ -0,0 +1,15 @@
++import re
++from tempfile import TemporaryDirectory
++import pytest
++from aqt.archives import TargetConfig
++from aqt.exceptions import UpdaterError
++from aqt.helper import Settings
++from aqt.updater import Updater
++
++
++def test_ios_target_path_fixup():
++    updater = Updater(pathlib.Path("/tmp/output"))
++    assert updater._ios_target_path() == "macos"
++    updater._version = "6.2.3"
++    assert updater._ios_target_path() == "macos"
++    updater._version = "5.15.2"
++    assert updater._ios_target_path() == "macos"

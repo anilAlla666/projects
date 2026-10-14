@@ -1,0 +1,62 @@
+--- /dev/null
++++ b/tests/test_astpretty_test_grader.py
+@@ -0,0 +1,47 @@
++import ast
++import sys
++import pytest
++import astpretty
++
++
++def _to_module_body(s):
++    return ast.parse(s).body[0]
++
++
++def _to_expr_value(s):
++    return _to_module_body(s).value
++
++
++@pytest.mark.parametrize('s', ('x', '"y"', '5', '[]'))
++def test_is_leaf_true(s):
++    assert astpretty._is_leaf(_to_expr_value(s)) is True
++
++
++def test_pformat_py35_regression():
++    expected = (
++        'Dict(\n'
++        '    keys=[\n'
++        "        Name(id='a', ctx=Load()),\n"
++        '        None,\n'
++        '    ],\n'
++        '    values=[\n'
++        "        Name(id='b', ctx=Load()),\n"
++        "        Name(id='k', ctx=Load()),\n"
++        '    ],\n'
++        ')'
++    )
++    assert astpretty.pformat(astpretty.ast35.parse(DICT_SRC)) == expected
++
++
++DICT_SRC = """
++{a: b,
++k}
++"""
++
++
++FUNC_SRC = """
++def foo(a: int, b: int, c: int = 0, *, d: int = 0) -> int:
++    return a + b + c + d
++"""
++
++
++FUNC_SRC_TYPED27_OUT = """\
++FunctionDef(
++    lineno=1,
++    col_offset=0,
++    end_lineno=2,
++    end_col_offset=3,
++    name='foo',
++    args=arguments(args=[TypedArg(arg='a', annotation=NameConstant(value=int)), TypedArg(arg='b', annotation=NameConstant(value=int)), TypedArg(arg='c', annotation=NameConstant(value=int), value=Number(n=0)), TypedVar(arg='d', annotation=NameConstant(value=int), value=Number(n=0))], posonlyargs=[], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[Number(n=0)]),
++    body=[Return(lineno=2, col_offset=4, end_lineno=2, end_col_offset=3, value=BinOp(left=BinOp(left=BinOp(left=Name(id='a', ctx=Load()), op=Add(), right=Name(id='b', ctx=Load())), op=Add(), right=Name(id='c', ctx=Load())), op=Add(), right=Name(id='d', ctx=Load())))],
++    decorator_list=[],
++    returns=NameConstant(value=int),
++)"""  # noqa: E501

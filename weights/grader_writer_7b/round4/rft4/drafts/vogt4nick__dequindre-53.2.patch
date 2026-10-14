@@ -1,0 +1,107 @@
+--- /dev/null
++++ b/dequindre/tests/test_Dequindre_grader.py
+@@ -0,0 +1,112 @@
++"""Unit tests for the Dequindre class."""
++
++
++from collections import defaultdict
++import pytest
++from dequindre import Task, DAG, Dequindre
++
++
++def test__Dequindre_get_schedules():
++    A = Task('A.py', 'test-env')
++    B = Task('B.py', 'test-env')
++    C = Task('C.py', 'test-env')
++    Z = Task('Z.py', 'test-env')
++    dag = DAG()
++    dag.add_tasks({A, B, C, Z})
++    dag.add_edges({A:B, B:C})
++    dq = Dequindre(dag)
++
++    priorities = dq.get_schedules()
++    testable = {}
++
++    # build a testable result dict
++    for k, v in priorities.items():
++        new_set = set()
++        if isinstance(v, Task):
++            testable[k] = set(v)
++            continue
++
++        for vi in v:
++            new_set.add(hash(vi))
++        testable[k] = new_set
++
++    assert testable == {
++        1: {hash(A), hash(Z)},
++        2: {hash(B)}, 
++        3: {hash(C)},
++    }
++
++
++def test__Dequindre_get_schedule():
++    A = Task('A.py', 'test-env')
++    B = Task('B.py', 'test-env')
++    C = Task('C.py', 'test-env')
++    Z = Task('Z.py', 'test-env')
++    dag = DAG()
++    dag.add_tasks({A, B, C, Z})
++    dag.add_edges({A:B, B:C})
++    dq = Dequindre(dag)
++
++    schedule = dq.get_schedule()
++
++    testable = {hash(t): schedule[t] for t in schedule}
++
++    assert testable == {
++        hash(A): 1, 
++        hash(B): 2, 
++        hash(C): 3, 
++        hash(Z): 1
++    }
++
++
++@pytest.mark.run(order=1)
++def test__Dequindre_run_task():
++    """Check that the function runs correctly"""
++    A = Task('A.py', 'test-env')
++    B = Task('B.py', 'test-env')
++    C = Task('C.py', 'test-env')
++    dag = DAG()
++    dag.add_tasks({A, B, C})
++    dq = Dequindre(dag)
++
++    assert dq.run_task(A) is None
++
++    return None
++
++
++@pytest.mark.run(order=2)
++def test__Dequindre_run_tasks():
++    """Check that the function runs correctly"""
++    A = Task('A.py', 'test-env')
++    B = Task('B.py', 'test-env')
++    C = Task('C.py', 'test-env')
++    dag = DAG()
++    dag.add_tasks({A, B, C})
++    dq = Dequindre(dag)
++
++    assert dq.run_tasks() is None
++
++    return None
++
++
++@pytest.mark.run(order=3)
++def test__Dequindre_run_tasks_fail():
++    """Check that the function raises an error when a task fails"""
++    A = Task('A.py', 'test-env')
++    B = Task('B.py', 'test-env')
++    C = Task('C.py', 'test-env')
++    dag = DAG()
++    dag.add_tasks({A, B, C})
++    dq = Dequindre(dag)
++
++    assert dq.run_tasks() is None
++
++    return None

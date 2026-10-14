@@ -1,0 +1,38 @@
+--- /dev/null
++++ b/tests/test_signing_grader.py
+@@ -0,0 +1,34 @@
++from __future__ import absolute_import, print_function
++import hashlib
++import unittest
++from six.moves.urllib.parse import parse_qs
++from laterpay import signing
++
++
++class TestSigningHelper(unittest.TestCase):
++    def test_create_message_bytestrings(self):
++        params = {'parĄm1': 'valuĘ'}
++        url = 'https://endpoint.com/ąpi'
++
++        msg = signing.create_base_message(params, url)
++
++        self.assertEqual(
++            msg,
++            'POST&https%3A%2F%2Fendpoint.com%2F%C4%85pi&'
++            'par%25C4%2584m1%3Dvalu%25C4%2598',
++        )
++
++    def test_create_message_bytes(self):
++        params = {'parĄm1': b'value'}
++        url = 'https://endpoint.com/ąpi'
++
++        msg = signing.create_base_message(params, url)
++
++        self.assertEqual(
++            msg,
++            'POST&https%3A%2F%2Fendpoint.com%2F%C4%85pi&'
++            'par%25C4%2584m1%3Dvalue',
++        )
++
++
++if __name__ == '__main__':
++    unittest.main()

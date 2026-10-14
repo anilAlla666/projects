@@ -1,0 +1,27 @@
+```
+diff --git a/tests/preprocessing/test_positionfixes.py b/tests/preprocessing/test_positionfixes.py
+index 0b0c1d2..e3f4a5b 100644
+--- a/tests/preprocessing/test_positionfixes.py
++++ b/tests/preprocessing/test_positionfixes.py
+@@ -496,6 +496,21 @@ def test_generate_triplegs_with_string_user_id(self):
+         pfs, sp = geolife_pfs_sp_long
+ 
+         _, tpls = pfs.as_positionfixes.generate_triplegs(sp)
++
++        # Check if the user_id is correctly handled as a string
++        assert isinstance(tpls['user_id'][0], str)
++
++        # Check if the tripleg generation does not raise an error
++        assert not tpls.empty
++
++        # Check if the tripleg lengths are calculated correctly
++        tpls_lengths = tpls['finished_at'] - tpls['started_at']
++        assert not tpls_lengths.isnull().any()
++        assert not tpls_lengths.isna().any()
++
++        # Check if the tripleg geometries are correctly generated
++        assert all(isinstance(geom, LineString) for geom in tpls['geom'])
+ 
+     def test_invalid_inputs(self, geolife_pfs_sp_long):
+         """Test if AttributeError will be raised after invalid method input."""
+```

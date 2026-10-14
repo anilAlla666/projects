@@ -1,0 +1,60 @@
+To address the issue of respecting sampling in recorders, we need to ensure that the sampled state of a span is correctly handled during serialization and deserialization. The existing tests should cover this behavior.
+
+Here's a unified diff that adds a new test file `tests/test_respect_sampling.py` to verify that the sampled state is respected:
+
+```diff
+diff --git a/tests/test_respect_sampling.py b/tests/test_respect_sampling.py
+new file mode 100644
+index 0000000..b8c9d1f
+--- /dev/null
++++ b/tests/test_respect_sampling.py
+@@ -0,0 +1,60 @@
++import unittest
++from lightstep import Tracer, constants
++
++class RespectSamplingTest(unittest.TestCase):
++    def test_respect_sampling(self):
++        tracer = Tracer(
++            periodic_flush_seconds=0,
++            collector_host='localhost'
++        )
++
++        # Start a span and set its sampled state
++        span = tracer.start_span(operation_name='test_span')
++        span.context.sampled = True
++        span.finish()
++
++        # Extract the span context using binary format
++        carrier = bytearray()
++        tracer.inject(span.context, constants.LightStepFormat.LIGHTSTEP_BINARY, carrier)
++
++        # Extract the span context again using binary format
++        extracted_context = tracer.extract(constants.LightStepFormat.LIGHTSTEP_BINARY, carrier)
++
++        # Verify that the sampled state is preserved
++        self.assertTrue(extracted_context.sampled)
++
++        # Start another span and set its sampled state to False
++        span = tracer.start_span(operation_name='test_span_not_sampled')
++        span.context.sampled = False
++        span.finish()
++
++        # Extract the span context using binary format
++        carrier = bytearray()
++        tracer.inject(span.context, constants.LightStepFormat.LIGHTSTEP_BINARY, carrier)
++
++        # Extract the span context again using binary format
++        extracted_context = tracer.extract(constants.LightStepFormat.LIGHTSTEP_BINARY, carrier)
++
++        # Verify that the sampled state is preserved
++        self.assertFalse(extracted_context.sampled)
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This test file includes two test cases:
+1. It starts a span with the sampled state set to `True`, injects the context using the binary format, extracts it back, and verifies that the sampled state is still `True`.
+2. It does the same for a span with the sampled state set to `False`.
+
+These tests will fail on the current code because the sampled state is not being respected during serialization and deserialization. Once the fix is applied, these tests should pass.

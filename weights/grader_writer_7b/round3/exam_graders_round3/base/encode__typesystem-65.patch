@@ -1,0 +1,20 @@
+--- /dev/null
++++ b/tests/test_grader_generated.py
+@@ -0,0 +1,17 @@
++import unittest
++from typesystem import ValidationError, Message
++
++
++class TestHashability(unittest.TestCase):
++    def test_validation_error_hashability(self):
++        try:
++            typesystem.Integer().validate("hello")
++        except ValidationError as e:
++            # Attempt to hash the ValidationError
++            hash(e)
++        else:
++            self.fail("Expected ValidationError to raise TypeError when hashed")
++
++
++if __name__ == "__main__":
++    unittest.main()

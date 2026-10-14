@@ -1,0 +1,60 @@
+--- /dev/null
++++ b/test/test_reads_lowercase.py
+@@ -0,0 +1,59 @@
++from unittest import TestCase
++
++from dark.reads import DNARead, RNARead
++
++
++class TestLowercaseReverseComplement(TestCase):
++    """
++    Reverse complementing and translating lowercase sequences must give
++    the same result as for uppercase sequences (ignoring output case).
++    """
++
++    def testDNAReverseComplementLowercase(self):
++        read = DNARead('id', 'aacc')
++        self.assertEqual('GGTT', read.reverseComplement().sequence.upper())
++
++    def testDNAReverseComplementMixedCase(self):
++        read = DNARead('id', 'aAcCgT')
++        self.assertEqual('ACGGTT',
++                         read.reverseComplement().sequence.upper())
++
++    def testRNAReverseComplementLowercase(self):
++        read = RNARead('id', 'aacc')
++        self.assertEqual('GGUU', read.reverseComplement().sequence.upper())
++
++    def testLowercaseTranslationsMatchUppercase(self):
++        seq = 'atggccaaacgtttagctgattgcaagtcc'
++        upper = [(t.sequence.upper(), t.frame, t.reverseComplemented)
++                 for t in DNARead('id', seq.upper()).translations()]
++        lower = [(t.sequence.upper(), t.frame, t.reverseComplemented)
++                 for t in DNARead('id', seq).translations()]
++        self.assertEqual(upper, lower)
++
++    def testMixedCaseTranslationsMatchUppercase(self):
++        seq = 'ATGgccAAAcgtTTAgctGATtgcAAGtcc'
++        upper = [(t.sequence.upper(), t.frame, t.reverseComplemented)
++                 for t in DNARead('id', seq.upper()).translations()]
++        mixed = [(t.sequence.upper(), t.frame, t.reverseComplemented)
++                 for t in DNARead('id', seq).translations()]
++        self.assertEqual(upper, mixed)
++
++    def testReverseTranslationOfLowercase(self):
++        # Reverse complement of 'cccatt' is 'aatggg' -> N G
++        # (frame 0, reverse complemented).
++        translations = list(DNARead('id', 'cccatt').translations())
++        rcFrame0 = [t for t in translations
++                    if t.reverseComplemented and t.frame == 0][0]
++        self.assertEqual('NG', rcFrame0.sequence.upper())
++
++    def testLowercaseTranslationsAreAminoAcids(self):
++        # A purely lowercase read should not produce lowercase-derived
++        # junk such as 'X' in reverse frames when the uppercase doesn't.
++        seq = 'atggccaaacgtttagctgattgcaagtcc'
++        lower = ''.join(t.sequence.upper() for t in
++                        DNARead('id', seq).translations())
++        upper = ''.join(t.sequence.upper() for t in
++                        DNARead('id', seq.upper()).translations())
++        self.assertEqual(upper, lower)

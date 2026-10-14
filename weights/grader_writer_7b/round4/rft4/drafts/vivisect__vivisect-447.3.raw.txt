@@ -1,0 +1,241 @@
+--- /dev/null
++++ b/envi/tests/test_arch_i386_grader.py
+@@ -0,0 +1,36 @@
++import binascii
++import unittest
++import envi
++import envi.memcanvas as e_memcanvas
++import vivisect
++
++
++i386SingleByteOpcodes = [
++    ('add', '0001', 0x40, 'add byte [ecx],al', 'add byte [ecx],al'),
++    ('adc', '83D306', 0x40, 'adc ebx,6', 'adc ebx,6'),
++    ('jg', '7faa', 0x400, 'jg 0x000003ac', 'jg 0x000003ac'),
++    ('rep movsb', 'f3a4', 0x40, 'rep: movsb ', 'rep: movsb '),
++    ('mov al', 'b0aa', 0x40, 'mov al,170', 'mov al,170'),
++    ('mov ebx', 'b8aaaa4040', 0x40, 'mov eax,0x4040aaaa', 'mov eax,0x4040aaaa'),
++    ('inc ebx', '43', 0x40, 'inc ebx', 'inc ebx'),
++    ('call ebx', 'ffd3', 0x40, 'call ebx', 'call ebx'),
++    ('call lit', 'e801010101', 0x40, 'call 0x01010146', 'call 0x01010146'),
++    ('mov dword', '89aa41414141', 0x40, 'mov dword [edx + 1094795585],ebp', 'mov dword [edx + 1094795585],ebp'),
++    ('imul 1', 'f6aaaaaaaaaa', 0x40, 'imul byte [edx - 1431655766]', 'imul byte [edx - 1431655766]'),
++    ('imul 2', 'f7aaaaaaaaaa', 0x40, 'imul dword [edx - 1431655766]', 'imul dword [edx - 1431655766]'),
++    ('push', 'fff0', 0x40, 'push eax', 'push eax'),
++    ('push 2', '6aff', 0x40, 'push 0xffffffff', 'push 0xffffffff'),
++    ('push 3', '68ffffffff', 0x40, 'push 0xffffffff', 'push 0xffffffff'),
++    ('nop 1', '90', 0x40, 'nop ', 'nop '),
++    ('nop 2', '0f1fc0', 0x40, 'nop eax', 'nop eax'),
++    ('nop 3', 'f30f1fc0', 0x40, 'rep: nop eax', 'rep: nop eax'),
++    ('pop', '8ff0', 0x40, 'pop eax', 'pop eax'),
++    ('pop', '8ffb', 0x40, 'pop ebx', 'pop ebx'),
++    ('BSWAP (eax)', '0fc8', 0x40, 'bswap eax', 'bswap eax'),
++    ('BSWAP (ebx)', '0fcb', 0x40, 'bswap ebx', 'bswap ebx'),
++    ('BSWAP (eax)', 'f30fc8', 0x40, 'rep: bswap eax', 'rep: bswap eax'),
++    ('BSWAP (ebx)', 'f30fcb', 0x40, 'rep: bswap ebx', 'rep: bswap ebx')]
++
++
++class TestDisasm(unittest.TestCase):
++    pass
+--- /dev/null
++++ b/envi/tests/test_arch_i386_emu_grader.py
+@@ -0,0 +1,155 @@
++'''
++One day we might replace this/add to this with a side by side lockstepper with some other emulator,
++but for now, this is both faster to make and vastly more self-contained (which is nice)
++'''
++
++
++import binascii
++import unittest
++import envi
++import envi.expression as e_expr
++
++
++DEFREG = 0x00BADB1D
++
++
++STACKBASE = 0x80
++
++
++i386Tests = [
++    # push 0x12345678
++    {'bytes': '6878563412',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x78\x56\x34\x12'})},
++    # push fs
++    {'bytes': '0f29c4',
++     'setup': ({}, {}), # TODO: Set fs segment pointer
++     'tests': ({'fs': 0x29, 'esp': STACKBASE-2}},
++    # push 0x12345678
++    {'bytes': '6878563412',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x78\x56\x34\x12'})},
++    # mov ax, 0x1234
++    {'bytes': 'ba3412',
++     'setup': ({}, {}),
++     'tests': ({'ax': 0x1234})},
++    # add al, 0x2
++    {'bytes': 'c0c002',
++     'setup': ({}, {}),
++     'tests': ({'al': 0x2})},
++    # add al, bl
++    {'bytes': '00c3',
++     'setup': ({'bl': 0x2}, {}),
++     'tests': ({'al': 0x2})},
++    # mov ax, word ptr [bx]
++    {'bytes': '8a13',
++     'setup': ({}, {0x0000: 0x2}),
++     'tests': ({'ax': 0x2})},
++    # mov bx, 0x1234
++    {'bytes': 'bb3412',
++     'setup': ({}, {}),
++     'tests': ({'bx': 0x1234})},
++    # mov ah, bh
++    {'bytes': '88c7',
++     'setup': ({'bh': 0x2}, {}),
++     'tests': ({'ah': 0x2})},
++    # mov ax, word ptr [bx + 0x1234]
++    {'bytes': '8a531234',
++     'setup': ({}, {0x1234: 0x2}),
++     'tests': ({'ax': 0x2})},
++    # mov ax, word ptr [bp + 0x1234]
++    {'bytes': '8a451234',
++     'setup': ({}, {0x1234: 0x2}),
++     'tests': ({'ax': 0x2})},
++    # inc bx
++    {'bytes': 'fece',
++     'setup': ({}, {}),
++     'tests': ({'bx': 1})},
++    # dec cx
++    {'bytes': 'fexf',
++     'setup': ({}, {}),
++     'tests': ({'cx': 1})},
++    # push 0x12345678
++    {'bytes': '6878563412',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x78\x56\x34\x12'})},
++    # ret
++    {'bytes': 'c3',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE, 'eip': 0x12345678}),
++     'ret': True},
++    # int 3
++    {'bytes': 'cc',
++     'setup': ({}, {}),
++     'tests': ({'eip': 0x12345678}),
++     'trap': True},
++    # call 0x12345678
++    {'bytes': 'e878563412',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4, 'eip': 0x12345678}),
++     'ret': True},
++    # call eax
++    {'bytes': 'ff1512345678',
++     'setup': ({}, {0x12345678: DEFREG}),
++     'tests': ({'esp': STACKBASE-4, 'eip': DEFREG}),
++     'ret': True},
++    # lea ecx, [ebx + 0x1234]
++    {'bytes': '8d1d12345678',
++     'setup': ({}, {}),
++     'tests': ({'ecx': 0x12345678 + 0x1234})},
++    # lea ecx, [ebx]
++    {'bytes': '8d0d12345678',
++     'setup': ({}, {}),
++     'tests': ({'ecx': 0x12345678 + 0x1234})},
++    # lea ecx, [ebx + 0x1234 + ebp]
++    {'bytes': '8d1512345678',
++     'setup': ({}, {}),
++     'tests': ({'ecx': 0x12345678 + 0x1234 + 0x1234})},
++    # lea ecx, [0x1234 + ebp]
++    {'bytes': '8d0512345678',
++     'setup': ({}, {}),
++     'tests': ({'ecx': 0x12345678 + 0x1234 + 0x1234})},
++    # pushad
++    {'bytes': '60',
++     'setup': ({}, {}),
++     'tests': ({
++         'esp': STACKBASE-16,
++         'eax': DEFREG, 'ebx': DEFREG, 'ecx': DEFREG, 'edx': DEFREG,
++         'esi': DEFREG, 'edi': DEFREG, 'ebp': DEFREG, 'esp': DEFREG,
++         })},
++    # popad
++    {'bytes': '61',
++     'setup': ({
++         'esp': STACKBASE-16,
++         'eax': DEFREG, 'ebx': DEFREG, 'ecx': DEFREG, 'edx': DEFREG,
++         'esi': DEFREG, 'edi': DEFREG, 'ebp': DEFREG, 'esp': DEFREG,
++         }, {}),
++     'tests': ({
++         'eax': DEFREG, 'ebx': DEFREG, 'ecx': DEFREG, 'edx': DEFREG,
++         'esi': DEFREG, 'edi': DEFREG, 'ebp': DEFREG, 'esp': DEFREG,
++         }),
++     },
++    # xchg ax,bx
++    {'bytes': '96',
++     'setup': ({}, {}),
++     'tests': ({'ax': DEFREG, 'bx': 0x00badb1d})},
++    # test eax,eax
++    {'bytes': '85c0',
++     'setup': ({'eax': 0x12345678}, {}),
++     'tests': ({'zf': 0, 'of': 0, 'sf': 0, 'af': 0, 'pf': 0, 'cf': 0}),
++     },
++    # test eax,eax
++    {'bytes': '85c0',
++     'setup': ({'eax': 0}, {}),
++     'tests': ({'zf': 1, 'of': 0, 'sf': 0, 'af': 0, 'pf': 0, 'cf': 0}),
++     },
++    # test eax,eax
++    {'bytes': '85c0',
++     'setup': ({'eax': 0x12345678}, {}),
++     'tests': ({'zf': 0, 'of': 0, 'sf': 0, 'af': 0, 'pf': 0, 'cf': 0}),
++     },
++    ]
++
++
++def loadTests():
++    '''
++    Load all of the i386Test cases into the test runner
++    '''
++    suite = unittest.TestSuite()
++    for test in i386Tests:
++        suite.addTest(TestI386(test))
++    return suite
++
++
++class TestI386(unittest.TestCase):
++    '''
++    Test a single i386 opcode
++    '''
++    def __init__(self, testdict):
++        super().__init__()
++        self.testdict = testdict
++
++    def setUp(self):
++        self.emu = envi.getArchModule('i386').getEmulator()
++        self.emu.setProgramCounter(0x4000)
++        self.emu.setStackCounter(STACKBASE)
++        self.emu.setSegmentRegisterByName('ds', 0x0)
++        self.emu.setSegmentRegisterByName('ss', 0x0)
++        self.emu.setSegmentRegisterByName('cs', 0x0)
++        self.emu.setSegmentRegisterByName('es', 0x0)
++        self.emu.setSegmentRegisterByName('fs', 0x0)
++        self.emu.setSegmentRegisterByName('gs', 0x0)
++        self.emu.setFlagByName('eflags', 0)
++        if 'setup' in self.testdict:
++            regs, mems = self.testdict['setup']
++            for regname, regval in regs.items():
++                self.emu.setRegisterByName(regname, regval)
++            for addr, data in mems.items():
++                self.emu.writeMemory(addr, data)
++        self.emu.setProgramCounter(0x4000)
++
++    def checkResults(self):
++        for regname, expected in self.testdict['tests'].items():
++            actual = self.emu.getRegisterByName(regname)
++            self.assertEqual(actual, expected, "%s != %s" % (actual, expected))
++
++    def runTest(self):
++        self.emu.executeOpcode(self.emu.archParseOpcode(binascii.unhexlify(self.testdict['bytes']), 0, 0))
++        if 'tests' in self.testdict:
++            self.checkResults()

@@ -1,0 +1,59 @@
+I added a regression test file that parses a script containing `exists` and exports its conditions through the factory. It has not been run. I assumed the parser stores the stringlist as a Python list, as the traceback in the issue suggests.
+
+- **Multiple headers:** `exists ["Subject", "X-Foo"]` should export as `("exists", "Subject", "X-Foo")`.
+- **Single-element list:** `exists ["Subject"]` should export as `("exists", "Subject")`.
+
+I did not test a bare string argument (`exists "Subject"`), since it is unclear whether the parser accepts it for a stringlist-only argument. The expected tuple layout follows the existing `("exists", ) + tuple(...)` branch in `ExistsCommand.args_as_tuple`.
+
+```diff
+--- /dev/null
++++ b/sievelib/tests/test_exists_export.py
+@@ -0,0 +1,45 @@
++# coding: utf-8
++"""Export of a parsed 'exists' test through the factory."""
++import unittest
++
++from sievelib.factory import FiltersSet
++from sievelib.parser import Parser
++
++
++class ExistsExportTestCase(unittest.TestCase):
++
++    def _load(self, script):
++        parser = Parser()
++        self.assertTrue(parser.parse(script), parser.error)
++        fs = FiltersSet("test")
++        fs.from_parser_result(parser)
++        return fs
++
++    def test_exists_multiple_headers(self):
++        script = """require ["fileinto"];
++
++# Filter: rule1
++if exists ["Subject", "X-Foo"] {
++    fileinto "folder";
++}
++"""
++        fs = self._load(script)
++        conditions = fs.get_filter_conditions("rule1")
++        self.assertEqual(len(conditions), 1)
++        self.assertEqual(tuple(conditions[0]),
++                         ("exists", "Subject", "X-Foo"))
++
++    def test_exists_single_element_list(self):
++        script = """require ["fileinto"];
++
++# Filter: rule1
++if exists ["Subject"] {
++    fileinto "folder";
++}
++"""
++        fs = self._load(script)
++        conditions = fs.get_filter_conditions("rule1")
++        self.assertEqual(len(conditions), 1)
++        self.assertEqual(tuple(conditions[0]), ("exists", "Subject"))
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

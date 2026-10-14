@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/test_InfluxDBClient_grader.py
+@@ -0,0 +1,32 @@
++import http.server
++import json
++import os
++import threading
++import unittest
++from influxdb_client import InfluxDBClient
++
++
++class InfluxDBClientTest(unittest.TestCase):
++    def setUp(self) -> None:
++        self.client = None
++
++    def tearDown(self) -> None:
++        if self.client:
++            self.client.close()
++        if hasattr(self, 'httpd'):
++            self.httpd.shutdown()
++        if hasattr(self, 'httpd_thread'):
++            self.httpd_thread.join()
++
++    def test_init_from_config_without_quotes(self):
++        self.client = InfluxDBClient.from_config_file(f'{os.path.dirname(__file__)}/config-no-quotes.ini')
++
++        self.assertEqual("http://localhost:8086", self.client.url)
++        self.assertEqual("my-token", self.client.token)
++        self.assertEqual("my-org", self.client.org)
++        self.assertEqual(True, self.client.api_client.configuration.verify_ssl)
++        self.assertIsNone(self.client.api_client.configuration.ssl_ca_cert)
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,60 @@
+```diff
+diff --git a/tests/recorder_sampled_test.py b/tests/recorder_sampled_test.py
+new file mode 100644
+index 0000000..b2c3d4f
+--- /dev/null
++++ b/tests/recorder_sampled_test.py
+@@ -0,0 +1,60 @@
++import unittest
++from lightstep.recorder import Recorder
++from lightstep.tracer import _LightstepTracer
++from lightstep.span import SpanContext
++
++class TestRecorderSampled(unittest.TestCase):
++    def test_recorded_spans_have_sampled_flag(self):
++        recorder = Recorder(use_http=False)
++        
++        # Create a mock span context with sampled flag set
++        context = SpanContext(trace_id=1234567890, span_id=9876543210, sampled=True)
++        
++        # Start a span with the mock context
++        tracer = _LightstepTracer(False, recorder, None)
++        span = tracer.start_span(operation_name="test_span", context=context)
++        span.finish()
++
++        # Flush the recorder to collect spans
++        recorder.flush(None)
++
++        # Check if the recorded span has the sampled flag set
++        recorded_spans = recorder._span_records
++        self.assertTrue(recorded_spans[0].context.sampled)
++
++    def test_recorded_spans_without_sampled_flag(self):
++        recorder = Recorder(use_http=False)
++
++        # Create a mock span context without sampled flag set
++        context = SpanContext(trace_id=1234567890, span_id=9876543210, sampled=False)
++
++        # Start a span with the mock context
++        tracer = _LightstepTracer(False, recorder, None)
++        span = tracer.start_span(operation_name="test_span", context=context)
++        span.finish()
++
++        # Flush the recorder to collect spans
++        recorder.flush(None)
++
++        # Check if the recorded span does not have the sampled flag set
++        recorded_spans = recorder._span_records
++        self.assertFalse(recorded_spans[0].context.sampled)
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This new test file `tests/recorder_sampled_test.py` includes two tests:
+
+1. `test_recorded_spans_have_sampled_flag`: This test checks if spans recorded by the `Recorder` have their `sampled` flag correctly set when provided in the `SpanContext`.
+
+2. `test_recorded_spans_without_sampled_flag`: This test ensures that spans recorded by the `Recorder` do not have their `sampled` flag set when it is not provided in the `SpanContext`.
+
+These tests should fail with the current implementation because there is no logic to handle the `sampled` flag during recording. Once the issue is fixed, these tests should pass, indicating that the `sampled` flag is being respected during span recording.

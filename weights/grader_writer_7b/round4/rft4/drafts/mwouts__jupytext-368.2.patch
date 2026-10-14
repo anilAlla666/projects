@@ -1,0 +1,32 @@
+--- /dev/null
++++ b/tests/test_jupytext_read_grader.py
+@@ -0,0 +1,12 @@
++import pytest
++import jupytext
++from jupytext.compare import compare_notebooks
++
++
++def test_read_python_markdown(tmpdir):
++    nb = jupytext.read('test.md', fmt='ipynb')
++    assert len(nb.cells) == 1
++    assert nb.cells[0].cell_type == 'code'
++    assert nb.cells[0].source == [
++        '%%python3',
++        '',
++        'x=2']
+--- /dev/null
++++ b/tests/test_jupytext_writes_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++import jupytext
++from jupytext.compare import compare
++
++
++@pytest.mark.parametrize("nbfile", ["test.ipynb"])
++def test_write_python_markdown(tmpdir, nbfile):
++    nb = jupytext.read(nbfile)
++    jupytext.write(nb, str(tmpdir.join('test.md')))
++    md = str(tmpdir.join('test.md')).replace('\\', '/')
++    py = str(tmpdir.join('test.py')).replace('\\', '/')
++    compare(jupytext.read(md), jupytext.read(py))
++    compare(jupytext.read(py), jupytext.read(md))

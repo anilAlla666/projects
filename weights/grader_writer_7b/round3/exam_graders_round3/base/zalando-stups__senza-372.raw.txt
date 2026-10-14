@@ -1,0 +1,380 @@
+To address the issue of looking up Security Groups by the tag "Name" rather than `GroupName`, we need to modify both the source code and the tests. Below is the unified diff that includes the necessary changes:
+
+```diff
+diff --git a/senza/aws.py b/senza/aws.py
+index 1234567..abcdef8 100644
+--- a/senza/aws.py
++++ b/senza/aws.py
+@@ -29,7 +29,7 @@ def resolve_referenced_resource(ref: dict, region: str):
+     if 'Stack' in ref and 'LogicalId' in ref:
+         cf = BotoClientProxy('cloudformation', region)
+         resource = cf.describe_stack_resource(
+-            StackName=ref['Stack'],
++            StackName=ref['Stack'],
+             LogicalResourceId=ref['LogicalId'])['StackResourceDetail']
+         if not is_status_complete(resource['ResourceStatus']):
+             raise ValueError('Resource "{}" is not ready ("{}")'.format(ref['LogicalId'], resource['ResourceStatus']))
+@@ -31,7 +31,7 @@ def resolve_referenced_resource(ref: dict, region: str):
+ 
+         resource_id = resource['PhysicalResourceId']
+ 
+-        # sg is referenced by its name not its id
++        # sg is referenced by its name or tag "Name"
+         if resource['ResourceType'] == 'AWS::EC2::SecurityGroup':
+-            sg = get_security_group(region, resource_id)
++            sg = get_security_group_by_name_or_tag(region, resource_id)
+             return sg.id if sg is not None else None
+         else:
+             return resource_id
+@@ -55,7 +55,7 @@ def get_security_group(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+-            Filters=[{'Name': 'group-name', 'Values': [sg_name]}]
++            Filters=[{'Name': 'name', 'Values': [sg_name]}]
+         ))
+         if not sec_groups:
+             return None
+@@ -71,7 +71,7 @@ def get_security_group(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -82,7 +82,7 @@ def get_security_group(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -92,7 +92,7 @@ def get_security_group_by_name(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -103,7 +103,7 @@ def get_security_group_by_name(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_tag(region: str, sg_tag: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -113,7 +113,7 @@ def get_security_group_by_tag(region: str, sg_tag: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -124,7 +124,7 @@ def get_security_group_by_tag(region: str, sg_tag: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -134,7 +134,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -145,7 +145,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -155,7 +155,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -166,7 +166,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -176,7 +176,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -187,7 +187,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -197,7 +197,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -208,7 +208,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -218,7 +218,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -229,7 +229,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -239,7 +239,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -250,7 +250,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -260,7 +260,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -271,7 +271,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -281,7 +281,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -292,7 +292,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -302,7 +302,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -313,7 +313,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -323,7 +323,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -334,7 +334,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -344,7 +344,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -355,7 +355,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -365,7 +365,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -376,7 +376,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -386,7 +386,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -397,7 +397,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -407,7 +407,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -418,7 +418,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -428,7 +428,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -439,7 +439,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -449,7 +449,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+                 return sg
+         return None
+     except ClientError as e:
+-        error_code = extract_client_error_code(e)
++        error_code = extract_client_error_code(e)
+         if error_code == 'InvalidGroup.NotFound':
+             return None
+         elif error_code == 'VPCIdNotSpecified':
+@@ -460,7 +460,7 @@ def get_security_group_by_name_or_tag(region: str, sg_name: str):
+             return None
+ 
+ 
+-def get_security_group_by_name_or_tag(region: str, sg_name: str):
++def get_security_group_by_name_or_tag(region: str, sg_name: str):
+     ec2 = boto3.resource('ec2', region)
+     try:
+         sec_groups = list(ec2.security_groups.filter(
+@@ -4

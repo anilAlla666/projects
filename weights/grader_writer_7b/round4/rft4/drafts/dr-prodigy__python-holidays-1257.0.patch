@@ -1,0 +1,76 @@
+--- /dev/null
++++ b/tests/countries/test_greece_grader.py
+@@ -0,0 +1,68 @@
++from datetime import date
++from holidays.countries.greece import Greece, GR, GRC
++from tests.common import TestCase
++
++
++class TestGreece(TestCase):
++    @classmethod
++    def setUpClass(cls):
++        super().setUpClass(Greece)
++
++    def test_fixed_holidays(self):
++        years = range(2000, 2025)
++        for y in years:
++            fdays = (
++                (date(y, 1, 1), "Πρωτοχρονιά"),
++                (date(y, 1, 6), "Θεοφάνεια"),
++                (date(y, 3, 25), "Εικοστή Πέμπτη Μαρτίου"),
++                (date(y, 5, 1), "Εργατική Πρωτομαγιά"),
++                (date(y, 8, 15), "Κοίμηση της Θεοτόκου"),
++                (date(y, 10, 28), "Ημέρα του Όχι"),
++                (date(y, 12, 25), "Χριστούγεννα"),
++                (date(y, 12, 26), "Επόμενη ημέρα των Χριστουγέννων"),
++            )
++
++            for d, dstr in fdays:
++                if d.year == 2023 and d.month == 4 and d.day == 14:
++                    continue
++                self.assertIn(d, self.holidays)
++                self.assertEqual(self.holidays[d], dstr)
++
++    def test_variable_holidays(self):
++        checkdates = (
++            date(2018, 3, 30),
++            date(2019, 3, 18),
++            date(2020, 4, 10),
++            date(2021, 4, 2),
++            date(2022, 4, 15),
++            date(2023, 4, 7),
++            date(2024, 4, 29),
++        )
++
++        for d in checkdates:
++            self.assertIn(d, self.holidays)
++            self.assertIn("Πάσχα", self.holidays[d])
++
++        checkdates = (
++            date(2018, 4, 1),
++            date(2019, 4, 19),
++            date(2020, 4, 11),
++            date(2021, 4, 3),
++            date(2022, 4, 16),
++            date(2023, 4, 8),
++            date(2024, 5, 1),
++        )
++
++        for d in checkdates:
++            self.assertIn(d, self.holidays)
++            self.assertIn("Αγία Κριστούγεννα", self.holidays[d])
++
++    def test_good_friday(self):
++        checkdates = (
++            date(2018, 4, 6),
++            date(2019, 4, 26),
++            date(2020, 4, 17),
++            date(2021, 4, 2),
++            date(2022, 4, 15),
++            date(2023, 4, 7),
++            date(2024, 4, 29),
++        )
++
++        for d in checkdates:
++            self.assertIn(d, self.holidays)
++            self.assertIn("Χριστιανική Επαυλία", self.holidays[d])

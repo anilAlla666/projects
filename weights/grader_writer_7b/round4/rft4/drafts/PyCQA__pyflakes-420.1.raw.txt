@@ -1,0 +1,112 @@
+--- /dev/null
++++ b/pyflakes/test/test_checker_grader.py
+@@ -0,0 +1,101 @@
++import ast
++import sys
++from pyflakes import checker
++from pyflakes.test.harness import TestCase, skipIf
++
++
++class TypeCommentVisitorTests(TestCase):
++    """
++    Tests of L{checker._TypeCommentVisitor}
++    """
++
++    def setUp(self):
++        self.visitor = checker._TypeCommentVisitor()
++
++    def _collect(self, s):
++        """
++        Parse C{s}, add type comments to C{self.visitor}, then return
++        C{self.visitor.type_comments}.
++        """
++        self.visitor.type_comments.clear()
++        tree = ast.parse(s)
++        self.visitor.visit(tree)
++        return self.visitor.type_comments
++
++    def test_type_comment_with_space_after_hash_not_collected(self):
++        """
++        A type comment that has a space after the hash should not be collected.
++        """
++        ret = self._collect('x = 1  # type: int ')
++        self.assertSetEqual(ret, set())
++
++    def test_type_comment_with_space_before_colon_is_collected(self):
++        """
++        A type comment that has a space before the colon is still collected.
++        """
++        ret = self._collect('x = 1  # type:  int')
++        self.assertSetEqual(ret, {(ast.Assign, ('# type:  int',))})
++
++    def test_type_comment_with_space_before_colon_and_in_type_is_collected(self):
++        """
++        A type comment that has a space before the colon and inside the type
++        is still collected.
++        """
++        ret = self._collect('x = 1  # type: int ')
++        self.assertSetEqual(ret, {(ast.Assign, ('# type: int ',))})
++
++    def test_type_comment_with_space_before_colon_and_in_type_and_trailing_comment_is_collected(self):
++        """
++        A type comment that has a space before the colon and inside the type and trailing comment
++        is still collected.
++        """
++        ret = self._collect('x = 1  # type: int  # comment')
++        self.assertSetEqual(ret, {(ast.Assign, ('# type: int  # comment',))})
++
++    def test_type_comment_with_space_before_colon_and_in_type_and_trailing_comment_and_space_is_collected(self):
++        """
++        A type comment that has a space before the colon and inside the type and trailing comment and a space
++        is still collected.
++        """
++        ret = self._collect('x = 1  # type: int  # comment ')
++        self.assertSetEqual(ret, {(ast.Assign, ('# type: int  # comment ',))})
++
++    def test_type_comment_with_space_before_colon_and_in_type_and_trailing_comment_and_space_and_trailing_space_is_collected(self):
++        """
++        A type comment that has a space before the colon and inside the type and trailing comment and a space
++        and a trailing space is still collected.
++        """
++        ret = self._collect('x = 1  # type: int  # comment ')
++        self.assertSetEqual(ret, {(ast.Assign, ('# type: int  # comment ',))})
++
++    def test_type_comment_with_space_before_colon_and_in_type_and_trailing_comment_and_space_and_trailing_space_and_newline_is_collected(self):
++        """
++        A type comment that has a space before the colon and inside the type and trailing comment and a space
++        and a trailing space and a newline is still collected.
++        """
++        ret = self._collect('x = 1  # type: int  # comment \n')
++        self.assertSetEqual(ret, {(ast.Assign, ('# type: int  # comment ',))})
++
++    def test_type_comment_with_space_before_colon_and_in_type_and_trailing_comment_and_space_and_trailing_space_and_newline_and_space_is_collected(self):
++        """
++        A type comment that has a space before the colon and inside the type and trailing comment and a space
++        and a trailing space and a newline and a space is still collected.
++        """
++        ret = self._collect('x = 1  # type: int  # comment \n ')
++        self.assertSetEqual(ret, {(ast.Assign, ('# type: int  # comment ',))})
++
++    def test_type_comment_with_space_before_colon_and_in_type_and_trailing_comment_and_space_and_trailing_space_and_newline_and_space_and_space_is_collected(self):
++        """
++        A type comment that has a space before the colon and inside the type and trailing comment and a space
++        and a trailing space and a newline and a space and a space is still collected.
++        """
++        ret = self._collect('x = 1  # type: int  # comment \n  ')
++        self.assertSetEqual(ret, {(ast.Assign, ('# type: int  # comment ',))})
++
++    def test_type_comment_with_space_before_colon_and_in_type_and_trailing_comment_and_space_and_trailing_space_and_newline_and_space_and_space_and_space_is_collected(self):
++        """
++        A type comment that has a space before the colon and inside the type and trailing comment and a space
++        and a trailing space and a newline and a space and a space and a space is still collected.
++        """
++        ret = self._collect('x = 1  # type: int  # comment \n   ')
++        self.assertSetEqual(ret, {(ast.Assign, ('# type: int  # comment ',))})
++
++    def test_type_comment_with_space_before_colon_and_in_type_and_trailing_comment_and_space_and_trailing_space_and_newline_and_space_and_space_and_space_and_space_is_collected(self):
++        """
++        A type comment that has a space before the colon and inside the type and trailing comment and a space
++        and a trailing space and a newline and a space and a space and a space and a space is still collected.
++        """
++        ret = self._collect('x = 1  # type: int  # comment \n    ')
++        self.assertSetEqual(ret, {(ast.Assign, ('# type: int  # comment ',))})

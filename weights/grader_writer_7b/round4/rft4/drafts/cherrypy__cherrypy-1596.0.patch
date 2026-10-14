@@ -1,0 +1,51 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,47 @@
++import sys
++from .test_main import CherryPyTestCase
++
++
++class HelperTestCase(CherryPyTestCase):
++
++    @staticmethod
++    def setup_server():
++        class Root(object):
++            @cherrypy.expose
++            def index(self):
++                return "Hello World!"
++            index.exposed = True
++
++        cherrypy.tree.mount(Root())
++
++    def test_url(self):
++        self.assertIn('hello world!', cherrypy.url().lower())
++        self.assertEqual(
++            cherrypy.url(),
++            cherrypy.request.base + cherrypy.request.script_name + '/'
++        )
++        self.assertEqual(
++            cherrypy.url(script_name='/foo'),
++            cherrypy.request.base + '/foo/'
++        )
++        self.assertEqual(
++            cherrypy.url(base='/foo', script_name='/bar'),
++            '/foo/bar/'
++        )
++        self.assertEqual(
++            cherrypy.url(qs='a=b&c=d', script_name='/bar'),
++            cherrypy.request.base + '/bar/?a=b&c=d'
++        )
++        self.assertEqual(
++            cherrypy.url(script_name='/bar', qs='a=b&c=d'),
++            cherrypy.request.base + '/bar/?a=b&c=d'
++        )
++        self.assertEqual(
++            cherrypy.url(script_name='/bar', qs={'a': 'b', 'c': 'd'}),
++            cherrypy.request.base + '/bar/?a=b&c=d'
++        )
++
++
++if __name__ == '__main__':
++    ctest = HelperTestCase()
++    ctest.setup_class()
++    ctest.test_url()

@@ -1,0 +1,117 @@
+--- /dev/null
++++ b/tests/test_pyls_plugins_grader.py
+@@ -0,0 +1,111 @@
++import pytest
++from pyls.plugins.pycodestyle_lint import pyls_lint
++
++
++@pytest.mark.parametrize(
++    "config, expected",
++    [
++        ({}, {"max_line_length": 79}),
++        (
++            {"plugins": {"pycodestyle": {"max-line-length": 100}}},
++            {"max_line_length": 100},
++        ),
++        (
++            {"plugins": {"pycodestyle": {"ignore": ["E203", "W503"]}}},
++            {"ignore": ["E203", "W503"]},
++        ),
++        (
++            {
++                "plugins": {
++                    "pycodestyle": {
++                        "max-line-length": 100,
++                        "ignore": ["E203", "W503"],
++                    }
++                }
++            },
++            {"max_line_length": 100, "ignore": ["E203", "W503"]},
++        ),
++        (
++            {
++                "plugins": {
++                    "pycodestyle": {
++                        "max-line-length": 100,
++                        "ignore": ["E203", "W503"],
++                        "exclude": ["foo", "bar"],
++                    }
++                }
++            },
++            {
++                "max_line_length": 100,
++                "ignore": ["E203", "W503"],
++                "exclude": ["foo", "bar"],
++            },
++        ),
++        (
++            {
++                "plugins": {
++                    "pycodestyle": {
++                        "max-line-length": 100,
++                        "ignore": ["E203", "W503"],
++                        "exclude": ["foo", "bar"],
++                        "hang-closing": True,
++                    }
++                }
++            },
++            {
++                "max_line_length": 100,
++                "ignore": ["E203", "W503"],
++                "exclude": ["foo", "bar"],
++                "hang_closing": True,
++            },
++        ),
++    ],
++)
++def test_py_code_style_lint_config(config, expected):
++    diagnostics = pyls_lint(None, None, config)
++    assert diagnostics == []
++    assert config["plugins"]["pycodestyle"].get("settings") == expected
++
++
++@pytest.mark.parametrize(
++    "config, expected",
++    [
++        ({}, {}),
++        (
++            {"plugins": {"pycodestyle": {"max-line-length": 100}}},
++            {"max_line_length": 100},
++        ),
++        (
++            {"plugins": {"pycodestyle": {"ignore": ["E203", "W503"]}}},
++            {"ignore": ["E203", "W503"]},
++        ),
++        (
++            {
++                "plugins": {
++                    "pycodestyle": {
++                        "max-line-length": 100,
++                        "ignore": ["E203", "W503"],
++                    }
++                }
++            },
++            {"max_line_length": 100, "ignore": ["E203", "W503"]},
++        ),
++        (
++            {
++                "plugins": {
++                    "pycodestyle": {
++                        "max-line-length": 100,
++                        "ignore": ["E203", "W503"],
++                        "exclude": ["foo", "bar"],
++                    }
++                }
++            },
++            {
++                "max_line_length": 100,
++                "ignore": ["E203", "W503"],
++                "exclude": ["foo", "bar"],
++            },
++        ),
++    ],
++)
++def test_py_code_style_lint_settings(config, expected):
++    diagnostics = pyls_lint(None, None, config)
++    assert diagnostics == []
++    assert config["plugins"]["pycodestyle"].get("settings") == expected

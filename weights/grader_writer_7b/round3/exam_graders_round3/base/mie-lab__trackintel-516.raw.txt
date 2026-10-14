@@ -1,0 +1,57 @@
+Here's a unified diff that adds a new test file `tests/preprocessing/test_positionfixes_string_user_id.py` to ensure that the fix resolves the issue:
+
+```diff
+diff --git a/tests/preprocessing/test_positionfixes_string_user_id.py b/tests/preprocessing/test_positionfixes_string_user_id.py
+new file mode 100644
+index 0000000..e2b2c3d
+--- /dev/null
++++ b/tests/preprocessing/test_positionfixes_string_user_id.py
+@@ -0,0 +1,52 @@
++import os
++import pytest
++import pandas as pd
++import geopandas as gpd
++from trackintel.preprocessing.positionfixes import generate_triplegs
++
++
++@pytest.fixture
++def example_positionfixes_string_user_id():
++    """Positionfixes with string user_id for tests."""
++    p1 = gpd.points_from_xy([0], [0])[0]
++    p2 = gpd.points_from_xy([1], [1])[0]
++
++    t1 = pd.Timestamp("2023-01-01T00:00:00Z", tz="utc")
++    t2 = pd.Timestamp("2023-01-01T01:00:00Z", tz="utc")
++
++    list_dict = [
++        {"user_id": "test", "tracked_at": t1, "geometry": p1},
++        {"user_id": "test", "tracked_at": t2, "geometry": p2},
++    ]
++    pfs = gpd.GeoDataFrame(data=list_dict, geometry="geometry", crs="EPSG:4326")
++    return pfs
++
++
++class TestGenerateTriplegsWithStringUserID:
++    """Tests for generating triplegs with string user_id."""
++
++    def test_generate_triplegs_with_string_user_id(self, example_positionfixes_string_user_id):
++        """Test if generate_triplegs works correctly with string user_id."""
++        pfs = example_positionfixes_string_user_id
++        _, triplegs = generate_triplegs(pfs)
++
++        # Check if triplegs were generated successfully
++        assert not triplegs.empty
++        assert isinstance(triplegs, gpd.GeoDataFrame)
++        assert "user_id" in triplegs.columns
++        assert "started_at" in triplegs.columns
++        assert "finished_at" in triplegs.columns
++        assert "geom" in triplegs.columns
++
++        # Check if user_id is consistent across triplegs
++        assert triplegs["user_id"].nunique() == 1
++        assert triplegs["user_id"].iloc[0] == "test"
+```
+
+This test file includes a fixture `example_positionfixes_string_user_id` that creates a GeoDataFrame with string `user_id`. The test class `TestGenerateTriplegsWithStringUserID` contains a single test method `test_generate_triplegs_with_string_user_id` that verifies that `generate_triplegs` can handle string `user_id` without raising exceptions.
+
+When you run this test file, it should fail on the current code because of the `NotImplementedError` related to aggregating string data types. Once the fix is applied, the test should pass, indicating that the issue has been resolved.

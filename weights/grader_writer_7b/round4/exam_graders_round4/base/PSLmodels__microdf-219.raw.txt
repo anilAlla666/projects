@@ -1,0 +1,40 @@
+To address the issue where subsetting a `MicroDataFrame` does not correctly subset the weights, we can add a new test file named `test_subsetting.py`. This test file will contain a test case that checks if subsetting a `MicroDataFrame` results in the correct shape for both the data and the weights.
+
+Here's the unified diff:
+
+```diff
+diff --git a/microdf/tests/test_subsetting.py b/microdf/tests/test_subsetting.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/microdf/tests/test_subsetting.py
+@@ -0,0 +1,30 @@
++from microdf.generic import MicroDataFrame
++import numpy as np
++import microdf as mdf
++
++def test_subsetting_keeps_weights():
++    # Create a MicroDataFrame with weights
++    d = mdf.MicroDataFrame({"x": [1, 2, 3], "y": [1, 2, 2]}, weights=[4, 5, 6])
++
++    # Subset the DataFrame
++    d2 = d[d.y > 1]
++
++    # Check the shape of the subsetted DataFrame
++    assert d2.shape == (2, 2)
++
++    # Check the shape of the weights after subsetting
++    assert d2.weights.shape == (2,)
++
++    # Calculate the mean of the subsetted DataFrame
++    try:
++        mean_value = d2.mean()
++    except TypeError as e:
++        assert False, f"Expected no error, but got {e}"
++    else:
++        assert True, "No error raised"
++
++    print("Test passed: Subsetting keeps weights and allows calculations.")
+```
+
+This test file introduces a new test function `test_subsetting_keeps_weights` that creates a `MicroDataFrame`, subsets it based on a condition, and then checks if the resulting `MicroDataFrame` has the correct shape for both the data and the weights. It also attempts to calculate the mean of the subsetted `MicroDataFrame` to ensure that the weights are correctly handled during operations. If the test passes without raising an error, it prints a success message.

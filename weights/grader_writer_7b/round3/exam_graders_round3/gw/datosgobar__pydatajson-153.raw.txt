@@ -1,0 +1,19 @@
+diff --git a/tests/test_federation.py b/tests/test_federation.py
+index 0e0f3d4..b010704 100644
+--- a/tests/test_federation.py
++++ b/tests/test_federation.py
+@@ -366,6 +366,14 @@ class PushCatalogThemesTestCase(unittest.TestCase):
+     @patch('pydatajson.federation.RemoteCKAN', autospec=True)
+     def test_full_portal_pushes_nothing(self, mock_portal):
+         def mock_call_action(action, data_dict=None):
++            if action == 'group_show':
++                raise NotFound
++
++        mock_portal.return_value.call_action = mock_call_action
++        res_names = push_new_themes(self.catalog, 'portal_url', 'apikey')
++        try:
++            self.assertItemsEqual([], res_names)
++        except AttributeError:
+             self.assertCountEqual([], res_names)
+ 
+     @patch('pydatajson.federation.RemoteCKAN', autospec=True)

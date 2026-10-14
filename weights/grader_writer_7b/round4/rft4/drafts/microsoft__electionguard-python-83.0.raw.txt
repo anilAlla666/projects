@@ -1,0 +1,78 @@
+--- /dev/null
++++ b/tests/test_words_grader.py
+@@ -0,0 +1,36 @@
++from unittest import TestCase
++from electionguard.words import get_word, get_index_from_word
++
++
++class TestWord(TestCase):
++    def test_get_word(self):
++        # Arrange
++        INDEX_MIN = 0
++        INDEX_RANDOM_1 = 100
++        INDEX_RANDOM_2 = 1000
++        INDEX_MAX = 4095
++
++        # Act
++        word_min = get_word(INDEX_MIN)
++        word_random_1 = get_word(INDEX_RANDOM_1)
++        word_random_2 = get_word(INDEX_RANDOM_2)
++        word_max = get_word(INDEX_MAX)
++        reverse_find_of_index_random_1 = get_index_from_word(word_random_1)
++
++        # Assert
++        self.assertEqual(word_min, "aardvark")
++        self.assertEqual(word_random_1, "alfalfa")
++        self.assertEqual(word_random_2, "column")
++        self.assertEqual(word_max, "prospect")
++        self.assertEqual(INDEX_RANDOM_1, reverse_find_of_index_random_1)
++
++    def test_get_word_when_out_of_range(self):
++        # Arrange
++        INDEX_BELOW_MIN = -1
++        INDEX_ABOVE_MAX = 4096
++
++        word_min = get_word(INDEX_BELOW_MIN)
++        word_max = get_word(INDEX_ABOVE_MAX)
++
++        self.assertIsNone(word_min)
++        self.assertIsNone(word_max)
+--- /dev/null
++++ b/tests/test_tracker_grader.py
+@@ -0,0 +1,33 @@
++from unittest import TestCase
++from electionguard.encrypt import EncryptionDevice
++from electionguard.group import ZERO_MOD_Q, ONE_MOD_Q, TWO_MOD_Q
++from electionguard.tracker import (
++    tracker_hash_to_words,
++    tracker_words_to_hash,
++    get_rotating_tracker_hash,
++    get_hash_for_device,
++)
++
++
++class TestTracker(TestCase):
++    def test_tracker_converts_to_words(self):
++        # Arrange
++        device = EncryptionDevice("Location")
++        device_hash = get_hash_for_device(device.uuid, device.location)
++        ballot_hash = ONE_MOD_Q
++        ballot_hash_different = TWO_MOD_Q
++        timestamp = 1000
++        tracker_hash = get_rotating_tracker_hash(device_hash, timestamp, ballot_hash)
++        tracker_hash_different = get_rotating_tracker_hash(
++            device_hash, timestamp, ballot_hash_different
++        )
++
++        # Act
++        device_words = tracker_hash_to_words(device_hash)
++        tracker_words = tracker_hash_to_words(tracker_hash)
++        tracker_different_words = tracker_hash_to_words(tracker_hash_different)
++        tracker_hash_from_words = tracker_words_to_hash(tracker_words)
++
++        # Assert
++        self.assertIsNotNone(device_words)
++        self.assertIsNotNone(tracker_words)
++        self.assertNotEqual(device_words, tracker_words)
++        self.assertNotEqual(tracker_different_words, tracker_words)
++        self.assertEqual(tracker_hash, tracker_hash_from_words)

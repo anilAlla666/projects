@@ -1,0 +1,86 @@
+--- /dev/null
++++ b/tests/test_pip_lock_grader.py
+@@ -0,0 +1,83 @@
++from unittest import mock
++import pytest
++from pip_lock import (
++    check_requirements,
++    get_mismatches,
++    get_package_versions,
++    print_errors,
++    read_pip,
++)
++
++
++def create_file(tmpdir, name, text):
++    t = tmpdir.join(name)
++    t.write(text)
++    return str(t)
++
++
++class TestGetMismatches(object):
++    @mock.patch("pip_lock.pip_freeze")
++    def test_setup_extras(self, pip_freeze, tmpdir):
++        pip_freeze.return_value = [
++            "django-storages[boto3]==1.11.2",
++            "Django==3.0.5",
++        ]
++        requirements_path = create_file(
++            tmpdir, "requirements.txt", "django-storages[boto3]==1.11.2"
++        )
++
++        assert get_mismatches(requirements_path) == {}
++
++
++class TestCheckRequirements(object):
++    @mock.patch("pip_lock.get_mismatches")
++    def test_no_mismatches(self, get_mismatches):
++        get_mismatches.return_value = {}
++        check_requirements("requirements.txt")
++
++    @mock.patch("pip_lock.get_mismatches")
++    def test_mismatches(self, get_mismatches, capsys):
++        get_mismatches.return_value = {
++            "package1": ("1.1", "1.0"),
++            "package2": ("1.0", None),
++        }
++        with pytest.raises(SystemExit):
++            check_requirements("requirements.txt")
++
++        _, err = capsys.readouterr()
++        assert "package1 has version 1.1 but you have version 1.0 installed" in err
++        assert "package2 is in requirements.txt but not in virtualenv" in err
++
++    @mock.patch("pip_lock.pip_freeze")
++    def test_relative_requirements_file(self, pip_freeze, tmpdir):
++        pip_freeze.return_value = ["package==1.2"]
++        create_file(tmpdir, "requirements.txt", "package==1.2")
++        with tmpdir.as_cwd():
++            check_requirements("requirements.txt")
++
++    @mock.patch("pip_lock.get_mismatches")
++    def test_ignore_extra(self, get_mismatches):
++        get_mismatches.return_value = {"package1[boto3]": ("1.1", "1.0")}
++        check_requirements("requirements.txt")
++
++    @mock.patch("pip_lock.get_mismatches")
++    def test_missing_extra(self, get_mismatches):
++        get_mismatches.return_value = {"package1[boto3]": (None, "1.0")}
++        with pytest.raises(SystemExit):
++            check_requirements("requirements.txt")
++
++    @mock.patch("pip_lock.get_mismatches")
++    def test_unmatched_extra(self, get_mismatches):
++        get_mismatches.return_value = {"package1[boto3]": ("1.1", "1.0")}
++        with pytest.raises(SystemExit):
++            check_requirements("requirements.txt")
++
++    @mock.patch("pip_lock.get_mismatches")
++    def test_extra_ordering(self, get_mismatches):
++        get_mismatches.return_value = {
++            "package1[boto3,s3fs]": ("1.1", "1.0"),
++            "package1[s3fs,boto3]": ("1.1", "1.0"),
++            "package1[boto3,boto3]": ("1.1", "1.0"),
++        }
++        with pytest.raises(SystemExit):
++            check_requirements("requirements.txt")

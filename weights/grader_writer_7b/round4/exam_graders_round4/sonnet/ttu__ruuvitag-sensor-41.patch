@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/tests/test_fw_1_2_8_trimmed_data.py
+@@ -0,0 +1,48 @@
++from unittest import TestCase
++from unittest.mock import patch
++
++from ruuvitag_sensor.ruuvi import RuuviTagSensor
++
++# Data Format 3 advertisement as sent before FW 1.2.8 (trailing NULLs present)
++DF3_FULL = '1902010415FF990403291A1ECE1E02DEF94202CA0B5300000000BB'
++# Same advertisement with trailing NULL bytes trimmed (FW 1.2.8)
++DF3_TRIMMED = '1502010415FF990403291A1ECE1E02DEF94202CA0B53BB'
++DF3_TRIMMED_LENGTH_UNCHANGED = '1902010415FF990403291A1ECE1E02DEF94202CA0B53BB'
++
++
++class TestTrimmedNulls(TestCase):
++
++    def test_full_data_format_3_detected(self):
++        data_format, data = RuuviTagSensor.convert_data(DF3_FULL)
++        self.assertEqual(3, data_format)
++        self.assertIsNotNone(data)
++
++    def test_trimmed_data_format_3_detected(self):
++        data_format, data = RuuviTagSensor.convert_data(DF3_TRIMMED)
++        self.assertEqual(3, data_format)
++        self.assertIsNotNone(data)
++
++    def test_trimmed_data_format_3_detected_length_byte_unchanged(self):
++        data_format, data = RuuviTagSensor.convert_data(DF3_TRIMMED_LENGTH_UNCHANGED)
++        self.assertEqual(3, data_format)
++        self.assertIsNotNone(data)
++
++    def test_trimmed_data_not_detected_as_other_format(self):
++        data_format, _ = RuuviTagSensor.convert_data(DF3_TRIMMED)
++        self.assertNotEqual(2, data_format)
++
++    def _get_datas(self, blacklist=[], bt_device=''):
++        datas = [
++            ('AA:2C:6A:1E:59:3D', 'some other device'),
++            ('FF:2C:6A:1E:59:3D', DF3_TRIMMED),
++        ]
++        for data in datas:
++            yield data
++
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationDummy.get_datas',
++           _get_datas)
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_datas',
++           _get_datas)
++    def test_find_tags_with_trimmed_data(self):
++        tags = RuuviTagSensor.find_ruuvitags()
++        self.assertEqual(1, len(tags))
++        self.assertEqual('FF:2C:6A:1E:59:3D', list(tags.keys())[0] if isinstance(tags, dict) else tags[0] if isinstance(tags[0], str) else tags[0].mac)

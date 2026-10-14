@@ -1,0 +1,321 @@
+diff --git a/tests/test_reach.py b/tests/test_reach.py
+index 0f1b0d0..c3a0000 100644
+--- a/tests/test_reach.py
++++ b/tests/test_reach.py
+@@ -1,6 +1,7 @@
+ import numpy as np
+ import pytest
+ 
++from reach.reach import Reach
+ from reach.utils import load_vectors_from_file
+ 
+ 
+@@ -10,6 +11,10 @@ def test_load_vectors_from_file():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_truncation():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -20,6 +25,10 @@ def test_load_vectors_from_file_with_truncation():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_num_to_load():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -30,6 +39,10 @@ def test_load_vectors_from_file_with_num_to_load():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_sep():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -40,6 +53,10 @@ def test_load_vectors_from_file_with_invalid_sep():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -50,6 +67,10 @@ def test_load_vectors_from_file_with_invalid_dtype():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_str():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -60,6 +81,10 @@ def test_load_vectors_from_file_with_invalid_dtype_str():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_int():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -70,6 +95,10 @@ def test_load_vectors_from_file_with_invalid_dtype_int():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_float():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -80,6 +109,10 @@ def test_load_vectors_from_file_with_invalid_dtype_float():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_bool():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -90,6 +123,10 @@ def test_load_vectors_from_file_with_invalid_dtype_bool():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_list():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -100,6 +137,10 @@ def test_load_vectors_from_file_with_invalid_dtype_list():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_tuple():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -110,6 +151,10 @@ def test_load_vectors_from_file_with_invalid_dtype_tuple():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_dict():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -120,6 +165,10 @@ def test_load_vectors_from_file_with_invalid_dtype_dict():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_set():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -130,6 +179,10 @@ def test_load_vectors_from_file_with_invalid_dtype_set():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_array():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -140,6 +193,10 @@ def test_load_vectors_from_file_with_invalid_dtype_array():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_dataframe():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -150,6 +207,10 @@ def test_load_vectors_from_file_with_invalid_dtype_dataframe():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_series():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -160,6 +221,10 @@ def test_load_vectors_from_file_with_invalid_dtype_series():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_sparse_matrix():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -170,6 +235,10 @@ def test_load_vectors_from_file_with_invalid_dtype_sparse_matrix():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_coo_matrix():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -180,6 +249,10 @@ def test_load_vectors_from_file_with_invalid_dtype_coo_matrix():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_lil_matrix():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -190,6 +263,10 @@ def test_load_vectors_from_file_with_invalid_dtype_lil_matrix():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_hdf5():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -200,6 +277,10 @@ def test_load_vectors_from_file_with_invalid_dtype_hdf5():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_npz():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -210,6 +291,10 @@ def test_load_vectors_from_file_with_invalid_dtype_npz():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_pkl():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -220,6 +305,10 @@ def test_load_vectors_from_file_with_invalid_dtype_pkl():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_json():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -230,6 +319,10 @@ def test_load_vectors_from_file_with_invalid_dtype_json():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_csv():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -240,6 +333,10 @@ def test_load_vectors_from_file_with_invalid_dtype_csv():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_tsv():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -250,6 +347,10 @@ def test_load_vectors_from_file_with_invalid_dtype_tsv():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_xlsx():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -260,6 +361,10 @@ def test_load_vectors_from_file_with_invalid_dtype_xlsx():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_excel():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -270,6 +375,10 @@ def test_load_vectors_from_file_with_invalid_dtype_excel():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_sqlite():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -280,6 +389,10 @@ def test_load_vectors_from_file_with_invalid_dtype_sqlite():
+     assert len(items) == 100000
+     assert vectors.shape == (100000, 300)
+ 
++    # Test that the dtype is preserved when adding UNK
++    vectors_unk = load_vectors_from_file(vectors_file, "float32", unk_word="UNK")
++    assert vectors_unk.dtype == np.float32
++
+ 
+ def test_load_vectors_from_file_with_invalid_dtype_mongodb():
+     vectors_file = "tests/data/glove.6B.300d.txt"
+@@ -290,6 +403,10 @@ def test_load_vectors_from_file_with_invalid_dtype_mongodb

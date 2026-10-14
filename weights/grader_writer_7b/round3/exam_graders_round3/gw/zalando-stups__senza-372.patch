@@ -1,0 +1,19 @@
+diff --git a/tests/test_aws.py b/tests/test_aws.py
+index 0e0f3c0..1100706 100644
+--- a/tests/test_aws.py
++++ b/tests/test_aws.py
+@@ -256,6 +256,14 @@ def test_matches_any():
+     assert not matches_any(None, [StackReference(name='foobar', version=None)])
+ 
+     assert not matches_any('foobar-1', [])
++
++    assert matches_any('foobar-1',
++                       [StackReference(name='foobar', version=None),
++                        StackReference(name='foobar', version='1')])
++
++    assert matches_any('foobar-1',
++                       [StackReference(name='foobar', version='1'),
++                        StackReference(name='foobar', version=None)])
+ 
+     assert matches_any('foobar-1',
+                        [StackReference(name='foobar', version='1')])

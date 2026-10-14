@@ -1,0 +1,59 @@
+--- /dev/null
++++ b/tests/test_signing_bytes.py
+@@ -0,0 +1,57 @@
++#!/usr/bin/env python
++# -*- coding: utf-8 -*-
++from __future__ import absolute_import, print_function
++
++import unittest
++
++from laterpay import signing
++
++
++class TestSigningByteStrings(unittest.TestCase):
++
++    url = 'https://endpoint.com/api'
++    secret = 'secret'
++
++    def test_base_message_bytes_value_same_as_text(self):
++        msg_bytes = signing.create_base_message({'key': b'foo'}, self.url)
++        msg_text = signing.create_base_message({'key': u'foo'}, self.url)
++
++        self.assertEqual(msg_bytes, msg_text)
++        self.assertNotIn('b%27', msg_bytes)
++        self.assertEqual(
++            msg_bytes,
++            'POST&https%3A%2F%2Fendpoint.com%2Fapi&key%3Dfoo',
++        )
++
++    def test_base_message_bytes_values_in_list(self):
++        msg_bytes = signing.create_base_message(
++            {'key': [b'foo', b'bar']}, self.url)
++        msg_text = signing.create_base_message(
++            {'key': [u'foo', u'bar']}, self.url)
++
++        self.assertEqual(msg_bytes, msg_text)
++
++    def test_base_message_non_ascii_bytes_value(self):
++        msg_bytes = signing.create_base_message(
++            {'key': u'valuĘ'.encode('utf-8')}, self.url)
++        msg_text = signing.create_base_message({'key': u'valuĘ'}, self.url)
++
++        self.assertEqual(msg_bytes, msg_text)
++
++    def test_sign_bytes_value_same_as_text(self):
++        sig_bytes = signing.sign(
++            self.secret, {'key': b'foo', 'other': [b'a', b'b']}, self.url)
++        sig_text = signing.sign(
++            self.secret, {'key': u'foo', 'other': [u'a', u'b']}, self.url)
++
++        self.assertEqual(sig_bytes, sig_text)
++
++    def test_non_string_values_still_stringified(self):
++        msg = signing.create_base_message({'key': 5}, self.url)
++        self.assertEqual(
++            msg, 'POST&https%3A%2F%2Fendpoint.com%2Fapi&key%3D5')
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,60 @@
+--- /dev/null
++++ b/pyls/tests/test_pyls_grader.py
+@@ -0,0 +1,48 @@
++from pyls import LanguageServer, uris
++
++
++class TestConfig:
++    """Test that various configurations work"""
++
++    def setup_method(self):
++        self.server = LanguageServer('/path/to/server')
++
++    def test_custom_style(self):
++        """Ensure custom styles are respected"""
++        self.server._config.update(
++            {'pycodestyle': {'max-line-length': 20}}
++        )
++        uri = uris.from_fs_path('/tmp/foo.py')
++        content = (
++            'import os\n'
++            'import sys\n'
++            'import subprocess\n'
++            'def foo():\n'
++            '    os.system("echo hello")\n'
++        )
++        params = {
++            'textDocument': {
++                'uri': uri,
++                'languageId': 'python',
++                'version': 1,
++                'text': content
++            }
++        }
++        response = self.server.lsp_document_did_open(params=params)
++        assert response['result'] == [
++            {
++                "source": "pycodestyle",
++                "range": {
++                    "start": {"line": 3, "character": 0},
++                    "end": {"line": 3, "character": 1}
++                },
++                "message": "E221 multiple spaces before operator",
++                "code": "E221"
++            }
++        ]
++
++    def test_no_config_found(self):
++        """If no config is found, don't crash"""
++        self.server._config.update({})
++        uri = uris.from_fs_path('/tmp/foo.py')
++        params = {
++            'textDocument': {
++                'uri': uri,
++                'languageId': 'python',
++                'version': 1,
++                'text': ''
++            }
++        }
++        response = self.server.lsp_document_did_open(params=params)
++        assert response['result'] == []

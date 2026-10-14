@@ -1,0 +1,313 @@
+--- /dev/null
++++ b/tests/test_entry_test_grader.py
+@@ -0,0 +1,100 @@
++import os
++from py_range_parse import Range
++from container_app_conf.entry.bool import BoolConfigEntry
++from container_app_conf.entry.date import DateConfigEntry
++from container_app_conf.entry.file import FileConfigEntry, DirectoryConfigEntry
++from container_app_conf.entry.float import FloatConfigEntry
++from container_app_conf.entry.int import IntConfigEntry
++from container_app_conf.entry.range import RangeConfigEntry
++from container_app_conf.entry.timedelta import TimeDeltaConfigEntry
++from tests import EntryTestBase
++
++
++class EntryTest(EntryTestBase):
++    @staticmethod
++    def test_file_entry():
++        config_entry = FileConfigEntry(yaml_path=["file"])
++        input_output = [
++            ("/tmp/test", "/tmp/test"),
++            ("./test", os.path.abspath("./test")),
++            ("/something/", AssertionError),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = FileConfigEntry(yaml_path=["file"],
++                                       check_existence=True)
++        input_output = [
++            ("/tmp/test", FileNotFoundError),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++    @staticmethod
++    def test_directory_entry():
++        config_entry = DirectoryConfigEntry(yaml_path=["directory"])
++        input_output = [
++            ("/tmp", "/tmp"),
++            ("./test", os.path.abspath("./test")),
++            ("/something/", "/something"),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = DirectoryConfigEntry(yaml_path=["directory"],
++                                            check_existence=True)
++
++        input_output = [
++            ("./", os.path.abspath("./")),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++    @staticmethod
++    def test_path_entry():
++        config_entry = PathConfigEntry(yaml_path=["path"])
++        input_output = [
++            ("/tmp/test", "/tmp/test"),
++            ("./test", os.path.abspath("./test")),
++            ("/something/", "/something"),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = PathConfigEntry(yaml_path=["path"],
++                                       check_existence=True)
++
++        input_output = [
++            ("./", os.path.abspath("./")),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++    @staticmethod
++    def test_pathlist_entry():
++        config_entry = PathListConfigEntry(item_type=PathConfigEntry,
++                                           yaml_path=["path_list"])
++        example1 = "/tmp/file"
++        example2 = "./file"
++        example3 = [example1, example2]
++        input_output = [
++            (None, None),
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = PathListConfigEntry(item_type=PathConfigEntry,
++                                           item_args={"check_existence": True},
++                                           yaml_path=["path_list"])
++        input_output = [
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
+--- /dev/null
++++ b/tests/test_list_entry_test_grader.py
+@@ -0,0 +1,100 @@
++import os
++from datetime import datetime
++from datetime import timedelta
++from dateutil.tz import tzutc
++from container_app_conf.entry.date import DateConfigEntry
++from container_app_conf.entry.file import FileConfigEntry
++from container_app_conf.entry.float import FloatConfigEntry
++from container_app_conf.entry.int import IntConfigEntry
++from container_app_conf.entry.list import ListConfigEntry
++from container_app_conf.entry.path import PathConfigEntry
++from container_app_conf.entry.timedelta import TimeDeltaConfigEntry
++from tests import EntryTestBase
++
++
++class ListEntryTest(EntryTestBase):
++    @staticmethod
++    def test_file_entry():
++        config_entry = ListConfigEntry(item_type=FileConfigEntry,
++                                       item_args={
++                                           "check_existence": False
++                                       },
++                                       yaml_path=["file_list"])
++        example1 = "/tmp/file"
++        example2 = "./file"
++        example3 = [example1, example2]
++        input_output = [
++            (None, None),
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = ListConfigEntry(item_type=FileConfigEntry,
++                                       item_args={"check_existence": True},
++                                       yaml_path=["file_list"])
++        input_output = [
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++    @staticmethod
++    def test_path_entry():
++        config_entry = ListConfigEntry(item_type=PathConfigEntry,
++                                       yaml_path=["path_list"])
++        example1 = "/tmp/file"
++        example2 = "./file"
++        example3 = [example1, example2]
++        input_output = [
++            (None, None),
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = ListConfigEntry(item_type=PathConfigEntry,
++                                       item_args={"check_existence": True},
++                                       yaml_path=["path_list"])
++        input_output = [
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++    @staticmethod
++    def test_pathlist_entry():
++        config_entry = ListConfigEntry(item_type=PathConfigEntry,
++                                       yaml_path=["path_list"])
++        example1 = "/tmp/file"
++        example2 = "./file"
++        example3 = [example1, example2]
++        input_output = [
++            (None, None),
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = ListConfigEntry(item_type=PathConfigEntry,
++                                       item_args={"check_existence": True},
++                                       yaml_path=["path_list"])
++        input_output = [
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
+--- /dev/null
++++ b/tests/test_path_entry_test_grader.py
+@@ -0,0 +1,100 @@
++import os
++from container_app_conf.entry.path import PathConfigEntry
++from tests import EntryTestBase
++
++
++class PathEntryTest(EntryTestBase):
++    @staticmethod
++    def test_path_entry():
++        config_entry = PathConfigEntry(yaml_path=["path"])
++        input_output = [
++            ("/tmp/test", "/tmp/test"),
++            ("./test", os.path.abspath("./test")),
++            ("/something/", "/something"),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = PathConfigEntry(yaml_path=["path"],
++                                       check_existence=True)
++
++        input_output = [
++            ("./", os.path.abspath("./")),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++    @staticmethod
++    def test_pathlist_entry():
++        config_entry = PathListConfigEntry(item_type=PathConfigEntry,
++                                           yaml_path=["path_list"])
++        example1 = "/tmp/file"
++        example2 = "./file"
++        example3 = [example1, example2]
++        input_output = [
++            (None, None),
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = PathListConfigEntry(item_type=PathConfigEntry,
++                                           item_args={"check_existence": True},
++                                           yaml_path=["path_list"])
++        input_output = [
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++
++class PathListEntryTest(EntryTestBase):
++    @staticmethod
++    def test_path_entry():
++        config_entry = PathListConfigEntry(item_type=PathConfigEntry,
++                                           yaml_path=["path_list"])
++        example1 = "/tmp/file"
++        example2 = "./file"
++        example3 = [example1, example2]
++        input_output = [
++            (None, None),
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = PathListConfigEntry(item_type=PathConfigEntry,
++                                           item_args={"check_existence": True},
++                                           yaml_path=["path_list"])
++        input_output = [
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++    @staticmethod
++    def test_pathlist_entry():
++        config_entry = PathListConfigEntry(item_type=PathConfigEntry,
++                                           yaml_path=["path_list"])
++        example1 = "/tmp/file"
++        example2 = "./file"
++        example3 = [example1, example2]
++        input_output = [
++            (None, None),
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = PathListConfigEntry(item_type=PathConfigEntry,
++                                           item_args={"check_existence": True},
++                                           yaml_path=["path_list"])
++        input_output = [
++            ([example1, example2], [os.path.abspath(example1), os.path.abspath(example2)]),
++            (example3, [os.path.abspath(example1), os.path.abspath(example2)]),
++            (",".join([example1, example2]), [os.path.abspath(example1), os.path.abspath(example2)])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)

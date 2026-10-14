@@ -1,0 +1,69 @@
+The diff below adds a test file that checks `from pyteal import *` no longer exports submodules. Both the `pyteal` package and `pyteal.ast` are checked. I have not run it.
+
+The tests cover three things:
+- No non-dunder name exported by the star import is a module.
+- No builtin (`int`, `bytes`, …) is replaced by a different object.
+- `int(5)` still returns `5` and `bytes(...)` still works, while public names such as `Int`, `Bytes`, `Seq`, `Txn`, `compileTeal`, `TealType` and `Expr` are still exported.
+
+On the current code, the first two fail because `int` and `bytes` are exported as submodules.
+
+```diff
+diff --git a/pyteal/star_import_test.py b/pyteal/star_import_test.py
+new file mode 100644
+--- /dev/null
++++ b/pyteal/star_import_test.py
+@@ -0,0 +1,56 @@
++import builtins
++import types
++
++
++def _star_namespace(module="pyteal"):
++    ns = {}
++    exec("from {} import *".format(module), ns)
++    return {k: v for k, v in ns.items() if not (k.startswith("__") and k.endswith("__"))}
++
++
++def test_star_import_exports_no_modules():
++    ns = _star_namespace()
++    modules = [k for k, v in ns.items() if isinstance(v, types.ModuleType)]
++    assert modules == []
++
++
++def test_star_import_does_not_shadow_builtins():
++    ns = _star_namespace()
++    for name, value in ns.items():
++        if hasattr(builtins, name):
++            assert value is getattr(builtins, name), name
++
++
++def test_int_builtin_still_works_after_star_import():
++    ns = {}
++    exec("from pyteal import *\nresult = int(5)", ns)
++    assert ns["result"] == 5
++
++
++def test_bytes_builtin_still_works_after_star_import():
++    ns = {}
++    exec("from pyteal import *\nresult = bytes([1, 2])", ns)
++    assert ns["result"] == b"\x01\x02"
++
++
++def test_ast_star_import_exports_no_modules():
++    ns = _star_namespace("pyteal.ast")
++    modules = [k for k, v in ns.items() if isinstance(v, types.ModuleType)]
++    assert modules == []
++
++
++def test_public_names_still_exported():
++    ns = _star_namespace()
++    for name in [
++        "Int",
++        "Bytes",
++        "Seq",
++        "Txn",
++        "compileTeal",
++        "TealType",
++        "Expr",
++    ]:
++        assert name in ns, name
+```

@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/tests/test_nodebookcore_grader.py
+@@ -0,0 +1,26 @@
++from __future__ import absolute_import
++import pandas as pd
++import pytest
++from nodebook.nodebookcore import ReferenceFinder, Nodebook, Node
++from nodebook.pickledict import PickleDict
++import ast
++
++
++class TestReferenceFinder(object):
++    @pytest.fixture()
++    def rf(self):
++        return ReferenceFinder()
++
++    def test_function_def(self, rf):
++        code_tree = ast.parse("""
++            def add(a, b):
++                return a + b
++        """)
++        rf.visit(code_tree)
++        assert rf.inputs == set()
++        assert rf.imports == set()
++        assert rf.locals == {'add', 'a', 'b'}
++
++
++if __name__ == '__main__':
++    pytest.main(['-v', '-s', __file__])

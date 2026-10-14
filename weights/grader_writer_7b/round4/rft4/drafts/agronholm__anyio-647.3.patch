@@ -1,0 +1,21 @@
+--- /dev/null
++++ b/tests/test_backends_grader.py
+@@ -0,0 +1,17 @@
++import asyncio
++import pytest
++
++
++@pytest.mark.parametrize("backend", ["asyncio", "trio"])
++def test_backend_options(backend):
++    """
++    Test that the backend options are being used properly.
++
++    We can't really test that the options are actually doing anything, but at least we can verify
++    that they're passed through correctly.
++    """
++    backend_options = {"foo": "bar"}
++    runner = asyncio.Runner(create_subprocess_exec_kwargs={"foo": "bar"})
++    assert runner._create_subprocess_exec_kwargs == backend_options
++
++    runner = asyncio.Runner(debug=True)
++    assert runner._debug is True

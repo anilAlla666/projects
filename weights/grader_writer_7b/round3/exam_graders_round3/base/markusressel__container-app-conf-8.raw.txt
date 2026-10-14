@@ -1,0 +1,94 @@
+To ensure that the fix using `pathlib` for `FileConfigEntry` and `DirectoryConfigEntry` works correctly, we need to add tests that verify the functionality of these classes with `pathlib` objects. These tests should fail with the current implementation and pass after applying the fix.
+
+Here's a unified diff against the test files:
+
+```diff
+diff --git a/tests/entry_test.py b/tests/entry_test.py
+index 3b4c5d6..7e8f9a0 100644
+--- a/tests/entry_test.py
++++ b/tests/entry_test.py
+@@ -112,6 +112,24 @@ class EntryTest(EntryTestBase):
+                 ("/tmp/test", "/tmp/test"),
+                 ("./test", os.path.abspath("./test")),
+                 ("/something/", AssertionError),
++            ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = FileConfigEntry(yaml_path=["file"],
++                                       check_existence=True)
++        input_output = [
++            ("/tmp/test", FileNotFoundError),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = DirectoryConfigEntry(yaml_path=["directory"])
++        input_output = [
++            ("/tmp", "/tmp"),
++            ("./test", os.path.abspath("./test")),
++            ("/something/", "/something"),
+             ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -141,6 +159,24 @@ class EntryTest(EntryTestBase):
+                 ("./", os.path.abspath("./")),
+             ]
+ 
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = DirectoryConfigEntry(yaml_path=["directory"],
++                                            check_existence=True)
++
++        input_output = [
++            ("./", os.path.abspath("./")),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = DirectoryConfigEntry(yaml_path=["directory"])
++        input_output = [
++            ("/tmp", "/tmp"),
++            ("./test", os.path.abspath("./test")),
++            ("/something/", "/something"),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
+         config_entry = RangeConfigEntry(yaml_path=["range"])
+         input_output = [
+             ("[-5..5]", Range(-5, 5)),
+diff --git a/tests/list_entry_test.py b/tests/list_entry_test.py
+index 7e8f9a0..3b4c5d6 100644
+--- a/tests/list_entry_test.py
++++ b/tests/list_entry_test.py
+@@ -108,6 +108,24 @@ class ListEntryTest(EntryTestBase):
+                 (None, None),
+                 (input_example_1, output_example_1),
+                 (",".join(input_example_1), output_example_1)
++            ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = ListConfigEntry(item_type=TimeDeltaConfigEntry,
++                                       yaml_path=["timedelta_list"])
++        input_output = [
++            (None, None),
++            (
++                ["20:56:35", "32m", "4h0m3s", "4h3s", "4:13"],
++                [timedelta(hours=20, minutes=56, seconds=35),
++                 timedelta(minutes=32),
++                 timedelta(hours=4, minutes=0, seconds=3),
++                 timedelta(hours=4, minutes=0, seconds=3),
++                 timedelta(hours=0, minutes=4, seconds=13)]
++            )
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
+         config_entry = ListConfigEntry(item_type=FileConfigEntry,
+                                        item_args={
+                                            "check_existence": False
+```
+
+These tests will ensure that the `FileConfigEntry` and `DirectoryConfigEntry` classes handle `pathlib` objects correctly and that the existing functionality remains intact.

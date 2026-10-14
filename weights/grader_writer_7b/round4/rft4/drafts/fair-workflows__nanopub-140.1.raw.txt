@@ -1,0 +1,43 @@
+--- /dev/null
++++ b/tests/test_setup_profile_grader.py
+@@ -0,0 +1,40 @@
++import pytest
++from click.testing import CliRunner
++
++
++@pytest.fixture()
++def runner():
++    return CliRunner()
++
++
++def test_provided_keypair_copied_to_nanopub_dir(runner):
++    """
++    Tests that when the user provides their own RSA keypair, it gets copied into the .nanopub directory.
++    """
++    pub_path = "/tmp/id_rsa.pub"
++    priv_path = "/tmp/id_rsa"
++
++    with runner.isolated_filesystem() as fs:
++        # Write out dummy RSA keys
++        with open(pub_path, "w") as f:
++            f.write("dummy")
++
++        with open(priv_path, "w") as f:
++            f.write("dummy")
++
++        result = runner.invoke(
++            setup_profile.main,
++            [
++                "--orcid-id",
++                "http://orcid.org/0000-0000-0000-0000",
++                "--keypair",
++                pub_path,
++                priv_path,
++            ],
++        )
++
++        assert result.exit_code == 0
++
++        # Confirm the RSA keys were written to the .nanopub directory
++        assert fs.exists(".nanopub/id_rsa.pub")
++        assert fs.exists(".nanopub/id_rsa")

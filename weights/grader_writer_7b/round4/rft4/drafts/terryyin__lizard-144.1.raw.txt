@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/test_lizard_grader.py
+@@ -0,0 +1,16 @@
++from lizard import FunctionInfo, analyze_file
++
++
++def get_functions_from_code(code):
++    file_info = analyze_file(None, None, code, False, False, False, True)
++    return file_info.function_list
++
++
++def test_ref_qualified():
++    code = """
++void foo() &;
++void foo() const &;
++void foo() &&;
++void foo() const &&;
++"""
++    assert len(get_functions_from_code(code)) == 4

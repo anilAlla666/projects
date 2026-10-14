@@ -1,0 +1,39 @@
+The new test file below checks that `sisotool` no longer triggers the Matplotlib `join` deprecation warning, and that the Bode magnitude and phase plots still share the x-axis. I haven't run it. On Matplotlib older than 3.6 the warning is never emitted, so the warning check would also pass on the current code there.
+
+The test calls `_SisotoolUpdate` a second time as well. A fix that switches to `sharex()` could fail on a repeat update, because the axes are already shared by then.
+
+
+<invoke name="bash">
+<parameter name="command">cat > control/tests/sisotool_join_test.py <<'EOF'
+"""Test that sisotool does not use deprecated matplotlib join()."""
+
+import warnings
+
+import matplotlib.pyplot as plt
+import pytest
+
+from control.sisotool import sisotool, _SisotoolUpdate
+from control.xferfcn import TransferFunction
+
+
+@pytest.mark.usefixtures("mplcleanup")
+def test_sisotool_no_join_deprecation_and_shared_axes():
+    from matplotlib import MatplotlibDeprecationWarning
+
+    sys = TransferFunction([1000], [1, 25, 100, 0])
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "error", message=".*join.*",
+            category=MatplotlibDeprecationWarning)
+        sisotool(sys)
+        fig = plt.gcf()
+        ax_mag, ax_phase = fig.axes[0], fig.axes[2]
+        assert ax_phase.get_shared_x_axes().joined(ax_phase, ax_mag)
+
+        # A second update (as done on a root locus click) must also work
+        _SisotoolUpdate(sys, fig, 1.5, dict(
+            dB=True, deg=True, Hz=False, grid=True, syslist=sys))
+        assert ax_phase.get_shared_x_axes().joined(ax_phase, ax_mag)
+EOF</parameter>
+</invoke>
+，

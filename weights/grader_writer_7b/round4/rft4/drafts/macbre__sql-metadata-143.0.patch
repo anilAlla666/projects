@@ -1,0 +1,42 @@
+--- /dev/null
++++ b/tests/test_parser_grader.py
+@@ -0,0 +1,36 @@
++import pytest
++from sql_metadata.parser import Parser
++
++
++def test_issue_304() -> None:
++    """
++    Test for #304
++    """
++    parser = Parser(
++        "SELECT t.val as value, count(*) FROM 0020_big_table as t WHERE id BETWEEN 10 AND 20 GROUP BY val"
++    )
++    assert parser.columns == ["val"]
++    assert parser.tables == ["0020_big_table"]
++
++
++@pytest.mark.parametrize(
++    "sql",
++    [
++        'SELECT t."value" as value, count(*) FROM 0020_big_table as t WHERE id BETWEEN 10 AND 20 GROUP BY val',
++        'SELECT t.`value` as value, count(*) FROM 0020_big_table as t WHERE id BETWEEN 10 AND 20 GROUP BY val',
++        'SELECT t.value as value, count(*) FROM 0020_big_table as t WHERE id BETWEEN 10 AND 20 GROUP BY val',
++    ],
++)
++def test_issue_304_quoted(sql: str) -> None:
++    """
++    Test for #304
++    """
++    parser = Parser(sql)
++    assert parser.columns == ["value"]
++    assert parser.tables == ["0020_big_table"]
++
++
++def test_issue_304_backtick() -> None:
++    """
++    Test for #304
++    """
++    parser = Parser("`SELECT t.val as value, count(*) FROM 0020_big_table as t WHERE id BETWEEN 10 AND 20 GROUP BY val`")
++    assert parser.columns == ["val"]
++    assert parser.tables == ["0020_big_table"]

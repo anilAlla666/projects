@@ -1,0 +1,57 @@
+--- /dev/null
++++ b/odmltables/tests/test_empty_csv_table.py
+@@ -0,0 +1,59 @@
++# -*- coding: utf-8 -*-
++"""
++Tests for loading a csv file that contains only a header.
++"""
++
++import os
++import unittest
++
++from odmltables.odml_csv_table import OdmlCsvTable
++from odmltables.odml_table import OdmlTable
++
++from .create_test_odmls import create_small_test_odml
++
++
++class TestLoadHeaderOnlyCsv(unittest.TestCase):
++    def setUp(self):
++        self.filename = 'testtable_header_only.csv'
++        self.fullname = 'testtable_full.csv'
++
++        table = OdmlCsvTable()
++        table.load_from_function(create_small_test_odml)
++        table.write2file(self.fullname)
++
++        with open(self.fullname, 'r') as f:
++            lines = f.readlines()
++
++        header_idx = None
++        for i, line in enumerate(lines):
++            if 'Path to Section' in line:
++                header_idx = i
++                break
++        self.assertIsNotNone(header_idx)
++
++        with open(self.filename, 'w') as f:
++            f.writelines(lines[:header_idx + 1])
++
++    def tearDown(self):
++        for fn in (self.filename, self.fullname):
++            if os.path.exists(fn):
++                os.remove(fn)
++
++    def test_load_header_only_csv(self):
++        table = OdmlCsvTable()
++        table.load_from_csv_table(self.filename)
++        self.assertEqual(len(table._odmldict), 0)
++
++    def test_load_header_only_csv_generic_table(self):
++        table = OdmlTable()
++        table.load_from_csv_table(self.filename)
++        self.assertEqual(len(table._odmldict), 0)
++
++
++if __name__ == '__main__':
++    unittest.main()

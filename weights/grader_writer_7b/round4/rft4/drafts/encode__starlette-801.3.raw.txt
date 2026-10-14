@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/tests/middleware/test_cors_grader.py
+@@ -0,0 +1,25 @@
++from starlette.applications import Starlette
++from starlette.middleware.cors import CORSMiddleware
++from starlette.responses import PlainTextResponse
++from starlette.testclient import TestClient
++
++
++def test_cors_validates_allow_origin_regex_pattern():
++    app = Starlette()
++
++    app.add_middleware(
++        CORSMiddleware,
++        allow_origins=["*"],
++        allow_origin_regex="^https://[a-z]+\\.example\\.com$",
++    )
++
++    @app.route("/")
++    def homepage(request):
++        return PlainTextResponse("Homepage", status_code=200)
++
++    client = TestClient(app)
++    response = client.options("/", headers={"Origin": "https://foo.example.com"})
++    assert response.status_code == 200
++    response = client.options("/", headers={"Origin": "https://example.com"})
++    assert response.status_code == 400

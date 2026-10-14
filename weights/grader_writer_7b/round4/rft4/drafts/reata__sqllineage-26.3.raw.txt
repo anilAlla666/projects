@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,47 @@
++import unittest
++
++
++class CoreTestCase(unittest.TestCase):
++    def test_empty_statement(self):
++        sql = """
++            SELECT 1;
++
++            -- SELECT 2;
++        """
++        parser = LineageParser(sql)
++        self.assertEqual(1, len(parser.statements))
++
++    def test_multiple_statements(self):
++        sql = """
++            SELECT 1;
++
++            SELECT 2;
++        """
++        parser = LineageParser(sql)
++        self.assertEqual(2, len(parser.statements))
++
++    def test_comments_in_middle_of_query(self):
++        sql = """
++            SELECT 1 FROM table1 WHERE column1 > 10;
++
++            -- This is a comment
++            SELECT 2 FROM table2 WHERE column2 < 10;
++        """
++        parser = LineageParser(sql)
++        self.assertEqual(2, len(parser.statements))
++
++    def test_comments_only(self):
++        sql = """
++            -- SELECT 1 FROM table1 WHERE column1 > 10;
++
++            -- This is a comment
++            -- SELECT 2 FROM table2 WHERE column2 < 10;
++        """
++        parser = LineageParser(sql)
++        self.assertEqual(0, len(parser.statements))
++
++    def test_trailing_comment(self):
++        sql = """
++            SELECT 1 FROM table1 WHERE column1 > 10;
++
++            -- This is a comment
++        """
++        parser = LineageParser(sql)
++        self.assertEqual(1, len(parser.statements))

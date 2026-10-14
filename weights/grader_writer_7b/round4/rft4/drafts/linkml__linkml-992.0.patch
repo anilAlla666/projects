@@ -1,0 +1,68 @@
+--- /dev/null
++++ b/tests/test_linter/test_cli_grader.py
+@@ -0,0 +1,64 @@
++import unittest
++from pathlib import Path
++from click.testing import CliRunner
++from linkml.linter.cli import main
++
++
++SCHEMA_FILE = "schema.yaml"
++
++
++def write_schema_file() -> None:
++    with open(SCHEMA_FILE, "w") as f:
++        f.write(
++            """
++id: http://example.org/test
++name: test
++
++slots:
++  age_in_years:
++    range: integer
++    minimum_value: 0
++    maximum_value: 999
++
++classes:
++  person:
++    description: a person
++    slots:
++      - age_in_years
++    
++  Adult:
++    is_a: person
++    slot_usage:
++      age_in_yeas:
++        minimum_value: 18
++"""
++        )
++
++
++def write_config_file(
++    name: str, extends_recommended: bool = False, tree_root_level: str = "error"
++) -> None:
++    config_text = """
++extends: recommended
++rules:
++  class_tree_root:
++    level: {}
++""".format(
++        tree_root_level
++    )
++    if extends_recommended:
++        config_text = "\nextends: recommended\n" + config_text
++
++    with open(name, "w") as f:
++        f.write(config_text)
++
++
++class TestLinterCLI(unittest.TestCase):
++    runner = CliRunner(mix_stderr=False)
++
++    def test_verbose(self):
++        with self.runner.isolated_filesystem():
++            with open(SCHEMA_FILE, "w") as f:
++                f.write("# test schema")
++            result = self.runner.invoke(main, ["--verbose", SCHEMA_FILE])
++            self.assertEqual(result.exit_code, 0)
++            self.assertIn(SCHEMA_FILE, result.stdout)

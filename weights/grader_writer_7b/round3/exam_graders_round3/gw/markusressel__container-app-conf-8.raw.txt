@@ -1,0 +1,337 @@
+diff --git a/tests/entry_test.py b/tests/entry_test.py
+index 0b0d0a5..f0e100c 100644
+--- a/tests/entry_test.py
++++ b/tests/entry_test.py
+@@ -127,7 +127,7 @@ class EntryTest(EntryTestBase):
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+ 
+-    @staticmethod
++    def test_directory_entry():
+         config_entry = DirectoryConfigEntry(yaml_path=["directory"])
+         input_output = [
+             ("/tmp", "/tmp"),
+@@ -146,7 +146,7 @@ class EntryTest(EntryTestBase):
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+-
++    
+     @staticmethod
+     def test_range_entry():
+         config_entry = RangeConfigEntry(yaml_path=["range"])
+diff --git a/tests/list_entry_test.py b/tests/list_entry_test.py
+index 0111194..1000000 100644
+--- a/tests/list_entry_test.py
++++ b/tests/list_entry_test.py
+@@ -95,10 +95,10 @@ class ListEntryTest(EntryTestBase):
+             (
+                 ["20:56:35", "32m", "4h0m3s", "4h3s", "4:13"],
+                 [timedelta(hours=20, minutes=56, seconds=35),
+-                 timedelta(minutes=32),
+-                 timedelta(hours=4, minutes=0, seconds=3),
+-                 timedelta(hours=4, minutes=0, seconds=3),
+-                 timedelta(hours=0, minutes=4, seconds=13)]
++                 timedelta(minutes=32, seconds=0),
++                 timedelta(hours=4, minutes=0, seconds=3),
++                 timedelta(hours=4, minutes=0, seconds=3),
++                 timedelta(hours=0, minutes=4, seconds=13)]
+             )
+         ]
+ 
+@@ -118,10 +118,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -138,10 +138,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -158,10 +158,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -178,10 +178,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -198,10 +198,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -218,10 +218,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -238,10 +238,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -258,10 +258,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -278,10 +278,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -298,10 +298,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -318,10 +318,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -338,10 +338,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -358,10 +358,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -378,10 +378,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -398,10 +398,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -418,10 +418,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -438,10 +438,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -458,10 +458,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -478,10 +478,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -498,10 +498,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -518,10 +518,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -538,10 +538,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+         ]
+ 
+         EntryTestBase.assert_input_output(config_entry, input_output)
+@@ -558,10 +558,10 @@ class ListEntryTest(EntryTestBase):
+             ([],
+              [],
+              ),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+             (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
+-            (["/tmp/file", "./file"], ["/tmp/file", "./file"]),
++           

@@ -1,0 +1,78 @@
+--- /dev/null
++++ b/tests/test_zip_files_grader.py
+@@ -0,0 +1,69 @@
++"""Tests for `zip-files` executable."""
++
++
++import io
++from pathlib import Path
++from zipfile import ZipInfo, ZipFile
++import pytest
++from click.testing import CliRunner
++from pkg_resources import parse_version
++from test_zip_folder import _check_exit_code, _prepare_folder_with_git_excludes
++from zip_files import __version__
++from zip_files.backend import _add_to_zip
++from zip_files.zip_files import zip_files
++
++
++ROOT = Path(__file__).parent / 'root'
++
++
++def test_zip_files_preserve_permissions(tmp_path):
++    """Test that file permissions are preserved when zipping files."""
++    runner = CliRunner()
++    outfile = tmp_path / 'archive.zip'
++    files = [ROOT / 'permissions']
++    result = runner.invoke(
++        zip_files,
++        ['--debug', '-o', str(outfile), '--preserve-permissions']
++        + [str(f) for f in files],
++    )
++    _check_exit_code(result)
++    expected_files = [
++        'permissions/a',
++        'permissions/b',
++    ]
++    with ZipFile(outfile) as zipfile:
++        zipfile.debug = 3
++        assert zipfile.testzip() is None
++        assert set(zipfile.namelist()) == set(expected_files)
++        info_a: ZipInfo = zipfile.getinfo('permissions/a')
++        info_b: ZipInfo = zipfile.getinfo('permissions/b')
++        assert info_a.external_attr & 0o111 != 0
++        assert info_b.external_attr & 0o111 == 0
++
++
++@pytest.mark.parametrize(
++    ('mode', 'expected_mode'),
++    (
++        ('', 0o000),
++        ('u', 0o000),
++        ('g', 0o000),
++        ('a', 0o000),
++        ('ug', 0o000),
++        ('ug+', 0o000),
++        ('ug+a', 0o000),
++        ('ug-a', 0o000),
++        ('ug-g', 0o000),
++        ('ug+rwx', 0o777),
++        ('ug-rwx', 0o000),
++        ('ug-w', 0o002),
++        ('ug-x', 0o001),
++        ('ug-X', 0o001),
++        ('ug-rw', 0o006),
++        ('ug-xx', 0o000),
++        ('ug-rwxrwxrwx', 0o777),
++        ('ug-rwxrwxrwx+', 0o777),
++        ('ug-rwxrwxrwx+a', 0o777),
++        ('ug-rwxrwxrwx-a', 0o777),
++        ('ug-rwxrwxrwx-g', 0o777),
++    ),
++)
++def test_add_to_zip_permission(mode, expected_mode):
++    """Test that permissions are preserved when adding files to a zip."""
++    with ZipFile(io.BytesIO(), 'w') as zipfile:
++        _add_to_zip(zipfile, Path('test'), None, [], False, Path('.'), mode=mode)
++        info = zipfile.getinfo('test')
++        assert info.external_attr & 0o777 == expected_mode

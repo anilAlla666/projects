@@ -1,0 +1,28 @@
+--- /dev/null
++++ b/test_algosdk/test_future_test_grader.py
+@@ -0,0 +1,24 @@
++import pytest
++from algosdk.future import transaction
++
++
++@pytest.fixture(scope="function")
++def dummy_asset_create_txn():
++    return transaction.AssetCreateTxn(
++        sender="A"*58,
++        sp={},
++        total=1000,
++        decimals=0,
++        default_frozen=True,
++        manager="A"*58,
++        reserve="A"*58,
++        freeze="A"*58,
++        clawback="A"*58,
++        unit_name="TEST",
++        asset_name="Test Asset",
++        url="https://test.com/",
++        metadata_hash=b"\x00"*32
++    )
++
++
++def test_dummy_asset_creation_is_valid(dummy_asset_create_txn):
++    assert dummy_asset_create_txn.isvalid()

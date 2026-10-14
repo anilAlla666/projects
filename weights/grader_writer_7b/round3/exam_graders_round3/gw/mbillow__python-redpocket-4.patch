@@ -1,0 +1,19 @@
+diff --git a/tests/test_api.py b/tests/test_api.py
+index 0f1b0e1..d0c0a26 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -257,6 +257,14 @@ def test_reauth_on_failure(successful_login: None):
+     with pytest.raises(RedPocketAuthError) as exc:
+         rp.get_lines()
+     assert exc.value.message == "Request failed even after re-authentication!"
++    assert len(responses.calls) == 4
++
++
++@responses.activate
++def test_get_details_type_param(successful_login: None):
++    responses.add(
++        responses.GET, "https://www.redpocket.com/account/get-details?id=FAKE&type=api", status=200
++    )
+ 
+ @responses.activate
+ def test_request_non_200(successful_login: None):

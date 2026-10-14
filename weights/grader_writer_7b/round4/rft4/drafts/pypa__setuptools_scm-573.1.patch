@@ -1,0 +1,62 @@
+--- /dev/null
++++ b/testing/test_version_grader.py
+@@ -0,0 +1,55 @@
++from datetime import date, timedelta
++import pytest
++from setuptools_scm.config import Configuration
++from setuptools_scm.version import (
++    meta,
++    simplified_semver_version,
++    release_branch_semver_version,
++    tags_to_versions,
++    no_guess_dev_version,
++    guess_next_version,
++    format_version,
++    calver_by_date,
++)
++
++
++c = Configuration()
++
++
++@pytest.mark.parametrize(
++    "version, expected_next",
++    [
++        pytest.param(meta("1.0.0", config=c), "1.0.0", id="SemVer exact"),
++        pytest.param(
++            meta("1.0.0", config=c, dirty=True),
++            "1.0.0",
++            id="SemVer dirty",
++            marks=pytest.mark.xfail,
++        ),
++        pytest.param(
++            meta("v1.0.0", config=c, dirty=True),
++            "1.0.0",
++            id="SemVer dirty with v prefix",
++            marks=pytest.mark.xfail,
++        ),
++    ],
++)
++def test_calver_by_date_semver(version, expected_next):
++    computed = calver_by_date(version)
++    assert computed == expected_next
++
++
++def date_to_str(**kwargs):
++    return calver_by_date(meta(date.today().strftime("%Y.%m.%d"), **kwargs))
++
++
++@pytest.mark.parametrize(
++    "version, expected_next",
++    [
++        pytest.param(
++            meta("v1.0.0", config=c, branch="v1.0.0", dirty=True),
++            "1.0.0",
++            id="SemVer dirty with v prefix",
++            marks=pytest.mark.xfail,
++        ),
++    ],
++)
++def test_release_branch_semver_version(version, expected_next):
++    computed = release_branch_semver_version(version)
++    assert computed == expected_next

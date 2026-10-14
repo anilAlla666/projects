@@ -1,0 +1,70 @@
+The diff below adds one new test file for the issue's example, plus two close variants. It has not been run against the current or fixed code.
+
+- **Semicolon:** I added a `;` after the class body in the issue's snippet. I could not tell whether the parser accepts a class without one, and I did not want the test to fail for that unrelated reason. The `KeyError` is raised in `finalize()`, so it should still reproduce.
+- **Return type:** The tests do not pin down what `rtnType` becomes after the fix. The issue does not say whether it should stay `A` or resolve to `C`. They only check that parsing succeeds, the class and method exist, and the return type is `A` or `C`.
+- **Variants:** One variant returns `A *` and the other returns `A` from a method of a class inside a namespace.
+
+```diff
+diff --git a/test/test_typedef_return_type.py b/test/test_typedef_return_type.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_typedef_return_type.py
+@@ -0,0 +1,56 @@
++# -*- coding: utf-8 -*-
++import unittest
++
++import CppHeaderParser as CppHeaderParser
++
++
++class TypedefReturnType_TestCase(unittest.TestCase):
++    def test_typedef_unknown_target_return(self):
++        h = """
++typedef C A;
++
++class B
++{
++public:
++   A aMethod();
++};
++"""
++        header = CppHeaderParser.CppHeader(h, "string")
++        self.assertIn("B", header.classes)
++        methods = header.classes["B"]["methods"]["public"]
++        self.assertEqual(1, len(methods))
++        self.assertEqual("aMethod", methods[0]["name"])
++        self.assertIn(methods[0]["rtnType"], ("A", "C"))
++
++    def test_typedef_pointer_return(self):
++        h = """
++typedef C A;
++
++class B
++{
++public:
++   A *aMethod();
++};
++"""
++        header = CppHeaderParser.CppHeader(h, "string")
++        methods = header.classes["B"]["methods"]["public"]
++        self.assertEqual(1, len(methods))
++        self.assertEqual("aMethod", methods[0]["name"])
++
++    def test_typedef_return_in_namespace(self):
++        h = """
++namespace N {
++typedef C A;
++
++class B
++{
++public:
++   A aMethod();
++};
++}
++"""
++        header = CppHeaderParser.CppHeader(h, "string")
++        self.assertIn("N::B", header.classes)
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

@@ -1,0 +1,137 @@
+--- /dev/null
++++ b/tests/test_ensembles_grader.py
+@@ -0,0 +1,127 @@
++import glob
++import os
++import sys
++import numpy as np
++import pandas as pd
++import pytest
++import xarray as xr
++from xclim import ensembles
++
++
++TESTS_HOME = os.path.abspath(os.path.dirname(__file__))
++
++
++TESTS_DATA = os.path.join(TESTS_HOME, "testdata")
++
++
++class TestEnsembleStats:
++    nc_files_simple = glob.glob(
++        os.path.join(TESTS_DATA, "EnsembleStats", "*1950-2100*.nc")
++    )
++
++    nc_files = glob.glob(os.path.join(TESTS_DATA, "EnsembleStats", "*.nc"))
++
++    nc_file = os.path.join(TESTS_DATA, "EnsembleStats", "pr_day_HadGEM3-GC31-MM_rcp45_r1i1p1_20050101-21001231.nc")  # noqa
++
++    def test_checktimes(self):
++        time_flag, time_all = ensembles._ens_checktimes(self.nc_files)
++        assert time_flag
++        assert pd.DatetimeIndex(time_all).min() == pd.Timestamp("1950-01-01 00:00:00")
++        assert pd.DatetimeIndex(time_all).max() == pd.Timestamp("2100-12-31 00:00:00")
++
++    def test_concat_ensemble(self):
++        # Use different chunk sizes for testing
++        chunksizes = [1, 2, 5, 10]
++        for chunksize in chunksizes:
++            ens = ensembles.create_ensemble(self.nc_files_simple, chunks=chunksize)
++            assert (
++                ens.realization.count().values == len(glob.glob(self.nc_files_simple[0]))
++            )
++            # Check that we can calculate the mean over realization without error
++            ens.mean(dim="realization").compute()
++
++    def test_concat_multifile_ensemble(self):
++        # Use different chunk sizes for testing
++        chunksizes = [1, 2, 5, 10]
++        for chunksize in chunksizes:
++            ens = ensembles.create_ensemble(
++                [[self.nc_files_simple[0]], [self.nc_files_simple[1]]],
++                chunks=chunksize,
++                mf_flag=True,
++            )
++            assert (
++                ens.realization.count().values == len(glob.glob(self.nc_files_simple[0]))
++            )
++            # Check that we can calculate the mean over realization without error
++            ens.mean(dim="realization").compute()
++
++    def test_concat_ensemble_timeflag(self):
++        # Use different chunk sizes for testing
++        chunksizes = [1, 2, 5, 10]
++        for chunksize in chunksizes:
++            ens = ensembles.create_ensemble(
++                self.nc_files_simple, time_flag=True, chunks=chunksize
++            )
++            assert (
++                ens.realization.count().values == len(glob.glob(self.nc_files_simple[0]))
++            )
++            # Check that we can calculate the mean over realization without error
++            ens.mean(dim="realization").compute()
++
++    def test_concat_multifile_ensemble_timeflag(self):
++        # Use different chunk sizes for testing
++        chunksizes = [1, 2, 5, 10]
++        for chunksize in chunksizes:
++            ens = ensembles.create_ensemble(
++                [[self.nc_files_simple[0]], [self.nc_files_simple[1]]],
++                time_flag=True,
++                chunks=chunksize,
++                mf_flag=True,
++            )
++            assert (
++                ens.realization.count().values == len(glob.glob(self.nc_files_simple[0]))
++            )
++            # Check that we can calculate the mean over realization without error
++            ens.mean(dim="realization").compute()
++
++    def test_concat_ensemble_missingdata(self):
++        # Create a copy of the simple ensemble files and remove the last data point from half of them
++        for f in self.nc_files_simple:
++            tmp = xr.open_dataset(f)
++            tmp.sel(realization=tmp.realization[tmp.realization % 2 == 0]).drop_dims(
++                ["realization"]
++            ).to_netcdf(os.path.join(TESTS_DATA, "EnsembleStats", "tmp_" + f.split("/")[-1]))  # noqa
++        try:
++            ens = ensembles.create_ensemble(
++                [os.path.join(TESTS_DATA, "EnsembleStats", "tmp_" + f.split("/")[-1]) for f in self.nc_files_simple],  # noqa
++                chunks=1,
++            )
++            assert (
++                ens.realization.count().values
++                == len(glob.glob(os.path.join(TESTS_DATA, "EnsembleStats", "tmp_" + self.nc_files_simple[0])))
++            )
++            # Check that we can calculate the mean over realization without error
++            ens.mean(dim="realization").compute()
++        finally:
++            # Delete temporary files
++            for f in self.nc_files_simple:
++                os.remove(os.path.join(TESTS_DATA, "EnsembleStats", "tmp_" + f.split("/")[-1]))  # noqa
++
++    def test_concat_multifile_ensemble_missingdata(self):
++        # Create a copy of the simple ensemble files and remove the last data point from half of them
++        for f in self.nc_files_simple:
++            tmp = xr.open_dataset(f)
++            tmp.sel(realization=tmp.realization[tmp.realization % 2 == 0]).drop_dims(
++                ["realization"]
++            ).to_netcdf(os.path.join(TESTS_DATA, "EnsembleStats", "tmp_" + f.split("/")[-1]))  # noqa
++        try:
++            ens = ensembles.create_ensemble(
++                [
++                    [os.path.join(TESTS_DATA, "EnsembleStats", "tmp_" + f.split("/")[-1]) for f in self.nc_files_simple],
++                ],
++                chunks=1,
++                mf_flag=True,
++            )
++            assert (
++                ens.realization.count().values
++                == len(glob.glob(os.path.join(TESTS_DATA, "EnsembleStats", "tmp_" + self.nc_files_simple[0])))
++            )
++            # Check that we can calculate the mean over realization without error
++            ens.mean(dim="realization").compute()
++        finally:
++            # Delete temporary files
++            for f in self.nc_files_simple:
++                os.remove(os.path.join(TESTS_DATA, "EnsembleStats", "tmp_" + f.split("/")[-1]))  # noqa

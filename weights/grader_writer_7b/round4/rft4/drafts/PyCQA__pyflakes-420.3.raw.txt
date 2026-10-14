@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/pyflakes/test/test_checker_grader.py
+@@ -0,0 +1,34 @@
++import ast
++import sys
++from pyflakes import checker
++from pyflakes.test.harness import TestCase, skipIf
++
++
++class TypeCommentTest(TestCase):
++    @skipIf(PY2, "No support for type comments")
++    def test_type_comment_in_docstring(self):
++        """
++        A type comment inside a docstring should not cause a syntax error.
++        """
++        self.flake(
++            """
++def foo():
++    \"\"\"
++    # type: ignore
++    \"\"\"""",  # line: 1
++            lineno=3
++        )
++
++    @skipIf(PY2, "No support for type comments")
++    def test_type_comment_before_docstring(self):
++        """
++        A type comment before a docstring should not cause a syntax error.
++        """
++        self.flake(
++            """
++# type: ignore
++def foo():
++    \"\"\"docstring\"\"\"""",  # line: 1
++            lineno=3
++        )

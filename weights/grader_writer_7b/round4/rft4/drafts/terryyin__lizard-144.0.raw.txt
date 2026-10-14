@@ -1,0 +1,25 @@
+--- /dev/null
++++ b/tests/test_lizard_grader.py
+@@ -0,0 +1,22 @@
++import unittest
++
++
++from lizard import FunctionData
++from lizard_languages import clike
++
++
++class TestCPlusPlusRefQualifiedFunctions(unittest.TestCase):
++    def test_ref_qualification_is_detected_correctly(self):
++        source_code = """
++            struct A {
++                void foo() & {};
++                void foo() const & {};
++                void foo() && {};
++                void foo() const && {};
++            };
++        """
++        result = list(clike.get_functions(source_code))
++        self.assertEqual(4, len(result))
++        for function in result:
++            self.assertIsInstance(function, FunctionData)
++            self.assertTrue(function.is_member)

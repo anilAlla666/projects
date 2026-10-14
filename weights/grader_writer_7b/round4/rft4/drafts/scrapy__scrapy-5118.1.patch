@@ -1,0 +1,61 @@
+--- /dev/null
++++ b/tests/test_mail_grader.py
+@@ -0,0 +1,59 @@
++import unittest
++from email.charset import Charset
++from io import BytesIO
++from twisted import version as twisted_version
++from twisted.internet import defer
++from twisted.internet._sslverify import ClientTLSOptions
++from twisted.internet.ssl import ClientContextFactory
++from twisted.python.versions import Version
++from scrapy.mail import MailSender
++
++
++class MailSenderTest(unittest.TestCase):
++    def setUp(self):
++        self.catched_msg = None
++
++    def _catch_mail_sent(self, *args, **kwargs):
++        self.catched_msg = kwargs
++
++    def test_send_attach_utf8(self):
++        subject = "sübjèçt"
++        body = "bödÿ-àéïöñß"
++        attach = BytesIO()
++        attach.write(body.encode("utf-8"))
++        attach.seek(0)
++        attachs = [("attachment", "text/plain", attach)]
++
++        mailsender = MailSender(debug=True)
++        mailsender.send(
++            to=["test@scrapy.org"],
++            subject=subject,
++            body=body,
++            attachs=attachs,
++            charset="utf-8",
++            _callback=self._catch_mail_sent,
++        )
++
++        assert self.catched_msg
++        self.assertEqual(self.catched_msg["subject"], subject)
++        self.assertEqual(self.catched_msg["body"], body)
++
++        msg = self.catched_msg["msg"]
++        self.assertEqual(msg["subject"], subject)
++        self.assertEqual(msg.get_charset(), Charset("utf-8"))
++        self.assertEqual(msg.get("Content-Type"), 'multipart/mixed; charset="utf-8"')
++
++        payload = msg.get_payload()
++        assert isinstance(payload, list)
++        self.assertEqual(len(payload), 2)
++
++        text, attach = payload
++        self.assertEqual(text.get_payload(decode=True).decode("utf-8"), body)
++        self.assertEqual(text.get_charset(), Charset("utf-8"))
++        self.assertEqual(attach.get_payload(decode=True).decode("utf-8"), body)
++        self.assertFalse(attach.get_param("encoding") == "base64")
++
++
++if __name__ == "__main__":
++    unittest.main()

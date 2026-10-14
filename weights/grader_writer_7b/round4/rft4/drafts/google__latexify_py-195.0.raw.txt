@@ -1,0 +1,78 @@
+--- /dev/null
++++ b/src/latexify/codegen/test_expression_codegen_test_grader.py
+@@ -0,0 +1,50 @@
++"""Tests for latexify.codegen.expression_codegen."""
++
++
++from __future__ import annotations
++import ast
++import pytest
++from latexify import ast_utils, exceptions, test_utils
++from latexify.codegen import expression_codegen
++
++
++@pytest.mark.parametrize(
++    "code,latex",
++    [
++        ("np.exp(a/b)", r"\exp \mathopen{}\left( \frac{a}{b} \mathclose{}\right)"),
++        (
++            "np.exp(np.sqrt(a/b))",
++            r"\exp \mathopen{}\left( \sqrt{\frac{a}{b}} \mathclose{}\right)",
++        ),
++        (
++            "np.log(a/b)",
++            r"\log \mathopen{}\left( \frac{a}{b} \mathclose{}\right)",
++        ),
++        (
++            "np.log(np.sqrt(a/b))",
++            r"\log \mathopen{}\left( \sqrt{\frac{a}{b}} \mathclose{}\right)",
++        ),
++        (
++            "np.log1p(np.exp(c/d))",
++            r"\log1p \mathopen{}\left( \exp \mathopen{}\left( \frac{c}{d} \mathclose{}\right) \mathclose{}\right)",
++        ),
++        (
++            "np.log1p(np.exp(np.sqrt(c/d)))",
++            r"\log1p \mathopen{}\left( \exp \mathopen{}\left( \sqrt{\frac{c}{d}} \mathclose{}\right) \mathclose{}\right)",
++        ),
++        (
++            "np.arctan2(np.exp(c/d), np.exp(e/f))",
++            r"\arctan2 \mathopen{}\left( \exp \mathopen{}\left( \frac{c}{d} \mathclose{}\right),"
++            r" \exp \mathopen{}\left( \frac{e}{f} \mathclose{}\right) \mathclose{}\right)",
++        ),
++        (
++            "np.arctan2(np.exp(c/d), np.exp(np.sqrt(e/f)))",
++            r"\arctan2 \mathopen{}\left( \exp \mathopen{}\left( \frac{c}{d} \mathclose{}\right),"
++            r" \exp \mathopen{}\left( \sqrt{\frac{e}{f}} \mathclose{}\right) \mathclose{}\right)",
++        ),
++    ],
++)
++def test_log_exp_sqrt(code: str, latex: str) -> None:
++    node = ast_utils.parse_expr(code)
++    assert isinstance(node, ast.Call)
++    assert expression_codegen.ExpressionCodegen().visit(node) == latex
+--- /dev/null
++++ b/src/latexify/codegen/test_codegen_utils_test_grader.py
+@@ -0,0 +1,21 @@
++"""Tests for latexify.codegen.codegen_utils."""
++
++
++from __future__ import annotations
++from typing import Any
++import pytest
++from latexify import exceptions
++from latexify.codegen.codegen_utils import convert_constant
++
++
++def test_convert_constant_unsupported_constant() -> None:
++    with pytest.raises(
++        exceptions.LatexifyNotSupportedError, match="^Unrecognized constant:"
++    ):
++        convert_constant({})
++
++
++def test_convert_constant_unsupported_type() -> None:
++    with pytest.raises(
++        exceptions.LatexifyNotSupportedError, match="^Unrecognized type:"
++    ):
++        convert_constant(test_utils.NonStringClass())

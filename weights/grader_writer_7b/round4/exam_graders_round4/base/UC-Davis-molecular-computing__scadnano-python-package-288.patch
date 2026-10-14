@@ -1,0 +1,25 @@
+diff --git a/tests/test_vendor_dna_sequence.py b/tests/test_vendor_dna_sequence.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_vendor_dna_sequence.py
+@@ -0,0 +1,60 @@
++import unittest
++from scadnano import Design, Helix, Strand, Extension, Loopout
++
++class TestVendorDnaSequence(unittest.TestCase):
++    def test_extension_dna_sequence(self):
++        design = Design(helices=[Helix(max_offset=100)])
++        strand = design.draw_strand(0, 0).extension_5p(3).move(5).with_sequence('TTT' + 'AAAAA')
++        contents = design.to_idt_bulk_input_format()
++        expected_sequence = 'TTTAAAAA'
++        self.assertIn(expected_sequence, contents)
++
++    def test_loopout_dna_sequence(self):
++        design = Design(helices=[Helix(max_offset=100), Helix(max_offset=100)])
++        strand = design.draw_strand(0, 0).move(5).loopout(1, 3).move(-5).with_sequence('AAAAA' + 'TTT' + 'AAAAA')
++        contents = design.to_idt_bulk_input_format()
++        expected_sequence = 'AAAAATTTAAAAA'
++        self.assertIn(expected_sequence, contents)
++
++if __name__ == '__main__':
++    unittest.main()

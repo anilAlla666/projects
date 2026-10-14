@@ -1,0 +1,34 @@
+diff --git a/tests/test_profile.py b/tests/test_profile.py
+index 0e11000..0010000 100644
+--- a/tests/test_profile.py
++++ b/tests/test_profile.py
+@@ -1,4 +1,5 @@
+ import unittest
++import sys
+ 
+ from precis_i18n.profile import (
+     Username,
+@@ -10,6 +11,10 @@ from precis_i18n.profile import (
+     FreeFormClass,
+ )
+ 
++# For testing the unicode version of the strip() method
++if sys.version_info >= (3, 9):
++    from unicodedata import normalize
++
+ 
+ class TestProfile(unittest.TestCase):
+     def setUp(self):
+@@ -110,6 +115,12 @@ class TestUsername(unittest.TestCase):
+         self.assertEqual(result, "abc")
+ 
+ 
++class TestNickname(unittest.TestCase):
++    def test_additional_mapping_rule(self):
++        result = Nickname.additional_mapping_rule(" a\n", None)
++        self.assertEqual(result, "a ")
++
++
+ class TestFreeFormClass(unittest.TestCase):
+     def test_normalize(self):
+         result = FreeFormClass.normalize("NFKC", "abc")

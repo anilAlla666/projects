@@ -1,0 +1,39 @@
+diff --git a/tests/test_redshift_credentials.py b/tests/test_redshift_credentials.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_redshift_credentials.py
+@@ -0,0 +1,45 @@
++import unittest
++from parliament import is_arn_match
++
++class TestRedshiftCredentials(unittest.TestCase):
++    def test_redshift_getclustercredentials(self):
++        arn_format = "arn:*:redshift:*:*:dbuser:*/*"
++        resource = "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/the_user"
++
++        # Expected result is True since the ARNs match
++        self.assertTrue(is_arn_match("dbuser", arn_format, resource))
++
++    def test_redshift_getclustercredentials_mismatch(self):
++        arn_format = "arn:*:redshift:*:*:dbuser:*/*"
++        resource = "arn:aws:redshift:us-west-2:123456789012:dbuser:another_cluster/the_user"
++
++        # Expected result is False since the ARNs do not match
++        self.assertFalse(is_arn_match("dbuser", arn_format, resource))
++
++    def test_redshift_getclustercredentials_wildcard_resource(self):
++        arn_format = "arn:*:redshift:*:*:dbuser:*/*"
++        resource = "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/*"
++
++        # Expected result is True since the ARNs match
++        self.assertTrue(is_arn_match("dbuser", arn_format, resource))
++
++    def test_redshift_getclustercredentials_wildcard_arn_format(self):
++        arn_format = "arn:*:redshift:*:*:dbuser:*/*"
++        resource = "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/the_user"
++
++        # Expected result is True since the ARNs match
++        self.assertTrue(is_arn_match("dbuser", arn_format, resource))
++
++if __name__ == '__main__':
++    unittest.main()

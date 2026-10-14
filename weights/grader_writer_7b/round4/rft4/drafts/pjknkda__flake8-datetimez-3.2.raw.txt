@@ -1,0 +1,24 @@
+--- /dev/null
++++ b/test_flake8_datetimez_grader.py
+@@ -0,0 +1,16 @@
++import pytest
++
++
++def test_dtz007_no_z():
++    """Test that DTZ007 does not trigger when using "%Z"."""
++    assert (
++        "from datetime import datetime\n"
++        'datetime.strptime("2019-01-01T00:00:00", "%Y-%m-%dT%H:%M:%S").replace(tzinfo="UTC")'
++    ) == pytest.helpers.run_flake8('--select DTZ007 --ignore DTZ001',
++                                   "from datetime import datetime\n"
++                                   'datetime.strptime("2019-01-01T00:00:00", "%Y-%m-%dT%H:%M:%S%Z").replace(tzinfo="UTC")')
++
++
++def test_dtz007_no_z_with_colon():
++    """Test that DTZ007 does not trigger when using "%Z" with colons."""
++    assert (
++        "from datetime import datetime\n"
++        'datetime.strptime("2019-01-01T00:00:00", "%Y-%m-%dT%H:%M:%S%Z")'
++    ) == pytest.helpers.run_flake8('--select DTZ007 --ignore DTZ001',
++                                   "from datetime import datetime\n"
++                                   'datetime.strptime("2019-01-01T00:00:00", "%Y-%m-%dT%H:%M:%S%Z%z")')

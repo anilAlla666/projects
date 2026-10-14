@@ -1,0 +1,91 @@
+I've added a new test file covering generator input to both `Combiner` and `combine`. I haven't run it. On the current code, `Combiner` should fail on a generator because the validation loop consumes it before `len(ccd_list)` is called. The `combine` tests should fail the same way if `combine` passes the generator through to `Combiner`, which I couldn't check because its source wasn't shown.
+
+The tests compare generator results against list results rather than fixed numbers. They also check that a non-`CCDData` item in a generator still raises `TypeError`. They only use generators of `CCDData` objects, so they don't assume anything about generators of file names.
+
+```diff
+--- /dev/null
++++ b/ccdproc/tests/test_combiner_generator.py
+@@ -0,0 +1,75 @@
++# Licensed under a 3-clause BSD style license - see LICENSE.rst
++
++import numpy as np
++import pytest
++
++from astropy.nddata import CCDData
++
++from ccdproc.combiner import Combiner, combine
++
++
++def _make_ccds():
++    values = [1.0, 2.0, 3.0, 10.0]
++    return [CCDData(np.ones((5, 6)) * v, unit="adu") for v in values]
++
++
++def _gen(ccds):
++    for c in ccds:
++        yield c
++
++
++def test_combiner_accepts_generator_average():
++    ccds = _make_ccds()
++    expected = Combiner(ccds).average_combine()
++    result = Combiner(_gen(ccds)).average_combine()
++    np.testing.assert_allclose(result.data, expected.data)
++    assert result.unit == expected.unit
++    np.testing.assert_allclose(result.data, 4.0)
++
++
++def test_combiner_accepts_generator_expression_median():
++    ccds = _make_ccds()
++    expected = Combiner(ccds).median_combine()
++    result = Combiner(c for c in ccds).median_combine()
++    np.testing.assert_allclose(result.data, expected.data)
++
++
++def test_combiner_generator_data_shape():
++    ccds = _make_ccds()
++    c = Combiner(_gen(ccds))
++    assert c.data_arr.shape == (4,) + ccds[0].shape
++    for i, ccd in enumerate(ccds):
++        np.testing.assert_allclose(c.data_arr[i].data, ccd.data)
++
++
++def test_combiner_generator_with_rejection():
++    ccds = _make_ccds()
++    c1 = Combiner(ccds)
++    c1.sigma_clipping(low_thresh=None, high_thresh=1, func=np.ma.median)
++    c2 = Combiner(_gen(ccds))
++    c2.sigma_clipping(low_thresh=None, high_thresh=1, func=np.ma.median)
++    np.testing.assert_allclose(c1.average_combine().data,
++                               c2.average_combine().data)
++
++
++def test_combiner_generator_bad_object_raises():
++    ccds = _make_ccds()
++
++    def bad():
++        for c in ccds:
++            yield c
++        yield None
++
++    with pytest.raises(TypeError):
++        Combiner(bad())
++
++
++@pytest.mark.parametrize('method', ['average', 'median'])
++def test_combine_accepts_generator(method):
++    ccds = _make_ccds()
++    expected = combine(ccds, method=method)
++    result = combine(_gen(ccds), method=method)
++    np.testing.assert_allclose(result.data, expected.data)
++    assert result.unit == expected.unit
++
++
++def test_combine_accepts_generator_expression_with_clipping():
++    ccds = _make_ccds()
++    expected = combine(ccds, method='average', clip_extrema=True,
++                       nlow=1, nhigh=1)
++    result = combine((c for c in ccds), method='average', clip_extrema=True,
++                     nlow=1, nhigh=1)
++    np.testing.assert_allclose(result.data, expected.data)
+```

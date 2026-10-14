@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/test_flake8_datetimez_grader.py
+@@ -0,0 +1,34 @@
++import pytest
++
++
++@pytest.mark.parametrize("code", [
++    "datetime.datetime.now(tz=None)",
++    "datetime.datetime.now(tz=pytz.UTC)",
++    "datetime.datetime.now(tz=datetime.timezone.utc)",
++])
++def test_dtz005(code):
++    """DTZ005 The use of `datetime.datetime.now()` without `tz` argument is not allowed."""
++    assert [1] == list(pytest.capsys_run(flake8, args=[code]).out.splitlines())
++
++
++@pytest.mark.parametrize("code", [
++    "datetime.datetime.fromtimestamp(1234, tz=None)",
++    "datetime.datetime.fromtimestamp(1234, tz=pytz.UTC)",
++    "datetime.datetime.fromtimestamp(1234, tz=datetime.timezone.utc)",
++])
++def test_dtz006(code):
++    """DTZ006 The use of `datetime.datetime.fromtimestamp()` without `tz` argument is not allowed."""
++    assert [1] == list(pytest.capsys_run(flake8, args=[code]).out.splitlines())
++
++
++@pytest.mark.parametrize("code", [
++    "datetime.datetime.strptime('', '%z')",
++    "datetime.datetime.strptime('', '%z').replace(tzinfo=pytz.UTC)",
++    "datetime.datetime.strptime('', '%z').replace(tzinfo=datetime.timezone.utc)",
++    "datetime.datetime.strptime('', '%z').replace(tzinfo=None)",
++])
++def test_dtz007(code):
++    """DTZ007 The use of `datetime.datetime.strptime()` must be followed by `.replace(tzinfo=)`."""
++    assert [] == list(pytest.capsys_run(flake8, args=[code]).out.splitlines())

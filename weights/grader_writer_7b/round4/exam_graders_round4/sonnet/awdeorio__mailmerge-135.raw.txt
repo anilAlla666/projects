@@ -1,0 +1,61 @@
+I've added a test file that exercises `read_csv_database` directly with a UTF-8 BOM and CRLF line endings, matching the issue. I haven't run it. On the current code the first header key comes back as `'\ufeffname'`, so the BOM tests should fail. They should pass once the BOM is stripped.
+
+I called `read_csv_database` directly rather than going through the CLI, because I wasn't sure how the existing tests invoke `main`. The data is ASCII apart from the BOM, so the tests don't depend on locale or the choice of encoding.
+
+```diff
+--- /dev/null
++++ b/tests/test_csv_bom.py
+@@ -0,0 +1,56 @@
++"""
++Tests for reading a CSV database that begins with a Byte Order Mark (BOM).
++
++Excel sometimes saves CSV files with a UTF-8 BOM.  The first header key must
++still be recognized.
++"""
++import tempfile
++from pathlib import Path
++
++from mailmerge.__main__ import read_csv_database
++
++
++def _read(content):
++    """Write bytes to a temporary CSV file and return the parsed rows."""
++    with tempfile.TemporaryDirectory() as tmpdir:
++        path = Path(tmpdir) / "mailmerge_database.csv"
++        path.write_bytes(content)
++        return list(read_csv_database(path))
++
++
++def test_csv_with_bom_first_key():
++    """The first header must not contain the BOM."""
++    rows = _read(
++        b"\xef\xbb\xbfname,email\r\n"
++        b"My Name,to@test.com\r\n"
++    )
++    assert len(rows) == 1
++    assert list(rows[0].keys()) == ["name", "email"]
++    assert rows[0]["name"] == "My Name"
++    assert rows[0]["email"] == "to@test.com"
++
++
++def test_csv_with_bom_multiple_rows():
++    """Multiple rows are all keyed by clean header names."""
++    rows = _read(
++        b"\xef\xbb\xbfname,email\n"
++        b"A,a@test.com\n"
++        b"B,b@test.com\n"
++    )
++    assert [row["name"] for row in rows] == ["A", "B"]
++    assert [row["email"] for row in rows] == ["a@test.com", "b@test.com"]
++
++
++def test_csv_without_bom_still_works():
++    """A plain CSV without BOM is unaffected."""
++    rows = _read(
++        b"name,email\r\n"
++        b"My Name,to@test.com\r\n"
++    )
++    assert len(rows) == 1
++    assert list(rows[0].keys()) == ["name", "email"]
++    assert rows[0]["name"] == "My Name"
+```

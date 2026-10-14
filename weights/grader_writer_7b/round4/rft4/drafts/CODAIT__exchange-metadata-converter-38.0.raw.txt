@@ -1,0 +1,37 @@
+--- /dev/null
++++ b/tests/test_convert_to_dlf_grader.py
+@@ -0,0 +1,31 @@
++from ruamel.yaml import YAML
++from exchange_metadata_converter.converters.dlf import DatasetConverter
++
++
++def test_dataset_name():
++    """
++    Test dataset name conversion.
++    """
++    input_yaml = {
++        'description': 'A financial dataset',
++        'title': 'Finance Proposition Bank',
++        'version': '1.0'
++    }
++    converter = DatasetConverter(input_yaml)
++    output_yaml = converter.convert_to_dlf()
++
++    assert isinstance(output_yaml, dict)
++    assert output_yaml['metadata']['name'] == 'finance-proposition-bank'
++    assert output_yaml['spec']['description'] == 'A financial dataset'
++    assert output_yaml['spec']['title'] == 'Finance Proposition Bank'
++    assert output_yaml['spec']['version'] == '1.0'
++
++
++def test_dataset_name_with_non_ascii_chars():
++    """
++    Test dataset name conversion with non ASCII chars.
++    """
++    input_yaml = {
++        'description': 'A financial dataset',
++        'title': 'Finançal Propoçitoin Bãnk',
++        'version': '1.0'
++    }
++    converter = DatasetConverter(input_yaml)
++    output_yaml = converter.convert_to_dlf()

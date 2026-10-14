@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/pysmt/test/test_formula_grader.py
+@@ -0,0 +1,45 @@
++from fractions import Fraction
++from six.moves import xrange
++import pysmt
++from pysmt.typing import BOOL, REAL, INT, FunctionType, BV8, BVType
++from pysmt.shortcuts import Symbol, is_sat, Not, Implies, GT, Plus, Int, Real
++from pysmt.shortcuts import Minus, Times, Xor, And, Or, TRUE
++from pysmt.shortcuts import get_env
++from pysmt.environment import Environment
++from pysmt.test import TestCase, skipIfNoSolverForLogic, main
++from pysmt.logics import QF_BOOL
++from pysmt.exceptions import NonLinearError, UndefinedSymbolError
++from pysmt.formula import FormulaManager
++
++
++class TestShortcuts(TestCase):
++    def test_at_most_one(self):
++        mgr = get_env().formula_manager
++        p = mgr.Symbol("p", BOOL)
++        q = mgr.Symbol("q", BOOL)
++        r = mgr.Symbol("r", BOOL)
++
++        atmostone = mgr.AtMostOne(p, q, r)
++        expected = mgr.And(mgr.Implies(p, mgr.Not(mgr.Or(q, r))),
++                           mgr.Implies(q, mgr.Not(r)),
++                           mgr.Not(mgr.And(p, q)),
++                           mgr.Not(mgr.And(p, r)),
++                           mgr.Not(mgr.And(q, r)))
++
++        self.assertEqual(atmostone, expected)
++
++    def test_exactly_one(self):
++        mgr = get_env().formula_manager
++        p = mgr.Symbol("p", BOOL)
++        q = mgr.Symbol("q", BOOL)
++        r = mgr.Symbol("r", BOOL)
++
++        exactlyone = mgr.ExactlyOne(p, q, r)
++        expected = mgr.And(mgr.Or(p, q, r),
++                           mgr.And(mgr.Implies(p, mgr.Not(mgr.Or(q, r))),
++                                   mgr.Implies(q, mgr.Not(r)),
++                                   mgr.Not(mgr.And(p, q)),
++                                   mgr.Not(mgr.And(p, r)),
++                                   mgr.Not(mgr.And(q, r))))
++
++        self.assertEqual(exactlyone, expected)
++
++
++if __name__ == '__main__':
++    main()

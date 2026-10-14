@@ -1,0 +1,46 @@
+--- /dev/null
++++ b/tests/test_scval_grader.py
+@@ -0,0 +1,39 @@
++import pytest
++from stellar_sdk import xdr
++from stellar_sdk import xdr as stellar_xdr
++from stellar_sdk.address import Address
++from stellar_sdk.scval import *
++
++
++def test_struct():
++    v = {
++        "data1": to_int32(1),
++        "data2": to_int256(23423432),
++        "data3": to_string("world"),
++        "data4": to_vec([to_int32(1), to_int256(23423432), to_string("world")]),
++        "data5": to_struct(
++            {
++                "inner_data1": to_int32(1),
++                "inner_data2": to_int256(23423432),
++            }
++        ),
++    }
++    scval = to_struct(v)
++    expected_scval = xdr.SCVal(
++        stellar_xdr.SCValType.SCV_MAP,
++        map=xdr.SCMap(
++            [
++                xdr.SCMapEntry(to_symbol("data1"), to_int32(1)),
++                xdr.SCMapEntry(to_symbol("data2"), to_int256(23423432)),
++                xdr.SCMapEntry(to_symbol("data3"), to_string("world")),
++                xdr.SCMapEntry(
++                    to_symbol("data4"),
++                    to_vec([to_int32(1), to_int256(23423432), to_string("world")]),
++                ),
++                xdr.SCMapEntry(
++                    to_symbol("data5"),
++                    to_struct(
++                        {"inner_data1": to_int32(1), "inner_data2": to_int256(23423432)}
++                    ),
++                ),
++            ]
++        ),
++    )
++    assert scval == expected_scval
++    assert from_struct(scval) == v

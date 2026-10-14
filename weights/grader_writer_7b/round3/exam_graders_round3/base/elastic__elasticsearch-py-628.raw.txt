@@ -1,0 +1,62 @@
+To address the issue where the `_escape` function attempts to call `encode` on a `bytes` object, we can add a test that specifically checks this behavior. The test should ensure that the function correctly handles both `str` and `bytes` types without raising an `AttributeError`.
+
+Here's how you can write the test:
+
+```diff
+diff --git a/test_elasticsearch/test_client_utils.py b/test_elasticsearch/test_client_utils.py
+new file mode 100644
+--- /dev/null
++++ b/test_elasticsearch/test_client_utils.py
+@@ -0,0 +1,30 @@
++import unittest
++from elasticsearch.client.utils import _escape
++
++class TestEscapeFunction(unittest.TestCase):
++    def test_escape_str(self):
++        value = "example"
++        result = _escape(value)
++        self.assertEqual(result, b'example')
++
++    def test_escape_bytes(self):
++        value = b"example"
++        result = _escape(value)
++        self.assertEqual(result, b'example')
++
++    def test_escape_list(self):
++        value = ["example1", "example2"]
++        result = _escape(value)
++        self.assertEqual(result, b'example1,example2')
++
++    def test_escape_tuple(self):
++        value = ("example1", "example2")
++        result = _escape(value)
++        self.assertEqual(result, b'example1,example2')
++
++    def test_escape_date(self):
++        from datetime import datetime
++        value = datetime.now()
++        result = _escape(value)
++        self.assertIsInstance(result, bytes)
++
++    def test_escape_bool_true(self):
++        value = True
++        result = _escape(value)
++        self.assertEqual(result, b'true')
++
++    def test_escape_bool_false(self):
++        value = False
++        result = _escape(value)
++        self.assertEqual(result, b'false')
+```
+
+This test file introduces a new module `test_client_utils.py` that contains several test cases for the `_escape` function. Each test case checks different scenarios to ensure that the function behaves correctly:
+
+1. **Test `str` input**: Ensures that a string is encoded to bytes.
+2. **Test `bytes` input**: Ensures that a bytes object remains unchanged.
+3. **Test `list` input**: Ensures that a list is converted to a comma-separated bytes string.
+4. **Test `tuple` input**: Ensures that a tuple is converted to a comma-separated bytes string.
+5. **Test `datetime` input**: Ensures that a datetime object is converted to a bytes string.
+6. **Test `bool` input (True)**: Ensures that a boolean `True` is converted to the bytes string `'true'`.
+7. **Test `bool` input (False)**: Ensures that a boolean `False` is converted to the bytes string `'false'`.
+
+These tests will fail on the current implementation because the `_escape` function does not handle `bytes` objects correctly. Once the fix is applied, these tests should pass.

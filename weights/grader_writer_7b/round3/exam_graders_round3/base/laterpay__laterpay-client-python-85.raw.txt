@@ -1,0 +1,40 @@
+To address the issue of decoding byte strings before using them during signing, we need to ensure that all byte strings are converted to regular strings before being processed further. Here's how you can write tests to verify that the fix works correctly:
+
+```diff
+diff --git a/tests/test_signing.py b/tests/test_signing.py
+index 3b2c3d4..5e6f7g8 100644
+--- a/tests/test_signing.py
++++ b/tests/test_signing.py
+@@ -31,6 +31,25 @@ class TestSigningHelper(unittest.TestCase):
+ 
+     def test_create_message_bytestrings(self):
+         params = {'parĄm1': 'valuĘ'}
++        url = 'https://endpoint.com/ąpi'
++
++        msg = signing.create_base_message(params, url)
++
++        self.assertEqual(
++            msg,
++            'POST&https%3A%2F%2Fendpoint.com%2F%C4%85pi&'
++            'par%25C4%2584m1%3Dvalu%25C4%2598',
++        )
++
++    def test_create_message_byte_strings_with_bytes(self):
++        params = {'parĄm1': b'value'}
++        url = 'https://endpoint.com/ąpi'
++
++        msg = signing.create_base_message(params, url)
++
++        self.assertEqual(
++            msg,
++            'POST&https%3A%2F%2Fendpoint.com%2F%C4%85pi&'
++            'par%25C4%2584m1%3Dvalue',
++        )
+ 
+     def test_create_message_sorting_and_combining_params(self):
+         params = {
+```
+
+These tests check that both regular strings and byte strings are correctly decoded and processed. The first test ensures that the existing functionality still works as expected, while the second test specifically checks that byte strings are correctly decoded.
+
+By running these tests, you can verify that the fix resolves the issue of decoding byte strings before using them during signing.

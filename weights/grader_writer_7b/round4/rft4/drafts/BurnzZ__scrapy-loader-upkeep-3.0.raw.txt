@@ -1,0 +1,109 @@
+--- /dev/null
++++ b/tests/test_loader_grader.py
+@@ -0,0 +1,109 @@
++import pytest
++from unittest import mock
++from scrapy_loader_upkeep import ItemLoader
++from scrapy.utils.python import flatten
++from scrapy.http import TextResponse
++from scrapy import Item, Field
++
++
++@pytest.fixture
++def loader():
++    return ItemLoader(stats=mock.Mock(), item_class=TestItem)
++
++
++@pytest.fixture
++def response():
++    return TextResponse(url="http://example.com")
++
++
++@pytest.fixture
++def mock_itemloader(response):
++    loader = ItemLoader(response=response)
++    loader.stats = mock.Mock()
++    return loader
++
++
++@pytest.fixture
++def mock_itemresponseloader(response):
++    loader = ItemLoader(item_response=response)
++    loader.stats = mock.Mock()
++    return loader
++
++
++class TestItem(Item):
++    title = Field()
++    price = Field()
++    image_urls = Field()
++
++
++def test_add_css_name(loader):
++    loader.add_css('title', 'article h2::text', name="Title from h2")
++    loader.stats.inc_value.assert_has_calls(
++        [
++            mock.call("parser/TestItemLoader/title/css/Title from h2/1"),
++        ]
++    )
++    assert loader.stats.inc_value.call_count == 1
++
++
++def test_add_css_name_1(loader):
++    loader.add_css('title', 'article h2::text', name="Title from h2")
++    loader.add_css('title', 'article .product-title::text', name="Product Title")
++    loader.stats.inc_value.assert_has_calls(
++        [
++            mock.call("parser/TestItemLoader/title/css/Title from h2/1"),
++            mock.call("parser/TestItemLoader/title/css/Product Title/2"),
++        ]
++    )
++    assert loader.stats.inc_value.call_count == 2
++
++
++def test_add_css_name_2(loader):
++    loader.add_css('title', 'article h2::text', name="Title from h2")
++    loader.add_css('title', [
++        'article h2::text',
++        'article .product-title::text',
++    ], name="Product Title")
++    loader.stats.inc_value.assert_has_calls(
++        [
++            mock.call("parser/TestItemLoader/title/css/Title from h2/1"),
++            mock.call("parser/TestItemLoader/title/css/Product Title/2"),
++            mock.call("parser/TestItemLoader/title/css/Product Title/3"),
++        ]
++    )
++    assert loader.stats.inc_value.call_count == 3
++
++
++def test_add_css_name_3(loader):
++    loader.add_css('title', 'h1::text', name="H1 Title")  # The <h1> doesn't exist at all.
++    loader.stats.inc_value.assert_has_calls(
++        [
++            mock.call("parser/TestItemLoader/title/css/H1 Title/1/missing"),
++        ]
++    )
++    assert loader.stats.inc_value.call_count == 1
++
++
++def test_add_xpath_name(loader):
++    loader.add_xpath('title', '//article/h2/text()', name="Xpath from article/h2")
++    loader.stats.inc_value.assert_has_calls(
++        [
++            mock.call("parser/TestItemLoader/title/xpath/Xpath from article/h2/1"),
++        ]
++    )
++    assert loader.stats.inc_value.call_count == 1
++
++
++def test_add_xpath_name_1(loader):
++    loader.add_xpath('title', '//article/h2/text()', name="Xpath from article/h2")
++    loader.add_xpath('title', '//article/h3/text()', name="Xpath from article/h3")
++    loader.stats.inc_value.assert_has_calls(
++        [
++            mock.call("parser/TestItemLoader/title/xpath/Xpath from article/h2/1"),
++            mock.call("parser/TestItemLoader/title/xpath/Xpath from article/h3/2"),
++        ]
++    )
++    assert loader.stats.inc_value.call_count == 2

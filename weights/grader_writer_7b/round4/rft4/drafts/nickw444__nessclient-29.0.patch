@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/nessclient_tests/test_event_grader.py
+@@ -0,0 +1,15 @@
++import unittest
++from nessclient.event import (
++    ZoneUpdate, pack_unsigned_short_data_enum, ArmingUpdate,
++    StatusUpdate, ViewStateUpdate, OutputsUpdate, SystemStatusEvent,
++    MiscellaneousAlarmsUpdate)
++from nessclient.packet import Packet, CommandType
++
++
++class SystemStatusEventTestCase(unittest.TestCase):
++    def test_exit_delay_end(self):
++        pkt = make_packet(CommandType.SYSTEM_STATUS, '230001')
++        event = SystemStatusEvent.decode(pkt)
++        self.assertEqual(event.area, 1)
++        self.assertEqual(event.zone, 0)
++        self.assertEqual(event.type,
++                         SystemStatusEvent.EventType.EXIT_DELAY_END)

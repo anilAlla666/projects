@@ -1,0 +1,47 @@
+To address the issue and ensure that the fix works as expected, we can write a unit test that checks if the `add` command correctly handles a branch name without causing an `AttributeError`. We will create a new test file named `test_add_command.py` next to the existing tests.
+
+Here's the unified diff:
+
+```
+diff --git a/tests/test_add_command.py b/tests/test_add_command.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_add_command.py
+@@ -0,0 +1,34 @@
++import unittest
++from git_machete.client import Client
++from git_machete.options import CommandLineOptions
++
++class TestAddCommand(unittest.TestCase):
++    def setUp(self):
++        self.client = Client()
++        self.cli_opts = CommandLineOptions()
++
++    def test_add_existing_branch(self):
++        # Create a mock repository with an existing branch
++        self.client.repo.create_head("foo/bar")
++
++        # Call the add method with the existing branch name
++        result = self.client.add("foo/bar", self.cli_opts)
++
++        # Check if the result is as expected
++        self.assertTrue(result)
++
++    def test_add_nonexistent_branch(self):
++        # Attempt to add a non-existent branch
++        result = self.client.add("nonexistent/branch", self.cli_opts)
++
++        # Check if the result is as expected
++        self.assertFalse(result)
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+Explanation:
+1. **TestAddCommand Class**: This class inherits from `unittest.TestCase` and contains two test methods.
+2. **setUp Method**: Initializes the `Client` and `CommandLineOptions` objects before each test.
+3. **test_add_existing_branch Method**: Creates a mock repository with an existing branch named `foo/bar` and calls the `add` method with this branch name. It asserts that the result is `True`.
+4. **test_add_nonexistent_branch Method**: Attempts to add a non-existent branch named `nonexistent/branch` and asserts that the result is `False`.
+
+These tests will fail on the current code because the `add` method does not handle the case where the branch does not exist correctly. Once the fix is applied, these tests should pass.

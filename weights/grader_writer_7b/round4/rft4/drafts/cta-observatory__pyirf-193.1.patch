@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/pyirf/benchmarks/tests/test_angular_resolution_grader.py
+@@ -0,0 +1,13 @@
++from astropy.table import QTable
++import astropy.units as u
++import numpy as np
++
++
++def test_angular_resolution_units():
++    from pyirf.benchmarks import angular_resolution
++
++    np.random.seed(1337)
++
++    true_resolution = np.array([0.2, 0.05]) * u.rad
++
++    ang_res = angular_resolution(
++        QTable({'theta': true_resolution}),
++        np.array([1, 10, 100]) * u.TeV)['angular_resolution']
++    assert ang_res.unit == u.deg

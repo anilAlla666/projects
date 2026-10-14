@@ -1,0 +1,172 @@
+--- /dev/null
++++ b/tests/test_httpdb_grader.py
+@@ -0,0 +1,144 @@
++from collections import namedtuple
++from os import environ
++from pathlib import Path
++from socket import socket
++from subprocess import Popen
++from sys import executable
++from tempfile import mkdtemp
++from time import monotonic, sleep
++from urllib.request import urlopen, URLError
++from http import HTTPStatus
++import pytest
++from mlrun.artifacts import Artifact
++from mlrun.db import HTTPRunDB, RunDBError
++from mlrun import RunObject
++
++
++root = Path(__file__).absolute().parent.parent
++
++
++Server = namedtuple('Server', 'process url log_file conn')
++
++
++def free_port():
++    with socket() as sock:
++        sock.bind(('localhost', 0))
++        return sock.getsockname()[1]
++
++
++def wait_for_server(url):
++    timeout = 10
++    end_time = monotonic() + timeout
++    while True:
++        try:
++            urlopen(url)
++            break
++        except URLError:
++            if monotonic() > end_time:
++                raise Exception('failed to connect to %s after %ss' %
++                                (url, timeout)) from None
++            sleep(0.1)
++
++
++def start_server(path, port, env):
++    cmd = [executable, '-m', 'mlrun.db.httpd', str(path)]
++    env.update({'MLRUN_httpdb__port': str(port)})
++    process = Popen(cmd, env=env, cwd=root)
++    wait_for_server(f'http://localhost:{port}')
++    url = f'http://localhost:{port}'
++    conn = HTTPRunDB(url=url, verify_ssl=False)
++    return Server(process, url, path / '.log', conn)
++
++
++@pytest.fixture(scope='function')
++def create_server(monkeypatch):
++    monkeypatch.chdir(root)
++
++    def _create_server(env={}):
++        path = mkdtemp(prefix='httpd-test-')
++        port = free_port()
++        server = start_server(Path(path), port, env)
++        yield server
++        server.process.terminate()
++        server.process.wait()
++
++    return _create_server
++
++
++def test_artifact(create_server):
++    server: Server = create_server()
++    db = server.conn
++
++    prj, uid, key, body = 'p7', 'u199', 'k800', 'cucumber'
++    artifact = Artifact(key, body)
++    artifact.body = None
++    artifact.to_dict()
++
++    db.store_artifact(key, artifact, uid, project=prj)
++
++
++def test_artifacts(create_server):
++    server: Server = create_server()
++    db = server.conn
++    prj, uid, key, body = 'p9', 'u19', 'k802', 'tomato'
++    artifact = Artifact(key, body)
++    artifact.body = None
++    artifact.to_dict()
++
++    db.store_artifact(key, artifact, uid, project=prj)
++    artifacts = db.list_artifacts(project=prj)
++    assert len(artifacts) == 1, 'bad number of artifacs'
++
++    db.del_artifacts(project=prj)
++    artifacts = db.list_artifacts(project=prj)
++    assert len(artifacts) == 0, 'bad number of artifacs after del'
++
++
++def test_basic_auth(create_server):
++    user, passwd = 'bugs', 'bunny'
++    env = {
++        'MLRUN_httpdb__user': user,
++        'MLRUN_httpdb__password': passwd,
++    }
++    server: Server = create_server(env)
++
++    db: HTTPRunDB = server.conn
++
++    with pytest.raises(RunDBError):
++        db.list_runs()
++
++    db.user = user
++    db.password = passwd
++    db.list_runs()
++
++
++def test_bearer_auth(create_server):
++    token = 'banana'
++    env = {'MLRUN_httpdb__token': token}
++    server: Server = create_server(env)
++
++    db: HTTPRunDB = server.conn
++
++    with pytest.raises(RunDBError):
++        db.list_runs()
++
++    db.token = token
++    db.list_runs()
++
++
++def test_artifact_tree(create_server):
++    server: Server = create_server()
++    db = server.conn
++
++    prj, uid, key, body = 'p7', 'u199', 'k800', 'cucumber'
++    artifact = Artifact(key, body)
++    artifact.body = None
++    artifact.to_dict()
++
++    db.store_artifact(key, artifact, uid, project=prj)
++
++    with pytest.raises(RunDBError):
++        db.list_artifact_tree(prj, uid)
+--- /dev/null
++++ b/tests/test_rundb_grader.py
+@@ -0,0 +1,28 @@
++import mlrun
++from conftest import rundb_path, results
++
++
++def get_db():
++    return mlrun.get_run_db(rundb_path).connect()
++
++
++def test_list_artifact_tree():
++
++    db = get_db()
++    artifacts = db.list_artifact_tree('test-project', '0000')
++    assert artifacts, 'empty artifacts result'
++
++    html = artifacts.show(display=False)
++
++    with open('{}/artifacts.html'.format(results), 'w') as fp:
++        fp.write(html)
++
++
++def test_artifact_tree():
++    db = get_db()
++    artifacts = db.list_artifact_tree('test-project', '0000')
++    assert artifacts, 'empty artifacts result'
++    print(artifacts)

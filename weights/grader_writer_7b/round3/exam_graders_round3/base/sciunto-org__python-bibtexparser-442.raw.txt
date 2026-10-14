@@ -1,0 +1,37 @@
+To implement the `__setitem__` method on entries, we need to ensure that setting an item via `myentry["somekey"] = some_value` creates a new field with the specified key and value, and adds it to the entry using the `set_field` method.
+
+Here's how you can write the tests to verify this:
+
+```diff
+diff --git a/tests/test_model.py b/tests/test_model.py
+--- a/tests/test_model.py
++++ b/tests/test_model.py
+@@ -275,6 +275,25 @@ def test_entry_str():
+     assert str(entry) == expected
+ 
+ 
++def test_setitem_on_entry():
++    # Test setting a new field using __setitem__
++    entry = Entry(
++        entry_type="article",
++        key="myEntry",
++        fields=[
++            Field("myFirstField", "firstValue"),
++            Field("mySecondField", "secondValue"),
++        ],
++    )
++
++    # Set a new field
++    entry["newField"] = "newValue"
++
++    # Check if the new field is added correctly
++    assert "newField" in entry.fields_dict
++    assert entry.fields_dict["newField"].value == "newValue"
++
++
+ def test_parsing_failed_block_str():
+     # Test string representation of ParsingFailedBlock
+     block = ParsingFailedBlock(
+```
+
+These tests will fail on the current code because the `__setitem__` method is not implemented. Once the `__setitem__` method is implemented, these tests should pass. The tests check that a new field is correctly added to the entry when using the `__setitem__` method.

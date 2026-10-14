@@ -1,0 +1,61 @@
+To address the issue of not having a public `NetworkGrid._remove_agent` function, we need to create a public method `remove_agent` in the `NetworkGrid` class. This method will call the existing `_remove_agent` method internally but will provide a public interface for removing agents.
+
+Here is the proposed fix along with the necessary tests:
+
+### Proposed Fix
+
+#### `mesa/space.py`
+
+```diff
+@@ -110,6 +110,14 @@ class NetworkGrid(Grid):
+         """Remove an agent from a node."""
+ 
+         self.G.nodes[node_id]["agent"].remove(agent)
++
++    def remove_agent(self, agent: Agent) -> None:
++        """Remove the agent from the network and set its pos variable to None."""
++        pos = agent.pos
++        if pos is not None:
++            self._remove_agent(agent, pos)
++        agent.pos = None
+```
+
+### Tests
+
+We need to add tests to ensure that the `remove_agent` method works correctly. We will create a new test file `tests/test_networkgrid.py`.
+
+#### `tests/test_networkgrid.py`
+
+```python
+import unittest
+from mesa.space import NetworkGrid
+from tests.test_grid import MockAgent
+
+class TestNetworkGrid(unittest.TestCase):
+    def setUp(self):
+        G = nx.Graph()
+        G.add_node(0)
+        G.add_node(1)
+        G.add_edge(0, 1)
+        
+        self.networkgrid = NetworkGrid(G)
+        self.agent = MockAgent(0, self.networkgrid)
+        self.networkgrid.place_agent(self.agent, 0)
+
+    def test_remove_agent(self):
+        self.assertIn(self.agent, self.networkgrid.G.nodes[0]['agent'])
+        self.networkgrid.remove_agent(self.agent)
+        self.assertNotIn(self.agent, self.networkgrid.G.nodes[0]['agent'])
+        self.assertIsNone(self.agent.pos)
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+### Explanation
+
+1. **Fix**: Added a public `remove_agent` method in the `NetworkGrid` class. This method calls the existing `_remove_agent` method and sets the agent's position to `None`.
+   
+2. **Test**: Created a new test file `test_networkgrid.py` to verify that the `remove_agent` method works correctly. The test checks if an agent is removed from the network and if its position is set to `None`.
+
+These changes should resolve the issue and ensure that the `NetworkGrid` class has a public method for removing agents.

@@ -1,0 +1,86 @@
+--- /dev/null
++++ b/tests/v0x01/test_common/test_header_grader.py
+@@ -0,0 +1,41 @@
++"""Testing Header structure."""
++
++
++import os
++import unittest
++from pyof.v0x01.common.header import Header, Type
++
++
++class TestHeader(unittest.TestCase):
++    """Test the message Header."""
++
++    def setUp(self):
++        """Setup the TestHeader Class instantiating a HELLO header."""
++        self.message = Header()
++        self.message.message_type = Type.OFPT_HELLO
++        self.message.xid = 1
++        self.message.length = 0
++
++    def test_size(self):
++        """[Common/Header] - size 8."""
++        self.assertEqual(self.message.get_size(), 8)
++
++    def test_random_xid(self):
++        """[Common/Header] - xid is generated randomly."""
++        xids = []
++        for _ in range(10):
++            xids.append(Header().xid)
++        self.assertNotEqual(xids[0], xids[1])
++
++    def test_set_xid(self):
++        """[Common/Header] - xid can be set manually."""
++        self.message.set_xid(123)
++        self.assertEqual(self.message.xid, 123)
++
++    def test_get_xid(self):
++        """[Common/Header] - get_xid returns the xid."""
++        self.assertEqual(self.message.get_xid(), 1)
++
++    def tearDown(self):
++        del self.message
+--- /dev/null
++++ b/tests/v0x04/test_common/test_header_grader.py
+@@ -0,0 +1,41 @@
++"""Tests header structure of v0x04."""
++
++
++import os
++import unittest
++from pyof.v0x04.common.header import Header, Type
++
++
++class TestHeader(unittest.TestCase):
++    """Test the message Header."""
++
++    def setUp(self):
++        """Setup the TestHeader Class instantiating a HELLO header."""
++        self.message = Header()
++        self.message.message_type = Type.OFPT_HELLO
++        self.message.xid = 1
++        self.message.length = 0
++
++    def test_size(self):
++        """[Common/Header] - size 8."""
++        self.assertEqual(self.message.get_size(), 8)
++
++    def test_random_xid(self):
++        """[Common/Header] - xid is generated randomly."""
++        xids = []
++        for _ in range(10):
++            xids.append(Header().xid)
++        self.assertNotEqual(xids[0], xids[1])
++
++    def test_set_xid(self):
++        """[Common/Header] - xid can be set manually."""
++        self.message.set_xid(123)
++        self.assertEqual(self.message.xid, 123)
++
++    def test_get_xid(self):
++        """[Common/Header] - get_xid returns the xid."""
++        self.assertEqual(self.message.get_xid(), 1)
++
++    def tearDown(self):
++        del self.message

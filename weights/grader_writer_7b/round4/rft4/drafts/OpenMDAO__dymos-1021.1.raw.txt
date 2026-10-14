@@ -1,0 +1,132 @@
+--- /dev/null
++++ b/dymos/utils/test/test_birkhoff_grader.py
+@@ -0,0 +1,30 @@
++import unittest
++import numpy as np
++from numpy.testing import assert_almost_equal
++from dymos.utils.birkhoff import birkhoff_matrix
++from dymos.utils.cgl import cgl, clenshaw_curtis
++from dymos.utils.lgl import lgl
++
++
++class TestBirkhoffMatrix(unittest.TestCase):
++    def test_birkhoff_matrix_lgl(self):
++        x, w = lgl(9)
++        B = birkhoff_matrix(x, w, grid_type='lgl')
++        assert_almost_equal(B[-1, :], w)
++
++    def test_birkhoff_matrix_cgl(self):
++        x, w = cgl(9)
++        B = birkhoff_matrix(x, w, grid_type='cgl')
++        _, wB = clenshaw_curtis(9)
++        assert_almost_equal(B[-1, :], wB)
++
++    def test_birkhoff_matrix_invalid_grid_type(self):
++        x, w = lgl(9)
++        with self.assertRaises(ValueError) as e:
++            B = birkhoff_matrix(x, w, grid_type='invalid')
++
++        msg = str(e.exception)
++        expected_msg = "Invalid value provided for 'grid_type'. Expected one of ['lgl', 'cgl']."
++        self.assertEqual(msg, expected_msg)
++
++
++if __name__ == '__main__':  # pragma: no cover
++    unittest.main()
+--- /dev/null
++++ b/dymos/examples/brachistochrone/test/test_doc_brachistochrone_polynomial_controls.py
+@@ -0,0 +1,94 @@
++"""
++A simple example of optimizing the Brachistochrone problem using
++dymos. This uses a single-phase solution with a Gauss-Lobatto transcription
++and a Runge-Kutta integration scheme.
++
++In this version, we add polynomial controls to optimize the radius of curvature.
++"""
++
++
++import matplotlib.pyplot as plt
++import numpy as np
++from openmdao.utils.assert_utils import assert_near_equal
++import openmdao.api as om
++from dymos import Phase
++from dymos.examples.brachistochrone.brachistochrone_ode import BrachistochroneODE
++from dymos.utils.lgl import lgl
++
++
++def plot_results(traj):
++    fig, axes = plt.subplots(ncols=2, figsize=(12, 4))
++
++    t = traj.simulate(times_per_seg=50).get_val('time')
++    y = traj.simulate(times_per_seg=50).get_val('y')
++    v = traj.simulate(times_per_seg=50).get_val('v')
++    r = traj.simulate(times_per_seg=50).get_val('r')
++
++    axes[0].plot(t, y, label='$y$')
++    axes[0].set_xlabel('$t$')
++    axes[0].set_ylabel('$y$')
++
++    axes[1].plot(t, v, label='$v$')
++    axes[1].set_xlabel('$t$')
++    axes[1].set_ylabel('$v$')
++
++    plt.show()
++
++
++@use_tempdirs
++class TestDocBrachistochronePolynomialControls(unittest.TestCase):
++    def test_optimize_radius_of_curvature(self):
++        # Instantiate the problem
++        prob = om.Problem(model=om.Group())
++
++        # Define the phase
++        phase = Phase(ode_class=BrachistochroneODE, transcription='gauss-lobatto')
++
++        # Add the phase to the problem model
++        prob.model.add_subsystem('phase0', phase)
++
++        # Set the simulation method
++        phase.simulation_method = 'RK4'
++
++        # Set the Gauss Lobatto grid points
++        num_segments = 10
++        phase.set_num_segments(num_segments)
++
++        # Add parameters to the phase
++        phase.add_design_parameter(name='R', values=np.array([1.0]),
++                                   targets=['ode.R'])
++
++        # Add state variables to the phase
++        phase.add_state(name='x', units='m', fix_initial=True, fix_final=False, rate_source='xdot')
++        phase.add_state(name='y', units='m', fix_initial=True, fix_final=True, rate_source='ydot')
++        phase.add_state(name='v', units='m/s', fix_initial=True, fix_final=False, rate_source='vdot')
++
++        # Add control variables to the phase
++        phase.add_control(name='theta', units='rad', lower=-np.pi, upper=np.pi, ref0=-np.pi, ref=np.pi)
++        phase.add_polynomial_control(name='r', order=5, units='m', ref0=1.0, ref=10.0, lower=1.0, upper=10.0)
++
++        # Add objective to minimize final altitude
++        phase.add_objective('y', loc='final')
++
++        # Transcribe the problem
++        phase.transcribe(method='gauss-lobatto')
++
++        # Set the driver and solve the problem
++        prob.driver = om.ScipyOptimizeDriver()
++        prob.driver.options['optimizer'] = 'SLSQP'
++        prob.driver.options['tol'] = 1e-9
++
++        # Perform sensitivity analysis to ensure convergence is achieved
++        prob.model.linear_solver = om.DirectSolver(assemble_jac=True)
++        prob.model.nonlinear_solver = om.NewtonSolver(solve_subsystems=True, max_iter=20)
++
++        prob.setup(check=True)
++        prob.run_driver()
++
++        # Verify the result
++        assert_near_equal(prob.get_val('phase0.timeseries.y')[-1], 100, tolerance=1.0E-4)
++        plot_results(prob)
++
++
++if __name__ == '__main__':
++    unittest.main()

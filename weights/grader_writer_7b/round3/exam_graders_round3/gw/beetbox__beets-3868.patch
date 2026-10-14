@@ -1,0 +1,19 @@
+diff --git a/test/test_web.py b/test/test_web.py
+index 0f0b5a5..d0c0e5c 100644
+--- a/test/test_web.py
++++ b/test/test_web.py
+@@ -152,6 +152,14 @@ class WebPluginTest(_common.LibTestCase):
+ 
+         self.assertEqual(response.status_code, 200)
+         self.assertEqual(len(res_json['results']), 1)
++        self.assertIn('artpath', res_json['results'][0])
++
++    def test_get_album_details_include_paths(self):
++        web.app.config['INCLUDE_PATHS'] = True
++        response = self.client.get('/album/2?expand')
++        res_json = json.loads(response.data.decode('utf-8'))
++
++        self.assertEqual(response.status_code, 200)
+         self.assertEqual(res_json['items'][0]['album'],
+                          u'other album')
+         self.assertEqual(res_json['items'][0]['id'], 1)

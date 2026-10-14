@@ -1,0 +1,123 @@
+--- /dev/null
++++ b/jsonargparse_tests/test_core_grader.py
+@@ -0,0 +1,162 @@
++from __future__ import annotations
++import json
++import os
++import pickle
++from calendar import Calendar
++from contextlib import redirect_stderr
++from io import StringIO
++from pathlib import Path
++from random import randint, shuffle
++from unittest.mock import patch
++import pytest
++import yaml
++from jsonargparse import (
++    SUPPRESS,
++    ActionConfigFile,
++    ActionJsonnet,
++    ActionJsonSchema,
++    ActionParser,
++    ArgumentError,
++    ArgumentParser,
++    Namespace,
++    set_config_read_mode,
++    strip_meta,
++)
++from jsonargparse._formatters import get_env_var
++from jsonargparse._optionals import jsonnet_support, jsonschema_support, ruyaml_support
++from jsonargparse.typing import Path_fc, Path_fr, path_type
++from jsonargparse_tests.conftest import (
++    capture_logs,
++    get_parse_args_stderr,
++    get_parse_args_stdout,
++    get_parser_help,
++    is_cpython,
++    responses_activate,
++    skip_if_docstring_parser_unavailable,
++    skip_if_fsspec_unavailable,
++    skip_if_not_posix,
++    skip_if_windows,
++    tmpdir,
++)
++
++
++def test_merge_config_with_choices():
++    parser = ArgumentParser()
++    parser.add_argument("--arg1", choices=("choice1", "choice2"))
++    parser.add_argument("--arg2", type=int)
++    parser.add_argument("--arg3", type=float)
++    parser.add_argument("--arg4", type=path_type)
++    parser.add_argument("--arg5", type=lambda x: x.split(","))
++    parser.add_argument("--arg6", type=Calendar)
++    parser.add_argument("--arg7", type=list[int])
++    parser.add_argument("--arg8", type=tuple[int, int])
++    parser.add_argument("--arg9", type=dict[str, int])
++    parser.add_argument("--arg10", type=set[int])
++    parser.add_argument("--arg11", type=bool)
++    parser.add_argument("--arg12", type=Path_fr)
++    parser.add_argument("--arg13", type=Path_fc)
++    parser.add_argument("--arg14", type=Path)
++    parser.add_argument("--arg15", type=[int, float])
++    parser.add_argument("--arg16", type={"a": int, "b": float})
++    parser.add_argument("--arg17", type=[{"a": int, "b": float}, {"a": int, "b": float}])
++    parser.add_argument("--arg18", type=[[int], [float]])
++    parser.add_argument("--arg19", type=(int, float))
++    parser.add_argument("--arg20", type=((int,), (float,)))
++    parser.add_argument("--arg21", type=[int, float])
++    parser.add_argument("--arg22", type=[[int, float]])
++    parser.add_argument("--arg23", type=[[[int, float]], [[int, float]]])
++    parser.add_argument("--arg24", type=(int, [int, float]))
++    parser.add_argument("--arg25", type=(int, [int, float, bool]))
++    parser.add_argument("--arg26", type=(int, (int, float)))
++    parser.add_argument("--arg27", type=(int, (int, float, bool)))
++    parser.add_argument("--arg28", type=(int, (int, float, [bool])))
++    parser.add_argument("--arg29", type=(int, (int, float, [bool, float])))
++    parser.add_argument("--arg30", type=(int, (int, float, [bool, float, bool])))
++    parser.add_argument("--arg31", type=(int, (int, float, [bool, float, bool, float])))
++    parser.add_argument("--arg32", type=(int, (int, float, [bool, float, bool, float, bool])))
++    parser.add_argument("--arg33", type=(int, (int, float, [bool, float, bool, float, bool, float])))
++    parser.add_argument("--arg34", type=(int, (int, float, [bool, float, bool, float, bool, float, bool])))
++    parser.add_argument("--arg35", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float])))
++    parser.add_argument("--arg36", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool])))
++    parser.add_argument("--arg37", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool])))
++    parser.add_argument("--arg38", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool])))
++    parser.add_argument("--arg39", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool])))
++    parser.add_argument("--arg40", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool])))
++    parser.add_argument("--arg41", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool])))
++    parser.add_argument("--arg42", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool])))
++    parser.add_argument("--arg43", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool])))
++    parser.add_argument("--arg44", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool])))
++    parser.add_argument("--arg45", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool])))
++    parser.add_argument("--arg46", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool])))
++    parser.add_argument("--arg47", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool])))
++    parser.add_argument("--arg48", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool])))
++    parser.add_argument("--arg49", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg50", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg51", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg52", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg53", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg54", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg55", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg56", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg57", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg58", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg59", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg60", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg61", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg62", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg63", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg64", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg65", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg66", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg67", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg68", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool))))
++    parser.add_argument("--arg69", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool)))
++    parser.add_argument("--arg70", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool)))
++    parser.add_argument("--arg71", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool)))
++    parser.add_argument("--arg72", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool)))
++    parser.add_argument("--arg73", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool)))
++    parser.add_argument("--arg74", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool)))
++    parser.add_argument("--arg75", type=(int, (int, float, [bool, float, bool, float, bool, float, bool, float, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool, bool)))
++    parser.add_argument("--arg76", type

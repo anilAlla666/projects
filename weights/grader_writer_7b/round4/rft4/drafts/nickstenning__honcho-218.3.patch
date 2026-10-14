@@ -1,0 +1,55 @@
+--- /dev/null
++++ b/tests/test_environ_grader.py
+@@ -0,0 +1,53 @@
++import textwrap
++import pytest
++from honcho import environ
++from honcho import compat
++
++
++def ep(*args, **kwargs):
++    procfile = environ.Procfile()
++    for args in args:
++        procfile.add_process(*args)
++    procfile.expand(**kwargs)
++    return list(procfile.processes.values())
++
++
++@pytest.fixture
++def procfile(tmpdir):
++    fpath = tmpdir.join("Procfile")
++    fpath.write(textwrap.dedent("""
++        web: some command
++        worker: another command
++        """))
++    return fpath.strpath
++
++
++@pytest.mark.parametrize('name,expected_error', [
++    ('web', None),
++    ('worker', None),
++    ('foo-bar', "Invalid process type 'foo-bar'. "
++                 "Only letters, numbers and underscores are allowed."),
++    ('foo bar', "Invalid process type 'foo bar'. "
++                "Only letters, numbers and underscores are allowed."),
++    ('foo$bar', "Invalid process type 'foo$bar'. "
++                "Only letters, numbers and underscores are allowed."),
++    ('foo#bar', "Invalid process type 'foo#bar'. "
++                "Only letters, numbers and underscores are allowed."),
++])
++def test_validate_procfile_types(name, expected_error):
++    if expected_error:
++        with pytest.raises(ValueError) as excinfo:
++            environ.validate_procfile_type(name)
++        assert str(excinfo.value) == expected_error
++    else:
++        environ.validate_procfile_type(name)
++
++
++def test_invalid_procfile_type_raises_value_error():
++    with pytest.raises(ValueError) as excinfo:
++        environ.validate_procfile_type('foo-bar')
++
++    assert str(excinfo.value) == (
++        "Invalid process type 'foo-bar'. "
++        "Only letters, numbers and underscores are allowed.")

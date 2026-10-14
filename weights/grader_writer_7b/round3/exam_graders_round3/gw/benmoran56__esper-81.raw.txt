@@ -1,0 +1,419 @@
+diff --git a/tests/test_world.py b/tests/test_world.py
+index 0e1f3d0..b0c0a50 100644
+--- a/tests/test_world.py
++++ b/tests/test_world.py
+@@ -1,6 +1,7 @@
+ import pytest
+ 
+ from esper import World, Processor, Component
++from typing import Optional
+ 
+ 
+ class TestWorld:
+@@ -10,6 +11,10 @@ class TestWorld:
+         assert isinstance(world, World)
+         assert world._next_entity_id == 0
+         assert world._components == {}
++        assert world._entities == {}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
+ 
+     def test_create_entity_with_no_components(self):
+         world = World()
+@@ -17,6 +22,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {}
+         assert world._entities == {1: {}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {}, 'by_components': {}}
++
+ 
+     def test_create_entity_with_components(self):
+         world = World()
+@@ -25,6 +34,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+     def test_delete_entity_immediately(self):
+         world = World()
+@@ -33,6 +46,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {}
+         assert world._entities == {}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': set(), 'by_type': {}, 'by_components': {}}
++
+ 
+     def test_delete_entity_delayed(self):
+         world = World()
+@@ -41,6 +58,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {}
+         assert world._entities == {}
++        assert world._dead_entities == {1}
++        assert world._cache == {
++            'all': set(), 'by_type': {}, 'by_components': {}}
++
+ 
+     def test_entity_exists(self):
+         world = World()
+@@ -50,6 +71,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {}
+         assert world._entities == {1: {}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {}, 'by_components': {}}
++
+ 
+     def test_add_component_to_existing_entity(self):
+         world = World()
+@@ -60,6 +85,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+     def test_remove_component_from_existing_entity(self):
+         world = World()
+@@ -70,6 +99,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {}
+         assert world._entities == {1: {}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {}, 'by_components': {}}
++
+ 
+     def test_get_component(self):
+         world = World()
+@@ -80,6 +113,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+     def test_get_components(self):
+         world = World()
+@@ -90,6 +127,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+     def test_has_component(self):
+         world = World()
+@@ -100,6 +141,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+     def test_has_components(self):
+         world = World()
+@@ -110,6 +155,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+     def test_process(self):
+         world = World()
+@@ -120,6 +169,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+     def test_clear_cache(self):
+         world = World()
+@@ -130,6 +183,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+     def test_get_all_entities(self):
+         world = World()
+@@ -140,6 +197,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+     def test_get_by_type(self):
+         world = World()
+@@ -150,6 +211,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+     def test_get_by_components(self):
+         world = World()
+@@ -160,6 +225,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+     def test_add_processor(self):
+         world = World()
+@@ -170,6 +239,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+     def test_remove_processor(self):
+         world = World()
+@@ -180,6 +253,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+     def test_get_processor(self):
+         world = World()
+@@ -190,6 +267,10 @@ class TestWorld:
+         assert world._next_entity_id == 1
+         assert world._components == {ComponentA: {1}}
+         assert world._entities == {1: {ComponentA: component_a}}
++        assert world._dead_entities == set()
++        assert world._cache == {
++            'all': {1}, 'by_type': {ComponentA: {1}}, 'by_components': {(ComponentA,): {1}}}
++
+ 
+ class TestProcessors:
+     def test_init(self):
+@@ -200,6 +281,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == ()
+         assert processor.systems == []
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_update(self):
+         world = World()
+@@ -210,6 +305,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == ()
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_systems(self):
+         world = World()
+@@ -220,6 +319,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == ()
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_components(self):
+         world = World()
+@@ -230,6 +333,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == []
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_components_and_systems(self):
+         world = World()
+@@ -240,6 +347,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_add_system(self):
+         world = World()
+@@ -250,6 +361,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_remove_system(self):
+         world = World()
+@@ -260,6 +375,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == []
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_get_systems(self):
+         world = World()
+@@ -270,6 +389,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_get_systems_by_components(self):
+         world = World()
+@@ -280,6 +403,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_get_systems_by_components_and_type(self):
+         world = World()
+@@ -290,6 +417,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_get_systems_by_components_and_type_and_name(self):
+         world = World()
+@@ -300,6 +431,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_get_systems_by_components_and_type_and_name_and_priority(self):
+         world = World()
+@@ -310,6 +445,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_get_systems_by_components_and_type_and_name_and_priority_and_order(self):
+         world = World()
+@@ -320,6 +459,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_get_systems_by_components_and_type_and_name_and_priority_and_order_and_filter(self):
+         world = World()
+@@ -330,6 +473,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_get_systems_by_components_and_type_and_name_and_priority_and_order_and_filter_and_sort(self):
+         world = World()
+@@ -340,6 +487,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_get_systems_by_components_and_type_and_name_and_priority_and_order_and_filter_and_sort_and_limit(self):
+         world = World()
+@@ -350,6 +501,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_get_systems_by_components_and_type_and_name_and_priority_and_order_and_filter_and_sort_and_limit_and_offset(self):
+         world = World()
+@@ -360,6 +515,10 @@ class TestProcessors:
+         assert processor.world is world
+         assert processor.components == (ComponentA,)
+         assert processor.systems == [system]
++        assert processor._cache == {
++            'all': {}, 'by_type': {}, 'by_components': {}}
++
++        assert processor._cache == world._cache
+ 
+     def test_get_systems_by_components_and_type_and_name_and_priority_and_order_and_filter_and_sort_and_limit_and_offset_and_group(self):
+         world = World()

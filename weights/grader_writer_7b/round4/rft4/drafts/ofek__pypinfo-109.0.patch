@@ -1,0 +1,170 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,125 @@
++from freezegun import freeze_time
++import copy
++import pytest
++from pypinfo import core
++from pypinfo.fields import PythonVersion
++
++
++ROWS = [
++    ['python_version', 'percent', 'download_count'],
++    ['2.7', '51.7%', '342250'],
++    ['3.6', '21.1%', '139745'],
++    ['3.5', '17.2%', '114254'],
++    ['3.4', '7.6%', '50584'],
++    ['3.3', '1.0%', '6666'],
++    ['3.7', '0.7%', '4516'],
++    ['2.6', '0.7%', '4451'],
++    ['3.2', '0.0%', '138'],
++    ['None', '0.0%', '13'],
++]
++
++
++@freeze_time("2020-07-14 07:11:49")
++def test_format_json():
++    # Arrange
++    # Data from pycodestyle in 2017-10
++    # pypinfo -sd 2017-10-01 -ed 2017-10-31 -pc -l 100 --json pycodestyle pyversion
++    rows = [
++        ['python_version', 'percent', 'download_count'],
++        ['2.7', '0.54', '587705'],
++        ['3.6', '0.21', '227800'],
++        ['3.5', '0.16', '169851'],
++        ['3.4', '0.078', '84599'],
++        ['3.3', '0.0091', '9953'],
++        ['3.7', '0.0044', '4770'],
++        ['2.6', '0.0041', '4476'],
++        ['3.2', '0.0003', '326'],
++        ['2.8', '3.7e-06', '4'],
++        ['None', '2.8e-06', '3'],
++    ]
++    query_info = {
++        'cached': False,
++        'bytes_processed': 18087095002,
++        'bytes_billed': 18087936000,
++        'estimated_cost': '0.09',
++    }
++    indent = None
++    expected = (
++        '{"last_update":"2020-07-14 07:11:49",'
++        '"query":'
++        '{"bytes_billed":18087936000,'
++        '"bytes_processed":18087095002,'
++        '"cached":false,'
++        '"estimated_cost":"0.09"},'
++        '"rows":['
++        '{"download_count":587705,"percent":"0.54","python_version":"2.7"},'
++        '{"download_count":227800,"percent":"0.21","python_version":"3.6"},'
++        '{"download_count":169851,"percent":"0.16","python_version":"3.5"},'
++        '{"download_count":84599,"percent":"0.078","python_version":"3.4"},'
++        '{"download_count":9953,"percent":"0.0091","python_version":"3.3"},'
++        '{"download_count":4770,"percent":"0.0044","python_version":"3.7"},'
++        '{"download_count":4476,"percent":"0.0041","python_version":"2.6"},'
++        '{"download_count":326,"percent":"0.0003","python_version":"3.2"},'
++        '{"download_count":4,"percent":"3.7e-06","python_version":"2.8"},'
++        '{"download_count":3,"percent":"2.8e-06","python_version":"None"}]}'
++    )
++
++    # Act
++    output = core.format_json(rows, query_info, indent)
++
++    # Assert
++    assert output == expected
++
++
++@freeze_time("2020-07-14 07:11:49")
++def test_format_json__indent():
++    # Arrange
++    # Data from pycodestyle in 2017-10
++    # pypinfo -sd 2017-10-01 -ed 2017-10-31 -pc -l 100 --json pycodestyle pyversion
++    rows = [
++        ['python_version', 'percent', 'download_count'],
++        ['2.7', '0.54', '587705'],
++        ['3.6', '0.21', '227800'],
++        ['3.5', '0.16', '169851'],
++        ['3.4', '0.078', '84599'],
++        ['3.3', '0.0091', '9953'],
++        ['3.7', '0.0044', '4770'],
++        ['2.6', '0.0041', '4476'],
++        ['3.2', '0.0003', '326'],
++        ['2.8', '3.7e-06', '4'],
++        ['None', '2.8e-06', '3'],
++    ]
++    query_info = {
++        'cached': False,
++        'bytes_processed': 18087095002,
++        'bytes_billed': 18087936000,
++        'estimated_cost': '0.09',
++    }
++    indent = 2
++    expected = (
++        '{\n'
++        '  "last_update": "2020-07-14 07:11:49",\n'
++        '  "query": {\n'
++        '    "bytes_billed": 18087936000,\n'
++        '    "bytes_processed": 18087095002,\n'
++        '    "cached": false,\n'
++        '    "estimated_cost": "0.09"\n'
++        '  },\n'
++        '  "rows": [\n'
++        '    {\n'
++        '      "download_count": 587705,\n'
++        '      "percent": "0.54",\n'
++        '      "python_version": "2.7"\n'
++        '    },\n'
++        '    {\n'
++        '      "download_count": 227800,\n'
++        '      "percent": "0.21",\n'
++        '      "python_version": "3.6"\n'
++        '    },\n'
++        '    {\n'
++        '      "download_count": 169851,\n'
++        '      "percent": "0.16",\n'
++        '      "python_version": "3.5"\n'
++        '    },\n'
++        '    {\n'
++        '      "download_count": 84599,\n'
++        '      "percent": "0.078",\n'
++        '      "python_version": "3.4"\n'
++        '    },\n'
++        '    {\n'
++        '      "download_count": 9953,\n'
++        '      "percent": "0.0091",\n'
++        '      "python_version": "3.3"\n'
++        '    },\n'
++        '    {\n'
++        '      "download_count": 4770,\n'
++        '      "percent": "0.0044",\n'
++        '      "python_version": "3.7"\n'
++        '    },\n'
++        '    {\n'
++        '      "download_count": 4476,\n'
++        '      "percent": "0.0041",\n'
++        '      "python_version": "2.6"\n'
++        '    },\n'
++        '    {\n'
++        '      "download_count": 326,\n'
++        '      "percent": "0.0003",\n'
++        '      "python_version": "3.2"\n'
++        '    },\n'
++        '    {\n'
++        '      "download_count": 4,\n'
++        '      "percent": "3.7e-06",\n'
++        '      "python_version": "2.8"\n'
++        '    },\n'
++        '    {\n'
++        '      "download_count": 3,\n'
++        '      "percent": "2.8e-06",\n'
++        '      "python_version": "None"\n'
++        '    }\n'
++        '  ]\n'
++        '}'
++    )
++
++    # Act
++    output = core.format_json(rows, query_info, indent)
++
++    # Assert
++    assert output == expected

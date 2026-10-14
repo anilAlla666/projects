@@ -1,0 +1,95 @@
+--- /dev/null
++++ b/tests/test_inject_none_override.py
+@@ -0,0 +1,87 @@
++import unittest
++
++from ioccontainer.inject import inject_decorator
++
++
++class FakeContainer(object):
++    def __init__(self, services):
++        self.services = services
++        self.requested = []
++
++    def get(self, name):
++        self.requested.append(name)
++        return self.services[name]
++
++
++class InjectNoneOverrideTestCase(unittest.TestCase):
++    def setUp(self):
++        self.service = object()
++        self.other = object()
++        self.container = FakeContainer({'svc': self.service})
++        self.inject = inject_decorator(self.container)
++
++    def test_positional_none_is_overridden(self):
++        @self.inject(a='svc')
++        def f(a):
++            return a
++
++        self.assertIs(f(None), self.service)
++
++    def test_keyword_none_is_overridden(self):
++        @self.inject(a='svc')
++        def f(a):
++            return a
++
++        self.assertIs(f(a=None), self.service)
++
++    def test_positional_none_with_default_none_is_overridden(self):
++        @self.inject(a='svc')
++        def f(a=None):
++            return a
++
++        self.assertIs(f(None), self.service)
++
++    def test_keyword_none_with_default_none_is_overridden(self):
++        @self.inject(a='svc')
++        def f(a=None):
++            return a
++
++        self.assertIs(f(a=None), self.service)
++
++    def test_none_in_middle_position_is_overridden(self):
++        @self.inject(b='svc')
++        def f(a, b, c):
++            return a, b, c
++
++        self.assertEqual(f(1, None, 3), (1, self.service, 3))
++
++    def test_provided_value_not_overridden_positional(self):
++        @self.inject(a='svc')
++        def f(a):
++            return a
++
++        self.assertIs(f(self.other), self.other)
++        self.assertEqual(self.container.requested, [])
++
++    def test_provided_value_not_overridden_keyword(self):
++        @self.inject(a='svc')
++        def f(a):
++            return a
++
++        self.assertIs(f(a=self.other), self.other)
++        self.assertEqual(self.container.requested, [])
++
++    def test_falsey_non_none_values_not_overridden(self):
++        @self.inject(a='svc')
++        def f(a):
++            return a
++
++        for value in (0, '', False):
++            self.assertEqual(f(value), value)
++            self.assertEqual(f(a=value), value)
++
++    def test_missing_argument_still_injected(self):
++        @self.inject(a='svc')
++        def f(a):
++            return a
++
++        self.assertIs(f(), self.service)
++
++
++if __name__ == '__main__':
++    unittest.main()

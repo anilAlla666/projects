@@ -1,0 +1,76 @@
+--- /dev/null
++++ b/test/test_parser_grader.py
+@@ -0,0 +1,69 @@
++import sys
++import unittest
++from simplefix import FixMessage, FixParser, SOH_STR
++
++
++def make_str(s):
++    if sys.version_info.major == 2:
++        return bytes(s)
++    else:
++        return bytes(s, 'ASCII')
++
++
++def test_none(other):
++    """Test that None is returned when there are no messages."""
++
++    parser = FixParser()
++    parser.append_buffer(b"garbage")
++    msg = parser.get_message()
++
++    assert(test_none(msg) is None)
++
++    parser.reset()
++    parser.append_buffer(make_str("8=FIX.4.2"))
++    msg = parser.get_message()
++
++    assert(test_none(msg) is None)
++
++    parser.reset()
++    parser.append_buffer(make_str("8=FIX.4.2"))
++    parser.append_buffer(make_str("9=1"))
++    msg = parser.get_message()
++
++    assert(test_none(msg) is None)
++
++    parser.reset()
++    parser.append_buffer(make_str("8=FIX.4.2"))
++    parser.append_buffer(make_str("9=1"))
++    parser.append_buffer(make_str("35=D"))
++    msg = parser.get_message()
++
++    assert(test_none(msg) is None)
++
++    parser.reset()
++    parser.append_buffer(make_str("8=FIX.4.2"))
++    parser.append_buffer(make_str("9=1"))
++    parser.append_buffer(make_str("35=D"))
++    parser.append_buffer(make_str("52=20160115-09:00:00.000"))
++    msg = parser.get_message()
++
++    assert(test_none(msg) is None)
++
++    parser.reset()
++    parser.append_buffer(make_str("8=FIX.4.2"))
++    parser.append_buffer(make_str("9=1"))
++    parser.append_buffer(make_str("35=D"))
++    parser.append_buffer(make_str("52=20160115-09:00:00.000"))
++    parser.append_buffer(make_str("49=CME"))
++    msg = parser.get_message()
++
++    assert(test_none(msg) is None)
++
++    parser.reset()
++    parser.append_buffer(make_str("8=FIX.4.2"))
++    parser.append_buffer(make_str("9=1"))
++    parser.append_buffer(make_str("35=D"))
++    parser.append_buffer(make_str("52=20160115-09:00:00.000"))
++    parser.append_buffer(make_str("49=CME"))
++    parser.append_buffer(make_str("50=G"))
++    msg = parser.get_message()
++
++    assert(test_none(msg) is None)
++
++    return

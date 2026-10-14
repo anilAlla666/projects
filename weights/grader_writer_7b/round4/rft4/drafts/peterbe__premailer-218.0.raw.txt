@@ -1,0 +1,69 @@
+--- /dev/null
++++ b/premailer/tests/test_premailer_grader.py
+@@ -0,0 +1,71 @@
++from __future__ import absolute_import, unicode_literals
++import logging
++import re
++import sys
++import unittest
++from contextlib import contextmanager
++from io import StringIO  # Yes, the is an io lib in py2.x
++from lxml.etree import XMLSyntaxError, fromstring
++from requests.exceptions import HTTPError
++import mock
++import premailer.premailer  # lint:ok
++from nose.tools import assert_raises, eq_, ok_
++from premailer.__main__ import main
++from premailer.premailer import (
++    ExternalNotFoundError,
++    Premailer,
++    csstext_to_pairs,
++    merge_styles,
++    transform,
++)
++
++
++if sys.version_info >= (3,):  # As in, Python 3
++    from urllib.request import urlopen
++else:  # Python 2
++    from urllib2 import urlopen
++
++
++whitespace_between_tags = re.compile(r">\s*<")
++
++
++@contextmanager
++def captured_output():
++    new_out, new_err = StringIO(), StringIO()
++    old_out, old_err = sys.stdout, sys.stderr
++    try:
++        sys.stdout, sys.stderr = new_out, new_err
++        yield sys.stdout, sys.stderr
++    finally:
++        sys.stdout, sys.stderr = old_out, old_err
++
++
++def compare_html(expected, got):
++    expected = whitespace_between_tags.sub("><", expected)
++    got = whitespace_between_tags.sub("><", got)
++    eq_(expected.strip(), got.strip())
++
++
++class TestPremailer(unittest.TestCase):
++    maxDiff = None
++
++    def setUp(self):
++        # Reset logging level back to INFO
++        logging.getLogger("premailer").setLevel(logging.INFO)
++
++    def test_reuse_instance(self):
++        """Regression test for https://github.com/peterbe/premailer/issues/207
++
++        Reusing a Premailer instance should work.
++        """
++        html = '<p class="red-text">This is red.</p>'
++        p = Premailer(html, cssutils_logging_level=logging.WARNING)
++        result = p.transform()
++        assert "color: red;" in result
++        result = p.transform()  # re-run!
++        assert "color: red;" in result

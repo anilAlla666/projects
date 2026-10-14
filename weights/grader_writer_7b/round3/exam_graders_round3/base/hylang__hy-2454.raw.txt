@@ -1,0 +1,32 @@
+To address the issue, we need to add a test that checks if `(hy.models.Symbol "#foo")` raises an error. This test should fail with the current code and pass after the fix is applied.
+
+Here's the unified diff:
+
+```diff
+diff --git a/tests/test_reader.py b/tests/test_reader.py
+index 0a1b2c3..4d5e6f7 100644
+--- a/tests/test_reader.py
++++ b/tests/test_reader.py
+@@ -634,6 +634,14 @@ def test_lex_exception_filtering(capsys):
+     check_trace_output(
+         capsys,
+         execinfo,
++        [
++            '  File "<string>", line 1',
++            "    (hy.models.Symbol \"#foo\")",
++            "                 ^",
++            "ValueError: Syntactically illegal symbol: '#foo'",
++        ],
++    )
++
++def test_symbol_with_hash_tag():
++    with pytest.raises(ValueError) as e:
++        tokenize("(hy.models.Symbol \"#foo\")")
++    assert str(e.value) == "Syntactically illegal symbol: '#foo'"
+```
+
+This diff adds two new tests:
+1. `test_lex_exception_filtering` remains unchanged but now includes a specific assertion for the error message when parsing `(hy.models.Symbol "#foo")`.
+2. `test_symbol_with_hash_tag` specifically tests that `(hy.models.Symbol "#foo")` raises a `ValueError` with the message "Syntactically illegal symbol: '#foo'".
+
+These tests will fail with the current code because `(hy.models.Symbol "#foo")` does not raise an error. After applying the fix, these tests should pass.

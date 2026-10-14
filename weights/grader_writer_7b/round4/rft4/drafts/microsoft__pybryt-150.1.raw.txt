@@ -1,0 +1,195 @@
+--- /dev/null
++++ b/tests/test_reference_grader.py
+@@ -0,0 +1,131 @@
++""""""
++
++
++import dill
++import json
++import nbformat
++import numpy as np
++import os
++import pkg_resources
++import pytest
++import tempfile
++from copy import deepcopy
++from textwrap import dedent
++from pybryt import generate_report, MemoryFootprint, ReferenceImplementation, Value
++from pybryt.execution import execute_notebook
++
++
++def generate_footprint(nb) -> MemoryFootprint:
++    return execute_notebook(nb, "")
++
++
++def generate_reference_notebook():
++    """
++    """
++    nb = nbformat.v4.new_notebook()
++    nb.cells.append(nbformat.v4.new_code_cell(dedent("""\
++        import pybryt
++    """)))
++    nb.cells.append(nbformat.v4.new_code_cell(dedent("""\
++        def median(S):
++            sorted_S = sorted(S) 
++            pybryt.Value(sorted_S, name="sorted", group="median", limit=5, success_message="SUCCESS: Sorted the sample correctly", 
++                        failure_message="ERROR: The sample was not sorted")
++            
++            size_of_set = len(S) 
++            pybryt.Value(size_of_set, name="size", group="median", success_message = "SUCCESS: Computed the size of the sample", 
++                        failure_message="ERROR: Did not capture the size of the set to determine if it is odd or even")
++            
++            middle = size_of_set // 2
++            if size_of_set % 2 != 0:
++                pybryt.Value(sorted_S[middle], name="middle", group="median", success_message = "SUCCESS: computed the correct median", 
++                            failure_message="ERROR: did not compute the correct median")
++            else:
++                pybryt.Value((sorted_S[middle] + sorted_S[middle - 1]) / 2, name="middle", group="median", success_message = "SUCCESS: computed the correct median", 
++                            failure_message="ERROR: did not compute the correct median")
++            
++            pybryt.Value(S, name="original", group="median", success_message="SUCCESS: captured the original sample")
++    """)))
++    return nb
++
++
++@pytest.fixture
++def footprint() -> MemoryFootprint:
++    nb = generate_reference_notebook()
++    return execute_notebook(nb, "")
++
++
++@pytest.fixture
++def reference(footprint: MemoryFootprint) -> ReferenceImplementation:
++    return ReferenceImplementation("test", [
++        Value(footprint.get_value(0), name="sorted"),
++        Value(footprint.get_value(1), name="size"),
++        Value(footprint.get_value(2), name="middle"),
++        Value(footprint.get_value(3), name="original"),
++    ])
++
++
++def test_reference_limit(reference):
++    ref = deepcopy(reference)
++    for ann in ref.annotations:
++        ann.limit = 5
++    
++    res = reference.run(footprint)
++    res2 = reference.run(footprint)
++    assert len(reference.annotations) == 4
++    assert len(res.annotations) == 4
++    assert len(res2.annotations) == 4
++
++    for r in [res, res2]:
++        assert len(r.annotations) == 4
++        assert len(r.unsatisfied_annotations) == 4
++
++    for r in [res, res2]:
++        for ann in r.annotations:
++            assert ann.annotation is None
++
++    for r in [res, res2]:
++        for ann in r.unsatisfied_annotations:
++            assert ann.annotation is not None
++
++    # test tracking
++    pybryt.Annotation.reset_tracked_annotations()
++    assert len(pybryt.Annotation.get_tracked_annotations()) == 0
++    ref.run(footprint)
++    assert len(pybryt.Annotation.get_tracked_annotations()) == 4
++
++    pybryt.Annotation.reset_tracked_annotations()
++    res = reference.run(footprint)
++    assert len(pybryt.Annotation.get_tracked_annotations()) == 4
++
++    # test resetting tracking
++    pybryt.Annotation.reset_tracked_annotations()
++    assert len(pybryt.Annotation.get_tracked_annotations()) == 0
++
++    pybryt.Annotation.track_all = False
++    assert not pybryt.Annotation.track_all
++    ref.run(footprint)
++    assert len(pybryt.Annotation.get_tracked_annotations()) == 0
++
++    pybryt.Annotation.track_all = True
++    assert pybryt.Annotation.track_all
++    ref.run(footprint)
++    assert len(pybryt.Annotation.get_tracked_annotations()) == 4
++
++    # test resetting limits
++    ref2 = deepcopy(ref)
++    ref2.reset_limits()
++    ref3 = deepcopy(ref)
++    ref3.reset_limits()
++    ref4 = deepcopy(ref)
++    ref4.reset_limits()
++    ref5 = deepcopy(ref)
++    ref5.reset_limits()
++    ref6 = deepcopy(ref)
++    ref6.reset_limits()
++
++    assert ref.annotations[0].limit == ref2.annotations[0].limit
++    assert ref.annotations[0].limit == ref3.annotations[0].limit
++    assert ref.annotations[0].limit == ref4.annotations[0].limit
++    assert ref.annotations[0].limit == ref5.annotations[0].limit
++    assert ref.annotations[0].limit == ref6.annotations[0].limit
++    assert ref.annotations[0].limit is None
+--- /dev/null
++++ b/tests/annotations/test_annotation_grader.py
+@@ -0,0 +1,56 @@
++"""Tests for abstract annotations and annotation results"""
++
++
++import pybryt
++from pybryt.execution.memory_footprint import MemoryFootprint
++from .utils import assert_object_attrs, generate_memory_footprint
++
++
++def test_name_group_limit():
++    """
++    """
++    footprint = generate_memory_footprint()
++    val = footprint.get_value(2)
++
++    pybryt.Annotation.reset_tracked_annotations()
++    vs = []
++    for _ in range(100):
++        vs.append(pybryt.Value(val, name="foo", limit=11))
++    
++    tracked = pybryt.Annotation.get_tracked_annotations()
++    assert len(tracked) == 11, "Too many tracked annotations"
++    assert tracked == vs[:11], "Wrong tracked annotations"
++    assert all(v.name == "foo" and v.limit == 11 for v in vs)
++
++    res = vs[-1].check(footprint)
++    assert_object_attrs(res, {
++        "name": "foo",
++        "group": None,
++    })
++
++    v1 = pybryt.Value(footprint.get_value(0), group="bar")
++    v2 = pybryt.Value(footprint.get_value(1), group="bar")
++    assert_object_attrs(v1, {"group": "bar"})
++    assert_object_attrs(v2, {"group": "bar"})
++
++    res = v1.check(footprint)
++    print(res.name)
++    assert_object_attrs(res, {
++        "name": "foo",
++        "group": "bar",
++    })
++
++    assert v1.name == "foo"
++    assert v1.group == "bar"
++    assert v1.limit == 11
++    assert v2.name == "foo"
++    assert v2.group == "bar"
++    assert v2.limit == 11
++
++    pybryt.Annotation.reset_tracked_annotations()
++    assert len(tracked) == 0
++
++    v3 = pybryt.Value(footprint.get_value(2), name="foo")
++    v4 = v3.before(v2)
++
++    tracked = pybryt.Annotation.get_tracked_annotations()
++    assert len(tracked) == 3

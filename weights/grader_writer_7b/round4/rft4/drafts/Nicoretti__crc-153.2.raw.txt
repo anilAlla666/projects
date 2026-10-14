@@ -1,0 +1,72 @@
+--- /dev/null
++++ b/test/unit/test_crc_grader.py
+@@ -0,0 +1,77 @@
++import io
++import string
++import unittest
++from collections import namedtuple
++import pytest
++from crc._crc import (
++    Byte,
++    Calculator,
++    Configuration,
++    Crc8,
++    Crc16,
++    Register,
++    TableBasedRegister,
++    _generate_template,
++    create_lookup_table,
++)
++
++
++Fixture = namedtuple("Fixture", "data checksum")
++
++
++class RegisterTest(unittest.TestCase):
++    def test_register(self):
++        config = Configuration(
++            width=8,
++            polynomial=0x07,
++            init_value=0x00,
++            final_xor_value=0x00,
++            reverse_input=True,
++            reverse_output=False,
++        )
++        reg = Register(config)
++        assert reg.register == 0x00
++        reg.register = 0x11
++        assert reg.register == 0x11
++        reg.register = 0x22
++        assert reg.register == 0x22
++        reg.register = 0x33
++        assert reg.register == 0x33
++        reg.register = 0x44
++        assert reg.register == 0x44
++        reg.register = 0x55
++        assert reg.register == 0x55
++        reg.register = 0x66
++        assert reg.register == 0x66
++        reg.register = 0x77
++        assert reg.register == 0x77
++        reg.register = 0x88
++        assert reg.register == 0x88
++        reg.register = 0x99
++        assert reg.register == 0x99
++        reg.register = 0xAA
++        assert reg.register == 0xAA
++        reg.register = 0xBB
++        assert reg.register == 0xBB
++        reg.register = 0xCC
++        assert reg.register == 0xCC
++        reg.register = 0xDD
++        assert reg.register == 0xDD
++        reg.register = 0xEE
++        assert reg.register == 0xEE
++        reg.register = 0xFF
++        assert reg.register == 0xFF
++        reg.register = 0x00
++        assert reg.register == 0x00
++
++
++if __name__ == "__main__":
++    unittest.main()

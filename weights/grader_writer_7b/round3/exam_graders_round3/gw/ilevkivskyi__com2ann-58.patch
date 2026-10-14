@@ -1,0 +1,21 @@
+diff --git a/src/test_com2ann.py b/src/test_com2ann.py
+index 0e1b0d4..c01201c 100644
+--- a/src/test_com2ann.py
++++ b/src/test_com2ann.py
+@@ -701,6 +701,14 @@ class FutureImportTestCase(BaseTestCase):
+     def test_not_added_future_import(self) -> None:
+         self.check(
+             """
++            from __future__ import annotations
++
++            x: Optional[str] = None
++            """,
++            """
++            from __future__ import annotations
++
++            x: Optional[str] = None
++            """, i=True)
++        self.check(
+             """
+             x = 1
+             """,

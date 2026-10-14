@@ -1,0 +1,54 @@
+--- /dev/null
++++ b/tests/test_time_machine_grader.py
+@@ -0,0 +1,41 @@
++from __future__ import annotations
++import asyncio
++import datetime as dt
++import os
++import sys
++import time
++import typing
++import uuid
++from contextlib import contextmanager
++from importlib.util import module_from_spec
++from importlib.util import spec_from_file_location
++from unittest import SkipTest
++from unittest import TestCase
++from unittest import mock
++import pytest
++from dateutil import tz
++import time_machine
++
++
++if sys.version_info >= (3, 9):
++    from zoneinfo import ZoneInfo
++else:
++    from backports.zoneinfo import ZoneInfo
++
++
++NANOSECONDS_PER_SECOND = time_machine.NANOSECONDS_PER_SECOND
++
++
++EPOCH_DATETIME = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
++
++
++EPOCH = EPOCH_DATETIME.timestamp()
++
++
++EPOCH_PLUS_ONE_YEAR_DATETIME = dt.datetime(1971, 1, 1, tzinfo=dt.timezone.utc)
++
++
++EPOCH_PLUS_ONE_YEAR = EPOCH_PLUS_ONE_YEAR_DATETIME.timestamp()
++
++
++LIBRARY_EPOCH_DATETIME = dt.datetime(2020, 4, 29)  # The day this library was made
++
++
++LIBRARY_EPOCH = LIBRARY_EPOCH_DATETIME.timestamp()
++
++
++class TestTravel(TestCase):
++    @pytest.mark.parametrize("destination", [0, 0.0, 0j])
++    def test_destination_is_not_positive_number(self, destination):
++        with pytest.raises(ValueError):
++            time_machine.travel(destination)

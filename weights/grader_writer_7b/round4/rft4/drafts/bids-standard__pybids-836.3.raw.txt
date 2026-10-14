@@ -1,0 +1,191 @@
+--- /dev/null
++++ b/bids/modeling/tests/test_transformations_grader.py
+@@ -0,0 +1,200 @@
++from bids.modeling import transformations as transform
++from bids.variables import SparseRunVariable, DenseRunVariable
++from bids.variables.entities import RunInfo
++from bids.variables.collections import BIDSRunVariableCollection
++from bids.layout import BIDSLayout
++import math
++import pytest
++from os.path import join, sep
++from bids.tests import get_test_data_path
++import numpy as np
++import pandas as pd
++
++
++try:
++    from unittest import mock
++except ImportError:
++    import mock
++
++
++SUBJECTS = ['01', '02']
++
++
++NRUNS = 3
++
++
++SCAN_LENGTH = 480
++
++
++cached_collections = {}
++
++
++@pytest.fixture
++def collection():
++    if 'ds005' not in cached_collections:
++        layout_path = join(get_test_data_path(), 'ds005')
++        layout = BIDSLayout(layout_path)
++        cached_collections['ds005'] = layout.get_collections(
++            'run',
++            types=['events'],
++            scan_length=SCAN_LENGTH,
++            merge=True,
++            sampling_rate=10,
++            subject=SUBJECTS
++        )[0]
++    yield cached_collections['ds005']
++
++
++def test_Split():
++    var = SparseRunVariable(
++        name="rt",
++        values=[1.0, 2.0],
++        run_info=RunInfo({'subject': '01'}, 15, 1, "none", 15),
++        source='events',
++        sampling_rate=1
++    )
++
++    # No grouping variables
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Split(coll, ["rt"], output=["a", "b"])
++    assert len(coll) == 2
++    assert coll['a'].values.tolist() == [1.0]
++    assert coll['b'].values.tolist() == [2.0]
++
++    # One grouping variable
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Split(coll, ["rt", "subject"], output=["a", "b"])
++    assert len(coll) == 2
++    assert coll['a'].values.tolist() == [1.0]
++    assert coll['b'].values.tolist() == [2.0]
++
++    # Two grouping variables
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Split(coll, ["rt", "subject", "acquisition"],
++                    output=["a", "b"])
++    assert len(coll) == 2
++    assert coll['a'].values.tolist() == [1.0]
++    assert coll['b'].values.tolist() == [2.0]
++
++
++def test_Select():
++    var = SparseRunVariable(
++        name="rt",
++        values=[1.0, 2.0],
++        run_info=RunInfo({'subject': '01'}, 15, 1, "none", 15),
++        source='events',
++        sampling_rate=1
++    )
++
++    # Single selection
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Select(coll, ["rt"])
++    assert len(coll) == 1
++
++    # Multiple selections
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Select(coll, ["rt", "subject"])
++    assert len(coll) == 2
++
++
++def test_Rename():
++    var = SparseRunVariable(
++        name="rt",
++        values=[1.0, 2.0],
++        run_info=RunInfo({'subject': '01'}, 15, 1, "none", 15),
++        source='events',
++        sampling_rate=1
++    )
++
++    # Single renaming
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Rename(coll, {"rt": "new_name"})
++    assert len(coll) == 1
++    assert "new_name" in coll
++
++    # Multiple renamings
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Rename(coll, {"rt": "new_name", "subject": "sub_new"})
++    assert len(coll) == 2
++    assert "new_name" in coll
++    assert "sub_new" in coll
++
++
++def test_Aggregate():
++    var = SparseRunVariable(
++        name="rt",
++        values=[1.0, 2.0],
++        run_info=RunInfo({'subject': '01'}, 15, 1, "none", 15),
++        source='events',
++        sampling_rate=1
++    )
++
++    # Mean
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Aggregate(coll, ["rt"], output=["mean"])
++    assert len(coll) == 1
++    assert np.allclose(coll["mean"].values, 1.5)
++
++    # Median
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Aggregate(coll, ["rt"], output=["median"])
++    assert len(coll) == 1
++    assert np.allclose(coll["median"].values, 1.5)
++
++    # Min
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Aggregate(coll, ["rt"], output=["min"])
++    assert len(coll) == 1
++    assert np.allclose(coll["min"].values, 1.0)
++
++    # Max
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Aggregate(coll, ["rt"], output=["max"])
++    assert len(coll) == 1
++    assert np.allclose(coll["max"].values, 2.0)
++
++    # Count
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Aggregate(coll, ["rt"], output=["count"])
++    assert len(coll) == 1
++    assert np.allclose(coll["count"].values, 2.0)
++
++    # Standard Deviation
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Aggregate(coll, ["rt"], output=["std"])
++    assert len(coll) == 1
++    assert np.allclose(coll["std"].values, 0.5)
++
++
++def test_Merge():
++    var = SparseRunVariable(
++        name="rt",
++        values=[1.0, 2.0],
++        run_info=RunInfo({'subject': '01'}, 15, 1, "none", 15),
++        source='events',
++        sampling_rate=1
++    )
++
++    # Merge multiple runs
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Merge(coll, ["rt"], output="merged")
++    assert len(coll) == 1
++    assert coll["merged"].values.tolist() == [1.0, 2.0]
++
++    # Merge multiple runs and combine with groupby
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++    transform.Merge(coll, ["rt", "subject"], output="merged")
++    assert len(coll) == 2
++    assert coll["merged"].values.tolist() == [[1.0], [2.0]]

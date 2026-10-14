@@ -1,0 +1,40 @@
+```diff
+diff --git a/tests/test_capturs_parser.py b/tests/test_capturs_parser.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_capturs_parser.py
+@@ -0,0 +1,25 @@
++import pytest
++from ogn_lib.parser import Capturs
++
++
++def test_capturs_parser_registered_with_correct_callsign():
++    # Check if Capturs parser is registered with the correct callsign
++    assert 'OGCAPT' in Capturs.__destto__
++
++
++def test_capturs_parser_parsing_with_correct_callsign():
++    # Test parsing a message with the correct callsign
++    message = "FLRDDEEF1>OGCAPT,qAS,CAPTURS:/065144h4837.56N/00233.80E'000/000/"
++    parsed_data = Capturs.parse_message(message)
++    assert parsed_data['id'] == 'FLRDDEEF1'
++    assert parsed_data['vertical_speed'] == 0.0
++
++
++def test_capturs_parser_raises_error_with_incorrect_callsign():
++    # Test that an error is raised when parsing a message with an incorrect callsign
++    message = "FLRDDEEF1>WRONGCALL,qAS,CAPTURS:/065144h4837.56N/00233.80E'000/000/"
++    with pytest.raises(Exception):
++        Capturs.parse_message(message)
+```
+
+This new test file `test_capturs_parser.py` includes three tests:
+
+1. **Test Capturs parser registered with correct callsign**: This checks if the `Capturs` parser is correctly registered with the `OGCAPT` callsign.
+
+2. **Test Capturs parser parsing with correct callsign**: This verifies that the `Capturs` parser can successfully parse a message containing the correct callsign (`OGCAPT`).
+
+3. **Test Capturs parser raises error with incorrect callsign**: This ensures that an exception is raised when attempting to parse a message with an incorrect callsign (`WRONGCALL`).
+
+These tests will fail with the current implementation because the `Capturs` parser is registered with `OGLT24` instead of `OGCAPT`. Once the fix is applied, these tests should pass.

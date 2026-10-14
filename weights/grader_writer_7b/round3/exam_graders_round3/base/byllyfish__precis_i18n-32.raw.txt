@@ -1,0 +1,55 @@
+To address the issue described, we need to write tests that ensure the `additional_mapping_rule` method correctly handles whitespace characters according to the specifications provided. Specifically, the tests should verify that:
+
+1. Non-ASCII space characters are mapped to ASCII space.
+2. Leading and trailing whitespace characters are removed.
+3. Interior sequences of multiple space characters are reduced to a single ASCII space.
+
+Here is a unified diff that adds a new test file `test_profile.py` to cover these scenarios:
+
+```diff
+diff --git a/test_profile.py b/test_profile.py
+new file mode 100644
+--- /dev/null
++++ b/test_profile.py
+@@ -0,0 +1,65 @@
++import unittest
++from precis_i18n.profile import Nickname
++
++class TestNicknameProfile(unittest.TestCase):
++    def setUp(self):
++        self.nickname_profile = Nickname(None, 'Nickname')
++
++    def test_additional_mapping_rule(self):
++        # Test non-ASCII space characters mapped to ASCII space
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u00A0'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2000'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2001'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2002'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2003'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2004'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2005'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2006'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2007'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2008'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2009'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u200A'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u200B'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u202F'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u205F'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u3000'), ' ')
++
++        # Test leading and trailing whitespace characters removed
++        self.assertEqual(self.nickname_profile.additional_mapping_rule(' a\n'), 'a')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\x1fb\x1f'), 'b')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\tc\r\n'), 'c')
++
++        # Test interior sequences of multiple space characters reduced to a single ASCII space
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('  a   b  '), 'a b')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('  \t  a\t  b  \t  '), 'a b')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('  \r\n  a\r\n  b  \r\n  '), 'a b')
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This test file includes a class `TestNicknameProfile` with a method `test_additional_mapping_rule` that checks various cases to ensure the `additional_mapping_rule` method behaves as expected. The tests cover the mapping of non-ASCII space characters to ASCII space, removal of leading and trailing whitespace characters, and reduction of interior sequences of multiple space characters to a single ASCII space.

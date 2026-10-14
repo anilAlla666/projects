@@ -1,0 +1,41 @@
+To address the `ZeroDivisionError` when passing in data containing all zeros, we need to add a check in the `normalize` function to handle cases where the maximum value is zero. Here’s how you can write a test to ensure that the fix works correctly:
+
+1. Create a new test file named `test_empty_data.py`.
+2. Write a test function that checks if the `chart` function handles an empty dataset gracefully.
+
+Here is the unified diff that adds the new test file and the test function:
+
+```diff
+diff --git a/tests/test_empty_data.py b/tests/test_empty_data.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_empty_data.py
+@@ -0,0 +1,25 @@
++from unittest.mock import patch
++from io import StringIO
++import pytest
++from termgraph import termgraph as tg
++
++
++def test_chart_handles_empty_data():
++    with patch("sys.stdout", new=StringIO()) as output:
++        args = {
++            "colors": None,
++            "data": [0, 0],
++            "width": 100,
++            "format": "{:,}",
++            "suffix": '',
++            "no_labels": False,
++            "no_values": False,
++            "vertical": False,
++            "stacked": False,
++            "histogram": False,
++            "different_scale": False,
++        }
++        labels = ['iOS', 'Android']
++        tg.chart(**args, labels=labels)
++        output = output.getvalue().strip()
++        assert output == ""
+```
+
+This test ensures that the `chart` function does not raise a `ZeroDivisionError` when passed an empty dataset and instead outputs an empty string. The test uses a mock object to capture the standard output and then asserts that the output is empty.

@@ -1,0 +1,56 @@
+diff --git a/test/test_json/test_json_commands.py b/test/test_json/test_json_commands.py
+index 0e11000..0101100 100644
+--- a/test/test_json/test_json_commands.py
++++ b/test/test_json/test_json_commands.py
+@@ -1120,10 +1120,10 @@ def test_set_file(r: redis.Redis) -> None:
+     with open(jsonfile.name, "w+") as fp:
+         fp.write(json.dumps(obj))
+ 
+-    no_json_file = tempfile.NamedTemporaryFile()
++    no_json_file = tempfile.NamedTemporaryFile(mode="wb")
+     no_json_file.write(b"Hello World")
+ 
+-    assert r.json().set_file("test", Path.root_path(), jsonfile.name)
++    assert r.json().set_file("test", Path.root_path(), jsonfile.name.encode())
+     assert r.json().get("test") == obj
+     with pytest.raises(json.JSONDecodeError):
+         r.json().set_file("test2", Path.root_path(), no_json_file.name)
+diff --git a/test/test_mixins/test_set_commands.py b/test/test_mixins/test_set_commands.py
+index 0101100..0e11000 100644
+--- a/test/test_mixins/test_set_commands.py
++++ b/test/test_mixins/test_set_commands.py
+@@ -437,7 +437,7 @@ def test_pfmerge(r):
+ def test_set_ex_should_expire_value(r):
+     r.set('foo', 'bar')
+     assert r.get('foo') == b'bar'
+-    r.set('foo', 'bar', ex=1)
++    r.set('foo', 'bar', ex=1, encoding='utf-8')
+     sleep(2)
+     assert r.get('foo') is None
+ 
+@@ -446,7 +446,7 @@ def test_set_ex_should_expire_value(r):
+ def test_set_px_should_expire_value(r):
+     r.set('foo', 'bar', px=500)
+     sleep(1.5)
+-    assert r.get('foo') is None
++    assert r.get('foo', encoding='utf-8') is None
+ 
+ 
+ @pytest.mark.slow
+@@ -453,7 +453,7 @@ def test_set_px_should_expire_value(r):
+ def test_psetex_expire_value(r):
+     with pytest.raises(ResponseError):
+         r.psetex('foo', 0, 'bar')
+-    r.psetex('foo', 500, 'bar')
++    r.psetex('foo', 500, 'bar', encoding='utf-8')
+     sleep(1.5)
+     assert r.get('foo') is None
+ 
+@@ -462,7 +462,7 @@ def test_psetex_expire_value(r):
+ def test_psetex_expire_value_using_timedelta(r):
+     with pytest.raises(ResponseError):
+         r.psetex('foo', timedelta(seconds=0), 'bar')
+-    r.psetex('foo', timedelta(seconds=0.5), 'bar')
++    r.psetex('foo', timedelta(seconds=0.5), 'bar', encoding='utf-8')
+     sleep(1.5)
+     assert r.get('foo') is None

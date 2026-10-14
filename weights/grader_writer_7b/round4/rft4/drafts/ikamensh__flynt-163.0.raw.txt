@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/test/integration/test_cli_grader.py
+@@ -0,0 +1,34 @@
++import io
++import os
++import pytest
++import flynt
++from flynt.cli import run_flynt_cli
++from flynt.cli_messages import farewell_message
++
++
++valid_snippets = [
++    ("'{}'.format(x) + '{}'.format(y)", "f'{x}' + f'{y}'"),
++    (
++        "['{}={}'.format(key, value) for key, value in x.items()]",
++        "[f'{key}={value}' for key, value in x.items()]",
++    ),
++    (
++        "'{}={}'.format(key, value)",
++        "f'{key}={value}'",
++    ),
++]
++
++
++def test_cli_string_quoting():
++    """String quoting should handle both single and double quotes"""
++    code_in = '"{}" + "{}"'.format("Hello", "World")
++    code_out = r"f'{} {}'".format('Hello', 'World')
++
++    return_code = run_flynt_cli([code_in])
++    assert return_code == 0
++
++    out, err = code_in = run_flynt_cli([code_in])
++    assert out.strip() == code_out
++    assert err == ""

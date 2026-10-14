@@ -1,0 +1,77 @@
+--- /dev/null
++++ b/tests/test_parser_grader.py
+@@ -0,0 +1,22 @@
++import m3u8
++import playlists
++import pytest
++from m3u8.parser import cast_date_time, ParseError
++
++
++def test_closed_caption_as_cc():
++    data = m3u8.parse(playlists.CLOSED_CAPTION_AS_CC)
++    assert data['playlists'][0]['stream_info']['closed_captions'] == 'CC'
++
++
++def test_closed_caption_as_none():
++    data = m3u8.parse(playlists.CLOSED_CAPTION_AS_NONE)
++    assert data['playlists'][0]['stream_info']['closed_captions'] is None
++
++
++def test_closed_caption_as_other_value():
++    data = m3u8.parse(playlists.CLOSED_CAPTION_AS_OTHER_VALUE)
++    assert data['playlists'][0]['stream_info']['closed_captions'] == 'other_value'
++
++
++def test_closed_caption_as_no_value():
++    data = m3u8.parse(playlists.CLOSED_CAPTION_AS_NO_VALUE)
++    assert data['playlists'][0]['stream_info']['closed_captions'] is None
+--- /dev/null
++++ b/tests/test_variant_m3u8_grader.py
+@@ -0,0 +1,46 @@
++import m3u8, playlists
++
++
++def test_variant_playlist_with_closed_caption():
++    variant_m3u8 = m3u8.M3U8()
++
++    subtitles = m3u8.Media('english_sub.m3u8', 'SUBTITLES', 'subs', 'en',
++                           'English', 'YES', 'YES', 'NO', None)
++    variant_m3u8.add_media(subtitles)
++
++    low_playlist = m3u8.Playlist(
++        uri='video-800k.m3u8',
++        stream_info={'bandwidth': 800000,
++                     'program_id': 1,
++                     'res': '624x352',
++                     'codecs': 'avc1.4d001f, mp4a.40.5',
++                     'subtitles': 'subs',
++                     'audio': 'eng',
++                     'closed_captions': 'CC'},
++        media=[subtitles],
++        base_uri=None
++    )
++    high_playlist = m3u8.Playlist(
++        uri='video-1200k.m3u8',
++        stream_info={'bandwidth': 1200000,
++                     'program_id': 1,
++                     'res': '624x352',
++                     'codecs': 'avc1.4d001f, mp4a.40.5',
++                     'subtitles': 'subs',
++                     'audio': 'eng',
++                     'closed_captions': 'CC'},
++        media=[subtitles],
++        base_uri=None
++    )
++
++    variant_m3u8.add_playlist(low_playlist)
++    variant_m3u8.add_playlist(high_playlist)
++
++    expected_content = """\
++#EXTM3U
++#EXT-X-MEDIA:URI="english_sub.m3u8",TYPE=SUBTITLES,GROUP-ID="subs",LANGUAGE="en",NAME="English",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO
++#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=800000,RESOLUTION=624x352,CODECS="avc1.4d001f, mp4a.40.5",SUBTITLES="subs",AUDIO="eng",CLOSED-CAPTIONS="CC"
++video-800k.m3u8
++#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1200000,RESOLUTION=624x352,CODECS="avc1.4d001f, mp4a.40.5",SUBTITLES="subs",AUDIO="eng",CLOSED-CAPTIONS="CC"
++video-1200k.m3u8
++"""
++    assert expected_content == variant_m3u8.dumps()

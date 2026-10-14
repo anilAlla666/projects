@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/tests/unit/test_heartbeat_tests_grader.py
+@@ -0,0 +1,49 @@
++"""
++Tests for pika.heartbeat
++
++"""
++
++
++import unittest
++import mock
++from pika import connection, frame, heartbeat
++import pika.exceptions
++
++
++# protected-access
++
++
++# pylint: disable=W0212
++
++
++# missing-docstring
++
++
++# pylint: disable=C0111
++
++
++# invalid-name
++
++
++# pylint: disable=C0103
++
++
++class HeartbeatTests(unittest.TestCase):
++    INTERVAL = 5
++
++    def setUp(self):
++        self.mock_conn = mock.Mock(spec=connection.Connection)
++        self.mock_conn.bytes_received = 100
++        self.mock_conn.bytes_sent = 100
++        self.mock_conn.heartbeat = mock.Mock(spec=heartbeat.HeartbeatChecker)
++        self.obj = heartbeat.HeartbeatChecker(self.mock_conn, self.INTERVAL)
++
++    def tearDown(self):
++        del self.obj
++        del self.mock_conn
++
++    @mock.patch('pika.heartbeat.HeartbeatChecker._setup_timer')
++    def test_start_timer_active_no_heartbeat_attr(self, setup_timer):
++        self.mock_conn.heartbeat = None
++        self.obj._start_timer()
++        setup_timer.assert_not_called()

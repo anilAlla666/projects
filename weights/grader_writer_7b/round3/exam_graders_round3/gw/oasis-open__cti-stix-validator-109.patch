@@ -1,0 +1,28 @@
+diff --git a/stix2validator/tests/test_v21_musts.py b/stix2validator/tests/test_v21_musts.py
+index 0b0f3a5..d0c0e58 100644
+--- a/stix2validator/tests/test_v21_musts.py
++++ b/stix2validator/tests/test_v21_musts.py
+@@ -1,6 +1,7 @@
+ import unittest
+ 
+ from stix2validator import validate_string
++from stix2validator.errors import PatternError
+ 
+ 
+ class TestMusts(unittest.TestCase):
+@@ -100,6 +101,14 @@ class TestMusts(unittest.TestCase):
+         self.assertEqual(len(results), 1)
+         self.assertIsInstance(results[0], PatternError)
+ 
++    def test_snort_pattern(self):
++        pattern = "[snort:'alert tcp $HOME_NET any -> $EXTERNAL_NET 25 (msg:\"ET TROJAN Backdoor.com SMTP HELO Buffer Overflow\"; flow:to_server,established; content:\"HELO\"; nocase; content:\"|0D 0A|\"; distance:0; within:10; content:\"|0D 0A|\"; distance:10; within:10; content:\"|0D 0A|\"; distance:20; within:10; content:\"|0D 0A|\"; distance:30; within:10; content:\"|0D 0A|\"; distance:40; within:10; content:\"|0D 0A|\"; distance:50; within:10; content:\"|0D 0A|\"; distance:60; within:10; content:\"|0D 0A|\"; distance:70; within:10; content:\"|0D 0A|\"; distance:80; within:10; content:\"|0D 0A|\"; distance:90; within:10; content:\"|0D 0A|\"; distance:100; within:10; content:\"|0D 0A|\"; distance:110; within:10; content:\"|0D 0A|\"; distance:120; within:10; content:\"|0D 0A|\"; distance:130; within:10; content:\"|0D 0A|\"; distance:140; within:10; content:\"|0D 0A|\"; distance:150; within:10; content:\"|0D 0A|\"; distance:160; within:10; content:\"|0D 0A|\"; distance:170; within:10; content:\"|0D 0A|\"; distance:180; within:10; content:\"|0D 0A|\"; distance:190; within:10; content:\"|0D 0A|\"; distance:200; within:10; classtype:trojan-activity; sid:1000000; rev:1;)']"
++
++        results = validate_string(pattern, version="2.1", schema=True)
++        self.assertEqual(len(results), 0)
++
++        results = validate_string(pattern, version="2.1", schema=False)
++        self.assertEqual(len(results), 0)
++
+ 
+ if __name__ == '__main__':
+     unittest.main()

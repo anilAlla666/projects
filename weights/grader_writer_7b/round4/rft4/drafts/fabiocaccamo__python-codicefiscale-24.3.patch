@@ -1,0 +1,44 @@
+--- /dev/null
++++ b/tests/test_codicefiscale_grader.py
+@@ -0,0 +1,42 @@
++import pytest
++from codicefiscale import decode, encode
++
++
++def test_inactive_municipality():
++    """
++    Test case for https://github.com/fabiocaccamo/python-codicefiscale/issues/14
++    """
++    # https://www.istat.it/storage/cartografia/listacodici/comuniattivi.txt
++    inactive_municipality_codes = [
++        "01001",  # SANTO STEFANO DEL CARBONARO
++        "01002",  # SANTA TERESA DI GIORGIO
++        "01003",  # SAN MARCO
++        "01004",  # SAN MIGLIORI
++        "01005",  # SAN PEDRO DI BELLUNO
++        "01006",  # SAN PIETRO IN CEDRO
++        "01007",  # SAN PIETRO LA SPIRA
++        "01008",  # SANTI PAOLA E ANGELO
++        "01009",  # SANTI SEVERINO E ANGELO
++        "01010",  # SANTO ANGELO DI VARESE
++        "01011",  # SANTO DOMINGO
++        "01012",  # SANTO FRANCESCO
++        "01013",  # SANTO GIACOMO
++        "01014",  # SANTO MAURIZIO
++        "01015",  # SANTO PETER
++        "01016",  # SANTO ROBERTO
++        "01017",  # SANTO TITO
++        "01018",  # SANTO URSO
++        "01019",  # SANTA CRISTINA
++        "01020",  # SANTA FELICITA
++        "01021",  # SANTA GREGORIA
++        "01022",  # SANTA LUCIA
++        "01023",  # SANTA ROTA
++        "01024",  # SANTA SARA
++    ]
++
++    for code in inactive_municipality_codes:
++        person = decode(code)
++        assert person.birthplace.code == code
++        assert person.birthplace.active is False
++        assert person.birthplace.name == ""

@@ -1,0 +1,64 @@
+--- /dev/null
++++ b/lib/urlwatch/tests/test_filters_grader.py
+@@ -0,0 +1,56 @@
++import os
++import logging
++import yaml
++from urlwatch.filters import FilterBase
++import pytest
++
++
++logger = logging.getLogger(__name__)
++
++
++TESTDATA = [
++    # Legacy string-style filter definition conversion
++    ('grep', [('grep', {})]),
++    ('grep:foo', [('grep', {'re': 'foo'})]),
++    ('beautify,grep:foo,html2text', [('beautify', {}), ('grep', {'re': 'foo'}), ('html2text', {})]),
++    ('re.sub:.*', [('re.sub', {'pattern': '.*'})]),
++    ('re.sub', [('re.sub', {})]),
++
++    # New dict-style filter definition normalization/mapping
++    ([{'grep': None}], [('grep', {})]),
++    ([{'grep': {'re': 'bla'}}], [('grep', {'re': 'bla'})]),
++    ([{'reverse': '\n\n'}], [('reverse', {'separator': '\n\n'})]),
++    (['html2text', {'grep': 'Current.*version'}, 'strip'], [
++        ('html2text', {}),
++        ('grep', {'re': 'Current.*version'}),
++        ('strip', {}),
++    ]),
++    ([{'css': 'body'}], [('css', {'selector': 'body'})]),
++    ([{'html2text': {'method': 'bs4', 'parser': 'html5lib'}}], [
++        ('html2text', {'method': 'bs4', 'parser': 'html5lib'}),
++    ]),
++]
++
++
++FILTER_TESTS = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), 'data/filter_tests.yaml'), 'r', encoding='utf8'))
++
++
++@pytest.fixture(scope="module")
++def tmpdir(tmp_path_factory):
++    return tmp_path_factory.mktemp("urlwatch-test")
++
++
++@pytest.fixture(scope="function")
++def config(tmpdir):
++    config = """
++    job_name: foo
++    cache_dir: {tmpdir}
++    jobs:
++    - url: http://example.com
++    """.format(tmpdir=tmpdir)
++    config_file = tmpdir.join('config.yaml')
++    config_file.write(config)
++    return config_file
++
++
++@pytest.fixture
++def job(config):
++    from urlwatch.jobs import Job
++    job = Job(config, index=0)
++    job.load_job_from_config()
++    return job

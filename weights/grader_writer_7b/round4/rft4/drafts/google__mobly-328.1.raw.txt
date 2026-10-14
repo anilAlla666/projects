@@ -1,0 +1,117 @@
+--- /dev/null
++++ b/tests/test_mobly_controllers_android_device_test_grader.py
+@@ -0,0 +1,124 @@
++import logging
++import mock
++import os
++import shutil
++import tempfile
++from future.tests.base import unittest
++from mobly.controllers import android_device
++from tests.lib import mock_android_device
++
++
++MOCK_LOG_PATH = "/tmp/logs/MockTest/xx-xx-xx_xx-xx-xx/"
++
++
++MOCK_ADB_LOGCAT_CAT_RESULT = [
++    "02-29 14:02:21.456  4454  Something\n",
++    "02-29 14:02:21.789  4454  Something again\n"
++]
++
++
++MOCK_ADB_LOGCAT = ("02-29 14:02:19.123  4454  Nothing\n"
++                   "%s"
++                   "02-29 14:02:22.123  4454  Something again and again\n"
++                   ) % ''.join(MOCK_ADB_LOGCAT_CAT_RESULT)
++
++
++MOCK_ADB_LOGCAT_BEGIN_TIME = "02-29 14:02:20.123"
++
++
++MOCK_ADB_LOGCAT_END_TIME = "02-29 14:02:22.000"
++
++
++MOCK_SNIPPET_PACKAGE_NAME = 'com.mock.snippet'
++
++
++class TestAndroidDevice(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.temp_log_path = tempfile.mkdtemp()
++
++    @classmethod
++    def tearDownClass(cls):
++        shutil.rmtree(cls.temp_log_path)
++
++    @mock.patch('mobly.controllers.android_device_lib.adb.AdbProxy',
++                return_value=mock_android_device.MockAdbProxy(1))
++    @mock.patch('mobly.controllers.android_device_lib.fastboot.FastbootProxy',
++                return_value=mock_android_device.MockFastbootProxy(1))
++    @mock.patch('mobly.controllers.android_device_lib.snippet_client.'
++                'SnippetClient')
++    @mock.patch('mobly.utils.get_available_host_port')
++    def test_AndroidDevice_start_adb_logcat_with_space_in_model_name(
++            self, MockGetPort, MockSnippetClient, MockFastboot, MockAdbProxy):
++        mock_serial = 1
++        mock_model = 'Mock Model'
++        ad = android_device.AndroidDevice(serial=mock_serial, model=mock_model)
++        ad.log_path = self.temp_log_path
++        self.assertIsNone(ad.adb_logcat_process)
++        self.assertIsNone(ad.adb_logcat_file_path)
++        ad.start_adb_logcat(clear_log=True)
++        self.assertIsNotNone(ad.adb_logcat_process)
++        self.assertIsNotNone(ad.adb_logcat_file_path)
++        self.assertTrue(os.path.exists(ad.adb_logcat_file_path))
++        ad.stop_adb_logcat()
++        self.assertIsNone(ad.adb_logcat_process)
++        self.assertIsNone(ad.adb_logcat_file_path)
++
++    @mock.patch('mobly.controllers.android_device_lib.adb.AdbProxy',
++                return_value=mock_android_device.MockAdbProxy(1))
++    @mock.patch('mobly.controllers.android_device_lib.fastboot.FastbootProxy',
++                return_value=mock_android_device.MockFastbootProxy(1))
++    @mock.patch('mobly.controllers.android_device_lib.snippet_client.'
++                'SnippetClient')
++    @mock.patch('mobly.utils.get_available_host_port')
++    def test_AndroidDevice_stop_adb_logcat_no_running_thread(
++            self, MockGetPort, MockSnippetClient, MockFastboot, MockAdbProxy):
++        mock_serial = 1
++        ad = android_device.AndroidDevice(serial=mock_serial)
++        ad.log_path = self.temp_log_path
++        self.assertIsNone(ad.adb_logcat_process)
++        self.assertIsNone(ad.adb_logcat_file_path)
++        try:
++            ad.stop_adb_logcat()
++        except android_device.DeviceError as e:
++            self.assertIn('No ongoing adb logcat collection found.',
++                          str(e))
++
++    @mock.patch('mobly.controllers.android_device_lib.adb.AdbProxy',
++                return_value=mock_android_device.MockAdbProxy(1))
++    @mock.patch('mobly.controllers.android_device_lib.fastboot.FastbootProxy',
++                return_value=mock_android_device.MockFastbootProxy(1))
++    @mock.patch('mobly.controllers.android_device_lib.snippet_client.'
++                'SnippetClient')
++    @mock.patch('mobly.utils.get_available_host_port')
++    def test_AndroidDevice_take_bug_report_with_space_in_model_name(
++            self, MockGetPort, MockSnippetClient, MockFastboot, MockAdbProxy):
++        mock_serial = 1
++        mock_model = 'Mock Model'
++        ad = android_device.AndroidDevice(serial=mock_serial, model=mock_model)
++        ad.log_path = self.temp_log_path
++        self.assertIsNone(ad.bug_report)
++        test_name = 'mock_test'
++        begin_time = '123456789'
++        ad.take_bug_report(test_name=test_name, begin_time=begin_time)
++        self.assertIsNotNone(ad.bug_report)
++        self.assertTrue(os.path.isfile(ad.bug_report))
++        self.assertEqual('%s/BugReports,%s,%s.txt' %
++                         (self.temp_log_path, test_name, mock_serial),
++                         ad.bug_report)
++        ad.stop_services()
++        self.assertIsNone(ad.bug_report)
++
++
++if __name__ == "__main__":
++    unittest.main()

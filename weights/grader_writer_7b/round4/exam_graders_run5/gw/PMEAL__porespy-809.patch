@@ -1,0 +1,38 @@
+--- /dev/null
++++ b/test/unit/test_snow2_grader.py
+@@ -0,0 +1,26 @@
++import pytest
++import numpy as np
++from scipy import stats as spst
++import scipy.ndimage as spim
++import porespy as ps
++import openpnm as op
++from edt import edt
++
++
++ws = op.Workspace()
++
++
++ws.settings['loglevel'] = 50
++
++
++ps.settings.tqdm['disable'] = True
++
++
++class Snow2Test:
++    def setup_class(self):
++        self.spheres3D = ~ps.generators.lattice_spheres(shape=[110, 110, 110],
++                                                        r=15, spacing=27,
++                                                        offset=20)
++        self.spheres2D = ~ps.generators.lattice_spheres(shape=[500, 500], r=30,
++                                                        spacing=56, offset=25)
++
++
++if __name__ == '__main__':
++    t = Snow2Test()
++    self = t
++    t.setup_class()
++    for item in t.__dir__():
++        if item.startswith('test'):
++            print(f'Running test: {item}')
++            t.__getattribute__(item)()

@@ -1,0 +1,34 @@
+--- /dev/null
++++ b/tests/test_elements_grader.py
+@@ -0,0 +1,31 @@
++from __future__ import absolute_import
++import unittest
++from svgelements import *
++
++
++class TestElements(unittest.TestCase):
++    def test_bbox_failure(self):
++        p = Path(transform=Matrix(682.657124793113, 0.000000000003, -0.000000000003, 682.657124793113, 257913.248909660178, -507946.354527872754))
++        p += CubicBezier(start=Point(-117.139521365,1480.99923469), control1=Point(-41.342266634,1505.62725567), control2=Point(40.3422666342,1505.62725567), end=Point(116.139521365,1480.99923469))
++        bounds = p.bbox()
++        self.assertNotAlmostEqual(bounds[1], bounds[3], delta=100)
++
++    def test_bezier_bbox(self):
++        p = CubicBezier(start=Point(1, 2), control1=Point(2, 3), control2=Point(4, 5), end=Point(6, 7))
++        bounds = p.bbox()
++        self.assertAlmostEqual(bounds[0], 1)
++        self.assertAlmostEqual(bounds[1], 2)
++        self.assertAlmostEqual(bounds[2], 6)
++        self.assertAlmostEqual(bounds[3], 7)
++
++    def test_bezier_length(self):
++        p = CubicBezier(start=Point(1, 2), control1=Point(2, 3), control2=Point(4, 5), end=Point(6, 7))
++        self.assertAlmostEqual(p.length(), 8.164965809277259)
++
++    def test_bezier_points(self):
++        p = CubicBezier(start=Point(1, 2), control1=Point(2, 3), control2=Point(4, 5), end=Point(6, 7))
++        points = list(p.points())
++        self.assertEqual(len(points), 3)
++        self.assertEqual(len(points[0]), 2)
++        self.assertEqual(len(points[1]), 2)
++        self.assertEqual(len(points[2]), 2)

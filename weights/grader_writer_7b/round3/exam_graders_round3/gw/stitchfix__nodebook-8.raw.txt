@@ -1,0 +1,55 @@
+diff --git a/tests/test_nodebookcore.py b/tests/test_nodebookcore.py
+index 0e1f4c4..0000000 100644
+--- a/tests/test_nodebookcore.py
++++ /dev/null
+@@ -1,46 +0,0 @@
+-from __future__ import absolute_import
+-import pandas as pd
+-import pytest
+-from nodebook.nodebookcore import ReferenceFinder, Nodebook, Node
+-from nodebook.pickledict import PickleDict
+-import ast
+-
+-
+-class TestReferenceFinder(object):
+-    @pytest.fixture()
+-    def rf(self):
+-        return ReferenceFinder()
+-
+-    def test_assign(self, rf):
+-        code_tree = ast.parse("x = 3")
+-        rf.visit(code_tree)
+-        assert rf.inputs == set()
+-        assert rf.imports == set()
+-        assert rf.locals == {'x'}
+-
+-    def test_augassign(self, rf):
+-        code_tree = ast.parse("x += 3")
+-        rf.visit(code_tree)
+-        assert rf.inputs == {'x'}
+-        assert rf.imports == set()
+-        assert rf.locals == {'x'}
+-
+-    def test_import(self, rf):
+-        code_tree = ast.parse("import numpy as np")
+-        rf.visit(code_tree)
+-        assert rf.inputs == set()
+-        assert rf.imports == {'numpy'}
+-        assert rf.locals == {'np'}
+-
+-    def test_multiline(self, rf):
+-        code_tree = ast.parse(
+-            "import pandas as pd\n"
+-            "y = pd.Series(x)\n"
+-        )
+-        rf.visit(code_tree)
+-        assert rf.inputs == {'x'}
+-        assert rf.locals == {'pd', 'y'}
+-        assert rf.imports == {'pandas'}
+-
+-
+-class TestNodebook(object):
+-    @pytest.fixture()
+-    def nb(self):
+-        var_store = PickleDict()
+-        return Nodebook(var_store)

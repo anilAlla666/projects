@@ -1,0 +1,326 @@
+--- /dev/null
++++ b/test/test_trig_grader.py
+@@ -0,0 +1,125 @@
++import re
++import pytest
++import rdflib
++
++
++TRIPLE = (
++    rdflib.URIRef("http://example.com/s"),
++    rdflib.RDFS.label,
++    rdflib.Literal("example 1"),
++)
++
++
++def test_default_graph_serializes_without_name():
++    data = """
++<http://example.com/thing#thing_a> <http://example.com/knows> <http://example.com/thing#thing_b> .
++
++{ <http://example.com/thing#thing_c> <http://example.com/knows> <http://example.com/thing#thing_d> . }
++"""
++    g = rdflib.ConjunctiveGraph()
++    g.parse(data=data, format="trig")
++    data = g.serialize(format="trig", encoding="latin-1")
++
++    assert b"None" not in data
++
++
++def test_no_default_graph_in_trig_output():
++    data = """
++<http://example.com/thing#thing_a> <http://example.com/knows> <http://example.com/thing#thing_b> .
++
++{ <http://example.com/thing#thing_c> <http://example.com/knows> <http://example.com/thing#thing_d> . }
++"""
++    ds = rdflib.Dataset()
++    ds.parse(data=data, format="trig")
++    ds.remove_graph(rdflib.URIRef("urn:x-rdflib:default"))
++
++    data = ds.serialize(format="trig", encoding="latin-1")
++
++    assert b"None" not in data
++    assert b"ns1: <urn:x-rdflib:>" not in data
++
++
++def test_remove_default_graph_and_serialize():
++    data = """
++<http://example.com/thing#thing_a> <http://example.com/knows> <http://example.com/thing#thing_b> .
++
++{ <http://example.com/thing#thing_c> <http://example.com/knows> <http://example.com/thing#thing_d> . }
++"""
++    ds = rdflib.Dataset()
++    ds.parse(data=data, format="trig")
++    ds.remove_graph(rdflib.URIRef("urn:x-rdflib:default"))
++
++    data = ds.serialize(format="trig", encoding="latin-1")
++
++    assert b"None" not in data
++    assert b"ns1: <urn:x-rdflib:>" not in data
++
++
++def test_multiple_datasets_with_different_namespaces():
++    data = """
++<http://example.com/thing#thing_a> <http://example.com/knows> <http://example.com/thing#thing_b> .
++
++{ <http://example.com/thing#thing_c> <http://example.com/knows> <http://example.com/thing#thing_d> . }
++"""
++
++    ds1 = rdflib.Dataset()
++    ds1.parse(data=data, format="trig")
++
++    ds2 = rdflib.Dataset()
++    ds2.parse(data=data, format="trig")
++
++    assert b"ns1: <urn:x-rdflib:>" in ds1.serialize(format="trig", encoding="latin-1")
++    assert b"ns2: <urn:x-rdflib:>" in ds2.serialize(format="trig", encoding="latin-1")
++
++    ds1.merge(ds2)
++
++    data = ds1.serialize(format="trig", encoding="latin-1")
++
++    assert b"None" not in data
++    assert b"ns1: <urn:x-rdflib:>" in data
++    assert b"ns2: <urn:x-rdflib:>" in data
++
++
++def test_multiple_datasets_with_the_same_namespace():
++    data = """
++<http://example.com/thing#thing_a> <http://example.com/knows> <http://example.com/thing#thing_b> .
++
++{ <http://example.com/thing#thing_c> <http://example.com/knows> <http://example.com/thing#thing_d> . }
++"""
++
++    ds1 = rdflib.Dataset()
++    ds1.parse(data=data, format="trig")
++
++    ds2 = rdflib.Dataset()
++    ds2.parse(data=data, format="trig")
++
++    assert b"ns1: <urn:x-rdflib:>" in ds1.serialize(format="trig", encoding="latin-1")
++    assert b"ns2: <urn:x-rdflib:>" in ds2.serialize(format="trig", encoding="latin-1")
++
++    ds1.merge(ds2)
++
++    data = ds1.serialize(format="trig", encoding="latin-1")
++
++    assert b"None" not in data
++    assert b"ns1: <urn:x-rdflib:>" in data
++    assert b"ns2: <urn:x-rdflib:>" not in data
++
++
++def test_dataset_merge():
++    data = """
++<http://example.com/thing#thing_a> <http://example.com/knows> <http://example.com/thing#thing_b> .
++
++{ <http://example.com/thing#thing_c> <http://example.com/knows> <http://example.com/thing#thing_d> . }
++"""
++
++    ds1 = rdflib.Dataset()
++    ds1.parse(data=data, format="trig")
++
++    ds2 = rdflib.Dataset()
++    ds2.parse(data=data, format="trig")
++
++    ds1.merge(ds2)
++
++    data = ds1.serialize(format="trig", encoding="latin-1")
++
++    assert b"None" not in data
++    assert b"ns1: <urn:x-rdflib:>" in data
++    assert b"ns2: <urn:x-rdflib:>" not in data
+--- /dev/null
++++ b/test/test_w3c_spec/test_trig_w3c_grader.py
+@@ -0,0 +1,176 @@
++"""Runs the tests for the W3C RDF Working Group's TriG test suite.
++
++"""
++
++
++import logging
++from contextlib import ExitStack
++from test.data import TEST_DATA_DIR
++from test.utils import BNodeHandling, GraphHelper, ensure_suffix
++from test.utils.dawg_manifest import ManifestEntry, params_from_sources
++from test.utils.iri import URIMapper
++from test.utils.namespace import RDFT
++from typing import Optional
++import pytest
++from rdflib.graph import Dataset
++
++
++logger = logging.getLogger(__name__)
++
++
++REMOTE_BASE_IRI = "http://www.w3.org/2013/TriGTests/"
++
++
++LOCAL_BASE_DIR = TEST_DATA_DIR / "suites/w3c/trig/"
++
++
++ENCODING = "utf-8"
++
++
++MAPPER = URIMapper.from_mappings(
++    (REMOTE_BASE_IRI, ensure_suffix(LOCAL_BASE_DIR.as_uri(), "/"))
++)
++
++
++VALID_TYPES = {
++    RDFT.TestTrigEval,
++    RDFT.TestTrigPositiveSyntax,
++    RDFT.TestTrigNegativeSyntax,
++    RDFT.TestTrigNegativeEval,
++}
++
++
++# NOTE: `rdft:TestTrigNegativeEval` entries does not have `mf:result` as suggested
++# by <https://www.w3.org/TR/rdf11-testcases/#evaluation-tests>, instead they seem
++# to be regular `rdft:TestTrigNegativeSyntax`. For example, see `trig-eval-bad-01`
++# <https://www.w3.org/2013/TrigTests/manifest.ttl>
++
++
++def check_entry(entry: ManifestEntry) -> None:
++    assert entry.action is not None
++    assert entry.type in VALID_TYPES
++
++
++def run_test(manifest_entry: ManifestEntry) -> bool:
++    helper = GraphHelper(MAPPER, manifest_entry)
++    action = helper.action
++    expected_result = helper.expected_result
++    result = None
++
++    try:
++        action.load(helper.g1, BNodeHandling.REMOVE_BNODES)
++        if action.result is not None:
++            result = action.result.toPython(BNodeHandling.REMOVE_BNODES)
++        else:
++            result = action.g.toPython(BNodeHandling.REMOVE_BNODES)
++    except Exception as e:
++        result = e
++
++    return helper.assert_equal(result, expected_result)
++
++
++def skip_if_known_issue(manifest_entry: ManifestEntry) -> None:
++    if manifest_entry.name in SKIP_LIST:
++        pytest.skip(SKIP_LIST[manifest_entry.name])
++
++
++MARK_DICT = {
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-struct-16": pytest.mark.xfail(
++        reason="accepts BNode as predicate"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-struct-17": pytest.mark.xfail(
++        reason="accepts BNode as predicate"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-esc-02": pytest.mark.xfail(
++        reason="accepts badly escaped literals"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-esc-03": pytest.mark.xfail(
++        reason="accepts badly escaped literals"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-esc-04": pytest.mark.xfail(
++        reason="accepts badly escaped literals"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-string-06": pytest.mark.xfail(
++        reason="accepts badly quoted literals"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-string-07": pytest.mark.xfail(
++        reason="accepts badly quoted literals"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-eval-bad-01": pytest.mark.xfail(reason="accepts bad IRI"),
++    f"{REMOTE_BASE_IRI}#trig-eval-bad-02": pytest.mark.xfail(reason="accepts bad IRI"),
++    f"{REMOTE_BASE_IRI}#trig-eval-bad-03": pytest.mark.xfail(reason="accepts bad IRI"),
++    f"{REMOTE_BASE_IRI}#trig-eval-bad-04": pytest.mark.xfail(reason="accepts bad IRI"),
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-ln-dash-start": pytest.mark.xfail(
++        reason="accepts dash in start of local name"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-list-01": pytest.mark.xfail(
++        reason="ignores badly formed quad"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-list-02": pytest.mark.xfail(
++        reason="ignores badly formed quad"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-list-03": pytest.mark.xfail(
++        reason="ignores badly formed quad"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-list-04": pytest.mark.xfail(
++        reason="ignores badly formed quad"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-01": pytest.mark.xfail(
++        reason="accepts GRAPH with no name"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-07": pytest.mark.xfail(
++        reason="accepts nested GRAPH"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-08": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-09": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-10": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-11": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-12": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-13": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-14": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-15": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-16": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-17": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-18": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-19": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-20": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-21": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-22": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-23": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-24": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-25": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-26": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-27": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-28": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-29": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-graph-bad-30": pytest.mark.xfail(
++        reason="accepts multiple top-level named graphs"
++    ),
++}

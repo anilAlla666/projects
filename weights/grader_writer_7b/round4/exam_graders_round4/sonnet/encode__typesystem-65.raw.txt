@@ -1,0 +1,79 @@
+The fix is to make `ValidationError` hashable, so the tests check that `hash()` works and that `traceback.print_exc()` runs. I haven't run them.
+
+The tests avoid any particular hash value. They only require that `hash()` doesn't raise and that equal errors hash equally. That equality requirement is the standard hash contract and holds for any reasonable fix.
+
+`ParseError` shares `BaseError`, so it gets a hash test too. Its `__eq__` only matches `ValidationError`, so I don't assert anything about equal `ParseError`s.
+
+- **Traceback test:** it calls `traceback.print_exc()` inside an `except` block, writing to a `StringIO` via `file=`.
+- **Python 3.6 gap:** the 3.6 bug is in how the traceback code tracks exceptions it has already seen. On newer Pythons `print_exc` may pass even without the fix, so the `hash()` tests are the ones that fail on current code on any version.
+- **Chained exceptions:** a second traceback test raises a `ValidationError` as the cause of another exception, which exercises hashing on newer versions too.
+
+```diff
+--- /dev/null
++++ b/tests/test_error_hash.py
+@@ -0,0 +1,56 @@
++import io
++import traceback
++
++import typesystem
++
++
++def test_validation_error_is_hashable():
++    try:
++        typesystem.Integer().validate("hello")
++    except typesystem.ValidationError as exc:
++        assert isinstance(hash(exc), int)
++
++
++def test_equal_validation_errors_have_equal_hash():
++    _, error_a = typesystem.Integer().validate_or_error("hello")
++    _, error_b = typesystem.Integer().validate_or_error("hello")
++    assert error_a == error_b
++    assert hash(error_a) == hash(error_b)
++
++
++def test_validation_error_in_set_and_dict():
++    _, error_a = typesystem.Integer().validate_or_error("hello")
++    _, error_b = typesystem.Integer().validate_or_error("hello")
++    assert len({error_a, error_b}) == 1
++    assert {error_a: 1}[error_b] == 1
++
++
++def test_multi_message_error_hash():
++    class Example(typesystem.Schema):
++        a = typesystem.String(max_length=10)
++        b = typesystem.Integer(maximum=5)
++
++    _, error_a = Example.validate_or_error({"a": "a"})
++    _, error_b = Example.validate_or_error({"a": "a"})
++    assert hash(error_a) == hash(error_b)
++
++
++def test_parse_error_is_hashable():
++    try:
++        typesystem.tokenize_json("{")
++    except typesystem.ParseError as exc:
++        assert isinstance(hash(exc), int)
++
++
++def test_print_exc_with_validation_error():
++    buffer = io.StringIO()
++    try:
++        typesystem.Integer().validate("hello")
++    except typesystem.ValidationError:
++        traceback.print_exc(file=buffer)
++    assert "ValidationError" in buffer.getvalue()
++
++
++def test_print_exc_with_chained_validation_error():
++    buffer = io.StringIO()
++    try:
++        try:
++            typesystem.Integer().validate("hello")
++        except typesystem.ValidationError as exc:
++            raise RuntimeError("wrapped") from exc
++    except RuntimeError:
++        traceback.print_exc(file=buffer)
++    assert "ValidationError" in buffer.getvalue()
++    assert "RuntimeError" in buffer.getvalue()
+```

@@ -1,0 +1,32 @@
+--- /dev/null
++++ b/tests/test_wsgi_grader.py
+@@ -0,0 +1,27 @@
++import pytest
++from asgiref.testing import ApplicationCommunicator
++from asgiref.wsgi import WsgiToAsgi
++
++
++@pytest.mark.asyncio
++async def test_wsgi_non_ascii_path():
++    """
++    Verify that non-ASCII paths are handled correctly by the WSGI wrapper.
++    """
++
++    def wsgi_application(environ, start_response):
++        assert environ["PATH_INFO"] == "/你好/"
++        start_response("200 OK", [])
++        return []
++
++    application = WsgiToAsgi(wsgi_application)
++    instance = ApplicationCommunicator(
++        application,
++        {
++            "type": "http",
++            "http_version": "1.0",
++            "method": "GET",
++            "path": "/你好/",
++            "query_string": b"",
++            "headers": [],
++        },
++    )
++    await instance.send_input({"type": "http.request"})

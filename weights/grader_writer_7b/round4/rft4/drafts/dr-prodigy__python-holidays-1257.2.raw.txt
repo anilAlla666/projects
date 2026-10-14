@@ -1,0 +1,127 @@
+--- /dev/null
++++ b/tests/countries/test_greece_grader.py
+@@ -0,0 +1,112 @@
++from datetime import date
++from holidays.countries.greece import Greece, GR, GRC
++from tests.common import TestCase
++
++
++class TestGreece(TestCase):
++    @classmethod
++    def setUpClass(cls):
++        super().setUpClass(Greece)
++
++    def test_country_aliases(self):
++        self.assertCountryAliases(Greece, GR, GRC)
++
++    def test_fixed_holidays(self):
++        years = range(2000, 2025)
++        for y in years:
++            fdays = (
++                (date(y, 1, 1), "Πρωτοχρονιά"),
++                (date(y, 1, 6), "Θεοφάνεια"),
++                (date(y, 3, 25), "Εικοστή Πέμπτη Μαρτίου"),
++                (date(y, 5, 1), "Εργατική Πρωτομαγιά"),
++                (date(y, 8, 15), "Κοίμηση της Θεοτόκου"),
++                (date(y, 10, 28), "Ημέρα του Όχι"),
++                (date(y, 12, 25), "Χριστούγεννα"),
++                (date(y, 12, 26), "Επόμενη ημέρα των Χριστουγέννων"),
++            )
++
++            for d, dstr in fdays:
++                self.assertIn(d, self.holidays)
++                self.assertIn(dstr, self.holidays[d])
++
++    def test_variable_holidays(self):
++        checkyears = (
++            2018,
++            2019,
++            2020,
++            2021,
++            2022,
++            2023,
++            2024,
++        )
++        checkdays = (
++            date(2018, 3, 7),
++            date(2019, 2, 27),
++            date(2020, 4, 13),
++            date(2021, 4, 2),
++            date(2022, 3, 7),
++            date(2023, 2, 27),
++            date(2024, 3, 18),
++        )
++
++        for i, y in enumerate(checkyears):
++            self.holidays = Greece(year=y)
++            for d in checkdays[i]:
++                self.assertIn(d, self.holidays)
++                self.assertIn("Καθαρά Δευτέρα", self.holidays[d])
++
++        self.holidays = Greece()
++        for i, y in enumerate(checkyears):
++            for d in checkdays[i]:
++                self.assertIn(d, self.holidays[y])
++                self.assertIn("Καθαρά Δευτέρα", self.holidays[y][d])
++
++        checkyears = (
++            2018,
++            2019,
++            2020,
++            2021,
++            2022,
++            2023,
++            2024,
++        )
++        checkdays = (
++            date(2018, 4, 9),
++            date(2019, 4, 29),
++            date(2020, 4, 20),
++            date(2021, 5, 3),
++            date(2022, 4, 25),
++            date(2023, 4, 17),
++            date(2024, 5, 6),
++        )
++
++        for i, y in enumerate(checkyears):
++            self.holidays = Greece(year=y)
++            for d in checkdays[i]:
++                self.assertIn(d, self.holidays)
++                self.assertIn("Δευτέρα του Πάσχα", self.holidays[d])
++
++        self.holidays = Greece()
++        for i, y in enumerate(checkyears):
++            for d in checkdays[i]:
++                self.assertIn(d, self.holidays[y])
++                self.assertIn("Δευτέρα του Πάσχα", self.holidays[y][d])
++
++        checkyears = (
++            2018,
++            2019,
++            2020,
++            2021,
++            2022,
++            2023,
++            2024,
++        )
++        checkdays = (
++            date(2018, 5, 28),
++            date(2019, 6, 17),
++            date(2020, 6, 8),
++            date(2021, 6, 21),
++            date(2022, 6, 13),
++            date(2023, 6, 5),
++            date(2024, 6, 24),
++        )
++
++        for i, y in enumerate(checkyears):
++            self.holidays = Greece(year=y)
++            for d in checkdays[i]:
++                self.assertIn(d, self.holidays)
++                self.assertIn("Δευτέρα του Αγίου Πνεύματος", self.holidays[d])
++
++        self.holidays = Greece()
++        for i, y in enumerate(checkyears):
++            for d in checkdays[i]:
++                self.assertIn(d, self.holidays[y])
++                self.assertIn("Δευτέρα του Αγίου Πνεύματος", self.holidays[y][d])

@@ -1,0 +1,17 @@
+--- /dev/null
++++ b/tests/test_future_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++from algosdk.future.transaction import AssetCreateTxn
++
++
++@pytest.mark.parametrize(
++    ("local_schema", "global_schema"),
++    [
++        ({}, {}),
++        ({"num_uints": 0, "num_byte_slices": 0}, {"num_uints": 0, "num_byte_slices": 0}),
++        ({"num_uints": 0, "num_byte_slices": 1}, {"num_uints": 0, "num_byte_slices": 1})
++    ]
++)
++def test_asset_creation_with_meaningless_schemas(local_schema, global_schema):
++    AssetCreateTxn("", "", 0, 0, False, "", "", "", "", local_schema=local_schema, global_schema=global_schema)

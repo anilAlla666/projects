@@ -1,0 +1,325 @@
+--- /dev/null
++++ b/tests/test_ext_marshmallow_grader.py
+@@ -0,0 +1,123 @@
++import json
++import pytest
++from marshmallow.fields import Field, DateTime, Dict, String, Nested, List
++from marshmallow import Schema
++from apispec import APISpec
++from apispec.ext.marshmallow import MarshmallowPlugin
++from apispec.ext.marshmallow.openapi import MARSHMALLOW_VERSION_INFO
++from apispec.ext.marshmallow import common
++from apispec.exceptions import APISpecError
++from .schemas import (
++    PetSchema,
++    AnalysisSchema,
++    RunSchema,
++    SelfReferencingSchema,
++    OrderedSchema,
++    PatternedObjectSchema,
++    DefaultValuesSchema,
++    AnalysisWithListSchema,
++)
++from .utils import get_schemas, get_parameters, get_responses, get_paths, build_ref
++
++
++@pytest.fixture(params=["pet"])
++def schema_name_resolver(request):
++    if request.param == "pet":
++        return lambda s: "PetSchema"
++    elif request.param == "nested":
++        return lambda s: "NestedSchema"
++
++
++class TestSchemaWithDefaults:
++    def test_string_with_default_value(self, spec):
++        spec.components.schema("DefaultValuesSchema", schema=DefaultValuesSchema)
++        definitions = get_schemas(spec)
++        props = definitions["DefaultValuesSchema"]["properties"]
++        assert props["string_manual_default"]["default"] == "Manual"
++
++
++@pytest.mark.skipif(
++    MARSHMALLOW_VERSION_INFO[0] < 3, reason="Values ignored in marshmallow 2"
++)
++class TestDictValues:
++    def test_dict_values_resolve_to_additional_properties(self, spec):
++        class SchemaWithDict(Schema):
++            dict_field = Dict(values=String())
++
++        spec.components.schema("SchemaWithDict", schema=SchemaWithDict)
++        result = get_schemas(spec)["SchemaWithDict"]["properties"]["dict_field"]
++        assert result == {"type": "object", "additionalProperties": {"type": "string"}}
++
++    def test_dict_with_empty_values_field(self, spec):
++        class SchemaWithDict(Schema):
++            dict_field = Dict()
++
++        spec.components.schema("SchemaWithDict", schema=SchemaWithDict)
++        result = get_schemas(spec)["SchemaWithDict"]["properties"]["dict_field"]
++        assert result == {"type": "object"}
++
++    def test_dict_with_nested(self, spec):
++        class SchemaWithDict(Schema):
++            dict_field = Dict(values=Nested(PetSchema))
++
++        spec.components.schema("SchemaWithDict", schema=SchemaWithDict)
++
++        assert len(get_schemas(spec)) == 2
++
++        result = get_schemas(spec)["SchemaWithDict"]["properties"]["dict_field"]
++        assert result == {
++            "additionalProperties": build_ref(spec, "schema", "Pet"),
++            "type": "object",
++        }
++
++
++class TestSchemaWithDefaultValues:
++    def test_schema_with_default_values(self, spec):
++        spec.components.schema("DefaultValuesSchema", schema=DefaultValuesSchema)
++        definitions = get_schemas(spec)
++        props = definitions["DefaultValuesSchema"]["properties"]
++        assert props["number_auto_default"]["default"] == 12
++        assert props["number_manual_default"]["default"] == 42
++        assert "default" not in props["string_callable_default"]
++        assert props["string_manual_default"]["default"] == "Manual"
++        assert "default" not in props["numbers"]
++
++
++class TestSchemaRef:
++    def test_schema_with_string_reference_resolves_correctly(
++        self, spec, schema_name_resolver
++    ):
++        class SchemaWithReference(Schema):
++            nested = fields.Nested("NestedSchema")
++
++        spec.components.schema("SchemaWithReference", schema=SchemaWithReference)
++        spec.components.schema("NestedSchema", schema=AnalysisSchema)
++
++        plugin = MarshmallowPlugin(schema_name_resolver=schema_name_resolver)
++        plugin.register(spec)
++
++        assert len(get_schemas(spec)) == 2
++        assert "NestedSchema" in get_schemas(spec)
++
++        response = spec.components.response("Response with schema ref", schema="string")
++        expected_response = {
++            "description": "Response with schema ref",
++            "content": {
++                "application/json": {
++                    "schema": {"$ref": "#/components/schemas/NestedSchema"}
++                }
++            },
++        }
++        assert response == expected_response
+--- /dev/null
++++ b/tests/test_ext_marshmallow_openapi_grader.py
+@@ -0,0 +1,265 @@
++import pytest
++from marshmallow import fields, Schema, validate
++from apispec.ext.marshmallow import MarshmallowPlugin
++from apispec.ext.marshmallow.openapi import MARSHMALLOW_VERSION_INFO
++from apispec import exceptions, utils, APISpec
++from .schemas import CustomList, CustomStringField
++from .utils import get_schemas, build_ref
++
++
++class TestFieldValidation:
++    class ValidationSchema(Schema):
++        id = fields.Int(dump_only=True)
++        range = fields.Int(validate=validate.Range(min=1, max=10))
++        multiple_ranges = fields.Int(
++            validate=[
++                validate.Range(min=1),
++                validate.Range(min=3),
++                validate.Range(max=10),
++                validate.Range(max=7),
++            ]
++        )
++        list_length = fields.List(fields.Str, validate=validate.Length(min=1, max=10))
++        custom_list_length = CustomList(
++            fields.Str, validate=validate.Length(min=1, max=10)
++        )
++        string_length = fields.Str(validate=validate.Length(min=1, max=10))
++        custom_field_length = CustomStringField(validate=validate.Length(min=1, max=10))
++        multiple_lengths = fields.Str(
++            validate=[
++                validate.Length(min=1),
++                validate.Length(min=3),
++                validate.Length(max=10),
++                validate.Length(max=7),
++            ]
++        )
++        equal_length = fields.Str(
++            validate=[validate.Length(equal=5), validate.Length(min=1, max=10)]
++        )
++
++    @pytest.mark.parametrize(
++        ("field", "properties"),
++        [
++            ("range", {"minimum": 1, "maximum": 10}),
++            ("multiple_ranges", {"minimum": 3, "maximum": 7}),
++            ("list_length", {"minItems": 1, "maxItems": 10}),
++            ("custom_list_length", {"minItems": 1, "maxItems": 10}),
++            ("string_length", {"minLength": 1, "maxLength": 10}),
++            ("custom_field_length", {"minLength": 1, "maxLength": 10}),
++            ("multiple_lengths", {"minLength": 3, "maxLength": 7}),
++            ("equal_length", {"minLength": 5, "maxLength": 5}),
++        ],
++    )
++    def test_properties(self, field, properties, spec):
++        spec.components.schema("Validation", schema=self.ValidationSchema)
++        result = get_schemas(spec)["Validation"]["properties"][field]
++
++    @pytest.mark.parametrize(
++        ("field", "properties"),
++        [
++            ("range", {"exclusiveMinimum": True, "exclusiveMaximum": True}),
++            ("multiple_ranges", {"exclusiveMinimum": True, "exclusiveMaximum": True}),
++            ("list_length", {"exclusiveMinItems": True, "exclusiveMaxItems": True}),
++            ("custom_list_length", {"exclusiveMinItems": True, "exclusiveMaxItems": True}),
++            ("string_length", {"exclusiveMinLength": True, "exclusiveMaxLength": True}),
++            ("custom_field_length", {"exclusiveMinLength": True, "exclusiveMaxLength": True}),
++            ("multiple_lengths", {"exclusiveMinLength": True, "exclusiveMaxLength": True}),
++            ("equal_length", {}),
++        ],
++    )
++    def test_properties_exclude(self, field, properties, spec):
++        spec.components.schema("Validation", schema=self.ValidationSchema)
++        result = get_schemas(spec)["Validation"]["properties"][field]
++        for k, v in properties.items():
++            assert result[k] != v
++
++
++class TestSchemaRef:
++    def test_schema_with_string_reference_resolves_correctly(
++        self, spec, schema_name_resolver
++    ):
++        class SchemaWithReference(Schema):
++            nested = fields.Nested("NestedSchema")
++
++        spec.components.schema("SchemaWithReference", schema=SchemaWithReference)
++        spec.components.schema("NestedSchema", schema=AnalysisSchema)
++
++        plugin = MarshmallowPlugin(schema_name_resolver=schema_name_resolver)
++        plugin.register(spec)
++
++        assert len(get_schemas(spec)) == 2
++        assert "NestedSchema" in get_schemas(spec)
++
++        response = spec.components.response("Response with schema ref", schema="string")
++        expected_response = {
++            "description": "Response with schema ref",
++            "content": {
++                "application/json": {
++                    "schema": {"$ref": "#/components/schemas/NestedSchema"}
++                }
++            },
++        }
++        assert response == expected_response
++
++
++class TestCircularReferences:
++    def test_circular_references_are_handled(self, spec):
++        class SelfReferencingSchema(Schema):
++            self_link = fields.Url(dump_only=True)
++            self = fields.Nested(lambda: self, many=True)
++
++        spec.components.schema("SelfReferencing", schema=SelfReferencingSchema)
++        result = get_schemas(spec)["SelfReferencing"]
++        assert "$ref" not in result
++        assert "allOf" in result
++        assert len(result["allOf"]) == 2
++
++        first_ref = result["allOf"][0]
++        second_ref = result["allOf"][1]
++        assert "$ref" in first_ref
++        assert "$ref" in second_ref
++
++
++class TestCustomFields:
++    class CustomField(Field):
++        def _serialize(self, value, attr, data, **kwargs):
++            return "custom-" + str(value)
++
++        def _deserialize(self, value, attr, data, **kwargs):
++            return int(value.replace("custom-", ""))
++
++    class SchemaWithCustomField(Schema):
++        custom_field = CustomField()
++
++    @pytest.mark.parametrize(
++        "schema,expected_result",
++        [
++            (CustomField(), {"type": "string"}),
++            (
++                SchemaWithCustomField(),
++                {"type": "string", "pattern": r"^custom-\d+$"},
++            ),
++        ],
++    )
++    def test_custom_fields_get_registered(
++        self, spec, schema, expected_result
++    ):
++        spec.components.schema("CustomFieldSchema", schema=schema)
++        result = get_schemas(spec)["CustomFieldSchema"]["properties"][
++            "custom_field"
++        ]
++        assert result == expected_result
++
++    def test_custom_fields_dont_break_with_none_as_name(self, spec):
++        class SchemaWithCustomFieldNoName(Schema):
++            custom_field = CustomField(data_key="my_field")
++
++        spec.components.schema("CustomFieldSchema", schema=SchemaWithCustomFieldNoName)
++        result = get_schemas(spec)["CustomFieldSchema"]["properties"][
++            "my_field"
++        ]
++        assert result == {"type": "string", "pattern": r"^custom-\d+$"}
++
++    def test_custom_fields_with_load_and_dump_methods(self, spec):
++        class CustomField(Field):
++            def _serialize(self, value, attr, data, **kwargs):
++                return "custom-" + str(value)
++
++            def _deserialize(self, value, attr, data, **kwargs):
++                return int(value.replace("custom-", ""))
++
++            def _get_value(self, key, data, attr=None, default=None):
++                return super()._get_value(key, data, attr=attr, default=default)
++
++            def _serialize_for_validation(self, value, attr, data, **kwargs):
++                return self._serialize(value, attr, data, **kwargs)
++
++        class SchemaWithCustomField(Schema):
++            custom_field = CustomField()
++
++        spec.components.schema("CustomFieldSchema", schema=SchemaWithCustomField)
++        result = get_schemas(spec)["CustomFieldSchema"]["properties"][
++            "custom_field"
++        ]
++        assert result == {"type": "string", "pattern": r"^custom-\d+$"}
++
++
++@pytest.fixture(params=[True, False])
++def schema_name_resolver(request):
++    if request.param:
++        return lambda s: "PetSchema"
++    return lambda s: None
++
++
++@pytest.fixture
++def spec():
++    spec = APISpec(
++        title="Test",
++        version="0.1",
++        openapi_version="3.0.0",
++        info={"title": "Test", "version": "0.1"},
++        components={
++            "schemas": {},
++            "responses": {},
++            "parameters": {},
++            "securitySchemes": {},
++        },
++    )
++    return spec

@@ -1,0 +1,125 @@
+--- /dev/null
++++ b/tests/test_middleware_grader.py
+@@ -0,0 +1,32 @@
++import unittest
++from bugsnag.middleware import MiddlewareStack
++
++
++class TestMiddlewareClass(object):
++    def __init__(self, callback):
++        self.callback = callback
++        self.char = None
++
++    def __call__(self, item):
++        item.append(self.char)
++        self.callback(item)
++
++
++class TestMiddlewareClassA(TestMiddlewareClass):
++    def __init__(self, callback):
++        TestMiddlewareClass.__init__(self, callback)
++        self.char = 'A'
++
++
++class TestMiddlewareClassB(TestMiddlewareClass):
++    def __init__(self, callback):
++        TestMiddlewareClass.__init__(self, callback)
++        self.char = 'B'
++
++
++class TestMiddlewareClassC(TestMiddlewareClass):
++    def __init__(self, callback):
++        TestMiddlewareClass.__init__(self, callback)
++        self.char = 'C'
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/tests/integrations/test_wsgi_grader.py
+@@ -0,0 +1,81 @@
++from webtest import TestApp
++from bugsnag.wsgi.middleware import BugsnagMiddleware
++from six import Iterator
++import bugsnag.notification
++import bugsnag
++from tests.utils import IntegrationTest
++
++
++class SentinelError(RuntimeError):
++    pass
++
++
++class TestWSGI(IntegrationTest):
++    def setUp(self):
++        super(TestWSGI, self).setUp()
++        bugsnag.configure(use_ssl=False,
++                          endpoint=self.server.address,
++                          api_key='3874876376238728937',
++                          notify_release_stages=['dev'],
++                          release_stage='dev',
++                          asynchronous=False)
++
++    def test_bugsnag_middleware_attaches_request_data_with_broken_paths(self):
++        # A wsgi environ containing a broken path info
++        broken_environ = {
++            'PATH_INFO': '\x83',
++            'SCRIPT_NAME': '',
++            'SERVER_NAME': 'localhost',
++            'SERVER_PORT': '80',
++            'wsgi.url_scheme': 'http',
++        }
++
++        # The broken path should get encoded properly into a url
++        broken_url = 'http://localhost/%83'
++
++        def App(environ, start_response):
++            start_response("200 OK",
++                           [('Content-Type', 'text/plain; charset=utf-8')])
++            return iter([b'OK'])
++
++        app = BugsnagMiddleware(App)
++        app(broken_environ, lambda *args: None)  # Don't run the app
++
++        # Check that the url was attached properly
++        self.assertEqual(1, len(self.server.received))
++        payload = self.server.received[0]['json_body']
++        event = payload['events'][0]
++        self.assertEqual(event['exceptions'][0]['stacktrace'][0]['file'],
++                         broken_url)
++
++    def test_bugsnag_middleware_catches_bad_environ(self):
++
++        class BadEnvironBugsnagApp(object):
++
++            def __init__(self, environ, start_response):
++                bugsnag.configure_request(meta_data={"account":
++                                                     {"paying": True}})
++
++            def __iter__(self):
++                raise ValueError("oops")
++
++        app = TestApp(BugsnagMiddleware(BadEnvironBugsnagApp))
++
++        self.assertRaises(ValueError, lambda: app.get('/beans'))
++
++        self.assertEqual(1, len(self.server.received))
++        payload = self.server.received[0]['json_body']
++        event = payload['events'][0]
++        self.assertEqual(event['metaData']['account'], {"paying": True})
++
++    def test_bugsnag_middleware_catches_bad_app(self):
++
++        class BadAppBugsnagApp(object):
++
++            def __init__(self, environ, start_response):
++                raise RuntimeError("oops")
++
++        app = TestApp(BugsnagMiddleware(BadAppBugsnagApp))
++
++        self.assertRaises(RuntimeError, lambda: app.get('/beans'))
++
++        self.assertEqual(1, len(self.server.received))
++        payload = self.server.received[0]['json_body']
++        event = payload['events'][0]
++        self.assertEqual(event['exceptionClass'], "RuntimeError")

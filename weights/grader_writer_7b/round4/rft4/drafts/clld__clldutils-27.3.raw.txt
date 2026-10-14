@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/clldutils/tests/test_badge_grader.py
+@@ -0,0 +1,16 @@
++from __future__ import unicode_literals
++from functools import partial
++
++
++def test_badge():
++    from clldutils.badge import badge, Colors
++
++    _badge = partial(badge, subject='cov', status='20%', color=Colors.orange,
++                     label_color='red')
++
++    assert _badge() == \
++        '![cov: 20%](https://img.shields.io/badge/cov-20%25-orange-red.svg "cov: 20%")'
++    assert _badge(markdown=False, style='plastic') == \
++        'https://img.shields.io/badge/cov-20%25-orange-red.svg?style=plastic'
++    assert _badge(style='flat') == \
++        '![cov: 20%](https://img.shields.io/badge/cov-20%25-orange-red.flat.svg "cov: 20%")'

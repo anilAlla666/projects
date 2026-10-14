@@ -1,0 +1,48 @@
+I added one new test file covering the paging behaviour requested in the issue. I haven't run it. It assumes the repo's existing `TestAdmin` base class with its `client_list` mock, and that the iterator is named `get_group_users_iterator`, following the `get_user_groups_iterator` convention.
+
+- **Iterator:** `get_group_users_iterator` should exist and issue a `GET` to `/admin/v2/groups/<id>/users` with `limit=100` and `offset=0`.
+- **Default call:** `get_group_users` with no limit should page through all results and return a list, instead of a single page. The test checks the first request in that list.
+
+I only assert on `limit` and `offset`, not on `account_id`, so the tests don't depend on whether the mock client adds it.
+
+```diff
+--- /dev/null
++++ b/tests/admin/test_group_users_paging.py
+@@ -0,0 +1,38 @@
++from .. import util
++from .base import TestAdmin
++
++
++class TestGroupUsersPaging(TestAdmin):
++    def test_get_group_users_iterator(self):
++        response = self.client_list.get_group_users_iterator('DGXXXXXXXXXXXXXXXXXX')
++        response = next(response)
++        self.assertEqual(response['method'], 'GET')
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/DGXXXXXXXXXXXXXXXXXX/users')
++        params = util.params_to_dict(args)
++        self.assertEqual(params['limit'], ['100'])
++        self.assertEqual(params['offset'], ['0'])
++
++    def test_get_group_users_default_pages_through_all(self):
++        response = self.client_list.get_group_users('DGXXXXXXXXXXXXXXXXXX')
++        self.assertIsInstance(response, list)
++        response = response[0]
++        self.assertEqual(response['method'], 'GET')
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/DGXXXXXXXXXXXXXXXXXX/users')
++        params = util.params_to_dict(args)
++        self.assertEqual(params['limit'], ['100'])
++        self.assertEqual(params['offset'], ['0'])
++
++    def test_get_group_users_offset_without_limit_ignored(self):
++        response = self.client_list.get_group_users(
++            'DGXXXXXXXXXXXXXXXXXX', offset=9001)
++        self.assertIsInstance(response, list)
++        response = response[0]
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/DGXXXXXXXXXXXXXXXXXX/users')
++        params = util.params_to_dict(args)
++        self.assertEqual(params['limit'], ['100'])
++        self.assertEqual(params['offset'], ['0'])
+```

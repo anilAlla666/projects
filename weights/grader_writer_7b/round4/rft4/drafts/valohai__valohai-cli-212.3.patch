@@ -1,0 +1,143 @@
+--- /dev/null
++++ b/tests/commands/test_run_test_utils_grader.py
+@@ -0,0 +1,89 @@
++import datetime
++import json
++import re
++import requests_mock
++from click.testing import CliRunner
++from tests.fixture_data import (
++    CONFIG_DATA,
++    CONFIG_YAML,
++    DEPLOYMENT_VERSION_DATA,
++    EXECUTION_DATA,
++    PIPELINE_DATA,
++    PROJECT_DATA,
++    YAML_WITH_EXTRACT_TRAIN_EVAL,
++)
++from valohai_cli import git
++from valohai_cli.commands.execution.run import run
++from valohai_cli.ctx import get_project
++from valohai_cli.utils import get_random_string
++
++
++ALTERNATIVE_YAML = 'batch.yaml'
++
++
++class RunAPIMock(requests_mock.Mocker):
++
++    def __init__(
++        self,
++        project_id,
++        commit_id='f' * 16,
++        deployment_id=666,
++        additional_payload_values=None,
++        deployment_version_name='220801.0',
++    ):
++        super().__init__()
++        self.last_create_execution_payload = None
++        self.project_id = project_id
++        self.commit_id = commit_id
++        self.deployment_id = deployment_id
++        self.deployment_version_name = deployment_version_name
++        self.additional_payload_values = additional_payload_values or {}
++        self.handle_get_deployments()
++        self.handle_get_pipeline()
++        self.handle_get_commit()
++        self.handle_create_commit()
++        self.handle_create_execution()
++        self.handle_create_pipeline()
++        self.handle_create_endpoint()
++
++    def handle_get_deployments(self):
++        self.get(f'https://api.valohai.io/v0/deployments/{self.deployment_id}/', json=DEPLOYMENT_DATA)
++
++    def handle_get_pipeline(self):
++        self.get(f'https://api.valohai.io/v0/pipelines/{PROJECT_DATA["pipeline"]["id"]}/', json=PIPELINE_DATA)
++
++    def handle_get_commit(self):
++        self.get(
++            f'https://api.valohai.io/v0/projects/{self.project_id}/commits/{self.commit_id}/',
++            json={'repository': '8', 'identifier': self.commit_id, 'ref': 'adhoc'},
++        )
++
++    def handle_create_commit(self):
++        self.post('https://api.valohai.io/v0/projects/{}/commits/'.format(self.project_id), self.handle_create_commit)
++
++    def handle_create_execution(self):
++        self.post('https://api.valohai.io/v0/executions/', self.handle_create_execution)
++
++    def handle_create_pipeline(self):
++        self.post('https://api.valohai.io/v0/pipelines/', self.handle_create_pipeline)
++
++    def handle_create_endpoint(self):
++        self.post(
++            'https://api.valohai.io/v0/projects/{}/deployments/{}/endpoints/'.format(
++                self.project_id, self.deployment_id
++            ),
++            self.handle_create_endpoint,
++        )
++
++    def handle_create_execution(self, request, context):
++        body_json = json.loads(request.body.decode('utf-8'))
++        assert body_json['commit'] == self.commit_id
++        assert body_json['project'] == self.project_id
++        assert body_json['step'] == 'train'
++        assert body_json['deployment'] == self.deployment_id
++        assert body_json['deployment_version'] == self.deployment_version_name
++        assert body_json['environment_variables'] == {'PYTHONPATH': '/opt/venv/lib/python3.8/site-packages'}
++        if body_json['endpoint_configurations'].get('predict-digit'):
++            files = body_json['endpoint_configurations']['predict-digit']['files']
++            assert files.get('model')
++        context.status_code = 201
++        return DEPLOYMENT_VERSION_DATA.copy()
++
++    def handle_create_pipeline(self, request, context):
++        body_json = json.loads(request.body.decode('utf-8'))
++        assert body_json['project'] == self.project_id
++        assert len(body_json['edges']) == 5
++        assert len(body_json['nodes']) == 3
++        context.status_code = 201
++        return PIPELINE_DATA.copy()
++
++    def handle_create_commit(self, request, context):
++        assert request.body
++        commit_id = f"~{get_random_string()}"
++        self.commit_id = commit_id  # Only accept the new commit
++        return {
++            'repository': '8',
++            'identifier': commit_id,
++            'ref': 'adhoc',
++            'ctime': '2017-03-09T14:56:53.875721Z',
++            'commit_time': '2017-03-09T14:56:53.875475Z',
++        }
+--- /dev/null
++++ b/tests/commands/test_run_grader.py
+@@ -0,0 +1,30 @@
++from click import BadParameter
++from pytest import raises
++from tests.commands.run_test_utils import RunAPIMock
++from tests.fixture_data import PIPELINE_YAML, PROJECT_DATA
++from valohai_cli.commands.pipeline.run import run
++from valohai_cli.commands.pipeline.run.utils import match_pipeline
++from valohai_cli.ctx import get_project
++
++
++def test_list_parameter_multiple_separate(runner, logged_in_and_linked):
++    add_valid_pipeline_yaml()
++    args = [
++        '--adhoc',
++        '--parameters={"list-param":["a","b","c"]}',
++        'extract-train-eval',
++    ]
++    with RunAPIMock(PROJECT_DATA['id']):
++        output = runner.invoke(run, args).output
++    assert 'Success' in output
++    assert 'Uploaded ad-hoc code' in output
++
++
++def add_valid_pipeline_yaml(yaml_path=None):
++    project = get_project()
++    config_filename = project.get_config_filename(yaml_path=yaml_path)
++    with open(config_filename, 'w') as yaml_fp:
++        yaml_fp.write(PIPELINE_YAML)

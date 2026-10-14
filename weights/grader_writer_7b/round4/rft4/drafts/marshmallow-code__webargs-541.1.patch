@@ -1,0 +1,151 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,148 @@
++import itertools
++import datetime
++import pytest
++from marshmallow import Schema, post_load, pre_load, class_registry, validates_schema
++from werkzeug.datastructures import MultiDict as WerkMultiDict
++from django.utils.datastructures import MultiValueDict as DjMultiDict
++from bottle import MultiDict as BotMultiDict
++from webargs import fields, ValidationError
++from webargs.core import (
++    Parser,
++    dict2schema,
++    is_json,
++    get_mimetype,
++    MARSHMALLOW_VERSION_INFO,
++)
++from webargs.multidictproxy import MultiDictProxy
++
++
++try:
++    # Python 3.5
++    import mock
++except ImportError:
++    # Python 3.6+
++    from unittest import mock
++
++
++strict_kwargs = {"strict": True} if MARSHMALLOW_VERSION_INFO[0] < 3 else {}
++
++
++class MockHTTPError(Exception):
++    def __init__(self, status_code, headers):
++        self.status_code = status_code
++        self.headers = headers
++        super().__init__(self, "HTTP Error occurred")
++
++
++class MockRequestParser(Parser):
++    """A minimal parser implementation that parses mock requests."""
++
++    def __init__(self, req_cls=WerkMultiDict):
++        self.req_cls = req_cls
++
++    def get_default_request(self):
++        return self.req_cls({"arg": "1"})
++
++    def get_request_from_view_args(self, view, args, kwargs):
++        return self.req_cls({"arg": "1"})
++
++    def load_querystring(self, req, schema):
++        return {"arg": "1"}
++
++    def load_json(self, req, schema):
++        return {"arg": "1"}
++
++    def load_cookies(self, req, schema):
++        return {"arg": "1"}
++
++    def load_files(self, req, schema):
++        return {"file": []}
++
++    def load_headers(self, req, schema):
++        return {"Content-Type": ["application/json"]}
++
++    def handle_error(self, error, req, schema, *, error_status_code, error_headers):
++        raise error
++
++
++class MockDjangoRequestParser(MockRequestParser):
++    """A minimal parser implementation that parses mock Django requests."""
++
++    def __init__(self):
++        super().__init__(DjMultiDict)
++
++
++class MockBottleRequestParser(MockRequestParser):
++    """A minimal parser implementation that parses mock Bottle requests."""
++
++    def __init__(self):
++        super().__init__(BotMultiDict)
++
++
++def mock_django_request(**kwargs):
++    class MockDjangoRequest:
++        GET = DjMultiDict(kwargs.pop("GET", {}))
++        POST = DjMultiDict(kwargs.pop("POST", {}))
++        COOKIES = DjMultiDict(kwargs.pop("COOKIES", {}))
++        FILES = DjMultiDict(kwargs.pop("FILES", {}))
++        META = kwargs.pop("META", {})
++
++    return MockDjangoRequest
++
++
++def mock_bottle_request(**kwargs):
++    class MockBottleRequest:
++        form = BotMultiDict(kwargs.pop("form", {}))
++        json = kwargs.pop("json", {})
++        cookies = BotMultiDict(kwargs.pop("cookies", {}))
++
++    return MockBottleRequest
++
++
++@pytest.fixture(params=["django", "bottle"])
++def web_request(request):
++    if request.param == "django":
++        return mock_django_request(GET={}, POST={})
++    elif request.param == "bottle":
++        return mock_bottle_request(form={}, json={})
++
++
++class MockRequestParserWithErrorHandler(MockRequestParser):
++    def handle_error(self, error, req, schema, *, error_status_code, error_headers):
++        assert isinstance(error, ValidationError)
++        assert isinstance(schema, Schema)
++        raise MockHTTPError(error_status_code, error_headers)
++
++
++def test_validate_argument_raises_on_missing_reraise(web_request):
++    parser = MockRequestParserWithErrorHandler()
++    web_request.json = {"foo": 42}
++    args = {"foo": fields.Field(validate=lambda x: False)}
++    with pytest.raises(ValueError):
++        parser.parse(args, web_request)
++
++
++def test_validate_argument_raises_on_non_reraise(web_request):
++    parser = MockRequestParserWithErrorHandler()
++    web_request.json = {"foo": 42}
++    args = {
++        "foo": fields.Field(
++            validate=lambda x: False, error_handler=lambda *a, **k: None
++        )
++    }
++    with pytest.raises(ValueError):
++        parser.parse(args, web_request)
++
++
++def test_validate_argument_does_not_raise_if_no_error_handler(web_request):
++    parser = MockRequestParser()
++    web_request.json = {"foo": 42}
++    args = {"foo": fields.Field(validate=lambda x: False)}
++    assert parser.parse(args, web_request) is None
++
++
++def test_validate_argument_does_not_raise_if_error_handler_is_none(web_request):
++    parser = MockRequestParser()
++    web_request.json = {"foo": 42}
++    args = {"foo": fields.Field(validate=lambda x: False, error_handler=None)}
++    assert parser.parse(args, web_request) is None

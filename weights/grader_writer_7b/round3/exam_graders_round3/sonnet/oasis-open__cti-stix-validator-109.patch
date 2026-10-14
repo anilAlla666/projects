@@ -1,0 +1,55 @@
+--- /dev/null
++++ b/stix2validator/test/v21/indicator_pattern_type_tests.py
+@@ -0,0 +1,56 @@
++import copy
++import json
++
++from . import ValidatorTest
++
++VALID_INDICATOR = """
++{
++  "type": "indicator",
++  "spec_version": "2.1",
++  "id": "indicator--a932fcc6-e032-476c-826f-cb970a5a1ade",
++  "created": "2016-04-06T20:03:48.000Z",
++  "modified": "2016-04-06T20:03:48.000Z",
++  "pattern": "[file:hashes.'SHA-256' = 'aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f']",
++  "pattern_type": "stix",
++  "valid_from": "2016-01-01T00:00:00Z"
++}
++"""
++
++SNORT_RULE = 'alert tcp any any -> any any (msg:"test"; content:"abc"; sid:1000001;)'
++
++
++class IndicatorPatternTypeTestCases(ValidatorTest):
++    valid_indicator = json.loads(VALID_INDICATOR)
++
++    def test_stix_pattern_valid(self):
++        self.assertTrueWithOptions(self.valid_indicator)
++
++    def test_invalid_stix_pattern_still_fails(self):
++        indicator = copy.deepcopy(self.valid_indicator)
++        indicator['pattern'] = "[file:hashes.'SHA-256' = ]"
++        self.assertFalseWithOptions(indicator)
++
++    def test_snort_pattern_not_checked_as_stix(self):
++        indicator = copy.deepcopy(self.valid_indicator)
++        indicator['pattern_type'] = 'snort'
++        indicator['pattern'] = SNORT_RULE
++        self.assertTrueWithOptions(indicator)
++
++    def test_snort_pattern_no_pattern_errors_strict(self):
++        from stix2validator import validate_instance, ValidationOptions
++        indicator = copy.deepcopy(self.valid_indicator)
++        indicator['pattern_type'] = 'snort'
++        indicator['pattern'] = SNORT_RULE
++        results = validate_instance(indicator, ValidationOptions(strict=True))
++        self.assertTrue(results.is_valid)
++        self.assertEqual([], list(results.errors or []))
++
++    def test_other_nonstix_pattern_type(self):
++        indicator = copy.deepcopy(self.valid_indicator)
++        indicator['pattern_type'] = 'yara'
++        indicator['pattern'] = 'rule test { condition: true }'
++        self.assertTrueWithOptions(indicator)

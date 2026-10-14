@@ -1,0 +1,115 @@
+--- /dev/null
++++ b/bids/modeling/tests/test_transformations_grader.py
+@@ -0,0 +1,117 @@
++from bids.modeling import transformations as transform
++from bids.variables import SparseRunVariable, DenseRunVariable
++from bids.variables.entities import RunInfo
++from bids.variables.collections import BIDSRunVariableCollection
++from bids.layout import BIDSLayout
++import math
++import pytest
++from os.path import join, sep
++from bids.tests import get_test_data_path
++import numpy as np
++import pandas as pd
++
++
++try:
++    from unittest import mock
++except ImportError:
++    import mock
++
++
++SUBJECTS = ['01', '02']
++
++
++NRUNS = 3
++
++
++SCAN_LENGTH = 480
++
++
++cached_collections = {}
++
++
++@pytest.fixture
++def collection():
++    if 'ds005' not in cached_collections:
++        layout_path = join(get_test_data_path(), 'ds005')
++        layout = BIDSLayout(layout_path)
++        cached_collections['ds005'] = layout.get_collections(
++            'run',
++            types=['events'],
++            scan_length=SCAN_LENGTH,
++            merge=True,
++            sampling_rate=10,
++            subject=SUBJECTS
++        )
++    return cached_collections['ds005'][0]
++
++
++def test_Munge():
++    var = DenseRunVariable(
++        name="rot_x",
++        values=np.arange(5., 20.),
++        run_info=RunInfo({}, 15, 1, "none", 15),
++        source='regressors',
++        sampling_rate=1
++    )
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++
++    # Basic test
++    transform.Munge(coll, "rot_x", output="munge_out")
++    munge_out = coll["munge_out"]
++    assert munge_out.name == "munge_out"
++    assert munge_out.sampling_rate == 1
++    assert munge_out.source == "Munged"
++    assert munge_out.scan_id == 1
++    assert munge_out.onset == 0
++    assert munge_out.duration == 15
++    assert munge_out.values.values.flatten().tolist() == list(range(5, 20))
++
++    # Test different output attributes
++    transform.Munge(coll, "rot_x", output="munge_out", attr="onset")
++    munge_out = coll["munge_out"]
++    assert munge_out.name == "munge_out"
++    assert munge_out.sampling_rate == 1
++    assert munge_out.source == "Munged"
++    assert munge_out.scan_id == 1
++    assert munge_out.onset == 0
++    assert munge_out.duration == 15
++    assert munge_out.values.values.flatten().tolist() == [0]*15
++
++    # Munge by entity
++    transform.Munge(coll, "rot_x", output="munge_out", entity="acq")
++    munge_out = coll["munge_out"]
++    assert munge_out.name == "munge_out"
++    assert munge_out.sampling_rate == 1
++    assert munge_out.source == "Munged"
++    assert munge_out.scan_id == 1
++    assert munge_out.onset == 0
++    assert munge_out.duration == 15
++    assert munge_out.values.values.flatten().tolist() == [0]*15
++
++    # Test multiple targets
++    transform.Munge(coll, ["rot_x", "rot_y"], output=["out_1", "out_2"])
++    out_1 = coll["out_1"]
++    out_2 = coll["out_2"]
++    assert out_1.name == "out_1"
++    assert out_1.sampling_rate == 1
++    assert out_1.source == "Munged"
++    assert out_1.scan_id == 1
++    assert out_1.onset == 0
++    assert out_1.duration == 15
++    assert out_1.values.values.flatten().tolist() == list(range(5, 20))
++    assert out_2.name == "out_2"
++    assert out_2.sampling_rate == 1
++    assert out_2.source == "Munged"
++    assert out_2.scan_id == 1
++    assert out_2.onset == 0
++    assert out_2.duration == 15
++    assert out_2.values.values.flatten().tolist() == list(range(5, 20))
++
++    # Test using variables that aren't in the collection
++    with pytest.raises(ValueError):
++        transform.Munge(coll, "rot_z", output="out")

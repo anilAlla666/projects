@@ -1,0 +1,20 @@
+--- /dev/null
++++ b/tests/test_setup_profile_grader.py
+@@ -0,0 +1,16 @@
++from click.testing import CliRunner
++import pytest
++from nanopub.setup_nanopub_profile import main
++
++
++@pytest.mark.parametrize(
++    "args,expected",
++    [
++        ([], ["Please enter"]),
++        (["--keypair", "/some/path"], ["Please enter"]),
++        (["--newkeys"], []),
++    ],
++)
++def test_main(args, expected):
++    runner = CliRunner()
++    result = runner.invoke(main, args=args)
++    assert all([exp in result.output for exp in expected])

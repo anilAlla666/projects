@@ -1,0 +1,125 @@
+--- /dev/null
++++ b/test_zipp_grader.py
+@@ -0,0 +1,87 @@
++from __future__ import division, unicode_literals
++import io
++import zipfile
++import posixpath
++import contextlib
++import tempfile
++import shutil
++
++
++try:
++    import pathlib
++except ImportError:
++    import pathlib2 as pathlib
++
++
++try:
++    from contextlib import ExitStack
++except ImportError:
++    from contextlib2 import ExitStack
++
++
++try:
++    import unittest
++
++    unittest.TestCase.subTest
++except AttributeError:
++    import unittest2 as unittest
++
++
++import zipp
++
++
++__metaclass__ = type
++
++
++consume = tuple
++
++
++def add_dirs(zipfile):
++    """
++    Given a writable zipfile, inject directory entries for
++    any directories implied by the presence of children.
++    """
++    names = zipfile.namelist()
++    for name in names:
++        dirname = posixpath.dirname(name)
++        if dirname and dirname not in names:
++            zipfile.writestr(dirname + "/", b"")
++
++
++class TestPath(unittest.TestCase):
++    def setUp(self):
++        self.tempdir = tempfile.mkdtemp(prefix="zipper-test")
++
++    def tearDown(self):
++        shutil.rmtree(self.tempdir)
++
++    def make_zipfile(self, content=""):
++        tmpfd, tmpname = tempfile.mkstemp(dir=self.tempdir, prefix="zipp_test", suffix=".zip")
++        os.close(tmpfd)
++        with zipfile.ZipFile(tmpname, "w") as zf:
++            zf.writestr("a/", b"")
++            zf.writestr("a/b", b"content of a")
++            zf.writestr("b/c/d/e.txt", b"content of e")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/", b"")
++            zf.writestr("x/y/z/file.txt", b"content of x/y/z/file.txt")
++            zf.writestr("g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/file.txt", b"content of g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/file.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/otherfile.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/otherfile.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/anotherfile.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/anotherfile.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/yetanotherfile.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/yetanotherfile.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt", b"content of f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles.txt")
++            zf.writestr("f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/oneofmanyfiles

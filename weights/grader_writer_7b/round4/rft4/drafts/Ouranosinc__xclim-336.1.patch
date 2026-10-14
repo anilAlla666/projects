@@ -1,0 +1,127 @@
+--- /dev/null
++++ b/tests/test_ensembles_grader.py
+@@ -0,0 +1,121 @@
++import glob
++import os
++import sys
++import numpy as np
++import pandas as pd
++import pytest
++import xarray as xr
++from xclim import ensembles
++
++
++TESTS_HOME = os.path.abspath(os.path.dirname(__file__))
++
++
++TESTS_DATA = os.path.join(TESTS_HOME, "testdata")
++
++
++class TestEnsembleStats:
++    nc_files_simple = glob.glob(
++        os.path.join(TESTS_DATA, "EnsembleStats", "*1950-2100*.nc")
++    )
++
++    nc_files = glob.glob(os.path.join(TESTS_DATA, "EnsembleStats", "*.nc"))
++
++    nc_file = os.path.join(TESTS_DATA, "EnsembleStats", "GFDL-CM3_Hist_RCP45.nc")
++
++    def test_create_ensemble(self):
++        ds_list = ensembles.create_ensemble(self.nc_files)
++        assert isinstance(ds_list, xr.Dataset)
++
++    def test_create_ensemble_multifile(self):
++        ds_list = ensembles.create_ensemble(
++            [[self.nc_file], [self.nc_file]], mf_flag=True
++        )
++        assert isinstance(ds_list, xr.Dataset)
++
++    def test_calc_stats(self):
++        ds_list = ensembles.create_ensemble(self.nc_files)
++        stats = ensembles.calc_stats(ds_list, stat_types=["mean"])
++        assert isinstance(stats, xr.Dataset)
++
++    def test_calc_stats_multifile(self):
++        ds_list = ensembles.create_ensemble([[self.nc_file], [self.nc_file]], mf_flag=True)
++        stats = ensembles.calc_stats(ds_list, stat_types=["mean"])
++        assert isinstance(stats, xr.Dataset)
++
++    def test_calc_stats_with_groups(self):
++        ds_list = ensembles.create_ensemble(self.nc_files)
++        stats = ensembles.calc_stats(ds_list, stat_types=["mean"], group="model")
++        assert isinstance(stats, xr.Dataset)
++
++    def test_calc_stats_missing_dims(self):
++        ds_list = ensembles.create_ensemble([self.nc_file])
++        with pytest.raises(ValueError):
++            stats = ensembles.calc_stats(ds_list, stat_types=["mean"])
++
++    def test_calc_stats_invalid_stat_type(self):
++        ds_list = ensembles.create_ensemble(self.nc_files)
++        with pytest.raises(ValueError):
++            stats = ensembles.calc_stats(ds_list, stat_types=["not_a_real_stat"])
++
++    def test_calc_stats_missing_var(self):
++        ds_list = ensembles.create_ensemble(self.nc_files)
++        with pytest.raises(KeyError):
++            stats = ensembles.calc_stats(ds_list, stat_types=["mean"], var="foo")
++
++    def test_kmeans_modelweights(self):
++        ds = xr.open_dataset(self.nc_file)
++        # Test sample weights
++        model_weights = np.ones(ds.data.shape[0])
++        model_weights[[4, 7, 10, 23]] = 0
++
++        # set to zero for some models that are selected in n_cluster test - these models should not be present
++        [ids, cluster, fig_data] = ensembles.kmeans_reduce_ensemble(
++            data=ds.data,
++            method={"n_clusters": 4},
++            random_state=42,
++            make_graph=False,
++            model_weights=model_weights,
++        )
++
++        for i in np.where(model_weights == 0)[0]:
++            # as long as the cluster has more than one member the models w/ weight==0 should not be present
++            if np.sum(cluster == cluster[i]) > 1:
++                assert i not in ids
++
++        model_weights = np.ones(ds.data.shape[0])
++        model_weights[[0, 3, 4, 6, 7, 10, 11, 12, 13]] = 0
++        [ids, cluster, fig_data] = ensembles.kmeans_reduce_ensemble(
++            data=ds.data,
++            method={"n_clusters": 9},
++            random_state=42,
++            make_graph=False,
++            model_weights=model_weights,
++        )
++        for i in np.where(model_weights == 0)[0]:
++            # as long as the cluster has more than one member the models w/ weight==0 should not be present
++            if np.sum(cluster == cluster[i]) > 1:
++                assert i not in ids
++
++    @pytest.mark.skipif(
++        "matplotlib.pyplot" not in sys.modules, reason="matplotlib.pyplot is required"
++    )
++    def test_kmeans_rsqcutoff_with_graphs(self):
++        pytest.importorskip("sklearn", minversion="0.22")
++        ds = xr.open_dataset(self.nc_file)
++
++        # use random state variable to ensure consistent clustering in tests:
++        [ids, cluster, fig_data] = ensembles.kmeans_reduce_ensemble(
++            data=ds.data, method={"rsq_cutoff": 0.9}, random_state=42, make_graph=True,
++        )
++
++        assert ids == [0, 1, 3, 4, 6, 7, 8, 9, 10, 11, 12, 15, 20, 22]
++        assert len(ids) == 14
++
++        # Test max cluster option
++        [ids, cluster, fig_data] = ensembles.kmeans_reduce_ensemble(
++            data=ds.data,
++            method={"rsq_cutoff": 0.9},
++            random_state=42,
++            make_graph=True,
++            max_clusters=10,
++        )
++        assert ids == [0, 1, 3, 4, 6, 7, 10, 11, 18, 20]
++        assert len(ids) == 10

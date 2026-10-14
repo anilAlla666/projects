@@ -1,0 +1,51 @@
+--- /dev/null
++++ b/tests/test_util_path_grader.py
+@@ -0,0 +1,46 @@
++from __future__ import absolute_import, division, print_function, unicode_literals
++import ubelt as ub
++
++
++def test_ensuredir():
++    from ubelt.util_platform import *
++    import ubelt as ub
++    cache_dpath = ub.ensure_app_cache_dir('ubelt')
++    dpath = join(cache_dpath, 'ensuredir')
++    if exists(dpath):
++        os.rmdir(dpath)
++    assert not exists(dpath)
++    # Ensure it prints out a message when it makes the directory
++    # Note we use the `ensure` kwarg because the `verbose` kwarg has been
++    # deprecated.
++    old_stdout = ub.set_module_sysout(False)
++    try:
++        ub.ensuredir(dpath, ensure=True, verbose=1)
++        assert exists(dpath)
++    finally:
++        ub.set_module_sysout(old_stdout)
++    os.rmdir(dpath)
++
++    # Ensure it prints out a message when it already exists
++    old_stdout = ub.set_module_sysout(False)
++    try:
++        ub.ensuredir(dpath, ensure=True, verbose=1)
++        assert exists(dpath)
++    finally:
++        ub.set_module_sysout(old_stdout)
++
++    # Ensure it does NOT print out a message when it already exists
++    old_stdout = ub.set_module_sysout(False)
++    try:
++        ub.ensuredir(dpath, ensure=True, verbose=0)
++        assert exists(dpath)
++    finally:
++        ub.set_module_sysout(old_stdout)
++
++    # Ensure it does NOT print out a message when it already exists
++    old_stdout = ub.set_module_sysout(False)
++    try:
++        ub.ensuredir(dpath, ensure=True, verbose=-1)
++        assert exists(dpath)
++    finally:
++        ub.set_module_sysout(old_stdout)
++
++    os.rmdir(dpath)

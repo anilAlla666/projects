@@ -1,0 +1,29 @@
+diff --git a/tests/test_parser.py b/tests/test_parser.py
+index 0b0f3a5..d0c3e5c 100644
+--- a/tests/test_parser.py
++++ b/tests/test_parser.py
+@@ -549,6 +549,14 @@ class TestServerParser:
+         assert data['raw'] == msg
+         assert data['beacon_type'] == constants.BeaconType.server_beacon
+         assert 'comment' not in data
++        assert data['callsign'] == 'LKHS'
++
++    def test_parse_message_callsign(self, mocker):
++        msg = 'LKHS>APRS,TCPIP*,qAC,GLIDERN2:/211635h4902.45NI01429.51E&'
++        data = parser.ServerParser.parse_message(msg)
++        assert data['callsign'] == 'LKHS'
++        assert data['from'] == 'LKHS'
++        assert data['destto'] == 'APRS'
+ 
+     def test_parse_message_status(self, mocker):
+         msg = (
+diff --git a/tests/test_ogn_lib.py b/tests/test_ogn_lib.py
+index 0100000..0100000 100644
+--- a/tests/test_ogn_lib.py
++++ b/tests/test_ogn_lib.py
+@@ -1,4 +1,4 @@
+-import ogn_lib
++import ogn_lib
+ 
+ 
+ def test_entry_points():

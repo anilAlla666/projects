@@ -1,0 +1,42 @@
+--- /dev/null
++++ b/tests/test_quom_grader.py
+@@ -0,0 +1,39 @@
++from pathlib import Path
++import pytest
++from quom.quom import Quom, QuomConfig, EmptyToken, LinebreakWhitespaceToken, PreprocessorIncludeGuardStartToken
++
++
++@pytest.fixture(scope="function")
++def quom():
++    quom_config = QuomConfig(
++        output_dir=Path("output"),
++        source_directories=[],
++        include_directories=[],
++        preprocessor_definitions=None,
++        include_guard_format=None,
++        skip_already_included_files=True,
++    )
++    quom_instance = Quom(quom_config)
++    quom_instance.output_file = "output"
++    yield quom_instance
++
++
++def test_skip_already_included_files(quom):
++    quom.__process_file(
++        relative_path=Path(),
++        include_path=Path("path", "to", "file.h"),
++        is_source_file=True,
++        is_main_header=False,
++    )
++    quom.__process_file(
++        relative_path=Path(),
++        include_path=Path("path", "to", "file.h"),
++        is_source_file=True,
++        is_main_header=False,
++    )
++
++    assert len(quom.__processed_files) == 1
++    assert (
++        isinstance(quom.__prev_token, PreprocessorIncludeGuardStartToken)
++        or isinstance(quom.__prev_token, LinebreakWhitespaceToken)
++    )

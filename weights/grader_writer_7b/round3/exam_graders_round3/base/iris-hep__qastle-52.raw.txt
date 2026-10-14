@@ -1,0 +1,185 @@
+To address the issue of copying LINQ nodes being broken due to overridden constructors without optional arguments, we need to ensure that the `copy` module can correctly handle these custom AST nodes. We can achieve this by implementing the `__reduce_ex__` method in each of the custom LINQ classes.
+
+Here's how you can add the necessary methods to the `Where`, `Select`, `SelectMany`, `First`, `Aggregate`, `Count`, `Max`, `Min`, `Sum`, `Zip`, and `OrderBy` classes:
+
+```python
+# qastle/linq_util.py
+
+class Where(ast.AST):
+    def __init__(self, source, predicate):
+        self._fields = ['source', 'predicate']
+        self.source = source
+        self.predicate = predicate
+    
+    def __reduce_ex__(self, protocol):
+        return (type(self), (self.source, self.predicate))
+
+class Select(ast.AST):
+    def __init__(self, source, selector):
+        self._fields = ['source', 'selector']
+        self.source = source
+        self.selector = selector
+    
+    def __reduce_ex__(self, protocol):
+        return (type(self), (self.source, self.selector))
+
+class SelectMany(ast.AST):
+    def __init__(self, source, selector):
+        self._fields = ['source', 'selector']
+        self.source = source
+        self.selector = selector
+    
+    def __reduce_ex__(self, protocol):
+        return (type(self), (self.source, self.selector))
+
+class First(ast.AST):
+    def __init__(self, source):
+        self._fields = ['source']
+        self.source = source
+    
+    def __reduce_ex__(self, protocol):
+        return (type(self), (self.source,))
+
+class Aggregate(ast.AST):
+    def __init__(self, source, seed, func):
+        self._fields = ['source', 'seed', 'func']
+        self.source = source
+        self.seed = seed
+        self.func = func
+    
+    def __reduce_ex__(self, protocol):
+        return (type(self), (self.source, self.seed, self.func))
+
+class Count(ast.AST):
+    def __init__(self, source):
+        self._fields = ['source']
+        self.source = source
+    
+    def __reduce_ex__(self, protocol):
+        return (type(self), (self.source,))
+
+class Max(ast.AST):
+    def __init__(self, source):
+        self._fields = ['source']
+        self.source = source
+    
+    def __reduce_ex__(self, protocol):
+        return (type(self), (self.source,))
+
+class Min(ast.AST):
+    def __init__(self, source):
+        self._fields = ['source']
+        self.source = source
+    
+    def __reduce_ex__(self, protocol):
+        return (type(self), (self.source,))
+
+class Sum(ast.AST):
+    def __init__(self, source):
+        self._fields = ['source']
+        self.source = source
+    
+    def __reduce_ex__(self, protocol):
+        return (type(self), (self.source,))
+
+class Zip(ast.AST):
+    def __init__(self, source):
+        self._fields = ['source']
+        self.source = source
+    
+    def __reduce_ex__(self, protocol):
+        return (type(self), (self.source,))
+
+class OrderBy(ast.AST):
+    def __init__(self, source, key_selector):
+        self._fields = ['source', 'key_selector']
+        self.source = source
+        self.key_selector = key_selector
+    
+    def __reduce_ex__(self, protocol):
+        return (type(self), (self.source, self.key_selector))
+```
+
+Now, let's write the tests to verify that the fix works as expected. We'll add a new test file named `test_copy_linq_nodes.py`:
+
+```python
+# tests/test_copy_linq_nodes.py
+
+from qastle import *
+import copy
+import ast
+
+def test_copy_where_node():
+    original = Where(source=ast.Name(id='data'), predicate=ast.Lambda(args=ast.arguments(posonlyargs=[ast.arg(arg='x')]), body=ast.NameConstant(value=True)))
+    copied = copy.deepcopy(original)
+    assert isinstance(copied, Where)
+    assert copied.source.id == 'data'
+    assert isinstance(copied.predicate, ast.Lambda)
+
+def test_copy_select_node():
+    original = Select(source=ast.Name(id='data'), selector=ast.Lambda(args=ast.arguments(posonlyargs=[ast.arg(arg='x')]), body=ast.Name(id='x')))
+    copied = copy.deepcopy(original)
+    assert isinstance(copied, Select)
+    assert copied.source.id == 'data'
+    assert isinstance(copied.selector, ast.Lambda)
+
+def test_copy_selectmany_node():
+    original = SelectMany(source=ast.Name(id='data'), selector=ast.Lambda(args=ast.arguments(posonlyargs=[ast.arg(arg='x')]), body=ast.Name(id='x')))
+    copied = copy.deepcopy(original)
+    assert isinstance(copied, SelectMany)
+    assert copied.source.id == 'data'
+    assert isinstance(copied.selector, ast.Lambda)
+
+def test_copy_first_node():
+    original = First(source=ast.Name(id='data'))
+    copied = copy.deepcopy(original)
+    assert isinstance(copied, First)
+    assert copied.source.id == 'data'
+
+def test_copy_aggregate_node():
+    original = Aggregate(source=ast.Name(id='data'), seed=ast.Num(n=0), func=ast.Lambda(args=ast.arguments(posonlyargs=[ast.arg(arg='acc'), ast.arg(arg='x')]), body=ast.BinOp(left=ast.Name(id='acc'), op=ast.Add(), right=ast.Name(id='x'))))
+    copied = copy.deepcopy(original)
+    assert isinstance(copied, Aggregate)
+    assert copied.source.id == 'data'
+    assert isinstance(copied.seed, ast.Num)
+    assert isinstance(copied.func, ast.Lambda)
+
+def test_copy_count_node():
+    original = Count(source=ast.Name(id='data'))
+    copied = copy.deepcopy(original)
+    assert isinstance(copied, Count)
+    assert copied.source.id == 'data'
+
+def test_copy_max_node():
+    original = Max(source=ast.Name(id='data'))
+    copied = copy.deepcopy(original)
+    assert isinstance(copied, Max)
+    assert copied.source.id == 'data'
+
+def test_copy_min_node():
+    original = Min(source=ast.Name(id='data'))
+    copied = copy.deepcopy(original)
+    assert isinstance(copied, Min)
+    assert copied.source.id == 'data'
+
+def test_copy_sum_node():
+    original = Sum(source=ast.Name(id='data'))
+    copied = copy.deepcopy(original)
+    assert isinstance(copied, Sum)
+    assert copied.source.id == 'data'
+
+def test_copy_zip_node():
+    original = Zip(source=ast.Name(id='data'))
+    copied = copy.deepcopy(original)
+    assert isinstance(copied, Zip)
+    assert copied.source.id == 'data'
+
+def test_copy_orderby_node():
+    original = OrderBy(source=ast.Name(id='data'), key_selector=ast.Lambda(args=ast.arguments(posonlyargs=[ast.arg(arg='x')]), body=ast.Name(id='x')))
+    copied = copy.deepcopy(original)
+    assert isinstance(copied, OrderBy)
+    assert copied.source.id == 'data'
+    assert isinstance(copied.key_selector, ast.Lambda)
+```
+
+These tests should fail when run against the current code and pass after applying the fix. They cover all the custom LINQ node types mentioned in the issue.

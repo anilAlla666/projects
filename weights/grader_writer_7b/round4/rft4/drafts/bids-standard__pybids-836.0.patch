@@ -1,0 +1,239 @@
+--- /dev/null
++++ b/bids/modeling/tests/test_transformations_grader.py
+@@ -0,0 +1,235 @@
++from bids.modeling import transformations as transform
++from bids.variables import SparseRunVariable, DenseRunVariable
++from bids.variables.entities import RunInfo
++from bids.variables.collections import BIDSRunVariableCollection
++from bids.layout import BIDSLayout
++import math
++import pytest
++from os.path import join, sep
++from bids.tests import get_test_data_path
++import numpy as np
++import pandas as pd
++
++
++try:
++    from unittest import mock
++except ImportError:
++    import mock
++
++
++SUBJECTS = ['01', '02']
++
++
++NRUNS = 3
++
++
++SCAN_LENGTH = 480
++
++
++cached_collections = {}
++
++
++@pytest.fixture
++def collection():
++    if 'ds005' not in cached_collections:
++        layout_path = join(get_test_data_path(), 'ds005')
++        layout = BIDSLayout(layout_path)
++        cached_collections['ds005'] = layout.get_collections(
++            'run',
++            types=['events'],
++            scan_length=SCAN_LENGTH,
++            merge=True,
++            sampling_rate=10,
++            subject=SUBJECTS
++        )
++    return cached_collections['ds005'][0]
++
++
++@pytest.fixture
++def event_collection(collection):
++    coll = collection.copy()
++    coll.events = {
++        k: v.rename(columns={'onset': 'event_onset'})
++           .assign(event_duration=lambda x: x.event_onset.diff())
++           for k, v in coll.events.items()
++    }
++    return coll
++
++
++def test_assign():
++    var = DenseRunVariable(
++        name="rot_x",
++        values=np.arange(5., 20.),
++        run_info=RunInfo({}, 15, 1, "none", 15),
++        source='regressors',
++        sampling_rate=1
++    )
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++
++    # Assign with no attributes
++    transform.Assign(coll, ["rot_x"], output=["d_rot_x"])
++    assert coll.variables["d_rot_x"].values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Assign with onset
++    transform.Assign(coll, ["rot_x"], output=["d_rot_x"],
++                     target_attr="onset")
++    assert coll.variables["d_rot_x"].values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Assign with duration
++    transform.Assign(coll, ["rot_x"], output=["d_rot_x"],
++                     target_attr="duration")
++    assert coll.variables["d_rot_x"].values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Assign with value
++    transform.Assign(coll, ["rot_x"], output=["d_rot_x"],
++                     target_attr="value")
++    assert coll.variables["d_rot_x"].values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Assign with multiple targets
++    transform.Assign(coll, ["rot_x", "rot_x", "rot_x"],
++                     output=["a", "b", "c"],
++                     target_attr="value")
++    assert all(v.values.values.squeeze().shape ==
++               (NRUNS * SCAN_LENGTH, 1) for v in
++               [coll.variables["a"], coll.variables["b"],
++                coll.variables["c"]])
++
++
++def test_select():
++    var = DenseRunVariable(
++        name="rot_x",
++        values=np.arange(5., 20.),
++        run_info=RunInfo({}, 15, 1, "none", 15),
++        source='regressors',
++        sampling_rate=1
++    )
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++
++    # No-op select
++    transform.Select(coll, ["rot_x"], output="rot_x")
++    assert coll.variables["rot_x"].values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Select with different names
++    transform.Select(coll, ["rot_x"], output="rot_y")
++    assert "rot_y" in coll.variables
++    assert "rot_x" not in coll.variables
++    assert coll.variables["rot_y"].values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Select with multiple inputs and outputs
++    transform.Select(coll, ["rot_x", "rot_x", "rot_x"],
++                     output=["a", "b", "c"])
++    assert "rot_x" not in coll.variables
++    assert all(v.values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1) for v in
++               [coll.variables["a"], coll.variables["b"],
++                coll.variables["c"]])
++
++
++def test_concatenate():
++    var = DenseRunVariable(
++        name="rot_x",
++        values=np.arange(5., 20.),
++        run_info=RunInfo({}, 15, 1, "none", 15),
++        source='regressors',
++        sampling_rate=1
++    )
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++
++    # Concatenate with default parameters
++    transform.Concatenate(coll, ["rot_x"], output="concat")
++    concat = coll.variables["concat"]
++    assert concat.values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Concatenate with explicit name
++    transform.Concatenate(coll, ["rot_x"], output="concat",
++                          name="rot_x_")
++    assert "rot_x_" in coll.variables
++    assert "concat" not in coll.variables
++    assert coll.variables["rot_x_"].values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Concatenate with multiple inputs and outputs
++    transform.Concatenate(coll, ["rot_x", "rot_x", "rot_x"],
++                          output=["a", "b", "c"])
++    assert "rot_x" not in coll.variables
++    assert all(v.values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1) for v in
++           [coll.variables["a"], coll.variables["b"],
++            coll.variables["c"]])
++
++
++def test_split():
++    var = DenseRunVariable(
++        name="rot_x",
++        values=np.arange(5., 20.),
++        run_info=RunInfo({}, 15, 1, "none", 15),
++        source='regressors',
++        sampling_rate=1
++    )
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++
++    # Split by one entity
++    transform.Split(coll, ["rot_x"], output="split", by="run")
++    split = coll.variables["split"]
++    assert split.values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Split by two entities
++    transform.Split(coll, ["rot_x"], output="split", by=["run", "subject"])
++    split = coll.variables["split"]
++    assert split.values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Split by one variable
++    transform.Split(coll, ["rot_x"], output="split", by="run_entity")
++    split = coll.variables["split"]
++    assert split.values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Split by two variables
++    transform.Split(coll, ["rot_x"], output="split", by=["run_entity", "sub"])
++    split = coll.variables["split"]
++    assert split.values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++
++def test_groupby():
++    var = DenseRunVariable(
++        name="rot_x",
++        values=np.arange(5., 20.),
++        run_info=RunInfo({}, 15, 1, "none", 15),
++        source='regressors',
++        sampling_rate=1
++    )
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++
++    # Group by one entity
++    transform.GroupBy(coll, ["rot_x"], output="grouped", by="run")
++    grouped = coll.variables["grouped"]
++    assert grouped.values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Group by two entities
++    transform.GroupBy(coll, ["rot_x"], output="grouped", by=["run", "subject"])
++    grouped = coll.variables["grouped"]
++    assert grouped.values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Group by one variable
++    transform.GroupBy(coll, ["rot_x"], output="grouped", by="run_entity")
++    grouped = coll.variables["grouped"]
++    assert grouped.values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)
++
++    # Group by two variables
++    transform.GroupBy(coll, ["rot_x"], output="grouped",
++                      by=["run_entity", "sub"])
++    grouped = coll.variables["grouped"]
++    assert grouped.values.values.squeeze().shape == (
++        NRUNS * SCAN_LENGTH, 1)

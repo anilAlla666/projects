@@ -1,0 +1,159 @@
+--- /dev/null
++++ b/test_zipp_grader.py
+@@ -0,0 +1,155 @@
++from __future__ import division, unicode_literals
++import io
++import zipfile
++import posixpath
++import contextlib
++import tempfile
++import shutil
++
++
++try:
++    import pathlib
++except ImportError:
++    import pathlib2 as pathlib
++
++
++try:
++    from contextlib import ExitStack
++except ImportError:
++    from contextlib2 import ExitStack
++
++
++try:
++    import unittest
++
++    unittest.TestCase.subTest
++except AttributeError:
++    import unittest2 as unittest
++
++
++import zipp
++
++
++__metaclass__ = type
++
++
++consume = tuple
++
++
++def add_dirs(zipfile):
++    """
++    Given a writable zipfile, inject directory entries for
++    any directories implied by the presence of children.
++    """
++    names = zipfile.namelist()
++    for name in names:
++        dirname = posixpath.dirname(name)
++        if dirname and dirname not in names:
++            zipfile.writestr(dirname + "/", b"")
++
++
++@contextlib.contextmanager
++def make_zipfile(filename, content=None):
++    """
++    Create a zip file with a single file named 'a', yielding its path.
++    If 'content' is provided, use it as the contents of 'a'.
++    """
++    if content is None:
++        content = b"content of a"
++    with tempfile.NamedTemporaryFile(mode="", delete=False) as strm:
++        with zipfile.ZipFile(strm, "w") as zipf:
++            zipf.writestr("a", content)
++        yield strm.name
++    os.unlink(strm.name)
++
++
++class TestPath(unittest.TestCase):
++    def setUp(self):
++        self.addCleanup(shutil.rmtree)
++
++    @contextlib.contextmanager
++    def tmpdir(self):
++        dirname = tempfile.mkdtemp()
++        with zipfile.ZipFile(os.path.join(dirname, "a.zip"), "w") as zipf:
++            zipf.writestr("a", b"content of a")
++        with zipfile.ZipFile(os.path.join(dirname, "b.zip"), "w") as zipf:
++            zipf.writestr("a/b", b"content of b")
++        with zipfile.ZipFile(os.path.join(dirname, "c.zip"), "w") as zipf:
++            zipf.writestr("a/b/c", b"content of c")
++        yield dirname
++
++    @contextlib.contextmanager
++    def zipfile_abcde(self):
++        with tempfile.NamedTemporaryFile(delete=False) as strm:
++            zf = zipfile.ZipFile(strm, "w")
++            zf.writestr("a", b"content of a")
++            zf.writestr("b/d/e.txt", b"content of e")
++            zf.writestr("b/c", b"content of c")
++            zf.writestr("b/f/g/h.txt", b"content of h")
++            zf.writestr("b/f/g/", b"")
++            zf.writestr("b/f/g/i.txt", b"content of i")
++            zf.writestr("b/f/g/j/k/l.txt", b"content of l")
++            zf.writestr("b/f/g/j/k/", b"")
++            zf.writestr("b/f/g/j/k/m.txt", b"content of m")
++            zf.writestr("b/f/g/j/n/o.txt", b"content of o")
++            zf.writestr("b/f/g/j/n/", b"")
++            zf.writestr("b/f/g/j/n/p.txt", b"content of p")
++            zf.close()
++            yield strm.name
++        os.unlink(strm.name)
++
++    @contextlib.contextmanager
++    def zipfile_ondisk(self):
++        with self.tmpdir() as dirname:
++            yield os.path.join(dirname, "a.zip")
++
++    def test_parent(self):
++        for zipfile_abcde in self.zipfile_abcde():
++            root = zipp.Path(zipfile_abcde)
++            assert (root / 'a').parent.at == ''
++            assert (root / 'a' / 'b').parent.at == 'a/'
++            assert (root / 'a' / 'b' / 'c').parent.at == 'a/b/'
++
++    def test_iterdir(self):
++        for zipfile_abcde in self.zipfile_abcde():
++            root = zipp.Path(zipfile_abcde)
++            a, b = root.iterdir()
++            assert a.at == 'a'
++            assert b.at == 'b/'
++            assert a.is_file()
++            assert b.is_dir()
++
++    def test_open(self):
++        for zipfile_abcde in self.zipfile_abcde():
++            root = zipp.Path(zipfile_abcde)
++            a, b = root.iterdir()
++            with a.open() as strm:
++                data = strm.read()
++            assert data == b"content of a"
++
++    def test_read(self):
++        for zipfile_abcde in self.zipfile_abcde():
++            root = zipp.Path(zipfile_abcde)
++            a, b = root.iterdir()
++            assert a.read_text() == "content of a"
++            assert a.read_bytes() == b"content of a"
++
++    def test_joinpath(self):
++        for zipfile_abcde in self.zipfile_abcde():
++            root = zipp.Path(zipfile_abcde)
++            a = root.joinpath("a")
++            assert a.is_file()
++            e = root.joinpath("b").joinpath("d").joinpath("e.txt")
++            assert e.read_text() == "content of e"
++
++    def test_traverse_truediv(self):
++        for zipfile_abcde in self.zipfile_abcde():
++            root = zipp.Path(zipfile_abcde)
++            a = root / "a"
++            assert a.is_file()
++            e = root / "b" / "d" / "e.txt"
++            assert e.read_text() == "content of e"
++
++    def test_traverse_pathlike(self):
++        for zipfile_abcde in self.zipfile_abcde():
++            root = zipp.Path(zipfile_abcde)
++            root / pathlib.Path("a")

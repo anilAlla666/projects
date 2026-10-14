@@ -1,0 +1,126 @@
+--- /dev/null
++++ b/tests/test_marker_grader.py
+@@ -0,0 +1,101 @@
++import pytest
++from repobee import githubapi
++from repobee import plug
++from repobee import _utils
++from repobee import _exceptions
++
++
++class MockIssue(plug.Issue):
++    def __init__(self, title, number, author=None):
++        self._title = title
++        self._number = number
++        self._author = author
++
++    @property
++    def title(self):
++        return self._title
++
++    @property
++    def number(self):
++        return self._number
++
++    @property
++    def author(self):
++        return self._author
++
++    def __repr__(self):
++        return "<MockIssue title={}>".format(self.title)
++
++    def __eq__(self, other):
++        return isinstance(other, type(self)) and other._title == self._title
++
++
++def test_mark_grade_multiple_issue_matches():
++    mock_teams = [plug.Team("team", members=["student"])]
++    mock_hook_results = {
++        "master-repo": {
++            "issues": {
++                "issue-1": {"title": "a1"},
++                "issue-2": {"title": "b2"},
++                "issue-3": {"title": "c3"},
++            }
++        }
++    }
++    mock_grade_spec = plug.GradeSpec(
++        regex=r"a\d",
++        symbol="A",
++        description="excellent",
++        value=10,
++    )
++
++    grades = plug.PlainGradeDict()
++    students_graded, _, _ = plug.mark_grade(
++        grades=grades,
++        hook_results_mapping=mock_hook_results,
++        teams=mock_teams,
++        master_repo_names=["master-repo"],
++        teachers=[],
++        grade_specs=[mock_grade_spec],
++    )
++    assert set(students_graded) == {"student"}
++    assert grades.get("student", "master-repo", mock_grade_spec) == mock_grade_spec
++
++
++def test_mark_grade_no_issue_matches():
++    mock_teams = [plug.Team("team", members=["student"])]
++    mock_hook_results = {
++        "master-repo": {
++            "issues": {
++                "issue-1": {"title": "a1"},
++                "issue-2": {"title": "b2"},
++                "issue-3": {"title": "c3"},
++            }
++        }
++    }
++    mock_grade_spec = plug.GradeSpec(
++        regex=r"d\d",
++        symbol="D",
++        description="not good",
++        value=2,
++    )
++
++    grades = plug.PlainGradeDict()
++    students_graded, _, _ = plug.mark_grade(
++        grades=grades,
++        hook_results_mapping=mock_hook_results,
++        teams=mock_teams,
++        master_repo_names=["master-repo"],
++        teachers=[],
++        grade_specs=[mock_grade_spec],
++    )
++    assert set(students_graded) == set()
++    assert grades.get("student", "master-repo", mock_grade_spec) is None
++
++
++def test_mark_grade_unauthorized_issues():
++    mock_teams = [plug.Team("team", members=["student"])]
++    mock_hook_results = {
++        "master-repo": {
++            "issues": {
++                "issue-1": {"title": "a1", "author": "teacher"},
++                "issue-2": {"title": "b2", "author": "student"},
++                "issue-3": {"title": "c3", "author": "student"},
++            }
++        }
++    }
++    mock_grade_spec = plug.GradeSpec(
++        regex=r"a\d",
++        symbol="A",
++        description="excellent",
++        value=10,
++    )
++
++    grades = plug.PlainGradeDict()
++    students_graded, _, _ = plug.mark_grade(
++        grades=grades,
++        hook_results_mapping=mock_hook_results,
++        teams=mock_teams,
++        master_repo_names=["master-repo"],
++        teachers=["teacher"],
++        grade_specs=[mock_grade_spec],
++    )
++    assert set(students_graded) == set()
++    assert grades.get("student", "master-repo", mock_grade_spec) is None

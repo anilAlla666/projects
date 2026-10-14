@@ -1,0 +1,152 @@
+--- /dev/null
++++ b/premailer/tests/test_premailer_grader.py
+@@ -0,0 +1,165 @@
++from __future__ import absolute_import, unicode_literals
++import logging
++import re
++import sys
++import unittest
++from contextlib import contextmanager
++from io import StringIO  # Yes, the is an io lib in py2.x
++from lxml.etree import XMLSyntaxError, fromstring
++from requests.exceptions import HTTPError
++import mock
++import premailer.premailer  # lint:ok
++from nose.tools import assert_raises, eq_, ok_
++from premailer.__main__ import main
++from premailer.premailer import (
++    ExternalNotFoundError,
++    Premailer,
++    csstext_to_pairs,
++    merge_styles,
++    transform,
++)
++
++
++if sys.version_info >= (3,):  # As in, Python 3
++    from urllib.request import urlopen
++else:  # Python 2
++    from urllib2 import urlopen
++
++    urlopen = urlopen  # shut up pyflakes
++
++
++whitespace_between_tags = re.compile(r">\s*<")
++
++
++@contextmanager
++def captured_output():
++    new_out, new_err = StringIO(), StringIO()
++    old_out, old_err = sys.stdout, sys.stderr
++    try:
++        sys.stdout, sys.stderr = new_out, new_err
++        yield sys.stdout, sys.stderr
++    finally:
++        sys.stdout, sys.stderr = old_out, old_err
++
++
++class TestPremailer(unittest.TestCase):
++    maxDiff = None
++
++    def setUp(self):
++        logging.disable(logging.CRITICAL)
++
++    def tearDown(self):
++        logging.disable(logging.NOTSET)
++
++    def test_reuse_same_premailer_instance(self):
++        html = "<html><head><style>.thing{color:red}</style></head><body><span class='thing'>Blah!</span></body></html>"
++        p = Premailer(html, disable_leftover_css=True)
++        result_html = p.transform()
++        compare_html("<html><head></head><body><span style='color:red;'>Blah!</span></body></html>", result_html)
++        result_html = p.transform()
++        compare_html("<html><head></head><body><span style='color:red;'>Blah!</span></body></html>", result_html)
++
++    def test_reuse_same_premailer_instance_with_different_html(self):
++        html = "<html><head><style>.thing{color:red}</style></head><body><span class='thing'>Blah!</span></body></html>"
++        p = Premailer(html, disable_leftover_css=True)
++        result_html = p.transform()
++        compare_html("<html><head></head><body><span style='color:red;'>Blah!</span></body></html>", result_html)
++
++        html2 = "<html><head><style>.thing{color:green}</style></head><body><span class='thing'>Blah!</span></body></html>"
++        p.html = html2
++        result_html = p.transform()
++        compare_html("<html><head></head><body><span style='color:green;'>Blah!</span></body></html>", result_html)
++
++    def test_keep_style_tag_on_empty_rule(self):
++        html = "<html><head><style>.thing{}</style></head><body><span class='thing'>Blah!</span></body></html>"
++        p = Premailer(html, disable_leftover_css=True, keep_style_tags=True)
++        result_html = p.transform()
++        compare_html("<html><head><style>.thing{}></style></head><body><span style='' class='thing'>Blah!</span></body></html>", result_html)
++
++    def test_no_html_in_input(self):
++        html = "<html><head><style>.thing{color:red}</style></head><body><span class='thing'>Blah!</span></body></html>"
++        p = Premailer(html, disable_leftover_css=True)
++        result_html = p.transform()
++        compare_html("<html><head></head><body><span style='color:red;'>Blah!</span></body></html>", result_html)
++        result_html = p.transform(None)
++        compare_html("<html><head></head><body><span style='color:red;'>Blah!</span></body></html>", result_html)
++
++    def test_keep_style_tag_on_empty_rule_when_not_found(self):
++        html = "<html><head><style>.thing{}></style></head><body><span class='thing'>Blah!</span></body></html>"
++        p = Premailer(html, disable_leftover_css=True, keep_style_tags=True)
++        result_html = p.transform()
++        compare_html("<html><head><style>.thing{}></style></head><body><span style='' class='thing'>Blah!</span></body></html>", result_html)
++
++    def test_remove_classes_and_inline_style(self):
++        html = "<html><head><style>.thing{color:red}</style></head><body><span class='thing'>Blah!</span></body></html>"
++        p = Premailer(html, disable_leftover_css=True, remove_classes=True)
++        result_html = p.transform()
++        compare_html("<html><head></head><body><span style='color:red'>Blah!</span></body></html>", result_html)
++
++    def test_strip_important(self):
++        html = "<html><head><style>.thing{color:red!important}</style></head><body><span class='thing'>Blah!</span></body></html>"
++        p = Premailer(html, disable_leftover_css=True, remove_important=True)
++        result_html = p.transform()
++        compare_html("<html><head></head><body><span style='color:red'>Blah!</span></body></html>", result_html)
++
++    def test_pseudo_selectors_without_selector(self):
++        """Happens when you have pseudo selectors without an actual selector.
++        Which means it's not possible to find it in the DOM.
++
++        For example:
++
++           <style>
++           :before{box-sizing:inherit}
++           </style>
++
++        Semantic-UI uses this in its normalizer.
++
++        Original issue: https://github.com/peterbe/premailer/issues/184
++        """
++
++        html = """
++            <html>
++            <style>
++                 *,:after,:before{box-sizing:inherit}
++                h1{ border: 1px solid blue}
++                h1:hover {border: 1px solid green}
++
++            </style>
++            <h1>Hey</h1>
++            </html>
++        """
++
++        expect_html = """
++<html>
++    <head>
++    <style>
++         *,:after,:before{box-sizing:inherit}
++        h1{ border: 1px solid blue}
++        h1:hover {border: 1px solid green}
++
++    </style>
++    </head>
++    <body>
++    <h1 style="border: 1px solid blue;">Hey</h1>
++    </body>
++</html>
++        """
++        p = Premailer(html, exclude_pseudoclasses=False, keep_style_tags=True)
++        result_html = p.transform()
++        compare_html(expect_html, result_html)

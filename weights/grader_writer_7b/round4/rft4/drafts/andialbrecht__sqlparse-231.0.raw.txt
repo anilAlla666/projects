@@ -1,0 +1,26 @@
+--- /dev/null
++++ b/tests/test_grouping_grader.py
+@@ -0,0 +1,21 @@
++import pytest
++import sqlparse
++from sqlparse import sql
++from sqlparse import tokens as T
++from sqlparse.compat import u
++from tests.utils import TestCaseBase
++
++
++def test_functions_are_not_part_of_comparison():
++    # see https://github.com/andialbrecht/sqlparse/issues/217
++    p = sqlparse.parse('foo = DATE(bar.baz)')[0].tokens[0]
++    assert isinstance(p, sql.Comparison)
++    assert p.tokens[0] == p.left
++    assert p.tokens[2] == p.right
++
++
++def test_aliased_column_with_as():
++    p = sqlparse.parse('foo AS bar')[0].tokens[0]
++    assert p.get_alias() == 'bar'
++
++
++if __name__ == '__main__':
++    pytest.main()

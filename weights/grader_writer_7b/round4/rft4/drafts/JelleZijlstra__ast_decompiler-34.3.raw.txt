@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/tests/test_grader.py
+@@ -0,0 +1,46 @@
++import os
++from collections.abc import Iterator
++from typing import Any
++from unittest.mock import patch
++
++import pytest
++from ast_decompiler.decompiler import Decompiler
++from ast_decompiler.tests.utils import assert_decompiles
++from ast_decompiler.visitor import Visitor
++
++
++class MockVisitor(Visitor):
++    """A mock visitor class used for testing purposes."""
++
++    def __init__(self, **kwargs: Any) -> None:
++        super().__init__(**kwargs)
++        self.visited_nodes: list[ast.AST] = []
++
++    def generic_visit(self, node: ast.AST) -> None:
++        """Visit a node and add it to the visited_nodes list."""
++        self.visited_nodes.append(node)
++        super().generic_visit(node)
++
++
++@pytest.fixture
++def decompiler() -> Iterator[Decompiler]:
++    """Yield an instance of Decompiler for testing."""
++    decompiler = Decompiler()
++    yield decompiler
++    del decompiler
++
++
++def test_mock_visitor(decompiler: Decompiler) -> None:
++    """Test that the mock visitor visits nodes as expected."""
++    root_node = ast.parse("")
++    decompiler.set_ast(root_node)
++    mock_visitor = MockVisitor(decompiler)
++    mock_visitor.visit(root_node)
++    assert len(mock_visitor.visited_nodes) == 1
++    assert mock_visitor.visited_nodes[0].lineno == 0
++
++
++def test_mock_visitor_with_file_name(decompiler: Decompiler) -> None:
++    """Test that the mock visitor handles file names correctly."""
++    root_node = ast.parse("")
++    decompiler.set_ast(root_node)
++    mock_visitor = MockVisitor(decompiler)
++    mock_visitor.visit(root_node)
++    assert mock_visitor.file_name == "<unknown>"

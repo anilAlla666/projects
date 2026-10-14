@@ -1,0 +1,76 @@
+--- /dev/null
++++ b/src/latexify/codegen/test_expression_codegen_test_grader.py
+@@ -0,0 +1,40 @@
++"""Tests for latexify.codegen.expression_codegen."""
++
++
++from __future__ import annotations
++import ast
++import pytest
++from latexify import ast_utils, exceptions, test_utils
++from latexify.codegen import expression_codegen
++
++
++@pytest.mark.parametrize(
++    "expr,latex",
++    [
++        ("np.exp(x)", r"\exp \mathopen{}\left( x \mathclose{}\right)"),
++        ("np.log(x)", r"\log \mathopen{}\left( x \mathclose{}\right)"),
++        ("np.sqrt(x)", r"\sqrt{x}"),
++        ("np.arccos(x)", r"\arccos \mathopen{}\left( x \mathclose{}\right)"),
++        ("np.sinh(x)", r"\sinh \mathopen{}\left( x \mathclose{}\right)"),
++        ("np.tanh(x)", r"\tanh \mathopen{}\left( x \mathclose{}\right)"),
++        ("np.log(x**2)", r"\log \mathopen{}\left( x^{2} \mathclose{}\right)"),
++        (
++            "np.log(np.sqrt(x))",
++            r"\log \mathopen{}\left( \sqrt{x} \mathclose{}\right)",
++        ),
++        (
++            "np.log(x/y)",
++            r"\log \mathopen{}\left( \frac{x}{y} \mathclose{}\right)",
++        ),
++        (
++            "np.log(x+y)",
++            r"\log \mathopen{}\left( x + y \mathclose{}\right)",
++        ),
++        (
++            "np.log((x/y)*z)",
++            r"\log \mathopen{}\left( \frac{x}{y} z \mathclose{}\right)",
++        ),
++    ],
++)
++def test_visit_call(expr: str, latex: str) -> None:
++    node = ast_utils.parse_expr(expr)
++    assert isinstance(node, ast.Call)
++    assert expression_codegen.ExpressionCodegen().visit(node) == latex
+--- /dev/null
++++ b/src/latexify/codegen/test_codegen_utils_test_grader.py
+@@ -0,0 +1,26 @@
++"""Tests for latexify.codegen.codegen_utils."""
++
++
++from __future__ import annotations
++from typing import Any
++import pytest
++from latexify import exceptions
++from latexify.codegen.codegen_utils import convert_constant
++
++
++@pytest.mark.parametrize(
++    "constant,latex",
++    [
++        (None, r"\mathrm{None}"),
++        (True, r"\mathrm{True}"),
++        (False, r"\mathrm{False}"),
++        (123, "123"),
++        (456.789, "456.789"),
++        (-3 + 4j, r"\mathrm{complex}\mathopen{}\left( -3, 4 \mathclose{}\right)"),
++        ("string", r'\textrm{"string"}'),
++        (..., r"\cdots"),
++    ],
++)
++def test_convert_constant(constant: Any, latex: str) -> None:
++    assert convert_constant(constant) == latex
++
++
++del test_utils

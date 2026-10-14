@@ -1,0 +1,134 @@
+--- /dev/null
++++ b/test_eventloop_grader.py
+@@ -0,0 +1,124 @@
++from __future__ import absolute_import
++
++
++import sys
++import os
++import threading
++import traceback
++import warnings
++import weakref
++import pytest
++import crochet
++from crochet._eventloop import (
++    EventLoop,
++    Watchdog,
++    EventualResult,
++    TimeoutException,
++    NoResultsReceived,
++    register_shutdown_callbacks,
++    unregister_shutdown_callbacks,
++    shutdown_callbacks_registered,
++    set_reactor_factory,
++    get_reactor_factory,
++    ThreadLogObserver,
++    ThreadedEventLoopMixin,
++)
++
++
++_REACTOR_FACTORY_ARG = object()
++
++
++def fake_get_reactor():
++    return "fake-reactor"
++
++
++class TestWatchdog:
++    @pytest.fixture(params=[True, False])
++    def watcher(self, request, monkeypatch):
++        monkeypatch.setattr(
++            'crochet._eventloop.get_running_loop',
++            lambda: "running-loop" if request.param else None)
++        return Watchdog()
++
++    def test_watchdog_starts_timer_if_no_running_loop(self, watcher):
++        assert watcher.timeout is None
++        watcher.start(10)
++        assert watcher.timeout == 10
++
++    def test_watchdog_does_not_start_timer_with_running_loop(self, watcher):
++        assert watcher.timeout is None
++        watcher.start(10)
++        assert watcher.timeout is None
++
++    def test_watchdog_stops_timer_on_stop(self, watcher):
++        watcher.start(10)
++        watcher.stop()
++        assert watcher.timeout is None
++
++    def test_watchdog_stops_timer_on_exit(self, watcher):
++        watcher.start(10)
++        watcher.__del__()
++        assert watcher.timeout is None
++
++    def test_watchdog_raises_timeout_error_when_timed_out(self, watcher):
++        watcher.start(0.001)
++        assert watcher.timed_out is False
++        watcher.__del__()
++        assert watcher.timed_out is True
++
++    def test_watchdog_uses_correct_running_loop(self, watcher):
++        watcher.start(10)
++        assert watcher.running_loop == "running-loop"
++
++
++@pytest.fixture
++def loop(monkeypatch):
++    loop = EventLoop(
++        reactorFactory=lambda: "real-reactor",
++        atexit_register=monkeypatch.setattr('atexit.register', lambda f: f),
++        startLoggingWithObserver=lambda o: None,
++        watchdog_thread=None,
++        reapAllProcesses=lambda: None,
++    )
++    yield loop
++    loop.shutdown()
++
++
++class TestThreadedEventLoopMixin:
++    @pytest.mark.skipif(sys.platform != 'win32',
++                        reason='test specific to Windows')
++    def test_log_observer_crashes_in_windows(self, loop, monkeypatch):
++        """Ensure we can handle a broken log observer"""
++        def crash(*args):
++            raise Exception("Crash!")
++        monkeypatch.setattr(
++            'logging.StreamHandler.emit', crash)
++        observer = ThreadLogObserver(crash)
++        observer(None)
++
++    def test_result_registry_has_weakrefs_to_results(self, loop):
++        result = EventualResult(loop._reactor, lambda: None)
++        registry = loop._result_registry
++        ref = weakref.ref(result)
++        del result
++        assert ref() is not None
++        registry.clear()
++        assert ref() is None
++
++    def test_threaded_event_loop_mixin_adds_threads_to_main_thread_group(self,
++                                                                        loop):
++        group = threading.current_thread().ident
++        mixin = ThreadedEventLoopMixin(group)
++        mixin.start()
++        assert threading.current_thread().ident == group
++        mixin.stop()
++
++
++class FakeReactor(object):
++    def callLater(self, delay, func, *args):
++        return lambda: func(*args)
++
++    def callFromThread(self, func, *args):
++        func(*args)
++
++    def installWaker(self):
++        pass
++
++    def run(self, installSignalHandlers=True):
++        pass
++
++    def stop(self):
++        pass

@@ -1,0 +1,206 @@
+--- /dev/null
++++ b/envi/tests/test_arch_i386_emu_grader.py
+@@ -0,0 +1,162 @@
++'''
++One day we might replace this/add to this with a side by side lockstepper with some other emulator,
++but for now, this is both faster to make and vastly more self-contained (which is nice)
++'''
++
++
++import binascii
++import unittest
++import envi
++import envi.expression as e_expr
++
++
++DEFREG = 0x00BADB1D
++
++
++STACKBASE = 0x80
++
++
++i386Tests = [
++    # push 0x12345678
++    {'bytes': '6878563412',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x78\x56\x34\x12'})},
++    # push fs
++    {'bytes': '0f36',
++     'setup': ({}, {'fs': 0x12345678}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x78\x56\x34\x12'})},
++    # push gs
++    {'bytes': '0f37',
++     'setup': ({}, {'gs': 0x12345678}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x78\x56\x34\x12'})},
++    # pushad
++    {'bytes': '60',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-32}, {
++                 'esp': b'\x1d\xb1\xd0\x00\x1d\xb1\xd0\x00\x1d\xb1\xd0\x00\x1d\xb1\xd0\x00\x1d\xb1\xd0\x00\x1d\xb1\xd0\x00\x1d\xb1\xd0\x00\x1d\xb1\xd0\x00'}),
++    },
++    # popad
++    {'bytes': '61',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-32}, {
++                 'esp': STACKBASE-32, 'eax': 0x1d, 'ebx': 0xb1, 'ecx': 0xd0, 'edx': 0x00, 'esi': 0x1d, 'edi': 0xb1, 'ebp': 0xd0, 'esp': 0x00}),
++    },
++    # mov ecx, 0x12345678
++    {'bytes': 'b978563412',
++     'setup': ({}, {}),
++     'tests': ({'ecx': 0x12345678})},
++    # add ecx, 0x12345678
++    {'bytes': '81c978563412',
++     'setup': ({}, {}),
++     'tests': ({'ecx': 0x12345678})},
++    # xchg ax, bx
++    {'bytes': '87c0',
++     'setup': ({}, {'eax': 0x12345678, 'ebx': 0xabcdef12}),
++     'tests': ({'eax': 0xabcdef12, 'ebx': 0x12345678})},
++    # ret
++    {'bytes': 'c3',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE+4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call rax
++    {'bytes': 'ffc0',
++     'setup': ({}, {'eax': 0x12345678}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACKBASE-4}, {'esp': b'\x00\x00\x00\x00', 'eip': 0x40000004})},
++    # call 0x12345678
++    {'bytes': 'e856341200',
++     'setup': ({}, {}),
++     'tests': ({'esp': STACK

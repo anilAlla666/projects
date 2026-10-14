@@ -1,0 +1,115 @@
+--- /dev/null
++++ b/numpydoc/tests/test_numpydoc_grader.py
+@@ -0,0 +1,71 @@
++import pytest
++from io import StringIO
++from copy import deepcopy
++from numpydoc.numpydoc import (
++    mangle_docstrings, _clean_text_signature, update_config
++)
++from numpydoc.xref import DEFAULT_LINKS
++from sphinx.ext.autodoc import ALL
++from sphinx.util import logging
++
++
++class MockConfig():
++    numpydoc_use_plots = False
++    numpydoc_use_blockquotes = True
++    numpydoc_show_class_members = True
++    numpydoc_show_inherited_class_members = True
++    numpydoc_class_members_toctree = True
++    numpydoc_xref_param_type = False
++    numpydoc_xref_aliases = {}
++    numpydoc_xref_aliases_complete = deepcopy(DEFAULT_LINKS)
++    numpydoc_xref_ignore = set()
++    templates_path = []
++    numpydoc_edit_link = False
++    numpydoc_citation_re = '[a-z0-9_.-]+'
++    numpydoc_attributes_as_param_list = True
++    numpydoc_validation_checks = set()
++    numpydoc_validation_exclude = set()
++
++
++class MockBuilder():
++    config = MockConfig()
++
++
++class MockApp():
++    config = MockConfig()
++    builder = MockBuilder()
++    translator = None
++
++    def __init__(self):
++        pass
++
++
++def test_mangle_docstring_validation_exclude():
++    def function_with_bad_docstring():
++        """
++        This docstring will raise docstring validation warnings."""
++    app = MockApp()
++    app.config.numpydoc_validation_checks = {"all"}
++    app.config.numpydoc_validation_exclude = [r"_bad_"]
++    # Call update_config to construct regexp from config value
++    update_config(app)
++    # Setup for catching warnings
++    status, warning = StringIO(), StringIO()
++    logging.setup(app, status, warning)
++    # Run mangle docstrings on function_with_bad_docstring
++    mangle_docstrings(
++        app,
++        'function',
++        function_with_bad_docstring.__name__,
++        function_with_bad_docstring,
++        None,
++        function_with_bad_docstring.__doc__.split('\n'),
++    )
++    # Validation is skipped due to exclude pattern matching fn name, therefore
++    # no warnings expected
++    assert warning.getvalue() == ""
++
++
++if __name__ == "__main__":
++    import pytest
++    pytest.main()
+--- /dev/null
++++ b/numpydoc/tests/test_validate_grader.py
+@@ -0,0 +1,37 @@
++import pytest
++import numpydoc.validate
++import numpydoc.tests
++
++
++validate_one = numpydoc.validate.validate
++
++
++class TestValidateGoodDocstrings:
++    """
++    Class containing docstrings that are valid.
++    """
++
++    def _import_path(self, klass=None, func=None):
++        return "numpydoc.tests.test_validate.TestValidateGoodDocstrings." + (
++            "" if func is None else func + (
++                "" if klass is None else "(" + klass + ")"
++            )
++        )
++
++    @pytest.mark.parametrize(
++        "klass, func, msgs",
++        [
++            ("BadGenericDocStrings", "plot", tuple()),
++            ("BadGenericDocStrings", "one_liner", tuple()),
++            ("GoodDocStrings", "one_liner", tuple()),
++            ("GoodDocStrings", "plot", tuple()),
++        ],
++    )
++    def test_good_docstrings(self, klass, func, msgs):
++        result = validate_one(self._import_path(klass=klass, func=func))
++        for msg in msgs:
++            assert msg in " ".join(err[1] for err in result["errors"])
++
++
++if __name__ == "__main__":
++    import pytest
++    pytest.main()

@@ -1,0 +1,97 @@
+I've added a test file that runs `copy.copy` and `copy.deepcopy` on every LINQ node class. It also covers a nested tree and a tree produced by `insert_linq_nodes`. I have not run these tests against the current code or a fix.
+
+The tests use only `ast.dump`, `_fields` and attribute checks. They don't depend on how a fix implements the copying.
+
+```diff
+diff --git a/tests/test_linq_copy.py b/tests/test_linq_copy.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_linq_copy.py
+@@ -0,0 +1,95 @@
++from qastle import *
++
++import ast
++import copy
++
++import pytest
++
++
++def name(identifier):
++    return ast.Name(id=identifier, ctx=ast.Load())
++
++
++def make_nodes():
++    return [
++        Where(source=name('s'), predicate=name('p')),
++        Select(source=name('s'), selector=name('f')),
++        SelectMany(source=name('s'), selector=name('f')),
++        First(source=name('s')),
++        Aggregate(source=name('s'), seed=name('seed'), func=name('f')),
++        Count(source=name('s')),
++        Max(source=name('s')),
++        Min(source=name('s')),
++        Sum(source=name('s')),
++        Zip(source=name('s')),
++        OrderBy(source=name('s'), key_selector=name('k')),
++        Choose(source=name('s'), n=name('n')),
++    ]
++
++
++@pytest.mark.parametrize('node', make_nodes(), ids=lambda n: type(n).__name__)
++def test_copy(node):
++    new = copy.copy(node)
++    assert type(new) is type(node)
++    assert new is not node
++    assert ast.dump(new) == ast.dump(node)
++    for field in node._fields:
++        assert getattr(new, field) is getattr(node, field)
++
++
++@pytest.mark.parametrize('node', make_nodes(), ids=lambda n: type(n).__name__)
++def test_deepcopy(node):
++    new = copy.deepcopy(node)
++    assert type(new) is type(node)
++    assert new is not node
++    assert ast.dump(new) == ast.dump(node)
++    assert list(new._fields) == list(node._fields)
++    for field in node._fields:
++        assert getattr(new, field) is not getattr(node, field)
++
++
++def test_deepcopy_nested():
++    node = Select(source=Where(source=First(source=name('s')),
++                               predicate=name('p')),
++                  selector=name('f'))
++    new = copy.deepcopy(node)
++    assert ast.dump(new) == ast.dump(node)
++    assert new.source is not node.source
++    assert new.source.source is not node.source.source
++    assert type(new.source.source) is First
++    assert new.source.source.source is not node.source.source.source
++
++
++def test_deepcopy_independent_mutation():
++    node = Select(source=name('s'), selector=name('f'))
++    new = copy.deepcopy(node)
++    new.source.id = 'changed'
++    assert node.source.id == 's'
++
++
++def test_deepcopy_after_insert_linq_nodes():
++    initial_ast = ast.parse("the_source.Where('lambda row: row').Select('lambda row: row')"
++                            ".Count()")
++    linq_ast = insert_linq_nodes(initial_ast)
++    new = copy.deepcopy(linq_ast)
++    assert ast.dump(new) == ast.dump(linq_ast)
++    new_copy = copy.copy(linq_ast)
++    assert ast.dump(new_copy) == ast.dump(linq_ast)
++
++
++def test_deepcopy_after_text_ast_to_python_ast():
++    initial_ast = ast.parse("the_source.First().Zip()")
++    linq_ast = insert_linq_nodes(initial_ast)
++    text = python_ast_to_text_ast(linq_ast)
++    python_ast = text_ast_to_python_ast(text)
++    new = copy.deepcopy(python_ast)
++    assert ast.dump(new) == ast.dump(python_ast)
+```

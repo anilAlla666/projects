@@ -1,0 +1,222 @@
+--- /dev/null
++++ b/responses/test_responses_grader.py
+@@ -0,0 +1,210 @@
++from __future__ import absolute_import, print_function, division, unicode_literals
++import inspect
++import os
++import re
++import six
++from io import BufferedReader, BytesIO
++from sys import version_info
++import pytest
++import requests
++import responses
++from requests.exceptions import ConnectionError, HTTPError
++from responses import BaseResponse, Response, PassthroughResponse, matchers
++
++
++try:
++    from mock import patch, Mock
++except ImportError:
++    from unittest.mock import patch, Mock  # type: ignore
++
++
++def assert_reset():
++    assert len(responses._default_mock._matches) == 0
++    assert len(responses.calls) == 0
++
++
++def assert_response(resp, body=None, content_type="text/plain"):
++    assert resp.status_code == 200
++    assert resp.reason == "OK"
++    if content_type is not None:
++        assert resp.headers["Content-Type"] == content_type
++    else:
++        assert "Content-Type" not in resp.headers
++    assert resp.text == body
++
++
++def assert_params(resp, expected):
++    assert hasattr(resp, "request"), "Missing request"
++    assert hasattr(resp.request, "params"), "Missing request params"
++    assert resp.request.params == expected
++
++
++def assert_no_calls(expected):
++    assert len(responses.calls) == expected
++
++
++def get_test_dir():
++    frame = inspect.currentframe().f_back.f_back
++    filename = frame.f_code.co_filename
++    return os.path.dirname(os.path.abspath(filename))
++
++
++@responses.activate
++def test_passthrough_does_not_fail():
++    """
++    Regression test for https://github.com/getsentry/responses/issues/431.
++
++    Asserts that passthrough responses don't crash when calling `.start()`
++    """
++    responses.add_passthru('https://*.google.com')
++
++    def handler(req):
++        return 200, {}, 'OK'
++
++    responses.add(responses.GET, 'https://google.com',
++                  body=handler,
++                  passthrough=False)
++
++    assert len(responses._default_mock._matches) == 2
++
++    responses._default_mock.start()
++
++
++class FakeStream(object):
++    def __init__(self, data=b"hello world"):
++        self.data = data
++        self.closed = False
++
++    def read(self, size=-1):
++        if size == -1:
++            return self.data
++        return self.data[:size]
++
++    def close(self):
++        self.closed = True
++
++    def __iter__(self):
++        return iter([self])
++
++
++def fake_stream_generator(stream, chunk_size=1):
++    while True:
++        data = stream.read(chunk_size)
++        if data:
++            yield data
++        else:
++            break
++
++
++if version_info >= (3, 0):
++    from urllib.parse import quote_plus
++else:
++    from urllib import quote_plus
++
++
++def assert_streaming_response(resp, expected_body, chunk_size=1):
++    assert resp.status_code == 200
++    assert resp.reason == "OK"
++    assert resp.headers["Transfer-Encoding"] == "chunked"
++    assert resp.raw.stream is True
++    assert resp.raw.app_iter is not None
++    assert resp.text == ""
++    assert resp.content == expected_body
++    assert resp.iter_content(chunk_size=chunk_size) == list(fake_stream_generator(BytesIO(expected_body), chunk_size=chunk_size))  # noqa: E501
++
++    for c in resp.iter_lines():
++        assert c.decode('utf-8') in expected_body.split('\n')
++
++
++def assert_headers(resp, expected):
++    for key, value in six.iteritems(expected):
++        assert resp.headers[key] == value
++
++
++@responses.activate
++def test_streaming_response_is_added_to_calls():
++    """
++    Regression test for https://github.com/getsentry/responses/issues/431.
++
++    Asserts that passthrough responses don't crash when calling `.start()`
++    """
++    responses.add(responses.GET, 'http://www.example.com/stream',
++                  body=FakeStream(),
++                  stream=True)
++
++    r = requests.get('http://www.example.com/stream')
++
++    assert len(responses.calls) == 1
++
++
++def assert_request_body(resp, expected):
++    assert resp.request.body == expected
++
++
++def get_file(path):
++    """Get file contents."""
++    with open(get_test_dir() + "/" + path, "rb") as f:
++        return f.read()
++
++
++@responses.activate
++def test_add_json_with_dict():
++    responses.add(responses.GET, 'http://www.example.com', json={'key': 'value'})
++
++    r = requests.get('http://www.example.com')
++    assert_response(r, '{"key": "value"}', 'application/json')
++
++
++@responses.activate
++def test_add_json_with_string():
++    responses.add(responses.GET, 'http://www.example.com', json='{"key": "value"}')
++
++    r = requests.get('http://www.example.com')
++    assert_response(r, '{"key": "value"}', 'application/json')
++
++
++@responses.activate
++def test_add_json_with_unicode():
++    responses.add(responses.GET, 'http://www.example.com', json=u'{"key": "value"}')
++
++    r = requests.get('http://www.example.com')
++    assert_response(r, '{"key": "value"}', 'application/json')
++
++
++@responses.activate
++def test_add_json_with_bytes():
++    responses.add(responses.GET, 'http://www.example.com', json=b'{"key": "value"}')
++
++    r = requests.get('http://www.example.com')
++    assert_response(r, '{"key": "value"}', 'application/json')
++
++
++@responses.activate
++def test_add_json_with_int():
++    responses.add(responses.GET, 'http://www.example.com', json=42)
++
++    r = requests.get('http://www.example.com')
++    assert_response(r, '42', 'application/json')
++
++
++@responses.activate
++def test_add_json_with_none():
++    responses.add(responses.GET, 'http://www.example.com', json=None)
++
++    r = requests.get('http://www.example.com')
++    assert_response(r, '', 'application/json')
++
++
++@responses.activate
++def test_add_json_with_callable():
++    responses.add(responses.GET, 'http://www.example.com', json=lambda: {'key': 'value'})
++
++    r = requests.get('http://www.example.com')
++    assert_response(r, '{"key": "value"}', 'application/json')
++
++
++@responses.activate
++def test_add_json_with_tuple():
++    responses.add(responses.GET, 'http://www.example.com', json=(lambda: {'key': 'value'},))
++
++    r = requests.get('http://www.example.com')
++    assert_response(r, '{"key": "value"}', 'application/json')
++
++
++@responses.activate
++def test_add_json_with_set():
++    responses.add(responses.GET, 'http://www.example.com', json={None, True, 42})
++
++    r = requests.get('http://www.example.com')
++    assert_response(r, '[null, true, 42]', 'application/json')

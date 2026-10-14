@@ -1,0 +1,21 @@
+diff --git a/tests/test_space.py b/tests/test_space.py
+index 6b0f3c2..d0e100c 100644
+--- a/tests/test_space.py
++++ b/tests/test_space.py
+@@ -426,6 +426,16 @@ class TestMultipleNetworkGrid(unittest.TestCase):
+         assert _agent.pos == final_pos
+         assert _agent not in self.space.G.nodes[initial_pos]["agent"]
+         assert _agent in self.space.G.nodes[final_pos]["agent"]
++        assert _agent not in self.space.G.nodes[initial_pos]["agents"]
++        assert _agent in self.space.G.nodes[final_pos]["agents"]
++
++    def test_remove_agent(self):
++        initial_pos = 1
++        agent_number = 1
++
++        _agent = self.agents[agent_number]
++
++        self.space.remove_agent(_agent)
+ 
+         assert len(self.space.G.nodes[initial_pos]["agent"]) == 1
+         assert len(self.space.G.nodes[final_pos]["agent"]) == 2

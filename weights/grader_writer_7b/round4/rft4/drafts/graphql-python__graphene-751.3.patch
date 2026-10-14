@@ -1,0 +1,196 @@
+--- /dev/null
++++ b/graphene/relay/tests/test_node_grader.py
+@@ -0,0 +1,39 @@
++from collections import OrderedDict
++from graphql_relay import to_global_id
++from ...types import ObjectType, Schema, String
++from ..node import Node, is_node
++
++
++class SharedNodeFields(object):
++
++    shared = String()
++    something_else = String()
++
++    def resolve_something_else(*_):
++        return '----'
++
++
++class MyNode(ObjectType):
++
++    class Meta:
++        interfaces = (Node, )
++    name = String()
++
++    @staticmethod
++    def get_node(info, id):
++        return MyNode(name=str(id))
++
++
++class MyOtherNode(SharedNodeFields, ObjectType):
++    extra_field = String()
++
++    class Meta:
++        interfaces = (Node, )
++
++    def resolve_extra_field(self, *_):
++        return 'extra field info.'
++
++    @staticmethod
++    def get_node(info, id):
++        return MyOtherNode(shared=str(id))
++
++schema = Schema(query=ObjectType('RootQuery', {
++    'first': String,
++    'node': Node.Field(),
++    'onlyNode': Node.Field(MyNode),
++    'onlyNodeLazy': Node.Field(lambda: MyNode)
++}))
+--- /dev/null
++++ b/graphene/relay/tests/test_node_custom_grader.py
+@@ -0,0 +1,133 @@
++import pytest
++from graphql import graphql
++from ...types import Interface, ObjectType, Schema
++from ...types.scalars import Int, String
++from ..node import Node
++
++
++class CustomNode(Node):
++
++    class Meta:
++        name = 'Node'
++
++    @staticmethod
++    def to_global_id(type, id):
++        return id
++
++    @staticmethod
++    def get_node_from_global_id(info, id, only_type=None):
++        assert info.schema == schema
++        if id in user_data:
++            return user_data.get(id)
++        else:
++            return photo_data.get(id)
++
++
++class BasePhoto(Interface):
++    width = Int()
++
++
++class User(ObjectType):
++
++    class Meta:
++        interfaces = [CustomNode]
++    name = String()
++
++
++class Photo(ObjectType):
++
++    class Meta:
++        interfaces = [CustomNode, BasePhoto]
++    url = String()
++
++
++class Album(ObjectType):
++
++    class Meta:
++        interfaces = [CustomNode]
++    title = String()
++    photos = List(BasePhoto)
++
++
++user_data = {
++    'user1': User(name="John Doe"),
++    'user2': User(name="Jane Doe")
++}
++
++
++photo_data = {
++    'photo1': Photo(url="http://example.com/photo1.jpg"),
++    'photo2': Photo(url="http://example.com/photo2.jpg")
++}
++
++
++album_data = {
++    'album1': Album(title="Summer Vacation",
++                     photos=[photo_data['photo1'], photo_data['photo2']])
++}
++
++
++class Query(ObjectType):
++
++    class Meta:
++        interfaces = [CustomNode]
++
++    node = Node.Field()
++    user = Node.Field(User)
++    photo = Node.Field(Photo)
++    album = Node.Field(Album)
++    users = List(User)
++    photos = List(Photo)
++    albums = List(Album)
++    string = String()
++    integer = Int()
++
++    def resolve_string(*_):
++        return 'Hello World!'
++
++    def resolve_integer(*_):
++        return 123
++
++
++schema = Schema(Query)
++
++
++def test_node_field_only_type():
++    executed = schema.execute(
++        '{ onlyNode(id:"%s") { __typename, name } } ' % Node.to_global_id("MyNode", 1)
++    )
++    assert not executed.errors
++    assert executed.data == {'onlyNode': {'__typename': 'MyNode', 'name': '1'}}
++
++
++def test_node_field_only_type_wrong():
++    executed = schema.execute(
++        '{ onlyNode(id:"%s") { __typename, name } } ' % Node.to_global_id("MyOtherNode", 1)
++    )
++    assert len(executed.errors) == 1
++    assert str(executed.errors[0]) == 'Must receive an MyOtherNode id.'
++    assert executed.data == {'onlyNode': None}
++
++
++def test_node_field_only_lazy_type():
++    executed = schema.execute(
++        '{ onlyNodeLazy(id:"%s") { __typename, name } } ' % Node.to_global_id("MyNode", 1)
++    )
++    assert not executed.errors
++    assert executed.data == {'onlyNodeLazy': {'__typename': 'MyNode', 'name': '1'}}
++
++
++def test_node_field_only_lazy_type_wrong():
++    executed = schema.execute(
++        '{ onlyNodeLazy(id:"%s") { __typename, name } } ' % Node.to_global_id("MyOtherNode", 1)
++    )
++    assert len(executed.errors) == 1
++    assert str(executed.errors[0]) == 'Must receive an MyOtherNode id.'
++    assert executed.data == {'onlyNodeLazy': None}
++
++
++def test_str_schema():
++    assert str(schema) == """
++schema {
++  query: RootQuery
++}
++
++interface Node {
++  id: ID!
++}
++
++type RootQuery {
++  first: String
++  node(id: ID!): Node
++  onlyNode(id: ID!): MyNode
++  onlyNodeLazy(id: ID!): MyNode
++}
++""".lstrip()

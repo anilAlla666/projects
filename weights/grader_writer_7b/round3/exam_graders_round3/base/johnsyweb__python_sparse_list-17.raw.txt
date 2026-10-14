@@ -1,0 +1,33 @@
+To address the issue of deleting an empty slice from a sparse list failing, we need to ensure that attempting to delete an empty slice does not raise an `IndexError`. Instead, it should simply leave the list unchanged.
+
+Here's how you can write a test to verify this behavior:
+
+1. Add a new test method to the `TestSparseList` class in `test_sparse_list.py`.
+2. Ensure that this test fails with the current implementation.
+3. After fixing the issue, the test should pass.
+
+Below is the unified diff that adds the necessary test:
+
+```diff
+--- a/test_sparse_list.py
++++ b/test_sparse_list.py
+@@ -299,6 +299,16 @@ class TestSparseList(unittest.TestCase):
+         self.assertEqual(3, len(sl))
+         self.assertEqual([1, None, 3], sl)
+ 
++    def test_delete_empty_slice(self):
++        """
++        Test that deleting an empty slice does not raise an IndexError.
++        """
++        sl = sparse_list.SparseList(range(5), None)
++        try:
++            del sl[3:3]
++        except IndexError:
++            self.fail("Deleting an empty slice raised an IndexError")
++
+     def test_push_value(self):
+         """
+         Test pushing a value onto the sparse list.
+```
+
+This test checks that attempting to delete an empty slice (`sl[3:3]`) does not raise an `IndexError`. If the current implementation raises an error, the test will fail. Once the issue is fixed, the test will pass.

@@ -1,0 +1,57 @@
+--- /dev/null
++++ b/tests/test_jsonserializable_grader.py
+@@ -0,0 +1,48 @@
++import datetime
++from unittest import TestCase
++import jsons
++
++
++class TestJsonSerializable(TestCase):
++    def test_jsonserializable_with_timezone(self):
++        class Bar(jsons.JsonSerializable):
++            def __init__(self, baz: datetime.datetime, quux: datetime.timedelta):
++                self.baz = baz
++                self.quux = quux
++
++        class Foo(jsons.JsonSerializable):
++            def __init__(self, bar: Bar, ham: str):
++                self.bar = bar
++                self.ham = ham
++
++        loaded = Foo.from_json({
++            'bar': {
++                'baz': '2020-01-01T00:00:00+00:00',
++                'quux': 42,
++            },
++            'ham': 'spam',
++        })
++        self.assertEqual('spam', loaded.ham)
++        self.assertEqual('2020-01-01T00:00:00+00:00', loaded.bar.baz.isoformat())
++        self.assertEqual(datetime.timedelta(seconds=42), loaded.bar.quux)
++
++    def test_jsonserializable_with_timezone_and_zoneinfo(self):
++        try:
++            from zoneinfo import ZoneInfo
++        except ImportError:
++            self.skipTest('zoneinfo module is unavailable.')
++        else:
++            class Bar(jsons.JsonSerializable):
++                def __init__(self, baz: datetime.datetime, quux: datetime.timedelta):
++                    self.baz = baz
++                    self.quux = quux
++
++            class Foo(jsons.JsonSerializable):
++                def __init__(self, bar: Bar, ham: str):
++                    self.bar = bar
++                    self.ham = ham
++
++            loaded = Foo.from_json({
++                'bar': {
++                    'baz': '2020-01-01T00:00:00-08:00[America/Los_Angeles]',
++                    'quux': 42,
++                },
++                'ham': 'spam',
++            })
++            self.assertEqual('spam', loaded.ham)
++            self.assertEqual('2020-01-01T00:00:00-08:00[America/Los_Angeles]', loaded.bar.baz.isoformat())
++            self.assertEqual(datetime.timedelta(seconds=42), loaded.bar.quux)

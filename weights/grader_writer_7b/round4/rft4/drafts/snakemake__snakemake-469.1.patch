@@ -1,0 +1,47 @@
+--- /dev/null
++++ b/tests/test_io_grader.py
+@@ -0,0 +1,41 @@
++from pathlib import Path
++from snakemake.io import _wildcard_regex, expand
++from snakemake.exceptions import WildcardError
++
++
++def test_expand_pathlib():
++    wildcards = {"a": [1, 2], "b": [3, 4], "c": [5]}
++
++    # each provided wildcard is used in the filepattern
++    assert sorted(expand(Path("{a}{b}{c}"), **wildcards)) == sorted(
++        [Path("135"), Path("145"), Path("235"), Path("245")]
++    )
++
++    # redundant wildcards are provided
++    assert sorted(expand(Path("{a}{c}"), **wildcards)) == sorted(
++        [Path("15"), Path("25")]
++    )
++
++    # missing wildcards (should fail)
++    try:
++        expand(Path("{a}{d}"), **wildcards)
++        assert False
++    except WildcardError:
++        pass
++
++    # do not expand on strings and non iterables
++    assert expand(Path("{x}{y}"), **{"x": "Hello, ", "y": "world!"}) == [
++        Path("Hello, world!")
++    ]
++    assert expand(Path("{x}{y}"), **{"x": 4, "y": 2}) == [Path("42")]
++
++    # format-minilang: field names
++    assert sorted(
++        expand(
++            "first letter of sample: {samples[0]}",
++            samples=[Path("A123"), Path("B456"), Path("C789")],
++        )
++    ) == sorted(
++        [
++            "first letter of sample: A",
++            "first letter of sample: B",
++            "first letter of sample: C",
++        ]
++    )

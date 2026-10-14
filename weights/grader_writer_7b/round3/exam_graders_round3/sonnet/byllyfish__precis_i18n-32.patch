@@ -1,0 +1,56 @@
+--- /dev/null
++++ b/tests/test_nickname_whitespace.py
+@@ -0,0 +1,56 @@
++import unittest
++
++from precis_i18n import get_profile
++
++
++def _error_text(exc):
++    parts = [str(exc)]
++    reason = getattr(exc, 'reason', None)
++    if reason is not None:
++        parts.append(str(reason))
++    return ' '.join(parts)
++
++
++class NicknameWhiteSpaceTest(unittest.TestCase):
++
++    def setUp(self):
++        self.profile = get_profile('Nickname')
++
++    def _assert_invalid_white_space(self, value):
++        with self.assertRaises(Exception) as ctx:
++            self.profile.enforce(value)
++        self.assertIn('invalid_white_space', _error_text(ctx.exception),
++                      repr(value))
++
++    def test_ascii_space_still_stripped(self):
++        self.assertEqual(self.profile.enforce('  a  '), 'a')
++        self.assertEqual(self.profile.enforce(' a   b '), 'a b')
++
++    def test_nonascii_space_still_mapped(self):
++        self.assertEqual(self.profile.enforce('\u3000a\u2003'), 'a')
++        self.assertEqual(self.profile.enforce('a\u2003\u2003b'), 'a b')
++
++    def test_trailing_control_white_space(self):
++        for ch in ('\x0b', '\x0c', '\x1c', '\x1d', '\x1e', '\x1f',
++                   '\x85', '\u2028', '\u2029'):
++            self._assert_invalid_white_space('a' + ch)
++
++    def test_leading_control_white_space(self):
++        for ch in ('\x0b', '\x0c', '\x1c', '\x1d', '\x1e', '\x1f',
++                   '\x85', '\u2028', '\u2029'):
++            self._assert_invalid_white_space(ch + 'a')
++
++    def test_both_ends(self):
++        self._assert_invalid_white_space('\x1fb\x1f')
++
++    def test_interior_control_not_accepted(self):
++        for ch in ('\x1f', '\x85', '\u2028'):
++            with self.assertRaises(Exception):
++                self.profile.enforce('a' + ch + 'b')
++
++
++if __name__ == '__main__':
++    unittest.main()

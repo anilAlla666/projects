@@ -1,0 +1,64 @@
+--- /dev/null
++++ b/tests/test_toml_sort_grader.py
+@@ -0,0 +1,53 @@
++"""Test the toml_sort module."""
++
++
++from __future__ import annotations
++from pathlib import Path
++from typing import Any, Callable, Dict, List
++import pytest
++from toml_sort import TomlSort
++from toml_sort.tomlsort import (
++    CommentConfiguration,
++    FormattingConfiguration,
++    SortConfiguration,
++)
++
++
++@pytest.mark.parametrize(
++    "unsorted_fixture,sorted_fixture,args",
++    [
++        (
++            "inline",
++            "inline",
++            {
++                "sort_config": SortConfiguration(
++                    inline_arrays=True, inline_tables=True
++                ),
++            },
++        ),
++        (
++            "comment",
++            "comment-comments-preserved",
++            {
++                "comment_config": CommentConfiguration(
++                    header=False, footer=False
++                ),
++                "format_config": FormattingConfiguration(
++                    spaces_before_inline_comment=1
++                ),
++            },
++        ),
++        (
++            "empty-array",
++            "empty-array",
++            {
++                "sort_config": SortConfiguration(table_keys=False),
++                "format_config": FormattingConfiguration(
++                    spaces_before_inline_comment=1
++                ),
++            },
++        ),
++    ],
++)
++def test_tomlsort(
++    get_fixture: Callable[[str | List[str]], Path],
++    unsorted_fixture: str,
++    sorted_fixture: str,
++    args: Dict[str, Any],
++) -> None:
++    """See docstring of parent function."""
++    # pylint: disable=duplicate-code
++    # See https://github.com/PyCQA/pylint/issues/4412
++    # for why we can't disable the duplicate code warning here.

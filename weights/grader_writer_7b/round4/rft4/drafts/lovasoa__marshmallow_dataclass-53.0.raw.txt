@@ -1,0 +1,46 @@
+--- /dev/null
++++ b/tests/test_issue_16.py
+@@ -0,0 +1,44 @@
++import pytest
++from marshmallow import Schema, post_dump
++from marshmallow_dataclass import dataclass
++
++
++class DoubleSchema(Schema):
++    @post_dump
++    def double(self, data, **kwargs):
++        return dict(double=data["number"] * 2)
++
++
++def test_base_schema_of_nested_dataclass():
++    @dataclass(base_schema=DoubleSchema)
++    class A:
++        number: int
++
++    @dataclass
++    class B:
++        a: A
++
++    assert issubclass(A.Schema, DoubleSchema)
++    assert isinstance(B.Schema._declared_fields["a"].schema, DoubleSchema)
++    assert B.Schema().dump(B(A(1))) == {"a": {"double": 2}}
++
++
++def test_base_schema_of_nested_marshmallow_dataclass():
++    @dataclass(base_schema=DoubleSchema)
++    class A:
++        number: int
++
++    @dataclass
++    class B:
++        a: A
++
++    @dataclass
++    class C:
++        b: B
++
++    assert isinstance(C.Schema._declared_fields["b"].schema._declared_fields["a"].schema, DoubleSchema)
++
++
++if __name__ == "__main__":
++    pytest.main([__file__])

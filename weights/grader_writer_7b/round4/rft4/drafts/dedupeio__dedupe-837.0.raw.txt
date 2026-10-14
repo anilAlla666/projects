@@ -1,0 +1,38 @@
+--- /dev/null
++++ b/tests/test_predicates_grader.py
+@@ -0,0 +1,34 @@
++import unittest
++from dedupe import predicates
++from future.builtins import str
++
++
++class TestEscapeColon(unittest.TestCase):
++    def test_colon(self):
++        assert predicates.escapeColon('foo:bar') == 'foo\:bar'
++        assert predicates.escapeColon('foo::bar') == 'foo\:\:bar'
++
++
++class TestWholeSet(unittest.TestCase):
++    def setUp(self):
++        self.s1 = set(['red', 'blue', 'green'])
++
++    def test_full_set(self):
++        block_val = predicates.wholeSetPredicate(self.s1)
++        self.assertEqual(block_val, (str(self.s1),))
++
++
++class TestSetElement(unittest.TestCase):
++    def setUp(self):
++        self.s1 = set(['red', 'blue', 'green'])
++
++    def test_long_set(self):
++        block_val = predicates.commonSetElementPredicate(self.s1)
++        self.assertEqual(set(block_val), set(('blue', 'green', 'red')))
++
++    def test_escape_colon(self):
++        block_val = predicates.commonSetElementPredicate(set(':foo', ':bar'))
++        self.assertEqual(block_val, ('\\:foo', '\\:bar'))
++
++
++if __name__ == '__main__':
++    unittest.main()

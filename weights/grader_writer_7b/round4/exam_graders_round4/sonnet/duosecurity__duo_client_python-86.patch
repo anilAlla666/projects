@@ -1,0 +1,39 @@
+--- /dev/null
++++ b/tests/admin/test_group_users_paging.py
+@@ -0,0 +1,38 @@
++from .. import util
++from .base import TestAdmin
++
++
++class TestGroupUsersPaging(TestAdmin):
++    def test_get_group_users_iterator(self):
++        response = self.client_list.get_group_users_iterator('DGXXXXXXXXXXXXXXXXXX')
++        response = next(response)
++        self.assertEqual(response['method'], 'GET')
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/DGXXXXXXXXXXXXXXXXXX/users')
++        params = util.params_to_dict(args)
++        self.assertEqual(params['limit'], ['100'])
++        self.assertEqual(params['offset'], ['0'])
++
++    def test_get_group_users_default_pages_through_all(self):
++        response = self.client_list.get_group_users('DGXXXXXXXXXXXXXXXXXX')
++        self.assertIsInstance(response, list)
++        response = response[0]
++        self.assertEqual(response['method'], 'GET')
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/DGXXXXXXXXXXXXXXXXXX/users')
++        params = util.params_to_dict(args)
++        self.assertEqual(params['limit'], ['100'])
++        self.assertEqual(params['offset'], ['0'])
++
++    def test_get_group_users_offset_without_limit_ignored(self):
++        response = self.client_list.get_group_users(
++            'DGXXXXXXXXXXXXXXXXXX', offset=9001)
++        self.assertIsInstance(response, list)
++        response = response[0]
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/DGXXXXXXXXXXXXXXXXXX/users')
++        params = util.params_to_dict(args)
++        self.assertEqual(params['limit'], ['100'])
++        self.assertEqual(params['offset'], ['0'])

@@ -1,0 +1,51 @@
+This adds one new test file. It checks that both `SERVER_TIMESTAMP` and `DELETE_FIELD` keep their identity under `copy.copy`, `copy.deepcopy`, deep copies nested in containers, and `dataclasses.asdict`. I have not run it. On the current code the identity assertions should fail, because copying creates a new `Sentinel`.
+
+The issue's proposed `__deepcopy__(self)` takes no `memo` argument, but `copy.deepcopy` always passes one. The tests call `copy.deepcopy` normally, so they only pass with a `__deepcopy__` that accepts `memo`. I did not add a test that calls `__deepcopy__()` directly, since the issue leaves that signature open.
+
+
+<invoke name="bash">
+<parameter name="command">cat > tests/unit/v1/test_transforms_sentinel_copy.py <<'EOF'
+import copy
+import dataclasses
+
+import pytest
+
+from google.cloud.firestore_v1.transforms import DELETE_FIELD
+from google.cloud.firestore_v1.transforms import SERVER_TIMESTAMP
+
+
+@pytest.mark.parametrize("sentinel", [SERVER_TIMESTAMP, DELETE_FIELD])
+def test_sentinel_copy_preserves_identity(sentinel):
+    assert copy.copy(sentinel) is sentinel
+
+
+@pytest.mark.parametrize("sentinel", [SERVER_TIMESTAMP, DELETE_FIELD])
+def test_sentinel_deepcopy_preserves_identity(sentinel):
+    assert copy.deepcopy(sentinel) is sentinel
+
+
+@pytest.mark.parametrize("sentinel", [SERVER_TIMESTAMP, DELETE_FIELD])
+def test_sentinel_deepcopy_in_containers(sentinel):
+    data = {"a": sentinel, "b": [sentinel, {"c": sentinel}], "d": (sentinel,)}
+    result = copy.deepcopy(data)
+    assert result["a"] is sentinel
+    assert result["b"][0] is sentinel
+    assert result["b"][1]["c"] is sentinel
+    assert result["d"][0] is sentinel
+
+
+def test_sentinel_dataclasses_asdict():
+    @dataclasses.dataclass
+    class Example:
+        timestamp: object = SERVER_TIMESTAMP
+        deleted: object = DELETE_FIELD
+
+    example = Example()
+    assert example.timestamp is SERVER_TIMESTAMP
+
+    result = dataclasses.asdict(example)
+    assert result["timestamp"] is SERVER_TIMESTAMP
+    assert result["deleted"] is DELETE_FIELD
+EOF
+git diff --stat; git add -N tests/unit/v1/test_transforms_sentinel_copy.py; git diff</parameter>
+</invoke>

@@ -1,0 +1,19 @@
+--- a/test_sparse_list.py
++++ b/test_sparse_list.py
+@@ -299,6 +299,16 @@ class TestSparseList(unittest.TestCase):
+         self.assertEqual(3, len(sl))
+         self.assertEqual([1, None, 3], sl)
+ 
++    def test_delete_empty_slice(self):
++        """
++        Test that deleting an empty slice does not raise an IndexError.
++        """
++        sl = sparse_list.SparseList(range(5), None)
++        try:
++            del sl[3:3]
++        except IndexError:
++            self.fail("Deleting an empty slice raised an IndexError")
++
+     def test_push_value(self):
+         """
+         Test pushing a value onto the sparse list.

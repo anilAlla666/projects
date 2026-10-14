@@ -1,0 +1,49 @@
+--- /dev/null
++++ b/pysmt/test/test_formula_grader.py
+@@ -0,0 +1,42 @@
++from fractions import Fraction
++from six.moves import xrange
++import pysmt
++from pysmt.typing import BOOL, REAL, INT, FunctionType, BV8, BVType
++from pysmt.shortcuts import Symbol, is_sat, Not, Implies, GT, Plus, Int, Real
++from pysmt.shortcuts import Minus, Times, Xor, And, Or, TRUE
++from pysmt.shortcuts import get_env
++from pysmt.environment import Environment
++from pysmt.test import TestCase, skipIfNoSolverForLogic, main
++from pysmt.logics import QF_BOOL
++from pysmt.exceptions import NonLinearError, UndefinedSymbolError
++from pysmt.formula import FormulaManager
++
++
++class TestFormulaManager(TestCase):
++    def setUp(self):
++        super(TestFormulaManager, self).setUp()
++
++        self.env = get_env()
++        self.mgr = self.env.formula_manager
++        self.x = self.mgr.Symbol('x', INT)
++        self.y = self.mgr.Symbol('y', INT)
++        self.z = self.mgr.Symbol('z', INT)
++        self.a = self.mgr.Symbol('a', REAL)
++        self.b = self.mgr.Symbol('b', REAL)
++        self.c = self.mgr.Symbol('c', REAL)
++        self.d = self.mgr.Symbol('d', REAL)
++        self.p = self.mgr.Symbol('p', BOOL)
++        self.q = self.mgr.Symbol('q', BOOL)
++        self.r = self.mgr.Symbol('r', BOOL)
++        self.s = self.mgr.Symbol('s', BOOL)
++        self.t = self.mgr.Symbol('t', BOOL)
++        self.u = self.mgr.Symbol('u', BOOL)
++        self.v = self.mgr.Symbol('v', BOOL)
++        self.w = self.mgr.Symbol('w', BOOL)
++        self.x = self.mgr.Symbol('x', INT)
++        self.f = self.mgr.Symbol('f', FunctionType((INT, INT), INT))
++        self.g = self.mgr.Symbol('g', FunctionType((INT,), INT))
++        self.h = self.mgr.Symbol('h', FunctionType((INT, INT), INT))
++        self.i = self.mgr.Symbol('i', FunctionType((INT,), INT))
++        self.j = self.mgr.Symbol('j', FunctionType((INT, INT), INT))
++        self.k = self.mgr.Symbol('k', FunctionType((INT,), INT))
++        self.ftype = FunctionType((INT, INT), INT)
++
++if __name__ == '__main__':
++    main()

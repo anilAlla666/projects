@@ -1,0 +1,28 @@
+--- /dev/null
++++ b/test/test_validate_parameters_decorator_grader.py
+@@ -0,0 +1,25 @@
++import pytest
++from pytest import fixture
++from parameters_validation import validate_parameters, non_blank, non_empty, \
++    no_whitespaces
++
++
++@validate_parameters
++def no_validations_function(a: str, b, *, c: dict, d):
++    pass
++
++
++@validate_parameters
++def positional_args_validations_function(a: non_blank(str), b, *, c: dict, d):
++    pass
++
++
++@validate_parameters
++def return_value_function(a: int):
++    return a
++
++
++class TestValidateParametersDecoratorSuccess:
++    def test_return_value_function(self):
++        assert return_value_function(0) == 0
++        assert return_value_function(1) == 1

@@ -1,0 +1,157 @@
+--- /dev/null
++++ b/pooch/tests/test_utils_grader.py
+@@ -0,0 +1,164 @@
++"""
++Test the utility functions.
++"""
++
++
++import os
++import hashlib
++from pathlib import Path
++import tempfile
++from tempfile import NamedTemporaryFile, TemporaryDirectory
++import pytest
++from ..core import Pooch
++from ..utils import (
++    make_registry,
++    parse_url,
++    make_local_storage,
++    file_hash,
++    hash_matches,
++    temporary_file,
++    unique_file_name,
++)
++from .utils import check_tiny_data, capture_log
++
++
++DATA_DIR = str(Path(__file__).parent / "data" / "store")
++
++
++REGISTRY = (
++    "tiny-data.txt baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d\n"
++)
++
++
++REGISTRY_RECURSIVE = (
++    "subdir/tiny-data.txt baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d\n"
++    "tiny-data.txt baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d\n"
++)
++
++
++def test_make_local_storage_parallel():
++    "Check that multiple processes can safely call make_local_storage"
++    # https://github.com/fatiando/pooch/issues/318
++    path = Path("parallel-test")
++    path.mkdir(exist_ok=True)
++    p1 = Pooch(
++        base_url="https://www.something.com/",
++        path=path,
++        registry={"test-data.txt": "baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d"},
++    )
++    p2 = Pooch(
++        base_url="https://www.something.com/",
++        path=path,
++        registry={"test-data.txt": "baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d"},
++    )
++
++    with capture_log() as logs:
++        p1.fetch("test-data.txt")
++        p2.fetch("test-data.txt")
++
++    assert sum(1 for log in logs if "Cannot write to data cache folder" in log) == 0
++
++
++def test_make_local_storage_env(monkeypatch):
++    "Make sure the environment variable works as expected"
++    monkeypatch.setenv("POOCH_TEST_PATH", "/home/user/cache")
++    assert make_local_storage("~/.cache/pooch/test/path", env="POOCH_TEST_PATH") == Path("/home/user/cache")
++
++
++def test_make_local_storage_env_missing(monkeypatch):
++    "If the environment variable does not exist, nothing should be returned"
++    monkeypatch.delenv("POOCH_TEST_PATH", raising=False)
++    assert make_local_storage("~/.cache/pooch/test/path", env="POOCH_TEST_PATH") == Path("~/cache")
++
++
++def test_make_local_storage_version():
++    "Check that appending version number works"
++    assert make_local_storage("~/.cache/pooch/test/path", version="v1.2.3") == Path("~/.cache/pooch/test/v1.2.3")
++
++
++def test_make_local_storage_no_create(monkeypatch):
++    "Make sure the environment variable works as expected"
++    monkeypatch.setenv("POOCH_NO_CREATE", "True")
++    assert make_local_storage("~/.cache/pooch/test/path", env="POOCH_NO_CREATE") is None
++
++
++def test_make_local_storage_no_create_missing(monkeypatch):
++    "If the environment variable does not exist, nothing should be returned"
++    monkeypatch.delenv("POOCH_NO_CREATE", raising=False)
++    assert make_local_storage("~/.cache/pooch/test/path", env="POOCH_NO_CREATE") == Path("~/.cache/pooch/test/path")
++
++
++def test_make_local_storage_invalid_env(monkeypatch):
++    "If the environment variable does not exist, nothing should be returned"
++    monkeypatch.setenv("POOCH_NO_CREATE", "False")
++    with pytest.warns(UserWarning):
++        make_local_storage("~/.cache/pooch/test/path", env="POOCH_NO_CREATE")
++
++
++def test_make_local_storage_invalid_path(monkeypatch):
++    "If the environment variable does not exist, nothing should be returned"
++    monkeypatch.setenv("POOCH_NO_CREATE", "True")
++    with pytest.warns(UserWarning):
++        make_local_storage("~/.cache/pooch/test/path", env="POOCH_NO_CREATE")
++
++
++def test_make_local_storage_invalid_permission(monkeypatch):
++    "If the environment variable does not exist, nothing should be returned"
++    monkeypatch.setattr(os, "makedirs", lambda x: 1 / 0)
++    with pytest.warns(UserWarning):
++        make_local_storage("~/.cache/pooch/test/path", env="POOCH_NO_CREATE")
++
++
++def test_make_local_storage_already_exists(tmp_path):
++    "If the directory already exists, should not raise a warning"
++    (tmp_path / "already-exists").mkdir()
++    with capture_log() as logs:
++        make_local_storage(tmp_path / "already-exists")
++    assert sum(1 for log in logs if "Cannot write to data cache folder" in log) == 0
++
++
++def test_make_local_storage_not_writable(tmp_path):
++    "If the directory is not writable, should not raise a warning"
++    (tmp_path / "not-writable").mkdir(mode=0o555)
++    with capture_log() as logs:
++        make_local_storage(tmp_path / "not-writable")
++    assert sum(1 for log in logs if "Cannot write to data cache folder" in log) == 0
++
++
++def test_make_local_storage_no_permission(tmp_path):
++    "If the directory is not writable, should not raise a warning"
++    (tmp_path / "no-permission").mkdir(mode=0o555)
++    with capture_log() as logs:
++        make_local_storage(tmp_path / "no-permission", env="POOCH_NO_CREATE")
++    assert sum(1 for log in logs if "Cannot write to data cache folder" in log) == 0
++
++
++def test_make_local_storage_unexpected_error(tmp_path):
++    "Should re-raise the unexpected error"
++    (tmp_path / "unexpected-error").mkdir(mode=0o555)
++    with pytest.raises(OSError):
++        make_local_storage(tmp_path / "unexpected-error", env="POOCH_NO_CREATE")
++
++
++def test_make_local_storage_explicitly_enabled(tmp_path):
++    "Should create the directory if explicitly enabled"
++    with capture_log() as logs:
++        make_local_storage(tmp_path / "explicitly-enabled", env="POOCH_NO_CREATE", force=True)
++    assert sum(1 for log in logs if "Cannot write to data cache folder" in log) == 0
++
++
++def test_make_local_storage_explicitly_disabled(tmp_path):
++    "Should not create the directory if explicitly disabled"
++    with capture_log() as logs:
++        make_local_storage(tmp_path / "explicitly-disabled", env="POOCH_NO_CREATE", force=False)
++    assert sum(1 for log in logs if "Cannot write to data cache folder" in log) == 0

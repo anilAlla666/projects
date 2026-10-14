@@ -1,0 +1,62 @@
+--- /dev/null
++++ b/tests/test_visitors_grader.py
+@@ -0,0 +1,61 @@
++import pytest
++from lark import Lark, Transformer, Transformer_InPlace, Transformer_NonRecursive, Transformer_InPlaceRecursive
++
++
++def test_transformer_non_recursive_discard_issue_1161():
++    parser = Lark(r"""
++        start : add
++        add   : N "+" N | N "-" N
++               | "(" add ")"
++        %import common.NUMBER
++        %import common.WS
++        %ignore WS
++        """)
++
++    tree = parser.parse("1 + 2 - 3")
++    tree = tree.transform(Transformer_NonRecursive())
++
++    assert str(tree) == "(1 + 2) - 3"
++
++    tree = parser.parse("(1 + 2) - (3 + 4)")
++    tree = tree.transform(Transformer_NonRecursive())
++
++    assert str(tree) == "((1 + 2) - (3 + 4))"
++
++
++@pytest.mark.parametrize('base', [
++    Transformer,
++    Transformer_InPlace,
++    Transformer_NonRecursive,
++    Transformer_InPlaceRecursive,
++])
++def test_transformer_discard_issue_1161(base):
++    tree = base.Tree('start', [
++        base.Tree('add', [base.Token('N', '1'), base.Token('N', '2'), base.Token('token_ignore', '4')]),
++        base.Tree('add', [base.Token('N', '3'), base.Token('N', '4')]),
++        base.Tree('ignore_tree', [base.Token('DO', 'NOT PANIC')]),
++    ])
++
++    class T(base):
++        def add(self, children):
++            return sum(children)
++
++        def N(self, token):
++            return int(token)
++
++        def ignore_tree(self, children):
++            raise base.Discard
++
++        def token_ignore(self, token):
++            raise base.Discard
++
++    try:
++        tree = tree.transform(T())
++    except base.Discard:
++        pass
++    else:
++        assert False, f'{base} did not discard the tree!'
++
++    assert str(tree) == '(1 + 2) + (3 + 4)'

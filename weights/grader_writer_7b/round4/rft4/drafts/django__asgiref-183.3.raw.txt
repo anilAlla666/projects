@@ -1,0 +1,46 @@
+--- /dev/null
++++ b/tests/test_wsgi_grader.py
+@@ -0,0 +1,40 @@
++import pytest
++from asgiref.testing import ApplicationCommunicator
++from asgiref.wsgi import WsgiToAsgi
++
++
++@pytest.mark.parametrize(
++    "header_value,path",
++    [
++        (b"\xc3\xa9\xc3\xaf\xc3\xb9\xc3\xbb\xc3\xbc\xc3\xbe", "/\u00e9\u00ef\u00fb\u00bb\u00fc\u00fe"),
++        (b"\xf0\x9d\x84\x96", "/\U0001f406"),  # U+1F406 SMILING FACE WITH HIGHEST VOWEL MARK
++        (b"\xf0\x9f\xa5\x9d", "/\U0001f4cd"),  # U+1F4CD ORIENTAL CLOSING BOOK
++    ],
++)
++@pytest.mark.asyncio
++async def test_wsgi_header_encoding(header_value, path):
++    """
++    Ensure that unicode characters in HTTP header values are correctly encoded
++    to UTF-8, not Latin-1.
++
++    https://www.python.org/dev/peps/pep-3333/#a-note-on-string-types
++    """
++    # Define WSGI app
++    def wsgi_application(environ, start_response):
++        assert environ["HTTP_TEST_HEADER"] == header_value.decode("utf-8")
++        start_response("200 OK", [])
++        return []
++
++    # Wrap it
++    application = WsgiToAsgi(wsgi_application)
++    # Launch it as a test application
++    instance = ApplicationCommunicator(
++        application,
++        {
++            "type": "http",
++            "http_version": "1.0",
++            "method": "GET",
++            "path": path,
++            "query_string": b"bar=baz",
++            "headers": [[b"test-header", header_value]],
++        },
++    )
++    await instance.send_input({"type": "http.request"})
++    assert (await instance.receive_output(1)) == {"type": "http.response.start", "status": 200, "headers": []}

@@ -1,0 +1,33 @@
+diff --git a/tests/test_md2cf_confluence_renderer.py b/tests/test_md2cf_confluence_renderer.py
+new file mode 100644
+index 0000000..e4b8c3d
+--- /dev/null
++++ b/tests/test_md2cf_confluence_renderer.py
+@@ -0,0 +1,45 @@
++import unittest
++from unittest.mock import patch
++
++from md2cf.confluence_renderer import ConfluenceRenderer
++
++
++class TestConfluenceRenderer(unittest.TestCase):
++    @patch('md2cf.confluence_renderer.urlparse')
++    def test_link_with_fragment(self, mock_urlparse):
++        renderer = ConfluenceRenderer(enable_relative_links=True)
++        
++        # Mock the result of urlparse to simulate an internal anchor link
++        mock_urlparse.return_value = type('ParseResult', (), {
++            'scheme': '',
++            'netloc': '',
++            'path': '',
++            'fragment': 'frequently-asked-questions-osep'
++        })()
++
++        # Render a link with a fragment
++        rendered_link = renderer.link('#frequently-asked-questions-osep', '', '')
++
++        # Check if the link was rendered correctly without being replaced
++        self.assertEqual(rendered_link, '#frequently-asked-questions-osep')
++
++if __name__ == '__main__':
++    unittest.main()

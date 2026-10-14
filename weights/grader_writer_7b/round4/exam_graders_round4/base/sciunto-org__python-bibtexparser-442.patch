@@ -1,0 +1,39 @@
+diff --git a/tests/test_model_setitem.py b/tests/test_model_setitem.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_model_setitem.py
+@@ -0,0 +1,45 @@
++from bibtexparser.model import Entry, Field
++
++
++def test_setitem_new_field():
++    entry = Entry("article", "key", [], 1, "raw")
++    entry["new_key"] = "new_value"
++    assert len(entry.fields) == 1
++    assert entry.fields[0].key == "new_key"
++    assert entry.fields[0].value == "new_value"
++
++
++def test_setitem_existing_field():
++    entry = Entry("article", "key", [Field("existing_key", "old_value")], 1, "raw")
++    entry["existing_key"] = "new_value"
++    assert len(entry.fields) == 1
++    assert entry.fields[0].key == "existing_key"
++    assert entry.fields[0].value == "new_value"
++
++
++def test_setitem_overwrite_field():
++    entry = Entry("article", "key", [Field("existing_key", "old_value")], 1, "raw")
++    entry.set_field(Field("existing_key", "overwrite_value"))
++    entry["existing_key"] = "new_value"
++    assert len(entry.fields) == 1
++    assert entry.fields[0].key == "existing_key"
++    assert entry.fields[0].value == "new_value"
++
++
++def test_setitem_with_none_value():
++    entry = Entry("article", "key", [], 1, "raw")
++    entry["none_key"] = None
++    assert len(entry.fields) == 1
++    assert entry.fields[0].key == "none_key"
++    assert entry.fields[0].value is None

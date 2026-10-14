@@ -1,0 +1,18 @@
+--- /dev/null
++++ b/tests/test_container_grader.py
+@@ -0,0 +1,14 @@
++import pytest
++from zope.interface import Interface
++from zope.interface import implementer
++
++
++class IFooService(Interface):
++    pass
++
++
++def test_class_name_as_key(registry):
++    class Greeter:
++        pass
++
++    registry.register_factory(DummyFactory(), Greeter)
++    assert registry.find_factory(Greeter) is not None

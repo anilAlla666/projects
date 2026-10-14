@@ -1,0 +1,113 @@
+--- /dev/null
++++ b/tests/test_cli_grader.py
+@@ -0,0 +1,104 @@
++import argparse
++import importlib
++import inspect
++import io
++import os
++import re
++import shlex
++import sys
++from subprocess import Popen, PIPE
++from unittest.mock import patch
++import pytest
++from hlp.cli import (
++    _get_completion_matches,
++    complete,
++    get_longest_attribute,
++    help,
++    main,
++    parse_args,
++    parse_line,
++)
++from hlp.compat import PY2
++
++
++def test_get_longest_attribute():
++    obj = help.__module__
++    assert get_longest_attribute(NamedObject("", obj), "inspect") == (
++        NamedObject(help.__module__ + ".inspect", inspect),
++        "",
++    )
++
++
++@pytest.mark.parametrize(
++    "input_,expected",
++    [
++        ("", []),
++        ("os.", ["os.path"]),
++        ("os.p", ["os.path"]),
++        ("os.pa", ["os.path"]),
++        ("os.pat", ["os.path"]),
++        ("os.path.", []),
++        ("os.path.", ["os.path.commonprefix"]),
++        ("os.path.co", ["os.path.commonprefix"]),
++        ("os.path.cop", ["os.path.commonprefix"]),
++        ("os.path.come", ["os.path.commonprefix"]),
++        ("os.path.commo", ["os.path.commonprefix"]),
++        ("os.path.common", ["os.path.commonprefix"]),
++        ("os.path.commonp", ["os.path.commonprefix"]),
++        ("os.path.commonpr", ["os.path.commonprefix"]),
++        ("os.path.commonpre", ["os.path.commonprefix"]),
++        ("os.path.commonpref", ["os.path.commonprefix"]),
++        ("os.path.commonprefi", ["os.path.commonprefix"]),
++        ("os.path.commonprefix", ["os.path.commonprefix"]),
++        ("os.path.commonprefix.", []),
++        ("os.path.commonprefix.", ["os.path.commonprefix.join"]),
++        ("os.path.commonprefix.j", ["os.path.commonprefix.join"]),
++        ("os.path.commonprefix.jo", ["os.path.commonprefix.join"]),
++        ("os.path.commonprefix.joi", ["os.path.commonprefix.join"]),
++        ("os.path.commonprefix.join", ["os.path.commonprefix.join"]),
++    ],
++)
++def test_complete(input_, expected):
++    completions = list(complete(input_))
++    actual = [c.replace("hlp.", "") for c in completions]
++    assert actual == expected
++
++
++class MockArgparseNamespace:
++    def __init__(self, *args, **kwargs):
++        self.args = args
++        self.kwargs = kwargs
++
++
++@patch.object(argparse.ArgumentParser, "_print_message")
++def test_parse_args(mock_print):
++    args = parse_args(["foo", "--bar"])
++    assert args.args == ["foo"]
++    assert args.kwargs == {"bar": True}
++    mock_print.assert_called_with(None, sys.stderr)
++
++
++@patch.object(argparse.ArgumentParser, "_print_message")
++def test_main_help(mock_print):
++    main(["--help"], stdout=io.StringIO())
++    mock_print.assert_any_call(dedent("""
++            usage: hlp [-h] [--version] [--json] [--pager PAGER]
++                       [--pager-opts PAGER_OPTS] [--debug] [--show-versions]
++                       [<command> ...]
++
++            positional arguments:
++              <command>               command(s) to execute
++
++            optional arguments:
++              -h, --help              show this help message and exit
++              --version               show program's version number and exit
++              --json                  print output as JSON
++              --pager PAGER           specify which pager to use (default: less)
++              --pager-opts PAGER_OPTS specify options to pass to the pager
++              --debug                 enable debug mode
++              --show-versions         show installed package versions and exit
++        """), sys.stdout)
++
++
++@patch.object(Popen, "communicate")
++def test_main_pager_mocked(mock_communicate):
++    mock_communicate.return_value = ("stdout", "stderr")
++    mock_out = io.StringIO()
++    mock_err = io.StringIO()
++    main([], stdout=mock_out, stderr=mock_err)
++    assert mock_out.getvalue() == ""
++    assert mock_err.getvalue() == "stdout"

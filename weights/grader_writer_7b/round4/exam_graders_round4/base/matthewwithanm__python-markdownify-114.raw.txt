@@ -1,0 +1,52 @@
+To address the issue of missing blank lines around figure and table captions, we can add new tests that check for the presence of these blank lines in the output. These tests should fail when run against the current code and pass after the fix is applied.
+
+Here's a unified diff that adds two new test files (`test_figure.py` and `test_table.py`) to the repository:
+
+```diff
+diff --git a/tests/test_figure.py b/tests/test_figure.py
+new file mode 100644
+index 0000000..e2b2c3d
+--- /dev/null
++++ b/tests/test_figure.py
+@@ -0,0 +1,20 @@
++import unittest
++from markdownify import markdownify as md
++
++class TestFigure(unittest.TestCase):
++    def test_figure_with_caption_at_top(self):
++        html = '<figure><figcaption>Caption</figcaption><span>SPAN</span></figure>'
++        expected_markdown = 'Caption\n\nSPAN'
++        self.assertEqual(md(html), expected_markdown)
++
++    def test_figure_with_caption_at_bottom(self):
++        html = '<figure><span>SPAN</span><figcaption>Caption</figcaption></figure>'
++        expected_markdown = 'SPAN\n\nCaption'
++        self.assertEqual(md(html), expected_markdown)
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/tests/test_table.py b/tests/test_table.py
+new file mode 100644
+index 0000000..f4a5b6c
+--- /dev/null
++++ b/tests/test_table.py
+@@ -0,0 +1,20 @@
++import unittest
++from markdownify import markdownify as md
++
++class TestTable(unittest.TestCase):
++    def test_table_with_caption_before_table(self):
++        html = 'TEXT<table><caption>Caption</caption><tr><td>CELL</td></tr></tbody></table>'
++        expected_markdown = 'TEXT\n\nCaption\n\n| CELL |\n\n'
++        self.assertEqual(md(html), expected_markdown)
++
++    def test_table_with_caption_after_table(self):
++        html = 'TEXT<table><tr><td>CELL</td></tr></tbody><caption>Caption</caption></table>'
++        expected_markdown = 'TEXT\n\n| CELL |\n\nCaption\n\n'
++        self.assertEqual(md(html), expected_markdown)
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+These tests will ensure that the `markdownify` function correctly inserts blank lines around figure and table captions. The `test_figure.py` file contains tests for `<figure>` elements, while the `test_table.py` file contains tests for `<table>` elements. Each test checks both scenarios where the caption is at the top/bottom of the figure/table and ensures that the output contains the necessary blank lines.

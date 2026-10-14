@@ -1,0 +1,107 @@
+--- /dev/null
++++ b/test_zipp_grader.py
+@@ -0,0 +1,104 @@
++from __future__ import division, unicode_literals
++import io
++import zipfile
++import posixpath
++import contextlib
++import tempfile
++import shutil
++
++
++try:
++    import pathlib
++except ImportError:
++    import pathlib2 as pathlib
++
++
++try:
++    from contextlib import ExitStack
++except ImportError:
++    from contextlib2 import ExitStack
++
++
++try:
++    import unittest
++
++    unittest.TestCase.subTest
++except AttributeError:
++    import unittest2 as unittest
++
++
++import zipp
++
++
++__metaclass__ = type
++
++
++consume = tuple
++
++
++def add_dirs(zipfile):
++    """
++    Given a writable zipfile, inject directory entries for
++    any directories implied by the presence of children.
++    """
++    names = zipfile.namelist()
++    add = []
++    for name in names:
++        dirname = posixpath.dirname(name)
++        if dirname and dirname not in names:
++            add.append(dirname + "/")
++    for name in add:
++        zipfile.writestr(name, "", zipfile.ZIP_STORED)
++
++
++@contextlib.contextmanager
++def create_test_zipfile(filename):
++    """Create a zip file with two directories and some content."""
++    with ExitStack() as stack:
++        tmpdir = stack.enter_context(tempfile.TemporaryDirectory())
++        abcde = stack.enter_context(open(tmpdir + '/abcde', 'w'))
++        abcd = stack.enter_context(open(tmpdir + '/abcd', 'w'))
++        abcd.write('abcd')
++        abcde.write('abcdefg')
++        abcde.close()
++        abcd.close()
++        zipfile = stack.enter_context(zipp.ZipFile(filename, 'w'))
++        add_dirs(zipfile)
++        yield zipfile
++
++
++@contextlib.contextmanager
++def create_test_zipfiles(*filenames):
++    with ExitStack() as stack:
++        zips = [stack.enter_context(create_test_zipfile(f)) for f in filenames]
++        yield zips
++
++
++class TestPath(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.tempdir = tempfile.mkdtemp(prefix='test-zipp-path-')
++        cls.testzip = os.path.join(cls.tempdir, 'test.zip')
++
++    @classmethod
++    def tearDownClass(cls):
++        shutil.rmtree(cls.tempdir)
++
++    def zipfile_abcde(self):
++        return [self.testzip]
++
++    def zipfile_ondisk(self):
++        return [self.testzip]
++
++    def test_parent(self):
++        for zipfile_abcde in self.zipfile_abcde():
++            root = zipp.Path(zipfile_abcde)
++            assert (root / 'a').parent.at == ''
++            assert (root / 'a' / 'b').parent.at == 'a/'
++            assert (root / 'a' / 'b').parent.parent.at == ''
++
++    def test_root(self):
++        for zipfile_abcde in self.zipfile_abcde():
++            root = zipp.Path(zipfile_abcde)
++            assert root.root.filename == zipfile_abcde
++            assert root.root.at == ''

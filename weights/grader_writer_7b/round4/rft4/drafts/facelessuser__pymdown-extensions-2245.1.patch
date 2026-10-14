@@ -1,0 +1,39 @@
+--- /dev/null
++++ b/tests/test_keys_grader.py
+@@ -0,0 +1,35 @@
++from .. import util
++
++
++class TestKeys(util.MdCase):
++    extension = ['pymdownx.keys']
++    extension_configs = {'pymdownx.keys': {'key_map': {}}}
++
++    def test_keys_in_links(self):
++        self.check_markdown(
++            '![]("image.png")',
++            '<p><img alt="" src="image.png"></p>'
++        )
++
++    def test_keys_in_links_base64_image(self):
++        self.check_markdown(
++            '![](data:image/png;base64,aaaaa++a++aaaa)',
++            '<p><img alt="" src="data:image/png;base64,aaaaa++a++aaaa"></p>'
++        )
++
++    def test_keys_in_links_escaped_base64_image(self):
++        self.check_markdown(
++            '![](data:image/png;base64,aaaaa\\++a\\++aaaa)',
++            '<p><img alt="" src="data:image/png;base64,aaaaa++a++aaaa"></p>'
++        )
++
++    def test_keys_in_links_with_url(self):
++        self.check_markdown(
++            '[Image]("http://www.example.com/image.png")',
++            '<p><a href="http://www.example.com/image.png" title=""><img alt="" src="image.png"></a></p>'
++        )
++
++    def test_keys_in_links_with_url_and_base64_image(self):
++        self.check_markdown(
++            '[Image]("http://www.example.com/data:image/png;base64,aaaaa++a++aaaa")',
++            '<p><a href="http://www.example.com/data:image/png;base64,aaaaa++a++aaaa" title=""><img alt="" src="data:image/png;base64,aaaaa++a++aaaa"></a></p>'
++        )

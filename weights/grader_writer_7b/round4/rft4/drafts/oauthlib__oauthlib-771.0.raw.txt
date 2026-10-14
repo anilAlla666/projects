@@ -1,0 +1,190 @@
+--- /dev/null
++++ b/tests/oauth2/rfc6749/grant_types/test_authorization_code_grader.py
+@@ -0,0 +1,66 @@
++import json
++from unittest import mock
++from oauthlib.common import Request
++from oauthlib.oauth2.rfc6749 import errors
++from oauthlib.oauth2.rfc6749.grant_types import (
++    AuthorizationCodeGrant, authorization_code,
++)
++from oauthlib.oauth2.rfc6749.tokens import BearerToken
++from tests.unittest import TestCase
++
++
++class TestAuthorizationCodeGrantCreateTokenResponse(TestCase):
++    def setUp(self):
++        self.request = Request('http://a.b/path')
++        self.request.scopes = ('hello', 'world')
++        self.request.expires_in = 1800
++        self.request.client = 'batman'
++        self.request.client_id = 'abcdef'
++        self.request.code = '1234'
++        self.request.response_type = 'code'
++        self.request.grant_type = 'authorization_code'
++        self.request.redirect_uri = 'https://a.b/cb'
++
++        self.mock_validator = mock.MagicMock()
++        self.mock_validator.is_pkce_required.return_value = False
++        self.mock_validator.get_code_challenge.return_value = None
++        self.mock_validator.authenticate_client.side_effect = self.set_client
++        self.auth = AuthorizationCodeGrant(request_validator=self.mock_validator)
++
++    def set_client(self, request):
++        request.client = mock.MagicMock()
++        request.client.client_id = 'mocked'
++        return True
++
++    def setup_validators(self):
++        self.authval1, self.authval2 = mock.Mock(), mock.Mock()
++        self.auth.vals = [self.authval1, self.authval2]
++
++    def test_save_token_not_called_if_access_token_is_none(self):
++        self.setup_validators()
++        self.request.response_type = 'code id_token'
++        self.request.grant_type = 'authorization_code'
++        self.request.code = '1234'
++
++        self.authval1.validate_authorization_request.return_value = [], {}
++        self.authval1.create_authorization_code.return_value = {}
++        self.authval1.create_authorization_response.return_value = {}, None, 302
++        self.authval2.create_token.return_value = {
++            'access_token': None,
++            'token_type': 'Bearer',
++            'expires_in': 3600,
++            'scope': 'read write',
++            'refresh_token': 'xyz',
++        }
++
++        token = BearerToken(self.mock_validator)
++        resp = self.auth.create_token_response(self.request, token)
++
++        assert resp[2] == 200
++        assert resp[1].endswith('access_token=null')
++        assert self.authval1.save_token.called is False
++
++    def test_save_token_called_if_access_token_is_present(self):
++        self.setup_validators()
++        self.request.response_type = 'code token'
++        self.request.grant_type = 'authorization_code'
++        self.request.code = '1234'
++
++        self.authval1.validate_authorization_request.return_value = [], {}
++        self.authval1.create_authorization_code.return_value = {}
++        self.authval1.create_authorization_response.return_value = {}, None, 302
++        self.authval2.create_token.return_value = {
++            'access_token': 'abc',
++            'token_type': 'Bearer',
++            'expires_in': 3600,
++            'scope': 'read write',
++            'refresh_token': 'xyz',
++        }
++
++        token = BearerToken(self.mock_validator)
++        resp = self.auth.create_token_response(self.request, token)
++
++        assert resp[2] == 200
++        assert resp[1].endswith('access_token=abc')
++        assert self.authval1.save_token.called is True
+--- /dev/null
++++ b/tests/openid/connect/core/grant_types/test_authorization_code_grader.py
+@@ -0,0 +1,86 @@
++import json
++from unittest import mock
++from oauthlib.common import Request
++from oauthlib.oauth2.rfc6749.errors import (
++    ConsentRequired, InvalidRequestError, LoginRequired,
++)
++from oauthlib.oauth2.rfc6749.tokens import BearerToken
++from oauthlib.openid.connect.core.grant_types.authorization_code import (
++    AuthorizationCodeGrant,
++)
++from tests.oauth2.rfc6749.grant_types.test_authorization_code import (
++    AuthorizationCodeGrantTest,
++)
++from tests.unittest import TestCase
++
++
++def get_id_token_mock(token, token_handler, request):
++    return "MOCKED_TOKEN"
++
++
++class OpenIDAuthCodeTest(TestCase):
++    def setUp(self):
++        self.request = Request('http://a.b/path')
++        self.request.scopes = ('hello', 'openid')
++        self.request.expires_in = 1800
++        self.request.client_id = 'abcdef'
++        self.request.code = '1234'
++        self.request.response_type = 'code'
++        self.request.redirect_uri = 'https://a.b/cb'
++        self.request.state = 'state'
++        self.request.response_mode = 'form_post'
++        self.request.token_endpoint_auth_method = 'client_secret_basic'
++        self.request.claims = {"userinfo": {"name": None}}
++
++        self.mock_validator = mock.MagicMock()
++        self.mock_validator.authenticate_client.side_effect = self.set_client
++        self.auth = AuthorizationCodeGrant(request_validator=self.mock_validator)
++
++    def set_client(self, request):
++        request.client = mock.MagicMock()
++        request.client.client_id = 'mocked'
++        return True
++
++    def setup_validators(self):
++        self.authval1, self.authval2 = mock.Mock(), mock.Mock()
++        self.auth.vals = [self.authval1, self.authval2]
++
++    def test_create_token_response(self):
++        self.request.response_type = None
++        self.mock_validator.validate_code.side_effect = self.set_scopes
++
++        bearer = BearerToken(self.mock_validator)
++
++        h, token, s = self.auth.create_token_response(self.request, bearer)
++        token = json.loads(token)
++        self.assertEqual(self.mock_validator.save_token.call_count, 1)
++        self.assertIn('access_token', token)
++        self.assertIn('refresh_token', token)
++        self.assertIn('expires_in', token)
++        self.assertIn('scope', token)
++        self.assertIn('id_token', token)
++        self.assertIn('openid', token['scope'])
++
++        self.mock_validator.reset_mock()
++
++        self.request.scopes = ('hello', 'world')
++        h, token, s = self.auth.create_token_response(self.request, bearer)
++        token = json.loads(token)
++        self.assertEqual(self.mock_validator.save_token.call_count, 1)
++        self.assertIn('access_token', token)
++        self.assertIn('refresh_token', token)
++        self.assertIn('expires_in', token)
++        self.assertIn('scope', token)
++        self.assertNotIn('id_token', token)
++        self.assertNotIn('openid', token['scope'])
++
++    def test_save_token_not_called_if_access_token_is_none(self):
++        self.setup_validators()
++        self.request.response_type = 'code id_token'
++        self.request.grant_type = 'authorization_code'
++        self.request.code = '1234'
++
++        self.authval1.validate_authorization_request.return_value = [], {}
++        self.authval1.create_authorization_code.return_value = {}
++        self.authval1.create_authorization_response.return_value = {}, None, 302
++        self.authval2.create_token.return_value = {
++            'access_token': None,
++            'token_type': 'Bearer',
++            'expires_in': 3600,
++            'scope': 'read write',
++            'refresh_token': 'xyz',
++        }
++
++        token = BearerToken(self.mock_validator)
++        resp = self.auth.create_token_response(self.request, token)
++
++        assert resp[2] == 200
++        assert resp[1].endswith('access_token=null')
++        assert self.authval1.save_token.called is False

@@ -1,0 +1,52 @@
+diff --git a/tst/test_data_tools_fix.py b/tst/test_data_tools_fix.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tst/test_data_tools_fix.py
+@@ -0,0 +1,60 @@
++from unittest import TestCase
++from fdbk.data_tools import _get_clean_payload
++
++class TestDataToolsFix(TestCase):
++    def test_value_inside_payload(self):
++        # Test case where value is not in table
++        statistic = {
++            "type": "list_item",
++            "parameters": {"name": "example"},
++            "payload": {"value": 42}
++        }
++        cleaned_payload = _get_clean_payload(statistic)
++        self.assertIn("value", cleaned_payload["payload"])
++        self.assertNotIn("value", cleaned_payload)
++
++    def test_value_next_to_payload(self):
++        # Test case where value is in table
++        statistic = {
++            "type": "table_item",
++            "parameters": {"name": "example"},
++            "payload": {"value": 42, "topic_name": "example"}
++        }
++        cleaned_payload = _get_clean_payload(statistic)
++        self.assertIn("value", cleaned_payload["payload"])
++        self.assertNotIn("value", cleaned_payload)
++
++    def test_table_row_payload(self):
++        # Test case for table row
++        statistic = {
++            "type": "table_row",
++            "payload": {"value": 42, "table_name": "example"}
++        }
++        cleaned_payload = _get_clean_payload(statistic)
++        self.assertIn("value", cleaned_payload["payload"])
++        self.assertNotIn("value", cleaned_payload)
++
++    def test_list_item_payload(self):
++        # Test case for list item
++        statistic = {
++            "type": "list_item",
++            "parameters": {"name": "example"},
++            "payload": {"value": 42}
++        }
++        cleaned_payload = _get_clean_payload(statistic)
++        self.assertIn("value", cleaned_payload["payload"])
++        self.assertNotIn("value", cleaned_payload)

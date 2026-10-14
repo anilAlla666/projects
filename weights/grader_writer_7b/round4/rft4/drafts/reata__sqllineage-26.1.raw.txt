@@ -1,0 +1,45 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,43 @@
++from unittest import TestCase
++import pytest
++from sqllineage.core import LineageParser
++
++
++class TestLineage(TestCase):
++    def test_empty_line_should_not_be_counted_as_a_statement(self):
++        parser = LineageParser(
++            """
++            SELECT 1;
++
++            -- SELECT 2;
++            """
++        )
++        assert len(parser.statements) == 1
++
++    def test_drop_statement_without_anything_in_it_should_be_counted_as_a_statement(self):
++        parser = LineageParser("DROP TABLE IF EXISTS")
++        assert len(parser.statements) == 1
++
++    def test_drop_table_with_comment_should_be_counted_as_a_statement(self):
++        parser = LineageParser('''
++        DROP TABLE IF EXISTS table_1 -- comment
++        ''')
++        assert len(parser.statements) == 1
++
++    def test_multiple_statements_on_the_same_line_should_be_counted_as_multiple_statements(self):
++        parser = LineageParser("CREATE TABLE table_1 AS SELECT * FROM table_2;INSERT INTO table_3 SELECT * FROM table_4;")
++        assert len(parser.statements) == 2
++
++    def test_multiple_statements_with_semicolon_at_the_end_of_each_one_should_be_counted_as_multiple_statements(self):
++        parser = LineageParser("CREATE TABLE table_1 AS SELECT * FROM table_2;\nINSERT INTO table_3 SELECT * FROM table_4;")
++        assert len(parser.statements) == 2
++
++    def test_multiple_statements_with_semicolon_and_new_line_between_each_one_should_be_counted_as_multiple_statements(self):
++        parser = LineageParser("""CREATE TABLE table_1 AS SELECT * FROM table_2;
++                                INSERT INTO table_3 SELECT * FROM table_4""")
++        assert len(parser.statements) == 2
++
++    def test_empty_sql_string_should_not_be_counted_as_a_statement(self):
++        parser = LineageParser("")
++        assert len(parser.statements) == 0

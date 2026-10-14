@@ -1,0 +1,237 @@
+--- /dev/null
++++ b/tests/test_khalendar_test_grader.py
+@@ -0,0 +1,101 @@
++import datetime as dt
++import logging
++import os
++from textwrap import dedent
++from time import sleep
++import pytest
++from freezegun import freeze_time
++import khal.khalendar.exceptions
++import khal.utils
++from khal import icalendar as icalendar_helpers
++from khal.khalendar import CalendarCollection
++from khal.khalendar.backend import CouldNotCreateDbDir
++from khal.khalendar.event import Event
++from khal.khalendar.vdir import Item
++from . import utils
++from .utils import (
++    BERLIN,
++    LOCALE_BERLIN,
++    LOCALE_SYDNEY,
++    LONDON,
++    SYDNEY,
++    CollVdirType,
++    DumbItem,
++    _get_text,
++    cal1,
++    cal2,
++    cal3,
++    normalize_component,
++)
++
++
++today = dt.date.today()
++
++
++yesterday = today - dt.timedelta(days=1)
++
++
++tomorrow = today + dt.timedelta(days=1)
++
++
++aday = dt.date(2014, 4, 9)
++
++
++bday = dt.date(2014, 4, 10)
++
++
++cday = dt.date(2014, 4, 11)
++
++
++dday = dt.date(2014, 4, 12)
++
++
++e_day = dt.date(2014, 4, 13)
++
++
++fday = dt.date(2014, 4, 14)
++
++
++gday = dt.date(2014, 4, 15)
++
++
++hday = dt.date(2014, 4, 16)
++
++
++i_day = dt.date(2014, 4, 17)
++
++
++jday = dt.date(2014, 4, 18)
++
++
++kday = dt.date(2014, 4, 19)
++
++
++l_day = dt.date(2014, 4, 20)
++
++
++mday = dt.date(2014, 4, 21)
++
++
++n_day = dt.date(2014, 4, 22)
++
++
++o_day = dt.date(2014, 4, 23)
++
++
++pday = dt.date(2014, 4, 24)
++
++
++qday = dt.date(2014, 4, 25)
++
++
++rday = dt.date(2014, 4, 26)
++
++
++sday = dt.date(2014, 4, 27)
++
++
++tday = dt.date(2014, 4, 28)
++
++
++u_day = dt.date(2014, 4, 29)
++
++
++vday = dt.date(2014, 4, 30)
++
++
++wday = dt.date(2014, 5, 1)
++
++
++xday = dt.date(2014, 5, 2)
++
++
++yday = dt.date(2014, 5, 3)
++
++
++zday = dt.date(2014, 5, 4)
++
++
++def test_parse_delta_with_leading_plus():
++    assert '+1h' == icalendar_helpers._parse_delta('+1h')
++    assert '-1h' == icalendar_helpers._parse_delta('-1h')
++    assert '1h' == icalendar_helpers._parse_delta('+1h')
++    assert '1h' == icalendar_helpers._parse_delta('-1h')
+--- /dev/null
++++ b/tests/test_parse_datetime_test_grader.py
+@@ -0,0 +1,101 @@
++import datetime as dt
++from collections import OrderedDict
++import pytest
++from freezegun import freeze_time
++from khal.exceptions import DateTimeParseError, FatalError
++from khal.icalendar import new_vevent
++from khal.parse_datetime import (
++    construct_daynames,
++    eventinfofstr,
++    guessdatetimefstr,
++    guessrangefstr,
++    guesstimedeltafstr,
++    timedelta2str,
++    weekdaypstr,
++)
++from .utils import (
++    LOCALE_BERLIN,
++    LOCALE_FLOATING,
++    LOCALE_NEW_YORK,
++    _replace_uid,
++    normalize_component,
++)
++
++
++def _create_testcases(*cases):
++    return [(userinput, ('\r\n'.join(output) + '\r\n').encode('utf-8'))
++            for userinput, output in cases]
++
++
++def _construct_event(info, locale,
++                     defaulttimelen=60, defaultdatelen=1, description=None,
++                     location=None, categories=None, repeat=None, until=None,
++                     alarm=None, **kwargs):
++    info = eventinfofstr(' '.join(info), locale,
++                         dt.timedelta(days=1),
++                         dt.timedelta(hours=1),
++                         adjust_reasonably=True,
++                         defaulttimelen=defaulttimelen,
++                         defaultdatelen=defaultdatelen,
++                         **kwargs)
++    event = new_vevent(**info)
++    if description:
++        event['description'] = description
++    if location:
++        event['location'] = location
++    if categories:
++        event['categories'] = categories
++    if repeat:
++        event['rrule'] = repeat
++    if until:
++        event['until'] = until
++    if alarm:
++        event.add('valarm', {'action': 'display',
++                             'trigger': '-' + alarm})
++    return event
++
++
++_create_vevent = lambda *args: normalize_component(new_vevent(*args).to_ical())
++
++
++test_set_alarm = _create_testcases(
++    ('8:00 Äwesöme Event',
++     ['BEGIN:VEVENT',
++      'SUMMARY:Äwesöme Event',
++      'DTSTART;TZID=Europe/Berlin:20140216T080000',
++      'DTEND;TZID=Europe/Berlin:20140216T090000',
++      'DTSTAMP:20140216T120000Z',
++      'UID:E41JRQX2DB4P1AQZI86BAT7NHPBHPRIIHQKA',
++      'DESCRIPTION:please describe the event',
++      'BEGIN:VALARM',
++      'ACTION:DISPLAY',
++      'DESCRIPTION:please describe the event',
++      'TRIGGER:-PT23M',
++      'END:VALARM',
++      'END:VEVENT']))
++
++
++@freeze_time('2014-02-16 12:00:00')
++def test_alarm():
++    for data_list, vevent in test_set_alarm:
++        event = _construct_event(data_list.split(),
++                                 description='please describe the event',
++                                 alarm='+23m',
++                                 locale=LOCALE_BERLIN)
++        assert _replace_uid(event).to_ical() == vevent
++
++
++test_set_description_and_location_and_categories = _create_testcases(
++    # now events where the start date has to be inferred, too
++    # today
++    ('8:00 Äwesöme Event',
++     _create_vevent(
++         'DTSTART;TZID=Europe/Berlin:20140216T080000',
++         'DTEND;TZID=Europe/Berlin:20140216T090000',
++         'CATEGORIES:boring meeting',
++         'DESCRIPTION:please describe the event',
++         'LOCATION:in the office')))
++
++
++@freeze_time('2014-02-16 12:00:00')
++def test_description_and_location_and_categories():
++    for data_list, vevent in test_set_description_and_location_and_categories:
++        event = _construct_event(data_list.split(),
++                                 description='please describe the event',
++                                 location='in the office',
++                                 categories=['boring meeting'],
++                                 locale=LOCALE_BERLIN)
++        assert _replace_uid(event).to_ical() == vevent

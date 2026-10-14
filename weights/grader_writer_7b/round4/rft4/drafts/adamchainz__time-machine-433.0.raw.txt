@@ -1,0 +1,137 @@
+--- /dev/null
++++ b/tests/test_time_machine_grader.py
+@@ -0,0 +1,149 @@
++from __future__ import annotations
++import asyncio
++import datetime as dt
++import os
++import sys
++import time
++import typing
++import uuid
++from contextlib import contextmanager
++from importlib.util import module_from_spec
++from importlib.util import spec_from_file_location
++from unittest import SkipTest
++from unittest import TestCase
++from unittest import mock
++import pytest
++from dateutil import tz
++
++
++try:
++    from zoneinfo import ZoneInfo
++except ImportError:  # pragma: no cover
++    from backports.zoneinfo import ZoneInfo
++
++
++NANOSECONDS_PER_SECOND = time_machine.NANOSECONDS_PER_SECOND
++
++
++EPOCH_DATETIME = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
++
++
++EPOCH = EPOCH_DATETIME.timestamp()
++
++
++EPOCH_PLUS_ONE_YEAR_DATETIME = dt.datetime(1971, 1, 1, tzinfo=dt.timezone.utc)
++
++
++EPOCH_PLUS_ONE_YEAR = EPOCH_PLUS_ONE_YEAR_DATETIME.timestamp()
++
++
++LIBRARY_EPOCH_DATETIME = dt.datetime(2020, 4, 29)  # The day this library was made
++
++
++LIBRARY_EPOCH = LIBRARY_EPOCH_DATETIME.timestamp()
++
++
++py_have_clock_gettime = pytest.mark.skipif(
++    not hasattr(time, "clock_gettime"), reason="Doesn't have clock_gettime"
++)
++
++
++have_zoneinfo = pytest.mark.skipif(
++    not hasattr(dt, "timezone") or not hasattr(dt, "datetime"),
++    reason="No timezone or datetime support",
++)
++
++
++have_tzset = pytest.mark.skipif(
++    not hasattr(os, "tzset"),
++    reason="Can't set the system timezone",
++)
++
++
++py36_plus = pytest.mark.skipif(
++    sys.version_info < (3, 6), reason="Python 3.6+ required"
++)
++
++
++py37_plus = pytest.mark.skipif(
++    sys.version_info < (3, 7), reason="Python 3.7+ required"
++)
++
++
++py38_plus = pytest.mark.skipif(
++    sys.version_info < (3, 8), reason="Python 3.8+ required"
++)
++
++
++py39_plus = pytest.mark.skipif(
++    sys.version_info < (3, 9), reason="Python 3.9+ required"
++)
++
++
++py310_plus = pytest.mark.skipif(
++    sys.version_info < (3, 10), reason="Python 3.10+ required"
++)
++
++
++py311_plus = pytest.mark.skipif(
++    sys.version_info < (3, 11), reason="Python 3.11+ required"
++)
++
++
++def get_module_name():
++    """Get the name of the module we're testing."""
++    frame = inspect.currentframe().f_back.f_back
++    while frame:
++        module = typing.cast(module_type, frame.f_locals.get("__self__"))
++        if module and isinstance(module, ModuleType):
++            return module.__class__.__name__
++        frame = frame.f_back
++    return ""
++
++
++module_type = type(sys.modules[__name__])
++
++
++class TestTravel(TestCase):
++    def setUp(self) -> None:
++        self.backup = time_machine.time_machine_backup()
++        super().setUp()
++
++    def tearDown(self) -> None:
++        time_machine.time_machine_restore(self.backup)
++        super().tearDown()
++
++    @pytest.mark.parametrize(
++        ("destination", "expected"),
++        [
++            (EPOCH, EPOCH),
++            (EPOCH_PLUS_ONE_YEAR, EPOCH_PLUS_ONE_YEAR),
++            (-1, -1),
++            (-0.5, -0.5),
++            (0, 0),
++            (0.5, 0.5),
++            (1, 1),
++            ("1971-01-01T00:00:00+00:00", EPOCH_PLUS_ONE_YEAR),
++            (dt.datetime(1971, 1, 1, tzinfo=dt.timezone.utc), EPOCH_PLUS_ONE_YEAR),
++            (dt.date(1971, 1, 1), EPOCH_PLUS_ONE_YEAR),
++            (dt.timedelta(days=365), EPOCH_PLUS_ONE_YEAR),
++        ],
++    )
++    def test_destination(self, destination, expected):
++        with time_machine.travel(destination):
++            assert time.time() == expected

@@ -1,0 +1,47 @@
+To address the deprecation of `ax_phase.get_shared_x_axes().join()` in Matplotlib 3.6, we can create a new test file named `test_sisotool_matplotlib_join.py`. This test will check if the `sisotool` function still works correctly after replacing the deprecated method with the recommended alternative.
+
+Here's the unified diff:
+
+```
+diff --git a/control/tests/test_sisotool_matplotlib_join.py b/control/tests/test_sisotool_matplotlib_join.py
+new file mode 100644
+--- /dev/null
++++ b/control/tests/test_sisotool_matplotlib_join.py
+@@ -0,0 +1,45 @@
++"""Test for the sisotool function after fixing the Matplotlib join() deprecation."""
++
++import pytest
++from control.sisotool import sisotool
++from control.xferfcn import TransferFunction
++
++
++def test_sisotool_no_deprecation_warning():
++    """Test that sisotool does not produce a deprecation warning."""
++    sys = TransferFunction([1], [1, 2, 1])  # Example SISO system
++    
++    with pytest.warns(None) as record:
++        sisotool(sys)
++
++    # Check that no deprecation warning was issued
++    assert all(warning.category != DeprecationWarning for warning in record.list)
++
++
++def test_sisotool_with_initial_gain():
++    """Test that sisotool works with the 'initial_gain' parameter."""
++    sys = TransferFunction([1], [1, 2, 1])  # Example SISO system
++    initial_gain = 2.0
+    
++    with pytest.warns(None) as record:
++        sisotool(sys, initial_gain=initial_gain)
++
++    # Check that no deprecation warning was issued
++    assert all(warning.category != DeprecationWarning for warning in record.list)
++
++    # Additional checks can be added here to verify the correctness of the plot
+```
+
+This new test file includes two tests:
+1. `test_sisotool_no_deprecation_warning`: This test ensures that calling `sisotool` does not produce any deprecation warnings related to the `join()` method.
+2. `test_sisotool_with_initial_gain`: This test verifies that `sisotool` functions correctly when provided with the `initial_gain` parameter.
+
+These tests should fail on the current code because they expect no deprecation warnings, and they should pass once the issue is fixed. They also ensure that the `sisotool` function continues to work as expected with the updated Matplotlib version.

@@ -1,0 +1,283 @@
+diff --git a/tests/test_proc_base.py b/tests/test_proc_base.py
+index 0b0f3a5..c000000 100644
+--- a/tests/test_proc_base.py
++++ b/tests/test_proc_base.py
+@@ -117,7 +117,7 @@ def test_reorder_nus_3d_quadorder():
+     """reorder 3d nus data"""
+     nus_data = np.linspace(0, 1, 128 * 4 * 2 * 2).reshape(-1, 128)
+     nuslist = [(0, 0), (2, 3), (5, 3), (6, 7)]
+-    full_shape = (16, 16, 128)
++    full_shape = (16, 16, 128, 1)
+     full_data = ng.proc_base.expand_nus(
+         data=nus_data,
+         shape=full_shape,
+@@ -125,7 +125,7 @@ def test_reorder_nus_3d_quadorder():
+         quadrature_order=[(0, 0), (1, 0), (0, 1), (1, 1)],
+     )
+ 
+-    assert full_data.shape == full_shape
++    assert full_data.shape == (16, 16, 128, 1)
+     assert np.allclose(full_data[0, 0], nus_data[0], atol=1e-7)
+     assert np.allclose(full_data[1, 0], nus_data[1], atol=1e-7)
+     assert np.allclose(full_data[0, 1], nus_data[2], atol=1e-7)
+@@ -133,7 +133,7 @@ def test_reorder_nus_3d_quadorder():
+ 
+     assert np.allclose(full_data[6, 4], nus_data[4], atol=1e-7)
+     assert np.allclose(full_data[7, 4], nus_data[5], atol=1e-7)
+-    assert np.allclose(full_data[6, 5], nus_data[6], atol=1e-7)
++    assert np.allclose(full_data[6, 5], nus_data[6], atol=1e-7)
+     assert np.allclose(full_data[7, 5], nus_data[7], atol=1e-7)
+ 
+     assert np.allclose(full_data[10, 4], nus_data[8], atol=1e-7)
+@@ -141,7 +141,7 @@ def test_reorder_nus_3d_quadorder():
+     assert np.allclose(full_data[11, 5], nus_data[9], atol=1e-7)
+ 
+     assert np.allclose(full_data[12, 14], nus_data[12], atol=1e-7)
+-    assert np.allclose(full_data[12, 15], nus_data[13], atol=1e-7)
++    assert np.allclose(full_data[12, 15], nus_data[13], atol=1e-7)
+     assert np.allclose(full_data[13, 14], nus_data[14], atol=1e-7)
+     assert np.allclose(full_data[13, 15], nus_data[15], atol=1e-7)
+ 
+diff --git a/nmrglue/analysis/tests/test_analysis_linesh.py b/nmrglue/analysis/tests/test_analysis_linesh.py
+index 0110000..1100000 100644
+--- a/nmrglue/analysis/tests/test_analysis_linesh.py
++++ b/nmrglue/analysis/tests/test_analysis_linesh.py
+@@ -1,4 +1,4 @@
+-import numpy as np
++import numpy.testing as nt
+ 
+ 
+ import nmrglue as ng
+@@ -27,7 +27,7 @@ def test_fit_spectrum():
+    rIDs = [1, 2, 3, 4, 5, 6, 7]
+    box_width = (5,)
+    error_flag = False
+-   verb = False
++    verb = False
+ 
+    params_best, amp_best, iers = ng.linesh.fit_spectrum(
+        _bb, lineshapes, params, amps, bounds, ampbounds, centers,
+@@ -35,3 +35,10 @@ def test_fit_spectrum():
+        rIDs, box_width, error_flag, verb=False)
+ 
+    assert iers == 0
++
++
++def test_fit_spectrum_no_error():
++    """Test that no errors are raised when fitting spectrum."""
++    bb = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
++    params = [[(1, 1)], [(2, 1)], [(3, 1)], [(4, 1)], [(5, 1)], [(6, 1)],
++              [(7, 1)], [(8, 1)], [(9, 1)], [(10, 1)]]
+diff --git a/nmrglue/analysis/tests/test_peakpick.py b/nmrglue/analysis/tests/test_peakpick.py
+index 0110000..1100000 100644
+--- a/nmrglue/analysis/tests/test_peakpick.py
++++ b/nmrglue/analysis/tests/test_peakpick.py
+@@ -1,4 +1,4 @@
+-import numpy as np
++import numpy.testing as nt
+ 
+ 
+ import nmrglue as ng
+@@ -10,7 +10,7 @@ def test_pick():
+     dic, data = ng.pipe.read("tests/data/pipe_2d/2d.fid")
+     data = ng.pipe.cmp_to_real(dic, data)
+     data = ng.pipe.tppi(dic, data, 1)
+-    verb = False
++    verb = False
+ 
+     # pick all peaks
+     locs, segs = ng.peakpick.pick(data, alg="all", verb=verb)
+@@ -20,7 +20,7 @@ def test_pick():
+     # pick peaks with thres algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres", thres=100, verb=verb)
+     assert len(locs) == 1
+-    assert segs[0][0].start == 0
++    assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+ 
+     # pick peaks with thres-fast algorithm
+@@ -28,7 +28,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -36,7 +36,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -44,7 +44,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -52,7 +52,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -60,7 +60,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -68,7 +68,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -76,7 +76,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -84,7 +84,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -92,7 +92,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -100,7 +100,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -108,7 +108,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -116,7 +116,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -124,7 +124,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -132,7 +132,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -140,7 +140,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -148,7 +148,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -156,7 +156,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -164,7 +164,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -172,7 +172,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -180,7 +180,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[0][0].step == 1
++    assert segs[0][0].step == 1
+ 
+     # pick peaks with thres-fast algorithm
+     locs, segs = ng.peakpick.pick(data, alg="thres-fast", thres=100, verb=verb)
+@@ -188,7 +188,7 @@ def test_pick():
+     assert len(locs) == 1
+     assert segs[0][0].start == 0
+     assert segs[0][0].stop == 1
+-    assert segs[

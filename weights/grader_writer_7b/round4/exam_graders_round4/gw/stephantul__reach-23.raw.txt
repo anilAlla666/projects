@@ -1,0 +1,14 @@
+--- /dev/null
++++ b/tests/test_reach_grader.py
+@@ -0,0 +1,11 @@
++import numpy as np
++from reach import Reach
++
++
++def test_unk_dtype():
++    # Test that the dtype of the Reach object is preserved when adding an UNK token
++    vecs = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
++    r = Reach(vecs, ["a", "b"], unk_word="c")
++    assert r.vectors.dtype == np.float32
++    assert r.unk_index == 2
++    assert r.items == ["a", "b", "c"]

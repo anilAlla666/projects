@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_cli_grader.py
+@@ -0,0 +1,11 @@
++from pathlib import Path
++import pytest
++from git_machete.cli import parse_cli_args
++
++
++@pytest.mark.parametrize("args", [
++    ["add", "foo"],
++    ["remove", "foo"],
++    ["edit", "foo"],
++    ["status", "foo"],
++])
++def test_add_remove_edit_status_require_branch(args: list[str]) -> None:
++    assert parse_cli_args(args=args) is None

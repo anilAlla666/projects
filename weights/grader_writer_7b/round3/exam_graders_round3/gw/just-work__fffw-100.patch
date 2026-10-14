@@ -1,0 +1,19 @@
+diff --git a/tests/test_encoding.py b/tests/test_encoding.py
+index 0e1f0a5..b0c0d2c 100644
+--- a/tests/test_encoding.py
++++ b/tests/test_encoding.py
+@@ -108,6 +108,14 @@ class OutputsTestCase(TestCase):
+         self.audio_metadata = meta.audio_meta_data()
+ 
+         self.source = inputs.Input(
++            input_file='input.mp4',
++            streams=(inputs.Stream(VIDEO, meta=self.video_metadata),
++                     inputs.Stream(AUDIO, meta=self.audio_metadata)))
++
++        self.trimmed_source = inputs.Input(
++            input_file='input.mp4',
++            streams=(inputs.Stream(VIDEO, meta=self.video_metadata),
++                     inputs.Stream(AUDIO, meta=self.audio_metadata)),
+             start=meta.TS(10),
+             end=meta.TS(20)
+         )

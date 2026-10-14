@@ -1,0 +1,202 @@
+To address the issue of allowing multiple modes in the particle distribution, we need to modify both the `ParticleDistribution` class and the helper functions (`discretize`, `cut_rad`). Additionally, we will update the existing tests to ensure that the new functionality works correctly.
+
+Here is the unified diff for the changes:
+
+```diff
+diff --git a/particula/particle.py b/particula/particle.py
+index 1234567..abcdef8 100644
+--- a/particula/particle.py
++++ b/particula/particle.py
+@@ -31,6 +31,7 @@ class ParticleDistribution(Vapor):
+             self.spacing = kwargs.get("spacing", "linspace")
+             self.nbins = in_scalar(kwargs.get("nbins", 1000)).m
+             self.nparticles = in_scalar(kwargs.get("nparticles", 1e5))
++            self.modes = in_radius(kwargs.get("mode", [100e-9])).m
+             self.volume = in_volume(kwargs.get("volume", 1e-6))
+             self.cutoff = in_scalar(kwargs.get("cutoff", 0.9999)).m
+             self.gsigma = in_scalar(kwargs.get("gsigma", 1.25)).m
+@@ -43,6 +44,7 @@ class ParticleDistribution(Vapor):
+ 
+     def pre_radius(self):
+         """ Returns the radius space of the particles
+ 
++        Utilizing the utility cut_rad to get 99.99% of the distribution.
+         From this interval, radius is made on a linspace with nbins points.
+ 
+         Returns:
+@@ -52,6 +54,7 @@ class ParticleDistribution(Vapor):
+                 self.nbins,
+                 self.volume,
+                 self.cutoff,
++                self.modes,
+             )
+ 
+     def generate_distribution(self):
+@@ -60,6 +63,7 @@ class ParticleDistribution(Vapor):
+         """ Generates the particle distribution
+ 
+         Returns:
++        A list of distributions for each mode
+             List[ndarray]: Distribution of particles for each bin
+         """
+         distributions = []
+@@ -67,6 +71,7 @@ class ParticleDistribution(Vapor):
+             for mode in self.modes:
+                 dist = discretize(
+                     interval=self.rad_interval,
++                    mode=mode,
+                     gsigma=self.gsigma,
+                     nbins=self.nbins,
+                     spacing=self.spacing,
+@@ -75,6 +80,7 @@ class ParticleDistribution(Vapor):
+                 distributions.append(dist)
+ 
+         return distributions
+diff --git a/particula/util/distribution_discretization.py b/particula/util/distribution_discretization.py
+index abcdef1..2345678 100644
+--- a/particula/util/distribution_discretization.py
++++ b/particula/util/distribution_discretization.py
+@@ -12,6 +12,7 @@
+ from particula import u
+ from particula.util.input_handling import in_scalar, in_radius
+ 
++
+ def discretize(
+     interval=None,
+     disttype="lognormal",
+@@ -27,6 +28,7 @@ def discretize(
+     gsigma=in_scalar(1.25).m,
+     mode=in_radius(100e-9).m,
+     **kwargs
++):
+     """ discretize the distribution of the particles
+ 
+         Parameters:
+@@ -34,6 +36,7 @@ def discretize(
+             interval    (float) the size interval of the distribution
+             disttype     (str)   the type of distribution, "lognormal" for now
+             gsigma      (float) geometric standard deviation of distribution
++            mode        (list)  list of modes for each distribution
+             mode        (float) pdf scale (corresponds to mode in lognormal)
+     """
+ 
+@@ -42,6 +45,7 @@ def discretize(
+     if interval is None:
+         raise ValueError("the 'interval' must be specified!")
+ 
++    for mode in mode:
+     if not isinstance(interval, u.Quantity):
+         interval = u.Quantity(interval, " ")
+ 
+@@ -50,6 +54,7 @@ def discretize(
+     if disttype == "lognormal":
+         dist = lognorm.pdf(
+             x=interval.m,
++            s=np.log(gsigma),
+             scale=mode,
+         )/interval.u
+     else:
+@@ -60,6 +65,7 @@ def discretize(
+     return dist
+```
+
+```diff
+diff --git a/particula/util/radius_cutoff.py b/particula/util/radius_cutoff.py
+index 9876543..fedcba9 100644
+--- a/particula/util/radius_cutoff.py
++++ b/particula/util/radius_cutoff.py
+@@ -12,6 +12,7 @@
+ from particula.util.input_handling import in_scalar, in_radius
+ 
++
+ def cut_rad(
+     cutoff=in_scalar(0.9999).m,
+     gsigma=in_scalar(1.25).m,
+@@ -27,6 +28,7 @@ def cut_rad(
+     mode=in_radius(100e-9).m,
+     **kwargs
++):
+     """ This routine determines the radius cutoff for the particle distribution
+ 
+         Inputs:
+@@ -34,6 +36,7 @@ def cut_rad(
+             cutoff  (float) coverage cutoff (default: .9999)
+             gsigma  (float) geometric standard deviation (default: 1.25)
+             mode    (float) mean radius of the particles (default: 1e-7)
++            mode    (list)  list of modes for each distribution
+         """
+ 
+@@ -42,6 +45,7 @@ def cut_rad(
+     if not isinstance(cutoff, u.Quantity):
+         cutoff = u.Quantity(cutoff, " ")
+ 
++    for mode in mode:
+     if not isinstance(mode, u.Quantity):
+         mode = u.Quantity(mode, " ")
+ 
+@@ -50,6 +54,7 @@ def cut_rad(
+     (rad_start, rad_end) = lognorm.interval(
+         alpha=cutoff,
+         s=np.log(gsigma),
++        scale=mode,
+     )
+ 
+     return (rad_start, rad_end)
+```
+
+```diff
+diff --git a/particula/tests/particle_test.py b/particula/tests/particle_test.py
+index 1234567..abcdef8 100644
+--- a/particula/tests/particle_test.py
++++ b/particula/tests/particle_test.py
+@@ -29,6 +29,7 @@ small_particle = particle.Particle(
+     particle_radius=1.0e-9 * u.m,
+     particle_density=1.0 * u.kg / u.m**3,  # need fixing, add e3
+     particle_charge=1,
++    mode=[5000e-9, 50e-9, 300e-9],
+ )
+ 
+ large_particle = particle.Particle(
+@@ -36,6 +37,7 @@ large_particle = particle.Particle(
+     particle_radius=1.0e-7 * u.m,
+     particle_density=1.8 * u.kg / u.m**3,  # need fixing, add e3
+     particle_charge=1,
++    mode=[5000e-9, 50e-9, 300e-9],
+ )
+ 
+ standard_environment = environment.Environment(
+@@ -43,6 +45,7 @@ standard_environment = environment.Environment(
+     temperature=298 * u.K,
+     pressure=101325 * u.Pa,
+ )
++    mode=[5000e-9, 50e-9, 300e-9],
+ 
+ negative_ion = particle.Particle(
+     name="negative_ion",
+@@ -50,6 +53,7 @@ negative_ion = particle.Particle(
+     particle_radius=0.5e-9 * u.m,
+     particle_density=1.84e3 * u.kg / u.m**3,
+     particle_charge=-1,
++    mode=[5000e-9, 50e-9, 300e-9],
+ )
+ 
+ positive_particle = particle.Particle(
+@@ -257,6 +261,7 @@ def test_condensation_stuff():
+     "mode": 200e-9,  # 200 nm median
+     "nbins": 1000,  # 1000 bins
+     "nparticles": 2e6,  # 1e4 #
++    "mode": [5000e-9, 50e-9, 300e-9],
+     "volume": 1e-6,  # per 1e-6 m^3 (or 1 cc)
+     "gsigma": 1.25,  # relatively narrow
+     "cutoff": .99999,  # let's take it all lol
+@@ -264,6 +269,7 @@ def test_condensation_stuff():
+     "vapor_radius": 1.6e-9,  # 1.6 nm
+     "vapor_density": 1400,  # 1400 kg/m^3
+     "vapor_concentration": 1,  # 1 ug/m^3
++    "mode": [5000e-9, 50e-9, 300e-9],
+     "vapor_attachment": 1,  # 1
+     "vapor_molec_wt": 200,  # 200 g/mol
+     "something_something": None
+```
+
+These changes allow the `ParticleDistribution` class to handle multiple modes and update the helper functions accordingly. The existing tests have been updated to reflect the new functionality.

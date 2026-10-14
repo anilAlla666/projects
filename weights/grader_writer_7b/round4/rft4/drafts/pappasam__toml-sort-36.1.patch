@@ -1,0 +1,67 @@
+--- /dev/null
++++ b/tests/test_toml_sort_grader.py
+@@ -0,0 +1,51 @@
++"""Test the toml_sort module."""
++
++
++from __future__ import annotations
++from pathlib import Path
++from typing import Any, Callable, Dict, List
++import pytest
++from toml_sort import TomlSort
++from toml_sort.tomlsort import (
++    CommentConfiguration,
++    FormattingConfiguration,
++    SortConfiguration,
++)
++
++
++@pytest.mark.parametrize(
++    "unsorted_fixture,sorted_fixture,args",
++    [
++        (
++            "inline",
++            "inline",
++            {
++                "sort_config": SortConfiguration(
++                    inline_arrays=True, inline_tables=True
++                ),
++            },
++        ),
++        (
++            "comment",
++            "comment-comments-preserved",
++            {
++                "comment_config": CommentConfiguration(
++                    header=False, footer=False, block=True, inline=True
++                ),
++                "format_config": FormattingConfiguration(
++                    spaces_before_inline_comment=1
++                ),
++            },
++        ),
++        (
++            "empty-array",
++            "empty-array",
++            {},
++        ),
++    ],
++)
++def test_tomlsort(
++    get_fixture: Callable[[str | List[str]], Path],
++    unsorted_fixture: str,
++    sorted_fixture: str,
++    args: Dict[str, Any],
++) -> None:
++    """Make sure that output of TomlSort.sorted() function matches what we
++    expect."""
++    path_unsorted = get_fixture(unsorted_fixture)
++    path_sorted = get_fixture(["sorted", sorted_fixture])
++
++    toml_unsorted_fixture = path_unsorted.read_text()
++    toml_sorted_fixture = path_sorted.read_text()
++
++    sort_output = TomlSort(toml_unsorted_fixture, **args).sorted()
++
++    assert sort_output == toml_sorted_fixture
++    assert TomlSort(sort_output, **args).sorted() == sort_output

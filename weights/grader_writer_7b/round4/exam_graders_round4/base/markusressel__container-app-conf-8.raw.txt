@@ -1,0 +1,75 @@
+```diff
+diff --git a/tests/test_pathlib_config_entries.py b/tests/test_pathlib_config_entries.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_pathlib_config_entries.py
+@@ -0,0 +1,100 @@
++#  Copyright (c) 2019 Markus Ressel
++#  .
++#  Permission is hereby granted, free of charge, to any person obtaining a copy
++#  of this software and associated documentation files (the "Software"), to deal
++#  in the Software without restriction, including without limitation the rights
++#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++#  copies of the Software, and to permit persons to whom the Software is
++#  furnished to do so, subject to the following conditions:
++#  .
++#  The above copyright notice and this permission notice shall be included in all
++#  copies or substantial portions of the Software.
++#  .
++#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++#  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++#  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++#  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++#  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++#  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++#  SOFTWARE.
++
++import os
++from pathlib import Path
++
++from container_app_conf.entry.file import FileConfigEntry
++from container_app_conf.entry.directory import DirectoryConfigEntry
++from tests import EntryTestBase
++
++
++class TestPathlibConfigEntries(EntryTestBase):
++
++    @staticmethod
++    def test_file_entry_with_pathlib():
++        config_entry = FileConfigEntry(yaml_path=["file"], example=Path("/tmp/test"))
++        input_output = [
++            (Path("/tmp/test"), Path("/tmp/test").resolve()),
++            (Path("./test"), Path("./test").resolve()),
++            (Path("/something/"), AssertionError),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = FileConfigEntry(yaml_path=["file"], check_existence=True)
++        input_output = [
++            (Path("/tmp/test"), FileNotFoundError),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++    @staticmethod
++    def test_directory_entry_with_pathlib():
++        config_entry = DirectoryConfigEntry(yaml_path=["directory"], example=Path("/tmp"))
++        input_output = [
++            (Path("/tmp"), Path("/tmp").resolve()),
++            (Path("./test"), Path("./test").resolve()),
++            (Path("/something/"), Path("/something/").resolve()),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = DirectoryConfigEntry(yaml_path=["directory"], check_existence=True)
++        input_output = [
++            (Path("./"), Path("./").resolve()),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
+```
+
+This new test file `tests/test_pathlib_config_entries.py` includes two tests: `test_file_entry_with_pathlib` and `test_directory_entry_with_pathlib`. These tests ensure that the `FileConfigEntry` and `DirectoryConfigEntry` classes correctly handle `Path` objects instead of strings. The tests will fail with the current implementation and pass after the fix is applied.

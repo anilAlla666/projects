@@ -1,0 +1,378 @@
+diff --git a/tests/test_SeqLike.py b/tests/test_SeqLike.py
+index 0f3a0c0..0000000 100644
+--- a/tests/test_SeqLike.py
++++ /dev/null
+@@ -1,569 +0,0 @@
+-import tempfile
+-from copy import deepcopy
+-
+-import numpy as np
+-import pytest
+-from Bio import SeqIO
+-from Bio.Seq import Seq
+-from Bio.SeqRecord import SeqRecord
+-from hypothesis import given
+-from hypothesis.strategies import composite, integers, sampled_from, text
+-from seqlike.codon_tables import codon_table_to_codon_map, ecoli_codon_table, yeast_codon_table, ecoli_codon_map
+-from seqlike.SeqLike import AA, NT, STANDARD_AA, STANDARD_NT, SeqLike, aaSeqLike
+-from seqlike.MutationSet import MutationSet
+-
+-from . import test_path
+-
+-
+-ALPHABETS = [NT, AA, STANDARD_NT, STANDARD_AA]
+-NT_TYPES = ["NT", "DNA", "RNA", "dna", "nt", "rna"]
+-AA_TYPES = ["AA", "aa"]
+-SEQ_TYPES = NT_TYPES + AA_TYPES
+-
+-
+-@composite
+-def string_sequences(draw, alphabet: str = None, min_size: int = 1) -> tuple:
+-    """Composite Hypothesis strategy to generate strings from one of the alphabets.
+-
+-    This test handles the cases where seq_type, sequence, and alphabet are all set.
+-    """
+-    max_size = draw(integers(min_value=min_size, max_value=1000))
+-    if not alphabet:
+-        alphabet = draw(sampled_from(ALPHABETS))
+-    sequence = draw(text(alphabet=alphabet, min_size=min_size, max_size=max_size))
+-    if alphabet in [NT, STANDARD_NT]:
+-        seq_type = draw(sampled_from(NT_TYPES))
+-    elif alphabet in [AA, STANDARD_AA]:
+-        seq_type = draw(sampled_from(AA_TYPES))
+-    return sequence, seq_type, alphabet
+-
+-
+-@given(string_sequences())
+-def test_init(sequence_and_seq_type):
+-    """Test initialization of SeqLike."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    s = SeqLike(sequence, seq_type=seq_type, id="test", description="test")
+-    assert s.to_str() == sequence
+-    assert s.seq_type == seq_type
+-    assert s.id == "test"
+-    assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_record(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a record."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    record = SeqRecord(Seq(sequence), id="test", description="test")
+-    s = SeqLike(record, seq_type=seq_type)
+-    assert s.to_str() == sequence
+-    assert s.seq_type == seq_type
+-    assert s.id == "test"
+-    assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_file(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a file."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.NamedTemporaryFile(mode="w") as f:
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], f.name, format="fasta")
+-        s = SeqLike(f.name, seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(path, seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_path(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(Path(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_posixpath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib PosixPath."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(PosixPath(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_windowspath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib WindowsPath."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}\\test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(WindowsPath(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(Path(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibposixpath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(PosixPath(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibwindowspath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(WindowsPath(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibpath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(Path(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibposixpath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(PosixPath(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibwindowspath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(WindowsPath(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibpathlibpath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(Path(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibpathlibposixpath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(PosixPath(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibpathlibwindowspath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(WindowsPath(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibpathlibpathlibpath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(Path(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibpathlibpathlibposixpath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(PosixPath(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibpathlibpathlibwindowspath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(WindowsPath(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibpathlibpathlibpathlibpath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(Path(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibpathlibpathlibpathlibposixpath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(PosixPath(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibpathlibpathlibpathlibwindowspath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(WindowsPath(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibpathlibpathlibpathlibpathlibpath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(Path(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibpathlibpathlibpathlibpathlibposixpath(sequence_and_seq_type):
+-    """Test initialization of SeqLike with a pathlib Path."""
+-    sequence, seq_type, _ = sequence_and_seq_type
+-    with tempfile.TemporaryDirectory() as d:
+-        path = f"{d}/test.fasta"
+-        SeqIO.write([SeqRecord(Seq(sequence), id="test", description="test")], path, format="fasta")
+-        s = SeqLike(PosixPath(path), seq_type=seq_type)
+-        assert s.to_str() == sequence
+-        assert s.seq_type == seq_type
+-        assert s.id == "test"
+-        assert s.description == "test"
+-
+-
+-@given(string_sequences())
+-def test_init_with_pathlib_pathlibpathlibpathlibpathlibpathlibpathlibwindowspath(sequence_and_seq_type):
+-

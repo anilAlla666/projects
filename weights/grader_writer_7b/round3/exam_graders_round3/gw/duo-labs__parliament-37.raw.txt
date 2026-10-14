@@ -1,0 +1,24 @@
+diff --git a/tests/test_is_arn_match.py b/tests/test_is_arn_match.py
+index 0e1f3d0..a0b0c26 100644
+--- a/tests/test_is_arn_match.py
++++ b/tests/test_is_arn_match.py
+@@ -1,10 +1,12 @@
++import pytest
++
+ from parliament import is_arn_match
+ 
+ 
+-def test_s3_bucket():
+-    assert is_arn_match(
+-        "bucket",
+-        "arn:*:s3:::*/*",
+-        "arn:aws:s3:::personalize/",
+-    )
++@pytest.mark.parametrize(
++    ("resource_type", "arn_format", "resource"),
++    [
++        ("bucket", "arn:*:s3:::*/*", "arn:aws:s3:::personalize/"),
++    ],
++)
++def test_s3_bucket(resource_type, arn_format, resource):
++    assert is_arn_match(resource_type, arn_format, resource)

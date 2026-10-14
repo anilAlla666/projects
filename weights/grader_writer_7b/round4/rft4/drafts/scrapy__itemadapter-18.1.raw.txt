@@ -1,0 +1,49 @@
+--- /dev/null
++++ b/tests/test_adapter_grader.py
+@@ -0,0 +1,48 @@
++import unittest
++from types import MappingProxyType
++from itemadapter.adapter import ItemAdapter
++from tests import AttrsItem, DataClassItem, ScrapySubclassedItem
++
++
++class DictTestCase(unittest.TestCase, BaseTestMixin):
++    item_class = dict
++
++    def test_get_value_keyerror_item_dict(self):
++        """Instantiate without default values"""
++        adapter = ItemAdapter(self.item_class())
++        with self.assertRaises(KeyError):
++            adapter["name"]
++
++    def test_empty_metadata(self):
++        adapter = ItemAdapter(self.item_class(name="foo", value=5))
++        for field_name in ("name", "value", "undefined_field"):
++            self.assertEqual(adapter.get_field_meta(field_name), MappingProxyType({}))
++
++
++class NonDictTestMixin(object):
++    def setUp(self):
++        self.item = self.item_class()
++        self.item["name"] = "asdf"
++        self.item["value"] = 1234
++
++    def test_field_names(self):
++        adapter = ItemAdapter(self.item)
++        self.assertEqual(adapter.field_names(), ["name", "value"])
++
++    def test_field_names_unordered_mapping(self):
++        # Test for unorderable mappings like `dict` in Python < 3.7
++        adapter = ItemAdapter(dict(value=1234, name="asdf"))
++        self.assertEqual(adapter.field_names(), ["value", "name"])
++
++    def test_field_names_ordered_mapping(self):
++        # Test for orderable mappings like `collections.OrderedDict`
++        import collections
++
++        adapter = ItemAdapter(collections.OrderedDict((("value", 1234), ("name", "asdf"))))
++        self.assertEqual(adapter.field_names(), ["value", "name"])
++
++
++if __name__ == "__main__":
++    unittest.main()

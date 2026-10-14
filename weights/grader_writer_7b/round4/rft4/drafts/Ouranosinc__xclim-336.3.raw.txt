@@ -1,0 +1,148 @@
+--- /dev/null
++++ b/tests/test_ensembles_grader.py
+@@ -0,0 +1,156 @@
++import glob
++import os
++import sys
++import numpy as np
++import pandas as pd
++import pytest
++import xarray as xr
++from xclim import ensembles
++
++
++TESTS_HOME = os.path.abspath(os.path.dirname(__file__))
++
++
++TESTS_DATA = os.path.join(TESTS_HOME, "testdata")
++
++
++class TestEnsembleStats:
++    nc_files_simple = glob.glob(
++        os.path.join(TESTS_DATA, "EnsembleStats", "*1950-2100*.nc")
++    )
++
++    nc_files = glob.glob(os.path.join(TESTS_DATA, "EnsembleStats", "*.nc"))
++
++    nc_file = os.path.join(TESTS_DATA, "EnsembleStats", "rcps45_tasmax_Amon_GFDL-CM3-ccsm4_historical+rcp45_r1i1p1_1950-2100.nc")
++
++    def test_create_ensemble(self):
++        ds = ensembles.create_ensemble([self.nc_file], decode_times=True)
++        assert "realization" in ds.dims
++        assert ds.realization.size == 25
++        assert ds.realization.values[-1] == 24
++        assert len(ds.time) == 375
++        assert ds.tasmax.units == "K"
++
++        # test with xr.open_dataset instead of string file path
++        ds1 = xr.open_dataset(self.nc_file)
++        ds = ensembles.create_ensemble([ds1], decode_times=True)
++        assert "realization" in ds.dims
++        assert ds.realization.size == 25
++        assert ds.realization.values[-1] == 24
++        assert len(ds.time) == 375
++        assert ds.tasmax.units == "K"
++
++        # test with list of xr.open_dataset
++        ds_list = [xr.open_dataset(self.nc_file)] * 25
++        ds = ensembles.create_ensemble(ds_list, decode_times=True)
++        assert "realization" in ds.dims
++        assert ds.realization.size == 25
++        assert ds.realization.values[-1] == 24
++        assert len(ds.time) == 375
++        assert ds.tasmax.units == "K"
++
++        # test with list of xr.open_dataset using a single dataset
++        ds_list = [xr.open_dataset(self.nc_file)]
++        ds = ensembles.create_ensemble(ds_list, decode_times=True)
++        assert "realization" in ds.dims
++        assert ds.realization.size == 1
++        assert ds.realization.values[-1] == 0
++        assert len(ds.time) == 375
++        assert ds.tasmax.units == "K"
++
++    def test_create_ensemble_multi_files(self):
++        files = [
++            "tasmax_Amon_GFDL-CM3-ccsm4_historical+rcp45_r1i1p1_1950-2100.nc",
++            "tasmax_Amon_GFDL-CM3-ccsm4_historical+rcp45_r1i1p1_1950-2100.nc",
++        ]
++        ds = ensembles.create_ensemble(files, decode_times=True)
++        assert "realization" in ds.dims
++        assert ds.realization.size == 25
++        assert ds.realization.values[-1] == 24
++        assert len(ds.time) == 375
++        assert ds.tasmax.units == "K"
++
++    def test_create_ensemble_multifile(self):
++        files = [
++            ["tasmax_Amon_GFDL-CM3-ccsm4_historical+rcp45_r1i1p1_1950-2100.nc"],
++            ["tasmax_Amon_GFDL-CM3-ccsm4_historical+rcp45_r1i1p1_1950-2100.nc"],
++        ]
++        ds = ensembles.create_ensemble(files, decode_times=True, multifile=True)
++        assert "realization" in ds.dims
++        assert ds.realization.size == 25
++        assert ds.realization.values[-1] == 24
++        assert len(ds.time) == 375
++        assert ds.tasmax.units == "K"
++
++    def test_create_ensemble_decode_time_false(self):
++        ds = ensembles.create_ensemble([self.nc_file], decode_times=False)
++        assert "realization" in ds.dims
++        assert ds.realization.size == 25
++        assert ds.realization.values[-1] == 24
++        assert len(ds.time) == 375
++        assert ds.tasmax.units == "K"
++
++    def test_create_ensemble_multifile_decode_time_false(self):
++        files = [
++            ["tasmax_Amon_GFDL-CM3-ccsm4_historical+rcp45_r1i1p1_1950-2100.nc"],
++            ["tasmax_Amon_GFDL-CM3-ccsm4_historical+rcp45_r1i1p1_1950-2100.nc"],
++        ]
++        ds = ensembles.create_ensemble(files, decode_times=False, multifile=True)
++        assert "realization" in ds.dims
++        assert ds.realization.size == 25
++        assert ds.realization.values[-1] == 24
++        assert len(ds.time) == 375
++        assert ds.tasmax.units == "K"
++
++    def test_create_ensemble_multifile_chunks(self):
++        files = [
++            ["tasmax_Amon_GFDL-CM3-ccsm4_historical+rcp45_r1i1p1_1950-2100.nc"],
++            ["tasmax_Amon_GFDL-CM3-ccsm4_historical+rcp45_r1i1p1_1950-2100.nc"],
++        ]
++        ds = ensembles.create_ensemble(
++            files, decode_times=False, multifile=True, chunks={"time": 20}
++        )
++        assert "realization" in ds.dims
++        assert ds.realization.size == 25
++        assert ds.realization.values[-1] == 24
++        assert len(ds.time) == 375
++        assert ds.tasmax.units == "K"
++
++    def test_create_ensemble_multifile_chunks_large(self):
++        files = [
++            ["tasmax_Amon_GFDL-CM3-ccsm4_historical+rcp45_r1i1p1_1950-2100.nc"],
++            ["tasmax_Amon_GFDL-CM3-ccsm4_historical+rcp45_r1i1p1_1950-2100.nc"],
++        ]
++        ds = ensembles.create_ensemble(
++            files, decode_times=False, multifile=True, chunks={"time": 2000}
++        )
++        assert "realization" in ds.dims
++        assert ds.realization.size == 25
++        assert ds.realization.values[-1] == 24
++        assert len(ds.time) == 375
++        assert ds.tasmax.units == "K"
++
++    def test_create_ensemble_multifile_chunks_small(self):
++        files = [
++            ["tasmax_Amon_GFDL-CM3-ccsm4_historical+rcp45_r1i1p1_1950-2100.nc"],
++            ["tasmax_Amon_GFDL-CM3-ccsm4_historical+rcp45_r1i1p1_1950-2100.nc"],
++        ]
++        ds = ensembles.create_ensemble(
++            files, decode_times=False, multifile=True, chunks={"time": 1}
++        )
++        assert "realization" in ds.dims
++        assert ds.realization.size == 25
++        assert ds.realization.values[-1] == 24
++        assert len(ds.time) == 375
++        assert ds.tasmax.units == "K"

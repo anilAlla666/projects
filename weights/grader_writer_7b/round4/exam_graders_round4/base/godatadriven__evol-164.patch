@@ -1,0 +1,43 @@
+diff --git a/tests/test_population_elitism.py b/tests/test_population_elitism.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_population_elitism.py
+@@ -0,0 +1,34 @@
++from pytest import mark
++
++from evol import Population, Evolution
++
++
++class TestElitism:
++
++    @mark.parametrize('elitist', [True, False])
++    def test_elitism_works(self, elitist):
++        pop = Population([0, 1, 2, 3], lambda x: x)
++        pop.evaluate()
++        initial_best = pop.best()
++
++        pop.evolve(
++            Evolution()
++            .mutate(lambda x: x + 1, elitist=elitist)
++            .evaluate(),
++            n=1
++        )
++
++        if elitist:
++            assert pop.best() == initial_best
++        else:
++            assert pop.best() != initial_best
++
++    def test_elitism_with_multiple_generations(self):
++        pop = Population([0, 1, 2, 3], lambda x: x)
++        pop.evaluate()
++        initial_best = pop.best()
++
++        pop.evolve(
++            Evolution()
++            .mutate(lambda x: x + 1, elitist=True)
++            .evaluate(),
++            n=2
++        )
++
++        assert pop.best() == initial_best

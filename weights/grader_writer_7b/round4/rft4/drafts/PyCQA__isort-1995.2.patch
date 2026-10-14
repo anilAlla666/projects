@@ -1,0 +1,284 @@
+--- /dev/null
++++ b/tests/unit/test_isort_grader.py
+@@ -0,0 +1,208 @@
++"""Tests all major functionality of the isort library
++
++Should be ran using py.test by simply running py.test in the isort project directory
++"""
++
++
++import os
++import os.path
++import subprocess
++import sys
++from io import StringIO
++from pathlib import Path
++from tempfile import NamedTemporaryFile
++from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Set, Tuple
++import py
++import pytest
++import isort
++from isort import api, files, sections
++from isort.exceptions import ExistingSyntaxErrors, FileSkipped, MissingSection
++from isort.settings import Config
++from isort.utils import exists_case_sensitive
++from .utils import UnreadableStream, as_stream
++
++
++if TYPE_CHECKING:
++    WrapModes: Any
++else:
++    from isort.wrap_modes import WrapModes
++
++
++TEST_DEFAULT_CONFIG = """
++[*.{py,pyi}]
++max_line_length = 120
++indent_style = space
++indent_size = 4
++known_first_party = isort
++known_third_party = kate
++known_something_else = something_entirely_different
++sections = FUTURE, STDLIB, THIRDPARTY, FIRSTPARTY, LOCALFOLDER, SOMETHING_ELSE
++ignore_frosted_errors = E103
++skip = build,.tox,venv
++force_adds = False
++force_remove = False
++force_single_line = False
++include_trailing_comma = false
++lines_after_imports = 2
++multi_line_output = 3
++order_by_type = False
++use_parentheses = True
++ensure_newline_before_comments = True
++float_to_top = True
++sort_within_sections = True
++add_ignore = []
++add_select = []
++atomic = False
++combine_star = True
++distinguish_local_from_non_local = True
++force_grid_wrap = 0
++force_sort_within_sections = False
++line_separator = "\\n"
++long_lines_split_only_if_on_same_indent_level = False
++old_grid_relative_import_placement = False
++skip_glob = []
++src_paths = ["."]
++tabs = False
++trailing_comma = true
++wrap_multi_line = true
++wrap_prefer_multiple_line = true
++wrap_prefer_penultimate_line = true
++wrap_prefer_rightmost = true
++wrap_threshold = 0
++"""
++
++
++@pytest.fixture(scope="function")
++def tmpdir_with_default_config(tmpdir):
++    config = Config()
++    config.save(str(tmpdir), config_data=config.to_dict())
++    yield tmpdir
++
++
++@pytest.fixture(scope="function")
++def tmpdir_with_custom_config(tmpdir):
++    config = Config(
++        max_line_length=100,
++        force_adds=True,
++        combine_star=False,
++        add_ignore=["D100"],
++        add_select=["D213"],
++        src_paths=["tests", "src"],
++        tabs=True,
++    )
++    config.save(str(tmpdir), config_data=config.to_dict())
++    yield tmpdir
++
++
++def test_reexport_list() -> None:
++    test_input = """__all__ = ['foo', 'bar']
++"""
++    expd_output = """__all__ = ['bar', 'foo']
++"""
++    assert isort.code(test_input, config=Config(sort_reexports=True)) == expd_output
++
++
++def test_reexport_set() -> None:
++    test_input = """__all__ = {'foo', 'bar'}
++"""
++    expd_output = """__all__ = {'bar', 'foo'}
++"""
++    assert isort.code(test_input, config=Config(sort_reexports=True)) == expd_output
++
++
++def test_reexport_bare() -> None:
++    test_input = """__all__ = 'foo', 'bar'
++"""
++    expd_output = """__all__ = ('bar', 'foo')
++"""
++    assert isort.code(test_input, config=Config(sort_reexports=True)) == expd_output
++
++
++def test_reexport_not_first_line() -> None:
++    test_input = """import random
++
++__all__ = ('foo', 'bar')
++"""
++    expd_output = """import random
++
++__all__ = ('bar', 'foo')
++"""
++    assert isort.code(test_input, config=Config(sort_reexports=True)) == expd_output
++
++
++def test_reexport_not_last_line() -> None:
++    test_input = """__all__ = ('foo', 'bar')
++
++meme = "rickroll"
++"""
++    expd_output = """__all__ = ('bar', 'foo')
++
++meme = "rickroll"
++"""
++    assert isort.code(test_input, config=Config(sort_reexports=True)) == expd_output
++
++
++def test_reexport_nested() -> None:
++    test_input = """__all__ = (
++        'a',
++        'b',
++    )
++"""
++    expd_output = """__all__ = (
++    'a',
++    'b',
++)
++"""
++    assert isort.code(test_input, config=Config(sort_reexports=True)) == expd_output
++
++
++def test_reexport_tuple() -> None:
++    test_input = """__all__ = (
++        'foo',
++        'bar',
++    )
++"""
++    expd_output = """__all__ = (
++    'bar',
++    'foo',
++)
++"""
++    assert isort.code(test_input, config=Config(sort_reexports=True)) == expd_output
++
++
++def test_reexport_nested_list() -> None:
++    test_input = """__all__ = (
++        ['a', 'b'],
++    )
++"""
++    expd_output = """__all__ = (
++    ['a', 'b'],
++)
++"""
++    assert isort.code(test_input, config=Config(sort_reexports=True)) == expd_output
++
++
++def test_reexport_nested_tuple() -> None:
++    test_input = """__all__ = (
++        ('a', 'b'),
++    )
++"""
++    expd_output = """__all__ = (
++    ('a', 'b'),
++)
++"""
++    assert isort.code(test_input, config=Config(sort_reexports=True)) == expd_output
++
++
++def test_reexport_not_last_element() -> None:
++    test_input = """__all__ = (
++        'foo',
++        'bar',
++        'baz',
++    )
++"""
++    expd_output = """__all__ = (
++    'bar',
++    'baz',
++    'foo',
++)
++"""
++    assert isort.code(test_input, config=Config(sort_reexports=True)) == expd_output
+--- /dev/null
++++ b/tests/unit/test_settings_grader.py
+@@ -0,0 +1,69 @@
++import os
++import sys
++from pathlib import Path
++import pytest
++from isort import exceptions, settings
++from isort.settings import Config
++from isort.wrap_modes import WrapModes
++
++
++def test_find_all_configs(tmpdir):
++    setup_cfg = """
++[isort]
++profile=django
++"""
++
++    pyproject_toml = """
++[tool.isort]
++profile = "hug"
++"""
++
++    isort_cfg = """
++[settings]
++profile=black
++"""
++
++    pyproject_toml_broken = """
++[tool.isorts]
++something = nothing
++"""
++
++    dir1 = tmpdir / "subdir1"
++    dir2 = tmpdir / "subdir2"
++    dir3 = tmpdir / "subdir3"
++    dir4 = tmpdir / "subdir4"
++
++    dir1.mkdir()
++    dir2.mkdir()
++    dir3.mkdir()
++    dir4.mkdir()
++
++    setup_cfg_file = dir1 / "setup.cfg"
++    setup_cfg_file.write_text(setup_cfg, "utf-8")
++
++    pyproject_toml_file = dir2 / "pyproject.toml"
++    pyproject_toml_file.write_text(pyproject_toml, "utf-8")
++
++    isort_cfg_file = dir3 / ".isort.cfg"
++    isort_cfg_file.write_text(isort_cfg, "utf-8")
++
++    pyproject_toml_file_broken = dir4 / "pyproject.toml"
++    pyproject_toml_file_broken.write_text(pyproject_toml_broken, "utf-8")
++
++    config_trie = settings.find_all_configs(str(tmpdir))
++
++    config_info_1 = config_trie.search(str(dir1 / "test1.py"))
++    assert config_info_1[0] == str(setup_cfg_file)
++    assert config_info_1[0] == str(setup_cfg_file) and config_info_1[1]["profile"] == "django"
++
++    config_info_2 = config_trie.search(str(dir2 / "test2.py"))
++    assert config_info_2[0] == str(pyproject_toml_file)
++    assert config_info_2[0] == str(pyproject_toml_file) and config_info_2[1]["profile"] == "hug"
++
++    config_info_3 = config_trie.search(str(dir3 / "test3.py"))
++    assert config_info_3[0] == str(isort_cfg_file)
++    assert config_info_3[0] == str(isort_cfg_file) and config_info_3[1]["profile"] == "black"
++
++    config_info_4 = config_trie.search(str(tmpdir / "file4.py"))
++    assert config_info_4[0] == "default"

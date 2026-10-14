@@ -1,0 +1,53 @@
+diff --git a/tests/test_evolution.py b/tests/test_evolution.py
+index 6f1d0e1..a0b0c9c 100644
+--- a/tests/test_evolution.py
++++ b/tests/test_evolution.py
+@@ -53,3 +53,11 @@ class TestPopulationEvolve:
+             .repeat(sub_evo, grouping_function=grouping_function, n_groups=n_groups)
+         )
+         assert len(pop.evolve(evo, n=2)) == 100
++        assert len(calls) == 2 * n_groups
++
++    def test_elitism(self):
++        pop = Population([0 for _ in range(100)], lambda x: x)
++        evo = Evolution().mutate(lambda x: x + 1, elitist=True)
++        pop.evolve(evo, n=10)
++        assert pop.best.fitness == 0
++        assert pop.worst.fitness == 9
+diff --git a/tests/test_population.py b/tests/test_population.py
+index 0000000..1000000 100644
+--- a/tests/test_population.py
++++ b/tests/test_population.py
+@@ -370,6 +370,10 @@ class TestContest:
+ class TestContestPopulation:
+ 
+     def test_init(self):
++        with raises(ValueError):
++            ContestPopulation([0, 1, 2], lambda x: x, contests_per_round=15, individuals_per_contest=15)
++        with raises(ValueError):
++            ContestPopulation([0, 1, 2], lambda x: x, contests_per_round=15, individuals_per_contest=15)
+         cp = ContestPopulation([0, 1, 2], lambda x: x, contests_per_round=15, individuals_per_contest=15)
+         assert cp.contests_per_round == 15
+         assert cp.individuals_per_contest == 15
+@@ -389,6 +393,10 @@ class TestContestPopulationBest:
+         pop = ContestPopulation([0, 1, 2],
+                                 lambda x, y: [x, y],
+                                 contests_per_round=100, individuals_per_contest=2)
++        pop.evaluate()
++        assert pop.documented_best is None
++        pop = ContestPopulation([0, 1, 2],
++                                lambda x, y: [x, y], contests_per_round=100, individuals_per_contest=2)
+         pop.evaluate()
+         assert pop.documented_best is not None
+ 
+@@ -400,6 +408,10 @@ class TestContestPopulationBest:
+         assert pop.documented_worst is not None
+         assert pop.documented_worst.fitness == 1
+ 
++    def test_mutate(self):
++        pop = ContestPopulation([0, 1, 2], lambda x: x, contests_per_round=15, individuals_per_contest=15)
++        pop.mutate(lambda x: x + 1, elitist=True)
++
+ 
+ class TestIndividual:
+ 

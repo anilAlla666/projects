@@ -1,0 +1,76 @@
+--- /dev/null
++++ b/tests/test_astpretty_test_grader.py
+@@ -0,0 +1,63 @@
++import ast
++import sys
++import pytest
++import astpretty
++
++
++def _to_module_body(s):
++    return ast.parse(s).body[0]
++
++
++def _to_expr_value(s):
++    return _to_module_body(s).value
++
++
++FUNC_SRC = '''
++def f(a, b, c):
++    d = e
++'''
++
++
++FUNC_SRC_TYPED27_OUT = '''
++Module(
++    body=[
++        FunctionDef(
++            lineno=1,
++            col_offset=0,
++            end_lineno=4,
++            end_col_offset=8,
++            name='f',
++            args=arguments(posonlyargs=[], args=['a', 'b', 'c'], vararg=None, kwonlyargs=[], kw_defaults=[], kwarg=None, defaults=[]),
++            body=[
++                Assign(
++                    lineno=3,
++                    col_offset=4,
++                    targets=[Name(id='d', ctx=Store())],
++                    value=Name(id='e', ctx=Load()),
++                ),
++            ],
++            decorator_list=[],
++            returns=None,
++            type_comment='',
++        ),
++    ],
++    type_ignores=[],
++)
++'''
++
++
++TYPED_SRC = '''
++def f(a: str, b, c=5) -> List[int]:  # type: ignore
++    d: Dict[str, Any] = {}
++'''
++
++
++TYPED27_OUT = '''
++Module(
++    body=[
++        FunctionDef(
++            lineno=1,
++            col_offset=0,
++            end_lineno=5,
++            end_col_offset=8,
++            name='f',
++            args=arguments(posonlyargs=[], args=['a', 'b'], vararg=None, kwonlyargs=['c'], kw_defaults=[Constant(value=5)], kwarg=None, defaults=[]),
++            body=[Pass(lineno=5, col_offset=4, end_lineno=5, end_col_offset=8)],
++            decorator_list=[],
++            returns=List(elts=[], type_comment=''),
++            type_comment='(a: str, b, c=5) -> List[int]',
++        ),
++    ],
++    type_ignores=[TypeIgnore(lineno=5, tag='')],
+
+```

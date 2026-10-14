@@ -1,0 +1,43 @@
+--- /dev/null
++++ b/tests/test_grader_generated.py
+@@ -0,0 +1,40 @@
++# Licensed under a 3-clause BSD style license - see LICENSE.rst
++
++import numpy as np
++from astropy.nddata import CCDData
++from ccdproc.combiner import Combiner, combine
++import pytest
++
++def test_combiner_accepts_generator():
++    # Create some sample CCDData objects
++    ccd1 = CCDData(np.ones((10, 10)), unit='adu')
++    ccd2 = CCDData(np.ones((10, 10)), unit='adu')
++    ccd3 = CCDData(np.ones((10, 10)), unit='adu')
++
++    # Create a generator of CCDData objects
++    ccd_gen = (ccd1, ccd2, ccd3)
++
++    # Check that the Combiner constructor raises a TypeError when given a generator
++    with pytest.raises(TypeError):
++        Combiner(ccd_gen)
++
++    # Check that the combine function works with a generator
++    result = combine(ccd_gen, method='average')
++    assert isinstance(result, CCDData)
++    assert result.shape == (10, 10)
++    assert np.allclose(result.data, 1.0)
++
++def test_combine_accepts_generator():
++    # Create some sample CCDData objects
++    ccd1 = CCDData(np.ones((10, 10)), unit='adu')
++    ccd2 = CCDData(np.ones((10, 10)), unit='adu')
++    ccd3 = CCDData(np.ones((10, 10)), unit='adu')
++
++    # Create a generator of CCDData objects
++    ccd_gen = (ccd1, ccd2, ccd3)
++
++    # Check that the combine function works with a generator
++    result = combine(ccd_gen, method='average')
++    assert isinstance(result, CCDData)
++    assert result.shape == (10, 10)
++    assert np.allclose(result.data, 1.0)

@@ -1,0 +1,113 @@
+--- /dev/null
++++ b/tests/ipopo/test_handlers_grader.py
+@@ -0,0 +1,102 @@
++"""
++Tests iPOPO handlers, using the sample logger handler
++
++:author: Thomas Calmant
++"""
++
++
++import sys
++
++
++try:
++    import unittest2 as unittest
++except ImportError:
++    import unittest
++
++
++from pelix.framework import FrameworkFactory
++import pelix.ipopo.handlers.constants as constants
++from tests.ipopo import install_bundle, install_ipopo
++
++
++__version_info__ = (1, 0, 1)
++
++
++__version__ = ".".join(str(x) for x in __version_info__)
++
++
++HANDLER_BUNDLE_NAME = "samples.handler.logger"
++
++
++COMPONENT_BUNDLE_NAME = "samples.handler.sample"
++
++
++HANDLER_ID = "sample.handler.logger"
++
++
++COMPONENT_NAME = "sample-logger-component"
++
++
++class TestRequiresVarFilter(unittest.TestCase):
++    """
++    Tests the RequiresVarFilter handler
++    """
++
++    @classmethod
++    def setUpClass(cls):
++        """
++        Setup the test suite
++        """
++        cls.framework = FrameworkFactory.new_framework()
++        FrameworkFactory.init_framework(cls.framework)
++
++    @classmethod
++    def tearDownClass(cls):
++        """
++        Tears down the test suite
++        """
++        FrameworkFactory.delete_framework()
++
++    def setUp(self):
++        """
++        Prepares the test environment
++        """
++        self.framework.start()
++        self.context = self.framework.get_bundle_context()
++
++    def tearDown(self):
++        """
++        Cleans up the test environment
++        """
++        self.framework.stop()
++
++    def test_requires_var_filter(self):
++        """
++        Tests the RequiresVarFilter handler
++        """
++        ipopo = install_ipopo(self.framework)
++        install_bundle(self.framework, HANDLER_BUNDLE_NAME)
++
++        # Install the component bundle
++        install_bundle(self.framework, COMPONENT_BUNDLE_NAME)
++
++        # Create the component
++        ipopo.instantiate(COMPONENT_NAME, COMPONENT_NAME)
++
++        # Get the component instance
++        compo = self.context.get_service_reference(COMPONENT_NAME)
++        self.assertIsNotNone(compo, "Could not get component's service ref")
++
++        # Update the component's filter
++        self.context.set_property(compo, "test.filter", "(key=value)")
++
++        # The component should be invalidated
++        compo = self.context.get_service(COMPONENT_NAME)
++        self.assertIsNone(compo, "Component should be invalidated")
++
++        # Clear the filter
++        self.context.set_property(compo, "test.filter", None)
++
++        # The component should be active again
++        compo = self.context.get_service(COMPONENT_NAME)
++        self.assertIsNotNone(compo, "Could not get component's service ref")
++        self.assertEqual(1, compo.get_count(), "Wrong number of calls")
++
++
++if __name__ == "__main__":
++    import logging
++    logging.basicConfig(level=logging.DEBUG)
++
++    unittest.main()

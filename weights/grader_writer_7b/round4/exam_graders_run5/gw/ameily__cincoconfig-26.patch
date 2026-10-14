@@ -1,0 +1,17 @@
+--- /dev/null
++++ b/tests/test_fields_grader.py
+@@ -0,0 +1,14 @@
++from unittest.mock import patch
++import pytest
++from cincoconfig.fields import SecureField
++
++
++def test_securefield_empty_string():
++    sf = SecureField()
++    assert sf.to_python(None, '') is None
++
++
++@patch('cincoconfig.fields.SecureField.to_python')
++def test_securefield_to_python_none(mock_to_python):
++    mock_to_python.return_value = 'foo'
++    assert SecureField().to_python(None, None) == 'foo'

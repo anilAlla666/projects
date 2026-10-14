@@ -1,0 +1,49 @@
+--- /dev/null
++++ b/systemfixtures/tests/test_filesystem_grader.py
+@@ -0,0 +1,44 @@
++import glob
++import os
++import sqlite3
++import six
++import shutil
++from testtools import TestCase, skipIf
++from testtools.matchers import (
++    DirExists,
++    HasPermissions,
++    FileContains,
++)
++from fixtures import TempDir
++from ..filesystem import FakeFilesystem
++from ..matchers import HasOwnership
++
++
++if six.PY2:
++    PermissionError = OSError
++
++
++class FakeFilesystemTest(TestCase):
++    def setUp(self):
++        super(FakeFilesystemTest, self).setUp()
++        self.fs = self.useFixture(FakeFilesystem())
++
++    def test_copytree(self):
++        self.fs.add("/foo")
++        os.makedirs("/foo/bar")
++        with open("/foo/bar/hello.txt", "w") as fd:
++            fd.write("hello")
++        self.fs.add("/foo/egg")
++        os.makedirs("/foo/egg")
++        shutil.copytree("/foo/bar", "/foo/egg")
++        self.assertThat("/foo/egg/hello.txt", FileContains("hello"))
++
++    def test_copytree_with_fd(self):
++        self.fs.add("/foo")
++        os.makedirs("/foo/bar")
++        with open("/foo/bar/hello.txt", "w") as fd:
++            fd.write("hello")
++        self.fs.add("/foo/egg")
++        os.makedirs("/foo/egg")
++        fd = os.open("/foo/bar", os.O_RDONLY)
++        self.addCleanup(os.close, fd)
++        shutil.copytree(fd, "/foo/egg")
++        self.assertThat("/foo/egg/hello.txt", FileContains("hello"))

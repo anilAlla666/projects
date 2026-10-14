@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/test_document_grader.py
+@@ -0,0 +1,30 @@
++import pytest
++from svgpathtools import *
++
++
++def test_add_path_to_empty_group():
++    doc = Document()
++    empty = doc.add_group(group_attribs={"id": "empty"})
++    assert len(empty) == 0
++    doc.add_path("M 0,0 L 1,1", group=empty)
++    assert len(empty) == 1
++
++
++def test_add_path_without_group():
++    doc = Document()
++    doc.add_path("M 0,0 L 1,1")
++    assert len(doc.paths()) == 1
++
++
++def test_add_path_with_parent_group():
++    doc = Document()
++    g = doc.add_group(group_attribs={'id': 'g'})
++    c = doc.add_group(['g'], group_attribs={'id': 'c'})
++    doc.add_path("M 0,0 L 1,1", group=['g'])
++    assert len(g) == 1
++    assert len(c) == 0
++    doc.add_path("M 0,0 L 1,1", group=['g', 'c'])
++    assert len(g) == 1
++    assert len(c) == 1
++
++
++if __name__ == '__main__':
++    pytest.main(__file__)

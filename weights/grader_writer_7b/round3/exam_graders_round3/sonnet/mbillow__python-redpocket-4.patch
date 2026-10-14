@@ -1,0 +1,40 @@
+diff --git a/tests/test_details_type_api.py b/tests/test_details_type_api.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_details_type_api.py
+@@ -0,0 +1,38 @@
++from urllib.parse import urlparse, parse_qs
++
++import responses
++
++from redpocket import RedPocket
++
++
++def _details_calls():
++    return [
++        c
++        for c in responses.calls
++        if urlparse(c.request.url).path == "/account/get-details"
++    ]
++
++
++@responses.activate
++def test_get_line_details_requests_type_api(
++    successful_login: None, mock_line_details: dict
++):
++    responses.add(
++        responses.GET,
++        "https://www.redpocket.com/account/get-details",
++        status=200,
++        json={"return_code": 1, "return_data": mock_line_details},
++    )
++    rp = RedPocket(username="fake", password="password")
++    details = rp.get_line_details("AAA1BBB2")
++
++    assert details.number == 1234567890
++
++    calls = _details_calls()
++    assert len(calls) == 1
++    query = parse_qs(urlparse(calls[0].request.url).query)
++    assert query.get("id") == ["AAA1BBB2"]
++    assert query.get("type") == ["api"]

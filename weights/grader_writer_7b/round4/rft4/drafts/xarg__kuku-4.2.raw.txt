@@ -1,0 +1,44 @@
+--- /dev/null
++++ b/tests/test_dump_grader.py
+@@ -0,0 +1,40 @@
++from unittest.mock import patch
++
++
++from kuku.dump import dump
++from kuku.rendering import Rendering
++
++
++@patch("kuku.dump.YAMLOrderedDumper.add_representer")
++def test_dump_returns_empty_string_when_nothing_to_dump(mock_add_representer):
++    """
++    When no objects were rendered by the templates, the dump function should
++    return an empty string.
++    """
++    mock_add_representer.return_value = None
++    assert dump({}) == ""
++
++
++@patch("kuku.dump.YAMLOrderedDumper.add_representer")
++def test_dump_ignores_none_values(mock_add_representer):
++    """
++    If a template returns None, it should be ignored.
++    """
++    mock_add_representer.return_value = None
++    rendering = Rendering(
++        {
++            "/templates/deployment.py": [
++                None,
++                None,
++                None,
++            ],
++            "/templates/service.py": [
++                None,
++                None,
++                None,
++            ],
++        }
++    )
++
++    expected_result = ""
++    actual_result = dump(rendering)
++    assert actual_result == expected_result

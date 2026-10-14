@@ -1,0 +1,126 @@
+--- /dev/null
++++ b/lib/urlwatch/tests/test_filters_grader.py
+@@ -0,0 +1,135 @@
++import os
++import logging
++import yaml
++from urlwatch.filters import FilterBase
++import pytest
++
++
++logger = logging.getLogger(__name__)
++
++
++TESTDATA = [
++    # Legacy string-style filter definition conversion
++    ('grep', [('grep', {})]),
++    ('grep:foo', [('grep', {'re': 'foo'})]),
++    ('beautify,grep:foo,html2text', [('beautify', {}), ('grep', {'re': 'foo'}), ('html2text', {})]),
++    ('re.sub:.*', [('re.sub', {'pattern': '.*'})]),
++    ('re.sub', [('re.sub', {})]),
++
++    # New dict-style filter definition normalization/mapping
++    ([{'grep': None}], [('grep', {})]),
++    ([{'grep': {'re': 'bla'}}], [('grep', {'re': 'bla'})]),
++    ([{'reverse': '\n\n'}], [('reverse', {'separator': '\n\n'})]),
++    (['html2text', {'grep': 'Current.*version'}, 'strip'], [
++        ('html2text', {}),
++        ('grep', {'re': 'Current.*version'}),
++        ('strip', {}),
++    ]),
++    ([{'css': 'body'}], [('css', {'selector': 'body'})]),
++    ([{'html2text': {'method': 'bs4', 'parser': 'html5lib'}}], [
++        ('html2text', {'method': 'bs4', 'parser': 'html5lib'}),
++    ]),
++]
++
++
++FILTER_TESTS = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), 'data/filter_tests.yaml'), 'r', encoding='utf8'))
++
++
++@pytest.fixture(scope="function")
++def monkeypatch_env(monkeypatch):
++    """
++    Monkeypatches the `os.environ` dictionary.
++    """
++    env = os.environ.copy()
++    yield monkeypatch.setattr(os, 'environ', env)
++
++
++@pytest.fixture(scope="function")
++def monkeypatch_env_clear(monkeypatch):
++    """
++    Monkeypatches the `os.environ` dictionary and clears it.
++    """
++    env = {}
++    yield monkeypatch.setattr(os, 'environ', env)
++
++
++class TestShellPipeFilter:
++    def setup_method(self):
++        self.state = MockJobState("mock-job-name", "mock-location")
++
++    @pytest.mark.usefixtures("monkeypatch_env_clear")
++    def test_shell_pipe_with_environment_variables_added(self, monkeypatch_env):
++        """
++        Verifies that the `environment_variables` property of the `MockJobState`
++        object gets merged into the environment before executing the shell pipe.
++        """
++        monkeypatch_env["SOME_ENV_VAR"] = "some value"
++        monkeypatch_env["ANOTHER_ENV_VAR"] = "another value"
++        monkeypatch_env["A_THIRD_ENV_VAR"] = "a third value"
++
++        expected_env_vars = {
++            "SOME_ENV_VAR": "some value",
++            "ANOTHER_ENV_VAR": "another value",
++            "A_THIRD_ENV_VAR": "a third value",
++            "URLWATCH_JOB_NAME": "mock-job-name",
++            "URLWATCH_JOB_LOCATION": "mock-location",
++        }
++
++        shell_pipe_filter = FilterBase.filter_class_for("shellpipe")(self.state, None)
++        actual_env_vars = shell_pipe_filter.environment_variables
++
++        assert actual_env_vars == expected_env_vars
++
++    @pytest.mark.usefixtures("monkeypatch_env")
++    def test_shell_pipe_with_environment_variables_overwritten(self, monkeypatch_env):
++        """
++        Verifies that the `environment_variables` property of the `MockJobState`
++        object overwrites any pre-existing environment variables.
++        """
++        monkeypatch_env["URLWATCH_JOB_NAME"] = "overridden job name"
++        monkeypatch_env["URLWATCH_JOB_LOCATION"] = "overridden location"
++
++        expected_env_vars = {
++            "URLWATCH_JOB_NAME": "mock-job-name",
++            "URLWATCH_JOB_LOCATION": "mock-location",
++        }
++
++        shell_pipe_filter = FilterBase.filter_class_for("shellpipe")(self.state, None)
++        actual_env_vars = shell_pipe_filter.environment_variables
++
++        assert actual_env_vars == expected_env_vars
++
++
++class MockJobState:
++    """
++    A simple mock implementation of the `JobState` interface used to provide
++    the required functionality to the shell pipe filter during testing.
++    """
++    def __init__(self, name, location):
++        self._name = name
++        self._location = location
++
++    def pretty_name(self):
++        return self._name
++
++    def get_location(self):
++        return self._location
++
++    @property
++    def environment_variables(self):
++        return {
++            "URLWATCH_JOB_NAME": self.pretty_name(),
++            "URLWATCH_JOB_LOCATION": self.get_location(),
++        }

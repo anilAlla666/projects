@@ -1,0 +1,83 @@
+--- /dev/null
++++ b/tests/test_ext_marshmallow_grader.py
+@@ -0,0 +1,82 @@
++import json
++import pytest
++from marshmallow.fields import Field, DateTime, Dict, String, Nested, List
++from marshmallow import Schema
++from apispec import APISpec
++from apispec.ext.marshmallow import MarshmallowPlugin
++from apispec.ext.marshmallow.openapi import MARSHMALLOW_VERSION_INFO
++from apispec.ext.marshmallow import common
++from apispec.exceptions import APISpecError
++from .schemas import (
++    PetSchema,
++    AnalysisSchema,
++    RunSchema,
++    SelfReferencingSchema,
++    OrderedSchema,
++    PatternedObjectSchema,
++    DefaultValuesSchema,
++    AnalysisWithListSchema,
++)
++from .utils import get_schemas, get_parameters, get_responses, get_paths, build_ref
++
++
++@pytest.fixture
++def spec():
++    return APISpec(
++        title="Example API",
++        version="1.0.0",
++        openapi_version="3.0.2",
++        plugins=[MarshmallowPlugin()],
++    )
++
++
++class TestSchemaRef:
++    def test_string_schema_ref(self, spec):
++        schema_name = "PetSchema"
++        spec.components.schema(schema_name, schema=PetSchema)
++        schema_ref = common.string_schema_ref(schema_name)
++        assert isinstance(schema_ref, dict)
++        assert "$ref" in schema_ref
++        assert schema_ref["$ref"].endswith("#/components/schemas/PetSchema")
++
++
++class TestCircularReferences:
++    class CatSchema(Schema):
++        name = String()
++
++    class DogSchema(Schema):
++        cat = Nested(lambda: CatSchema(), many=True)
++
++    class CatSchema(CatSchema):
++        dog = Nested(lambda: DogSchema())
++
++    class PetSchema(Schema):
++        cats = Nested(lambda: CatSchema(), many=True)
++        dogs = Nested(lambda: DogSchema(), many=True)
++
++    @pytest.fixture
++    def spec(self):
++        spec = APISpec(
++            title="Example API",
++            version="1.0.0",
++            openapi_version="3.0.2",
++            plugins=[MarshmallowPlugin()],
++        )
++        return spec
++
++    def test_circular_reference(self, spec):
++        spec.components.schema("Cat", schema=self.CatSchema)
++        spec.components.schema("Dog", schema=self.DogSchema)
++        spec.components.schema("Pet", schema=self.PetSchema)
++
++        refs = {
++            "Cat": "#/components/schemas/Cat",
++            "Dog": "#/components/schemas/Dog",
++            "Pet": "#/components/schemas/Pet",
++        }
++
++        for schema_name, expected_ref in refs.items():
++            actual_ref = spec.components._get_component_ref(schema_name)
++            assert actual_ref == expected_ref

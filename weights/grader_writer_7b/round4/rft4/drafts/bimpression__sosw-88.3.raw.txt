@@ -1,0 +1,59 @@
+--- /dev/null
++++ b/sosw/managers/test/unit/test_ecology_grader.py
+@@ -0,0 +1,57 @@
++import boto3
++import logging
++import time
++import unittest
++import os
++from collections import defaultdict
++from unittest.mock import MagicMock, patch
++
++
++logging.getLogger('botocore').setLevel(logging.WARNING)
++
++
++os.environ["STAGE"] = "test"
++
++
++os.environ["autotest"] = "True"
++
++
++from sosw.labourer import Labourer
++from sosw.managers.ecology import EcologyManager
++from sosw.test.variables import TEST_ECOLOGY_CLIENT_CONFIG
++
++
++class ecology_manager_UnitTestCase(unittest.TestCase):
++    TEST_CONFIG = TEST_ECOLOGY_CLIENT_CONFIG
++
++    LABOURER = Labourer(id='some_function', arn='arn:aws:lambda:us-west-2:000000000000:function:some_function')
++
++    def setUp(self):
++        """
++        We keep copies of main parameters here, because they may differ from test to test and cleanup needs them.
++        This is responsibility of the test author to update these values if required from test.
++        """
++
++        self.patcher = patch("sosw.app.get_config")
++        self.get_config_patch = self.patcher.start()
++
++        self.config = self.TEST_CONFIG.copy()
++
++        self.manager = EcologyManager(custom_config=self.config)
++
++    def tearDown(self):
++        self.patcher.stop()
++
++    def test_get_max_labourer_duration__returns_from_config(self):
++        self.manager._max_labourer_duration = 42
++        self.assertEqual(self.manager.get_max_labourer_duration(self.LABOURER), 42)
++
++    def test_get_max_labourer_duration__uses_aws_api(self):
++        self.manager._max_labourer_duration = None
++
++        # Mock AWS API
++        mock = MagicMock(return_value={"Configuration": {"Timeout": 42}})
++        with patch.object(boto3.client, "lambda_", side_effect=mock) as p:
++            self.assertEqual(self.manager.get_max_labourer_duration(self.LABOURER), 42)
++            p.assert_called_with(region_name="us-east-1", config=None)

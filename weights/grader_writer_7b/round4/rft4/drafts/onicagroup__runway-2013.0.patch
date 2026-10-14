@@ -1,0 +1,198 @@
+--- /dev/null
++++ b/tests/unit/core/components/test_module_path_grader.py
+@@ -0,0 +1,137 @@
++"""Test runway.core.components._module_path."""
++
++
++from __future__ import annotations
++from copy import deepcopy
++from pathlib import Path
++from typing import TYPE_CHECKING, Dict, List, Optional, Union
++import pytest
++from mock import MagicMock
++from typing_extensions import TypedDict
++from runway.config.components.runway import RunwayModuleDefinition
++from runway.config.models.runway import RunwayModuleDefinitionModel
++from runway.core.components._module_path import ModulePath
++
++
++if TYPE_CHECKING:
++    from pytest_mock import MockerFixture
++    from runway.core.components import DeployEnvironment
++
++
++MODULE = "runway.core.components._module_path"
++
++
++TypeDefTestDefinitionExpected = TypedDict(
++    "TypeDefTestDefinitionExpected",
++    arguments=Dict[str, str],
++    location=str,
++    source=str,
++    uri=str,
++)
++
++
++TypeDefTestDefinition = TypedDict(
++    "TypeDefTestDefinition",
++    definition=Optional[Union[Path, str]],
++    expected=TypeDefTestDefinitionExpected,
++)
++
++
++TESTS: List[TypeDefTestDefinition] = [
++    {
++        "definition": Path("/foo"),
++        "expected": {
++            "arguments": {},
++            "location": "/foo",
++            "source": "",
++            "uri": "",
++        },
++    },
++    {
++        "definition": Path("./bar/baz"),
++        "expected": {
++            "arguments": {},
++            "location": "./bar/baz",
++            "source": "",
++            "uri": "",
++        },
++    },
++    {
++        "definition": "git::https://github.com/foo/bar.git?baz=value",
++        "expected": {
++            "arguments": {"baz": "value"},
++            "location": "https://github.com/foo/bar.git",
++            "source": "git",
++            "uri": "https://github.com/foo/bar.git",
++        },
++    },
++    {
++        "definition": "git::https://github.com/foo/bar.git#commit-ish=baz",
++        "expected": {
++            "arguments": {"commit-ish": "baz"},
++            "location": "https://github.com/foo/bar.git",
++            "source": "git",
++            "uri": "https://github.com/foo/bar.git",
++        },
++    },
++    {
++        "definition": "git::ssh://git@github.com/foo/bar.git?baz=value",
++        "expected": {
++            "arguments": {"baz": "value"},
++            "location": "ssh://git@github.com/foo/bar.git",
++            "source": "git",
++            "uri": "ssh://git@github.com/foo/bar.git",
++        },
++    },
++    {
++        "definition": "git::ssh://git@github.com/foo/bar.git#commit-ish=baz",
++        "expected": {
++            "arguments": {"commit-ish": "baz"},
++            "location": "ssh://git@github.com/foo/bar.git",
++            "source": "git",
++            "uri": "ssh://git@github.com/foo/bar.git",
++        },
++    },
++    {
++        "definition": "s3::my-bucket/my-folder?region=us-east-1&key=my-key",
++        "expected": {
++            "arguments": {"key": "my-key", "region": "us-east-1"},
++            "location": "my-bucket/my-folder",
++            "source": "s3",
++            "uri": "my-bucket/my-folder",
++        },
++    },
++    {
++        "definition": "s3::my-bucket/my-folder#key=my-key",
++        "expected": {
++            "arguments": {"key": "my-key"},
++            "location": "my-bucket/my-folder",
++            "source": "s3",
++            "uri": "my-bucket/my-folder",
++        },
++    },
++    {
++        "definition": "s3::my-bucket/my-folder?region=us-east-1",
++        "expected": {
++            "arguments": {"region": "us-east-1"},
++            "location": "my-bucket/my-folder",
++            "source": "s3",
++            "uri": "my-bucket/my-folder",
++        },
++    },
++    {
++        "definition": "s3::my-bucket/my-folder",
++        "expected": {
++            "arguments": {},
++            "location": "my-bucket/my-folder",
++            "source": "s3",
++            "uri": "my-bucket/my-folder",
++        },
++    },
++]
++
++
++class TestModulePathParseObj:
++    """Test ModulePath.parse_obj."""
++
++    def test_git_ssh(self, deploy_environment: DeployEnvironment, tmp_path: Path) -> None:
++        """Test git::ssh."""
++        obj = ModulePath.parse_obj(
++            "git::ssh://git@github.com/foo/bar.git", cache_dir=tmp_path, deploy_environment=deploy_environment
++        )
++        assert obj.location == "ssh://git@github.com/foo/bar.git"
++        assert obj.uri == "ssh://git@github.com/foo/bar.git"
+--- /dev/null
++++ b/tests/unit/module/staticsite/options/test_components_grader.py
+@@ -0,0 +1,53 @@
++"""Test runway.module.staticsite.options.components."""
++
++
++from __future__ import annotations
++from pathlib import Path
++from typing import Any, Dict
++import pytest
++from mock import patch
++from runway.module.staticsite.options.components import StaticSiteOptions
++from runway.module.staticsite.options.models import (
++    RunwayStaticSiteModuleOptionsDataModel,
++    RunwayStaticSitePreBuildStepDataModel,
++)
++
++
++MODULE = "runway.module.staticsite.options.components"
++
++
++class TestStaticSiteOptions:
++    """Test StaticSiteOptions."""
++
++    @patch(MODULE + ".StaticSiteOptions.validate_source_hashing", return_value=None)
++    def test_validate_data_model(
++        self, patched_validate_source_hashing: MagicMock, tmp_path: Path
++    ) -> None:
++        """Test validate_data_model."""
++        data = RunwayStaticSiteModuleOptionsDataModel(
++            build_output="./dist",
++            build_steps=[tmp_path.joinpath("build.sh")],
++            extra_files={tmp_path.joinpath(".env"): "."},
++            pre_build_steps=[RunwayStaticSitePreBuildStepDataModel(command="echo hello world")],
++            source_hashing={"method": "sha256", "include": [tmp_path]},
++        )
++        obj = StaticSiteOptions(data=data)
++        obj.validate_data_model()  # don't care about the actual implementation
++        patched_validate_source_hashing.assert_called_once_with(
++            data.source_hashing, data.include_files
++        )
++
++    @staticmethod
++    def _get_test_options(**kwargs: Any) -> Dict[str, Any]:
++        """Return test options."""
++        return {
++            "build_output": kwargs.get("build_output", Path(".")),
++            "build_steps": kwargs.get("build_steps", []),
++            "extra_files": kwargs.get("extra_files", {}),
++            "pre_build_steps": kwargs.get("pre_build_steps", []),
++            "source_hashing": kwargs.get("source_hashing", {}),
++        }

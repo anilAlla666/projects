@@ -1,0 +1,128 @@
+--- /dev/null
++++ b/tests/test_client_grader.py
+@@ -0,0 +1,119 @@
++"""
++Tests the ability to connect to the SAPI server with the `dwave.cloud.qpu.Client`.
++
++test_mock_solver_loading.py duplicates some of these tests against a mock server.
++"""
++
++
++from __future__ import absolute_import
++import json
++import unittest
++import warnings
++import requests.exceptions
++from plucky import merge
++from dwave.cloud.config import load_config
++from dwave.cloud.client import Client
++from dwave.cloud.solver import Solver
++from dwave.cloud.exceptions import (
++    SolverAuthenticationError, SolverError, SolverNotFoundError)
++from dwave.cloud.testing import mock
++import dwave.cloud
++from tests import config
++
++
++class TestClient(unittest.TestCase):
++    def setUp(self):
++        self.endpoint = config.API_ENDPOINT
++        self.token = config.API_TOKEN
++        self.username = config.API_USERNAME
++        self.password = config.API_PASSWORD
++        self.solver1 = Solver(id="solver1",
++                              parameters={"num_reads_range": [1, 10]},
++                              properties={"num_qubits": 100, "num_active_qubits": 95})
++        self.solver2 = Solver(id="solver2",
++                              parameters={"num_reads_range": [1, 100]},
++                              properties={"num_qubits": 100, "num_active_qubits": 90})
++        self.solver3 = Solver(id="solver3",
++                              parameters={"num_reads_range": [1, 1000]},
++                              properties={"num_qubits": 100, "num_active_qubits": 90, "vfyc": False})
++        self.solvers = [self.solver1, self.solver2, self.solver3]
++        self.client = Client(endpoint=self.endpoint,
++                             token=self.token,
++                             username=self.username,
++                             password=self.password)
++
++    @mock.patch.object(dwave.cloud.client.Client, '_get')
++    def test_filter_by_properties(self, mock_get):
++        mock_get.return_value.status_code = 200
++        mock_get.return_value.json.return_value = {'solvers': [self.solver1, self.solver2]}
++
++        # filter by Solver inferred properties
++        self.assertEqual(self.client.get_solvers(num_qubits=100), [self.solver1, self.solver2])
++        self.assertEqual(self.client.get_solvers(num_active_qubits__lt=90), [self.solver1])
++        self.assertEqual(self.client.get_solvers(is_qpu=True), [self.solver1, self.solver2])
++        self.assertEqual(self.client.get_solvers(is_online=True), [])
++        self.assertEqual(self.client.get_solvers(name='solver1'), [self.solver1])
++        self.assertEqual(self.client.get_solvers(chip_id='chip_id'), [self.solver1])
++
++        # filter by solver property
++        self.assertEqual(self.client.get_solvers(properties={'num_qubits': 100}), [self.solver1, self.solver2])
++        self.assertEqual(self.client.get_solvers(properties={'num_active_qubits': 95}), [self.solver1])
++        self.assertEqual(self.client.get_solvers(properties={'vfyc': False}), [self.solver3])
++        self.assertEqual(self.client.get_solvers(properties={'vfyc': True}), [self.solver1, self.solver2])
++
++        # filter by upper bound of a range property
++        self.assertEqual(self.client.get_solvers(num_reads_range__lt=[1, 50]), [self.solver1])
++        self.assertEqual(self.client.get_solvers(num_reads_range__gt=[1, 50]), [self.solver2, self.solver3])
++        self.assertEqual(self.client.get_solvers(num_reads_range__gte=[1, 50]), [self.solver2, self.solver3])
++        self.assertEqual(self.client.get_solvers(num_reads_range__lte=[1, 50]), [self.solver1])
++        self.assertEqual(self.client.get_solvers(num_reads_range__eq=[1, 10]), [self.solver1])
++        self.assertEqual(self.client.get_solvers(num_reads_range__eq=[1, 100]), [self.solver2])
++        self.assertEqual(self.client.get_solvers(num_reads_range__in=[1, 100]), [self.solver1, self.solver2])
++
++        # filter by lower bound of a range property
++        self.assertEqual(self.client.get_solvers(num_reads_range__gt=[10, 100]), [self.solver3])
++        self.assertEqual(self.client.get_solvers(num_reads_range__gte=[10, 100]), [self.solver3])
++        self.assertEqual(self.client.get_solvers(num_reads_range__lt=[10, 100]), [self.solver1, self.solver2])
++        self.assertEqual(self.client.get_solvers(num_reads_range__lte=[10, 100]), [self.solver1, self.solver2])
++        self.assertEqual(self.client.get_solvers(num_reads_range__eq=[10, 100]), [self.solver1, self.solver2])
++        self.assertEqual(self.client.get_solvers(num_reads_range__eq=[100, 1000]), [self.solver3])
++        self.assertEqual(self.client.get_solvers(num_reads_range__in=[100, 1000]), [self.solver3])
++
++        # filter by string property
++        self.assertEqual(self.client.get_solvers(chip_id__startswith='ch'), [self.solver1])
++        self.assertEqual(self.client.get_solvers(chip_id__endswith='ip'), [self.solver1])
++        self.assertEqual(self.client.get_solvers(chip_id__regex=r'.*ip$'), [self.solver1])
++        self.assertEqual(self.client.get_solvers(chip_id__regex=r'^chip_id$'), [self.solver1])
++        self.assertEqual(self.client.get_solvers(chip_id__regex=r'^.*ip$'), [self.solver1])
++        self.assertEqual(self.client.get_solvers(chip_id__regex=r'^.+ip$'), [self.solver1])
++
++        # filter by solver availability
++        self.assertEqual(self.client.get_solvers(available=True), [self.solver1, self.solver2])
++        self.assertEqual(self.client.get_solvers(available=False), [self.solver3])
++        self.assertEqual(self.client.get_solvers(available=None), self.solvers)
++
++        # filter by solver name or id
++        self.assertEqual(self.client.get_solvers(name='solver1'), [self.solver1])
++        self.assertEqual(self.client.get_solvers(id='solver1'), [self.solver1])
++        self.assertEqual(self.client.get_solvers(name__regex='^sol'), self.solvers)
++        self.assertEqual(self.client.get_solvers(id__regex='^sol'), self.solvers)
++        self.assertEqual(self.client.get_solvers(name__regex='^solver1$'), [self.solver1])
++        self.assertEqual(self.client.get_solvers(id__regex='^solver1$'), [self.solver1])
++        self.assertEqual(self.client.get_solvers(name__regex='^[0-9]{3}$'), [])
++        self.assertEqual(self.client.get_solvers(id__regex='^[0-9]{3}$'), [])
++
++        # filter by solver capabilities
++        self.assertEqual(self.client.get_solvers(supported_problem_types=['ising'], is_qpu=True), [self.solver1])
++        self.assertEqual(self.client.get_solvers(supported_problem_types=['qubo'], is_qpu=True), [self.solver1])
++        self.assertEqual(self.client.get_solvers(supported_problem_types=['ising', 'qubo'], is_qpu=True), [self.solver1])
++        self.assertEqual(self.client.get_solvers(supported_problem_types=['ising'], is_qpu=False), [self.solver3])
++        self.assertEqual(self.client.get_solvers(supported_problem_types=['qubo'], is_qpu=False), [self.solver3])
++        self.assertEqual(self.client.get_solvers(supported_problem_types=['ising', 'qubo'], is_qpu=False), [self.solver3])
++
++        # filter by qubit sets
++        self.assertEqual(self.client.get_solvers(qubits__issubset=[0, 1, 2, 3]), [self.solver1, self.solver2])
++        self.assertEqual(self.client.get_solvers(qubits__issuperset=[0, 1, 2, 3]), [self.solver1, self.solver2])
++        self.assertEqual(self.client.get_solvers(qubits__contains=0), [self.solver1, self.solver2])
++        self.assertEqual(self.client.get_solvers(qubits__contains=[0, 1]), [self.solver1, self.solver2])
++
++        # filter by None values
++        self.assertEqual(self.client.get_solvers(vfyc__none=True), [self.solver3])
++        self.assertEqual(self.client.get_solvers(vfyc__none=False), [self.solver1, self.solver2])
++
++
++if __name__ == '__main__':
++    unittest.main()

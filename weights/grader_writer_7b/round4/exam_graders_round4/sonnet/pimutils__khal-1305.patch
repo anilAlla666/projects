@@ -1,0 +1,60 @@
+diff --git a/tests/parse_datetime_plus_delta_test.py b/tests/parse_datetime_plus_delta_test.py
+new file mode 100644
+--- /dev/null
++++ b/tests/parse_datetime_plus_delta_test.py
+@@ -0,0 +1,57 @@
++import datetime as dt
++
++import pytest
++from freezegun import freeze_time
++
++from khal.parse_datetime import eventinfofstr, guessrangefstr, guesstimedeltafstr
++
++from .utils import LOCALE_BERLIN
++
++
++@pytest.mark.parametrize('plus,plain', [
++    ('+90m', '90m'),
++    ('+1d', '1d'),
++    ('+2h', '2h'),
++    ('+1h 15m', '1h 15m'),
++    ('+30s', '30s'),
++])
++def test_guesstimedeltafstr_leading_plus(plus, plain):
++    assert guesstimedeltafstr(plus) == guesstimedeltafstr(plain)
++
++
++def test_guesstimedeltafstr_leading_plus_value():
++    assert guesstimedeltafstr('+90m') == dt.timedelta(minutes=90)
++
++
++def test_guesstimedeltafstr_negative_still_works():
++    assert guesstimedeltafstr('-1d') == dt.timedelta(days=-1)
++
++
++@freeze_time('2014-02-16 12:00:00')
++def test_guessrangefstr_leading_plus():
++    plus = guessrangefstr('tomorrow 10:00 +90m', LOCALE_BERLIN)
++    plain = guessrangefstr('tomorrow 10:00 90m', LOCALE_BERLIN)
++    assert plus == plain
++    start, end, allday = plus
++    assert end - start == dt.timedelta(minutes=90)
++    assert not allday
++
++
++@freeze_time('2014-02-16 12:00:00')
++def test_eventinfofstr_leading_plus():
++    def parse(s):
++        return eventinfofstr(
++            s, LOCALE_BERLIN,
++            dt.timedelta(days=1),
++            dt.timedelta(hours=1),
++            adjust_reasonably=True,
++        )
++
++    plus = parse('tomorrow 10:00 +90m Test')
++    plain = parse('tomorrow 10:00 90m Test')
++    assert plus['summary'] == 'Test'
++    assert plus['dtstart'] == plain['dtstart']
++    assert plus['dtend'] == plain['dtend']
++    assert plus['dtend'] - plus['dtstart'] == dt.timedelta(minutes=90)

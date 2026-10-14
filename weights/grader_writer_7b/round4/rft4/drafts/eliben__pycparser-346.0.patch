@@ -1,0 +1,58 @@
+--- /dev/null
++++ b/pycparser/test/test_ast_transforms_grader.py
+@@ -0,0 +1,51 @@
++from __future__ import print_function
++import pytest
++
++
++try:
++    from unittest.mock import patch
++except ImportError:
++    from mock import patch
++
++
++from pycparser import c_parser
++
++
++def build_parser():
++    settings = {
++        'cpp_args': [
++            '-DUSE_MACRO',
++        ],
++    }
++
++    return c_parser.CParser(**settings)
++
++
++@patch('pycparser.c_parser.CParser.pragma')
++def test_empty_switch_stmt(pragma_mock):
++    """
++    Tests that an empty SwitchStmt does not raise an exception.
++
++    Regression test for https://github.com/eliben/pycparser/issues/449
++    """
++    src = """
++        void foo(void) {
++            int i;
++            switch(i) {}
++        }
++    """
++    parser = build_parser()
++
++    # Ensure we don't have any errors raised
++    ast = parser.parse(src)
++
++
++@pytest.mark.parametrize(
++    ('src', 'expected'),
++    (
++        ('void foo(void) { int i; }', 'foo'),
++        ('static void bar(void) { int j; }', 'bar'),
++        ('extern int baz(int a);', 'baz'),
++    ),
++)
++def test_parse_func_decl(src, expected):
++    parser = build_parser()
++    ast = parser.parse(src)
++    assert len(ast.ext) == 1
++    assert ast.ext[0].declname == expected

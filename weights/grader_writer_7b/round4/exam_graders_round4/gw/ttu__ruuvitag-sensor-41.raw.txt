@@ -1,0 +1,119 @@
+--- /dev/null
++++ b/tests/test_ruuvitag_sensor_grader.py
+@@ -0,0 +1,100 @@
++from unittest import TestCase
++from unittest.mock import patch
++from ruuvitag_sensor.ruuvi import RuuviTagSensor
++from ruuvitag_sensor.ruuvitag import RuuviTag
++
++
++class TestRuuviTagSensor(TestCase):
++    def get_data(self, mac, bt_device):
++        # https://ruu.vi/#AjwYAMFc
++        data = '043E2A0201030157168974A5F41E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'
++        return data[26:]
++
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_data',
++           get_data)
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationDummy.get_data',
++           get_data)
++    def test_tag_update_is_valid(self):
++        tag = RuuviTag('48:2C:6A:1E:59:3D')
++
++        state = tag.state
++        self.assertEqual(state, {})
++
++        state = tag.update()
++        self.assertEqual(state['temperature'], 24)
++        self.assertEqual(state['pressure'], 995)
++        self.assertEqual(state['humidity'], 30)
++
++    def get_datas(self, blacklist=[], bt_device=''):
++        datas = [
++            ('AA:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('BB:2C:6A:1E:59:3D', 'some other device'),
++            ('CC:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('DD:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('EE:2C:6A:1E:59:3D', '1F0201060303AAFE1716AAFE10F9037275752E76692F23416A5558314D417730C3'),
++            ('FF:2C:6A:1E:59:3D', '1902010415FF990403291A1ECE1E02DEF94202CA0B5300000000BB'),
++            ('GG:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('HH:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('II:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('JJ:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('KK:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('LL:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('MM:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('NN:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('OO:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('PP:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('QQ:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('RR:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('SS:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('TT:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('UU:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('VV:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('WW:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('XX:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('YY:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('ZZ:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('AA:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('BB:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('CC:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('DD:2C:6A:1E:59:3D', '1E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'),
++            ('EE:2C:6A:1E:59:3D', '1F0201060303AAFE1716AAFE10F9037275752E76692F23416A5558314D417730C3'),
++            ('FF:2C:6A:1E:59:3D', '1902010415FF990403291A1ECE1E02DEF94202CA0B5300000000BB')
++        ]
++
++        for data in datas:
++            yield data
++
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationDummy.get_datas',
++           get_datas)
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_datas',
++           get_datas)
++    def test_get_datas(self):
++        datas = []
++        RuuviTagSensor.get_datas(lambda x: datas.append(x))
++        self.assertEqual(24, len(datas))
++
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationDummy.get_datas',
++           get_datas)
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_datas',
++           get_datas)
++    def test_get_datas_with_macs(self):
++        datas = []
++        macs = ['CC:2C:6A:1E:59:3D', 'DD:2C:6A:1E:59:3D']
++        RuuviTagSensor.get_datas(lambda x: datas.append(x), macs)
++        self.assertEqual(2, len(datas))
++
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationDummy.get_datas',
++           get_datas)
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_datas',
++           get_datas)
++    def test_get_datas_with_blacklist(self):
++        datas = []
++        black_list = ['CC:2C:6A:1E:59:3D', 'DD:2C:6A:1E:59:3D']
++        RuuviTagSensor.get_datas(lambda x: datas.append(x), [], black_list)
++        self.assertEqual(24, len(datas))
++
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationDummy.get_datas',
++           get_datas)
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_datas',
++           get_datas)
++    def test_get_datas_with_blacklist_and_macs(self):
++        datas = []
++        macs = ['CC:2C:6A:1E:59:3D', 'DD:2C:6A:1E:59:3D']
++        black_list = ['CC:2C:6A:1E:59:3D', 'DD:2C:6A:1E:59:3D']
++        RuuviTagSensor.get_datas(lambda x: datas.append(x), macs, black_list)
++        self.assertEqual(0, len(datas))
++
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationDummy.get_datas',
++           get_datas)
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_datas',
++           get_datas)
++    def test_get_datas_with_blacklist_and_macs2(self):
++        datas = []
++        macs = ['CC:2C:6A:1E:59:3D', 'DD:2C:6A:1E:59:3D']
++        black_list = ['CC:2C:6A:1E:59:3D', 'DD:2C:6A:1E:59:3D', 'EE:2C:6A:1E:59:3D']
++        RuuviTagSensor.get_datas(lambda x: datas.append(x), macs, black_list)
++        self.assertEqual(1, len(datas))

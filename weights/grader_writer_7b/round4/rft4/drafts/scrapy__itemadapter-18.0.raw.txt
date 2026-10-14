@@ -1,0 +1,115 @@
+--- /dev/null
++++ b/tests/test_adapter_grader.py
+@@ -0,0 +1,130 @@
++import unittest
++from types import MappingProxyType
++from itemadapter.adapter import ItemAdapter
++from tests import AttrsItem, DataClassItem, ScrapySubclassedItem
++
++
++class BaseTestMixin:
++    def setUp(self):
++        self.item_class = self.item_class()
++
++    def test_field_names(self):
++        item = self.item_class(name="asdf", value=1234)
++        adapter = ItemAdapter(item)
++        self.assertIsInstance(adapter.field_names(), list)
++        self.assertEqual(set(adapter.field_names()), {"name", "value"})
++        self.assertNotIn("__len__", adapter.field_names())
++
++
++class NonDictTestMixin:
++    def test_get_value_keyerror_item_dict(self):
++        """Instantiate without default values"""
++        adapter = ItemAdapter(self.item_class())
++        with self.assertRaises(KeyError):
++            adapter["name"]
++
++    def test_setitem_len_iter(self):
++        item = self.item_class()
++        adapter = ItemAdapter(item)
++        self.assertEqual(len(adapter), 0)
++        self.assertEqual(sorted(list(iter(adapter))), [])
++
++        adapter["name"] = "asdf"
++        self.assertEqual(len(adapter), 1)
++        self.assertEqual(sorted(list(iter(adapter))), ["name"])
++
++        adapter["value"] = 1234
++        self.assertEqual(len(adapter), 2)
++        self.assertEqual(sorted(list(iter(adapter))), ["name", "value"])
++
++    def test_get_field_meta(self):
++        adapter = ItemAdapter(self.item_class())
++        self.assertEqual(adapter.get_field_meta("name"), MappingProxyType({"serializer": str}))
++        self.assertEqual(adapter.get_field_meta("value"), MappingProxyType({"serializer": int}))
++
++    def test_delitem_len_iter(self):
++        item = self.item_class(name="asdf", value=1234)
++        adapter = ItemAdapter(item)
++        self.assertEqual(len(adapter), 2)
++        self.assertEqual(sorted(list(iter(adapter))), ["name", "value"])
++
++        del adapter["name"]
++        self.assertEqual(len(adapter), 1)
++        self.assertEqual(sorted(list(iter(adapter))), ["value"])
++
++        del adapter["value"]
++        self.assertEqual(len(adapter), 0)
++        self.assertEqual(sorted(list(iter(adapter))), [])
++
++        with self.assertRaises(KeyError):
++            del adapter["name"]
++        with self.assertRaises(KeyError):
++            del adapter["value"]
++        with self.assertRaises(KeyError):
++            del adapter["undefined_field"]
++
++
++class DictTestCase(unittest.TestCase, BaseTestMixin):
++    item_class = dict
++
++    def test_get_value_keyerror_item_dict(self):
++        """Instantiate without default values"""
++        adapter = ItemAdapter(self.item_class())
++        with self.assertRaises(KeyError):
++            adapter["name"]
++
++    def test_empty_metadata(self):
++        adapter = ItemAdapter(self.item_class(name="foo", value=5))
++        for field_name in ("name", "value", "undefined_field"):
++            self.assertEqual(adapter.get_field_meta(field_name), MappingProxyType({}))
++
++
++class ScrapySubclassedItemTestCase(NonDictTestMixin, unittest.TestCase):
++    item_class = ScrapySubclassedItem
++
++    def test_get_value_keyerror_item_dict(self):
++        """Instantiate without default values"""
++        adapter = ItemAdapter(self.item_class())
++        with self.assertRaises(KeyError):
++            adapter["name"]
++
++
++class DataClassItemTestCase(NonDictTestMixin, unittest.TestCase):
++    item_class = DataClassItem
++
++
++class AttrsItemTestCase(NonDictTestMixin, unittest.TestCase):
++    item_class = AttrsItem
++
++
++class ScrapyItemTestCase(NonDictTestMixin, unittest.TestCase):
++    item_class = ScrapySubclassedItem
++
++    def test_field_names(self):
++        item = self.item_class(name="asdf", value=1234)
++        adapter = ItemAdapter(item)
++        self.assertIsInstance(adapter.field_names(), list)
++        self.assertEqual(set(adapter.field_names()), {"name", "value"})
++        self.assertNotIn("__len__", adapter.field_names())
++
++
++if __name__ == "__main__":
++    unittest.main()

@@ -1,0 +1,107 @@
+diff --git a/tests/test_topn_hit.py b/tests/test_topn_hit.py
+index 0e1f3b5..c30009c 100644
+--- a/tests/test_topn_hit.py
++++ b/tests/test_topn_hit.py
+@@ -110,6 +110,14 @@ def test_hit_long_items():
+     r = _test_hit(np.array(items) + 200, rel, k=5)
+     assert r == 0
+ 
++    r = _test_hit(np.array(items) + 200, rel, k=10)
++    assert r == 1
++
++    r = _test_hit(np.array(items) + 200, rel, k=15)
++    assert r == 1
++
++    r = _test_hit(np.array(items) + 200, rel, k=20)
++    assert r == 1
+ 
+ def test_hit_partial_rel():
+     rel = np.arange(100)
+diff --git a/tests/test_topn_mrr.py b/tests/test_topn_mrr.py
+index 0101001..1200000 100644
+--- a/tests/test_topn_mrr.py
++++ b/tests/test_topn_mrr.py
+@@ -65,6 +65,14 @@ def test_mrr_k_trunc():
+     assert rr == approx(0.2)
+ 
+ 
++def test_mrr_k_short():
++    rr = _test_rr(np.arange(1, 5, 1, 'u4'), [2], k=10)
++    assert rr == approx(0.5)
++
++    rr = _test_rr(np.arange(1, 5, 1, 'u4'), [2], k=1)
++    assert rr == approx(0.5)
++
++
+ @mark.parametrize('drop_rating', [False, True])
+ def test_mrr_bulk(demo_recs, drop_rating):
+     "bulk and normal match"
+diff --git a/tests/test_topn_ndcg.py b/tests/test_topn_ndcg.py
+index 0101001..1200000 100644
+--- a/tests/test_topn_ndcg.py
++++ b/tests/test_topn_ndcg.py
+@@ -10,6 +10,7 @@ from lenskit.metrics.topn import ndcg
+ from lenskit.util.test import demo_recs
+ 
+ 
++_log = logging.getLogger(__name__)
+ def _test_ndcg(items, rel, **kwargs):
+     recs = pd.DataFrame({'item': items})
+     truth = pd.DataFrame({'item': rel}).set_index('item')
+@@ -100,6 +101,14 @@ def test_ndcg_long_items():
+     r = _test_ndcg(np.array(items) + 200, rel, k=5)
+     assert r == 0
+ 
++    r = _test_ndcg(np.array(items) + 200, rel, k=10)
++    assert r == 1
++
++    r = _test_ndcg(np.array(items) + 200, rel, k=15)
++    assert r == 1
++
++    r = _test_ndcg(np.array(items) + 200, rel, k=20)
++    assert r == 1
+ 
+ def test_ndcg_partial_rel():
+     rel = np.arange(100)
+@@ -110,6 +119,14 @@ def test_ndcg_partial_rel():
+     r = _test_ndcg(np.array(items) + 200, rel, k=5)
+     assert r == 0
+ 
++    r = _test_ndcg(np.array(items) + 200, rel, k=10)
++    assert r == 1
++
++    r = _test_ndcg(np.array(items) + 200, rel, k=15)
++    assert r == 1
++
++    r = _test_ndcg(np.array(items) + 200, rel, k=20)
++    assert r == 1
+ 
+ def test_ndcg_bulk_k(demo_recs):
+     "bulk and normal match"
+@@ -120,6 +127,14 @@ def test_ndcg_bulk_k(demo_recs):
+ 
+ 
+ def test_ndcg_bulk(demo_recs):
++    "bulk and normal match"
++    train, test, recs = demo_recs
++    assert test['user'].value_counts().max() > 5
++
++    rla = RecListAnalysis()
++    rla.add_metric(ndcg, name='ndcgk', k=5)
++    rla.add_metric(ndcg)
++    # metric without the bulk capabilities
+     rla.add_metric(lambda *a, **k: ndcg(*a, **k), name='ind_ndcgk', k=5)
+     rla.add_metric(lambda *a: ndcg(*a), name='ind_ndcg')
+     res = rla.compute(recs, test)
+@@ -128,3 +143,11 @@ def test_ndcg_bulk(demo_recs):
+     _log.info('recall mismatches:\n%s',
+               res[res.ndcg != res.ind_ndcg])
+     assert res.ndcg.values == approx(res.ind_ndcg.values)
++
++
++def test_ndcg_bulk_no_ratings(demo_recs):
++    "bulk and normal match"
++    train, test, recs = demo_recs
++    assert test['user'].value_counts().max() > 5
++    rla = RecListAnalysis()
++    rla.add_metric(ndcg, name='ndcgk', k=5)

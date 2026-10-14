@@ -1,0 +1,136 @@
+--- /dev/null
++++ b/tests/test_dem_grader.py
+@@ -0,0 +1,63 @@
++"""Tests for the pyflwdir.dem module."""
++
++
++import pytest
++import numpy as np
++from pyflwdir import dem
++from test_core import test_data
++
++
++parsed, flwdir = test_data[0]
++
++
++idxs_ds, idxs_pit, seq, rank, mv = parsed
++
++
++def test_dem_fill():
++    # example from Wang & Lui (2015)
++    a = np.array(
++        [
++            [15, 15, 14, 15, 12, 6, 12],
++            [14, 13, 10, 12, 15, 17, 15],
++            [15, 15, 9, 11, 8, 15, 15],
++            [16, 17, 8, 16, 15, 7, 5],
++            [19, 18, 19, 18, 17, 15, 14],
++        ],
++        dtype=np.float32,
++    )
++    # NOTE: compared to paper same a_filled, but difference
++    # in flowdir because row instead of col first ..
++    d8 = np.array(
++        [
++            [2, 2, 4, 8, 1, 0, 16],
++            [1, 1, 2, 2, 128, 64, 32],
++            [128, 128, 1, 1, 2, 2, 4],
++            [64, 128, 128, 128, 1, 1, 0],
++            [64, 128, 64, 32, 128, 128, 64],
++        ],
++        dtype=np.uint8,
++    )
++    # test default
++    a2 = a.copy()
++    a2[1:4, 2] = 11  # filled depression
++    a_filled, _d8 = dem.fill_depressions(a2)
++    assert np.all(a_filled == d8)
++    # test with no pits
++    a2 = a.copy()
++    a2[1:4, 2] = 11  # filled depression
++    a_filled, _d8 = dem.fill_depressions(a2, idxs_pit=[1])
++    assert np.all(a_filled == a2)
++    # test with max depth
++    a2 = a.copy()
++    a2[1:4, 2] = 11  # filled depression
++    a_filled, _d8 = dem.fill_depressions(a2, max_depth=1.5)
++    assert np.all(a_filled == d8)
++    # test with connectivity 4
++    a2 = a.copy()
++    a2[1:4, 2] = 11  # filled depression
++    a_filled, _d8 = dem.fill_depressions(a2, connectivity=4)
++    assert np.all(a_filled == d8)
++
++
++def test_slope():
++    elv = np.ones((4, 4))
++    nodata = -9999
++    assert np.all(dem.slope(elv, nodata) == 0)
++    elv.flat[0] == -9999
++    assert np.all(dem.slope(elv, nodata).flat[1:] == 0)
+--- /dev/null
++++ b/tests/test_pyflwdir_grader.py
+@@ -0,0 +1,67 @@
++"""Tests for the pyflwdir module, specifically the wrapping of the methods which 
++themselves are testes elsewhere"""
++
++
++import pytest
++import numpy as np
++from affine import Affine
++import pyflwdir
++from pyflwdir import core, core_nextxy, core_d8
++from test_core import test_data
++
++
++idxs_ds = test_data[0][1]
++
++
++idxts = test_data[1][1]
++
++
++idxs_pit = test_data[0][2]
++
++
++idxs_seq = test_data[0][3]
++
++
++d8 = test_data[0][4]
++
++
++nextxy = core_nextxy.to_array(idxs_ds, d8.shape)
++
++
++flw = pyflwdir.FlwdirRaster(idxs_ds.copy(), d8.shape, "d8", idxs_pit=idxs_pit.copy())
++
++
++@pytest.fixture
++def dem_mask():
++    mask = np.ones(flw.shape)
++    mask[idxts == flw._mv] = 0
++    return mask
++
++
++def test_dem():
++    elevtn = np.ones(flw.shape)
++    # create values that need fix
++    diff = np.logical_and(flw.rank == 2, flw.upstream_sum(np.ones(flw.shape)) >= 1)
++    elevtn[diff] = 2.0
++    elevtn_new = flw.dem_adjust(elevtn)
++    assert np.all(elevtn_new == 1.0)
++    with pytest.raises(ValueError, match="size does not match"):
++        flw.dem_adjust(np.ones((2, 1)))
++    # hand
++    rank = flw.rank
++    drain = rank == 0
++    hand = flw.hand(drain, elevtn_new)
++    assert np.all(hand[rank > 0] == 0)
++    with pytest.raises(ValueError, match="size does not match"):
++        flw.hand(drain, np.ones((2, 1)))
++    with pytest.raises(ValueError, match="size does not match"):
++        flw.hand(np.ones((2, 1)), elevtn_new)
++    # floodplain
++    fldpln = flw.floodplains(elevtn_new, uparea=drain, upa_min=1, b=1)
++    assert np.all(fldpln.flat[flw.mask] == 1)
++    with pytest.raises(ValueError, match="size does not match"):
++        flw.floodplains(np.ones((2, 1)))

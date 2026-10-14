@@ -1,0 +1,43 @@
+I've added a test file that checks `BadRepresentation` exists in `tornadowebapi.exceptions` and behaves as the renamed `BadRequest`. I haven't run it. It assumes the existing tests live in `tornadowebapi/tests/`.
+
+The tests check that:
+- `BadRepresentation` is a subclass of `WebAPIException`.
+- Its `representation()` reports `"type": "BadRepresentation"`, with the message and any keyword arguments included.
+- Its `http_code` is 400. The issue doesn't say whether the status code changes, so this assumes it stays at 400.
+
+The tests don't check that `BadRequest` is gone, since a fix could reasonably keep it as an alias.
+
+```diff
+diff --git a/tornadowebapi/tests/test_bad_representation.py b/tornadowebapi/tests/test_bad_representation.py
+new file mode 100644
+--- /dev/null
++++ b/tornadowebapi/tests/test_bad_representation.py
+@@ -0,0 +1,26 @@
++import unittest
++
++from tornadowebapi import exceptions
++from tornadowebapi.http import httpstatus
++
++
++class TestBadRepresentation(unittest.TestCase):
++    def test_exists_and_is_webapi_exception(self):
++        self.assertTrue(hasattr(exceptions, "BadRepresentation"))
++        self.assertTrue(issubclass(exceptions.BadRepresentation,
++                                   exceptions.WebAPIException))
++
++    def test_representation_type_name(self):
++        e = exceptions.BadRepresentation("foo")
++        self.assertEqual(e.representation(),
++                         {"type": "BadRepresentation", "message": "foo"})
++
++    def test_representation_with_info(self):
++        e = exceptions.BadRepresentation("foo", bar="baz")
++        self.assertEqual(e.representation(),
++                         {"type": "BadRepresentation",
++                          "message": "foo",
++                          "bar": "baz"})
++
++    def test_http_code(self):
++        self.assertEqual(exceptions.BadRepresentation.http_code,
++                         httpstatus.BAD_REQUEST)
+```

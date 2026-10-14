@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/kubedifflib/tests/test_diff_grader.py
+@@ -0,0 +1,47 @@
++import copy
++import random
++from hypothesis import given
++from hypothesis.strategies import integers, lists, text, fixed_dictionaries, sampled_from, none, one_of
++from kubedifflib._diff import diff_lists, list_subtract
++from kubedifflib._kube import KubeObject
++
++
++@given(items=two_lists_of_same_size(integers()))
++def test_two_lists_of_same_size_generator(items):
++    """two_lists_of_same_size returns two lists of the same length."""
++    xs, ys = items
++    assert len(xs) == len(ys)
++
++
++def kube_spec():
++    """Generate a random kubernetes spec."""
++    return fixed_dictionaries({
++        "name": text(),
++        "secrets": lists(fixed_dictionaries({"name": text()})),
++    })
++
++
++def kube_obj():
++    """Generate a random Kubernetes object."""
++    return fixed_dictionaries({
++        "apiVersion": sampled_from(["v1", "v1beta1", "extensions/v1"]),
++        "kind": sampled_from(["Namespace", "Pod", "Job", "CronJob", "Deployment"]),
++        "metadata": fixed_dictionaries({
++            "name": text()
++        }),
++        "spec": one_of(none(), kube_spec())
++    })
++
++
++def kube_list():
++    """Generate a Kubernetes List type with a set of objects."""
++    return fixed_dictionaries({
++        "apiVersion": sampled_from(["v1", "v1beta1"]),
++        "kind": sampled_from(["List"]),
++        "items": lists(kube_obj(), min_size=1)
++    })
++
++
++@given(data=kube_list())
++def test_sealed_secrets_are_not_sensitive(data):
++    """KubeObject.mask_sensitive_fields should ignore sealed secrets."""
++    masked_data = KubeObject.from_dict(data)[0].mask_sensitive_fields()
++    assert "sealed-secrets" not in masked_data["kind"].lower()

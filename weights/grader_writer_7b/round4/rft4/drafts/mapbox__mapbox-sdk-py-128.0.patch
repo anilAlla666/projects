@@ -1,0 +1,46 @@
+--- /dev/null
++++ b/tests/test_encoding_grader.py
+@@ -0,0 +1,41 @@
++import pytest
++import copy
++import json
++from mapbox.encoding import (read_points,
++                             encode_waypoints,
++                             encode_polyline,
++                             encode_coordinates_json)
++
++
++gj_point_features = [{
++    "type": "Feature",
++    "properties": {},
++    "geometry": {
++        "type": "Point",
++        "coordinates": [
++            -87.33787536621092,
++            36.539156961321574]}}, {
++    "type": "Feature",
++    "properties": {},
++    "geometry": {
++        "type": "Point",
++        "coordinates": [
++            -88.2476806640625,
++            36.92217534275667]}}]
++
++
++gj_multipoint_features = [{
++    "type": "Feature",
++    "properties": {},
++    "geometry": {
++        "type": "MultiPoint",
++        "coordinates": [
++            [-87.33787536621092,
++             36.539156961321574],
++            [-88.2476806640625,
++             36.92217534275667]]}}]
++
++
++def test_encode_polyline():
++    expected = "_iF{xiAi@?u"
++    assert expected == encode_polyline(gj_point_features)
++    assert expected == encode_polyline(gj_multipoint_features)
++    assert expected == encode_polyline(gj_line_features)

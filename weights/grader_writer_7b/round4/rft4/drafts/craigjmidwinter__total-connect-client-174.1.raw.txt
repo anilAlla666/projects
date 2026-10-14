@@ -1,0 +1,136 @@
+--- /dev/null
++++ b/tests/test_location_grader.py
+@@ -0,0 +1,74 @@
++"""Test total_connect_client location."""
++
++
++import unittest
++from copy import deepcopy
++from unittest.mock import Mock, patch
++import pytest
++from const import (
++    LOCATION_INFO_BASIC_NORMAL,
++    METADATA_DISARMED_LOW_BATTERY,
++    RESPONSE_DISARMED,
++    RESPONSE_GET_ZONE_DETAILS_SUCCESS,
++)
++from total_connect_client.exceptions import PartialResponseError, TotalConnectError
++from total_connect_client.location import DEFAULT_USERCODE, TotalConnectLocation
++
++
++class TestTotalConnectLocation(unittest.TestCase):
++    """Test TotalConnectLocation."""
++
++    def setUp(self):
++        """Set up for location testing."""
++        self.auto_bypass_low_battery = False
++        self.location_normal = TotalConnectLocation(LOCATION_INFO_BASIC_NORMAL, self)
++        self.location_normal._update_status(deepcopy(RESPONSE_DISARMED))
++        self.location_normal._update_partitions(deepcopy(RESPONSE_DISARMED))
++        self.location_normal._update_zones(deepcopy(RESPONSE_DISARMED))
++
++    def tearDown(self):
++        """Tear down."""
++        self.location_normal = None
++
++    def tests_update_status(self):
++        """Test update_status."""
++        # check with known value
++        response = deepcopy(RESPONSE_DISARMED)
++        self.location_normal._update_status(response)
++        assert self.location_normal.arming_state.value == 10200
++
++        # now check with unknown state
++        response = deepcopy(RESPONSE_DISARMED)
++        response["ArmingState"] = 999999999
++        with pytest.raises(TotalConnectError):
++            self.location_normal._update_status(response)
++
++        # check with None
++        response = deepcopy(RESPONSE_DISARMED)
++        del response["ArmingState"]
++        with pytest.raises(PartialResponseError):
++            self.location_normal._update_status(response)
++
++        # check with empty
++        response = deepcopy(RESPONSE_DISARMED)
++        response["ArmingState"] = ""
++        with pytest.raises(PartialResponseError):
++            self.location_normal._update_status(response)
++
++        # check with zero
++        response = deepcopy(RESPONSE_DISARMED)
++        response["ArmingState"] = 0
++        with pytest.raises(PartialResponseError):
++            self.location_normal._update_status(response)
++
++        # check with non-integer
++        response = deepcopy(RESPONSE_DISARMED)
++        response["ArmingState"] = "not_an_int"
++        with pytest.raises(PartialResponseError):
++            self.location_normal._update_status(response)
++
++        # check with negative
++        response = deepcopy(RESPONSE_DISARMED)
++        response["ArmingState"] = -1
++        with pytest.raises(PartialResponseError):
++            self.location_normal._update_status(response)
+--- /dev/null
++++ b/tests/test_partition_grader.py
+@@ -0,0 +1,53 @@
++"""Test TotalConnectDevice."""
++
++
++from copy import deepcopy
++from unittest.mock import Mock
++import pytest
++from const import PARTITION_DETAILS_1, PARTITION_DISARMED
++from total_connect_client.client import ArmingHelper
++from total_connect_client.exceptions import PartialResponseError, TotalConnectError
++from total_connect_client.partition import TotalConnectPartition
++
++
++def tests_update_status():
++    """Test update_status."""
++    # check with known value
++    partition = TotalConnectPartition(PARTITION_DETAILS_1, None)
++    partition._update(PARTITION_DISARMED)
++    assert partition.arming_state.value == PARTITION_DISARMED["ArmingState"]
++
++    # now check with unknown state
++    partition = TotalConnectPartition(PARTITION_DETAILS_1, None)
++    partition._update({"ArmingState": 999999999})
++    assert partition.arming_state.value == 999999999
++
++    # check with None
++    partition = TotalConnectPartition(PARTITION_DETAILS_1, None)
++    with pytest.raises(PartialResponseError):
++        partition._update({})
++
++    # check with empty
++    partition = TotalConnectPartition(PARTITION_DETAILS_1, None)
++    partition._update({"ArmingState": ""})
++    assert partition.arming_state.value == ""
++
++    # check with zero
++    partition = TotalConnectPartition(PARTITION_DETAILS_1, None)
++    partition._update({"ArmingState": 0})
++    assert partition.arming_state.value == 0
++
++    # check with non-integer
++    partition = TotalConnectPartition(PARTITION_DETAILS_1, None)
++    partition._update({"ArmingState": "not_an_int"})
++    assert partition.arming_state.value == "not_an_int"
++
++    # check with negative
++    partition = TotalConnectPartition(PARTITION_DETAILS_1, None)
++    partition._update({"ArmingState": -1})
++    assert partition.arming_state.value == -1
++
++
++def tests_arming_state():
++    """Test status functions."""
++
++    partition = TotalConnectPartition(PARTITION_DETAILS_1, None)
++
++    assert partition.arming_state.is_unknown() is True

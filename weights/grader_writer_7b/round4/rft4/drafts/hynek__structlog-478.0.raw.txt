@@ -1,0 +1,82 @@
+--- /dev/null
++++ b/tests/test_log_levels_grader.py
+@@ -0,0 +1,72 @@
++import logging
++import pickle
++import pytest
++from structlog import make_filtering_bound_logger
++from structlog._log_levels import _LEVEL_TO_NAME
++from structlog.contextvars import (
++    bind_contextvars,
++    clear_contextvars,
++    merge_contextvars,
++)
++from structlog.testing import CapturingLogger
++
++
++@pytest.fixture(name="cl")
++def fixture_cl():
++    return CapturingLogger()
++
++
++@pytest.fixture(name="bl")
++def fixture_bl(cl):
++    return make_filtering_bound_logger(logging.INFO)(cl, [], {})
++
++
++class TestFilteringLogger:
++    def test_no_event_string(self, bl):
++        """
++        No error if no event string is passed.
++        """
++        bl.info(None)
++
++        assert [] == bl.cl.calls
++
++    async def test_async_no_event_string(self, bl):
++        """
++        No error if no event string is passed.
++        """
++        await bl.ainfo(None)
++
++        assert [] == bl.cl.calls
++
++    def test_empty_string_event(self, bl):
++        """
++        No error if empty string is passed.
++        """
++        bl.info("")
++
++        assert [] == bl.cl.calls
++
++    async def test_async_empty_string_event(self, bl):
++        """
++        No error if empty string is passed.
++        """
++        await bl.ainfo("")
++
++        assert [] == bl.cl.calls
++
++    def test_none_event(self, bl):
++        """
++        No error if None is passed.
++        """
++        bl.info(None)
++
++        assert [] == bl.cl.calls
++
++    async def test_async_none_event(self, bl):
++        """
++        No error if None is passed.
++        """
++        await bl.ainfo(None)
++
++        assert [] == bl.cl.calls
++
++    def test_pos_args(self, bl, cl):
++        """
++        Positional arguments are used for string interpolation.
++        """
++        bl.info("%s! %s.", "Hello", "world")
++
++        assert [("info", (), {"event": "Hello! world."})] == cl.calls

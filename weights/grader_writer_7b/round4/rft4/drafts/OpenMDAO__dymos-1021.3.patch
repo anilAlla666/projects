@@ -1,0 +1,22 @@
+--- /dev/null
++++ b/dymos/utils/test/test_birkhoff_grader.py
+@@ -0,0 +1,16 @@
++import unittest
++import numpy as np
++from numpy.testing import assert_almost_equal
++from dymos.utils.birkhoff import birkhoff_matrix
++from dymos.utils.cgl import cgl, clenshaw_curtis
++from dymos.utils.lgl import lgl
++
++
++class TestBirkhoffMatrix(unittest.TestCase):
++    def test_birkhoff_matrix_ode_all(self):
++        x, w = lgl(9)
++        B = birkhoff_matrix(x, w, grid_type='lgl')
++        assert_almost_equal(B[-1, :], w)
++        assert_almost_equal(B[0, :], 0.)
++        assert_almost_equal(B[1, :], 0.)
++
++
++if __name__ == '__main__':  # pragma: no cover
++    unittest.main()

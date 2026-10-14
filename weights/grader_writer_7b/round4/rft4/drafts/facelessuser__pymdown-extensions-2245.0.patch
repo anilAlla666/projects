@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/tests/test_keys_grader.py
+@@ -0,0 +1,16 @@
++from .utils import assert_markdown_roundtrip, assert_md_out
++
++
++def test_keys_url():
++    text = '![](data:image/png;base64,aaaaa++a++aaaa)'
++    expected = '<p>![](data:image/png;base64,aaaaa++a++aaaa)</p>'
++    assert_markdown_roundtrip(text, expected)
++
++
++def test_keys_url_no_escapement():
++    text = '![](data:image/png;base64,aaaaa++a++aaaa)'
++    expected = '<p>![](data:image/png;base64,aaaaa++a++aaaa)</p>'
++    assert_md_out(text, expected, extensions=['markdown.extensions.toc',
++                                             'pymdownx.keys',
++                                             'markdown.extensions.tables',
++                                             'markdown.extensions.fenced_code'])

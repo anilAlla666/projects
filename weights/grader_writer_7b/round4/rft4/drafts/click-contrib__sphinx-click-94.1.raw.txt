@@ -1,0 +1,58 @@
+--- /dev/null
++++ b/tests/test_ext_grader.py
+@@ -0,0 +1,57 @@
++from contextlib import contextmanager
++import pytest
++from click.testing import CliRunner
++from sphinx_click.ext import _get_help_record
++
++
++@contextmanager
++def mock_context(**kwargs):
++    class MockContext:
++        command = kwargs.pop("command")
++        obj = kwargs.pop("obj", None)
++
++        @property
++        def params(self):
++            return list(kwargs.values())
++
++    with CliRunner().isolated_filesystem():
++        yield MockContext(**kwargs)
++
++
++class MockOption:
++    def __init__(self, **kwargs):
++        self.__dict__.update(kwargs)
++
++    def get_help_record(self):
++        return ("mockopt", "mockhelp")
++
++
++@pytest.mark.parametrize(
++    ("opts", "expected"),
++    [
++        ([], ["mockhelp"]),
++        (["required"], ["**Required**\nmockhelp"]),
++        (["--bar"], ["mockopt\nmockhelp"]),
++        (["--bar", "--baz"], ["mockopt, --baz\nmockhelp"]),
++    ],
++)
++def test__get_help_record(opts, expected):
++    with mock_context(command="mockcmd", obj={"foo": MockOption()}):
++        assert list(_get_help_record(MockOption(), opts)) == expected
++
++
++@pytest.mark.parametrize(
++    ("opts", "show_default", "expected"),
++    [
++        ([], False, []),
++        ([], "yes", [":default: yes"]),
++        ([], "no", [":default: no"]),
++        ([], 123, [":default: 123"]),
++        ([], ["yes", "no"], [":default: yes | no"]),
++    ],
++)
++def test__get_help_record_show_default(opts, show_default, expected):
++    with mock_context(command="mockcmd", obj={"foo": MockOption(show_default=show_default)}):
++        assert list(_get_help_record(MockOption(), opts))[-len(expected):] == expected

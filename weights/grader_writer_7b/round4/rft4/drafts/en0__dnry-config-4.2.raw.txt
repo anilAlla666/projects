@@ -1,0 +1,31 @@
+--- /dev/null
++++ b/tests/test_config_grader.py
+@@ -0,0 +1,28 @@
++from unittest.mock import patch
++import pytest
++from dnry.config.yaml.source import YamlSource
++
++
++@pytest.fixture(name="source")
++def fixture_source():
++    return YamlSource("./non_existent_file.yaml")
++
++
++@pytest.mark.parametrize(
++    "load_args",
++    [
++        (None, {}),
++        ("", {}),
++        ([], {})
++    ]
++)
++def test_load_optional_not_required(source, load_args):
++    assert source.load(None, None) == {}
++
++
++@patch('builtins.open')
++def test_load_optional_open_called(mock_open, source):
++    mock_open.return_value = None
++    source.required = False
++    source.load(None, None)
++    mock_open.assert_called_once_with('./non_existent_file.yaml', 'r')

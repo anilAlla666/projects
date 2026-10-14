@@ -1,0 +1,73 @@
+--- /dev/null
++++ b/tests/unit/test_client_options_grader.py
+@@ -0,0 +1,67 @@
++from re import match
++import pytest
++from google.api_core import client_options
++
++
++def get_client_cert():
++    return b"cert", b"key"
++
++
++def get_client_encrypted_cert():
++    return "cert_path", "key_path", b"passphrase"
++
++
++def test_constructor():
++
++    options = client_options.ClientOptions(
++        api_endpoint="foo.googleapis.com",
++        client_cert_source=get_client_cert,
++        quota_project_id="quote-proj",
++        credentials_file="path/to/credentials.json",
++        scopes=[
++            "https://www.googleapis.com/auth/cloud-platform",
++            "https://www.googleapis.com/auth/cloud-platform.read-only",
++        ],
++        api_key="123456",
++        api_audience="foo2.googleapis.com",
++        universe_domain="foo.com",
++    )
++
++    assert options.api_endpoint == "foo.googleapis.com"
++    assert options.client_cert_source() == (b"cert", b"key")
++    assert options.quota_project_id == "quote-proj"
++    assert options.credentials_file == "path/to/credentials.json"
++    assert options.scopes == [
++        "https://www.googleapis.com/auth/cloud-platform",
++        "https://www.googleapis.com/auth/cloud-platform.read-only",
++    ]
++    assert options.api_key == "123456"
++    assert options.api_audience == "foo2.googleapis.com"
++    assert options.universe_domain == "foo.com"
++
++
++def test_from_dict():
++    options = client_options.from_dict(
++        {
++            "api_endpoint": "foo.googleapis.com",
++            "client_cert_source": get_client_cert,
++            "quota_project_id": "quote-proj",
++            "credentials_file": "path/to/credentials.json",
++            "scopes": [
++                "https://www.googleapis.com/auth/cloud-platform",
++                "https://www.googleapis.com/auth/cloud-platform.read-only",
++            ],
++            "api_key": "123456",
++            "api_audience": "foo2.googleapis.com",
++            "universe_domain": "foo.com",
++        }
++    )
++
++    assert options.api_endpoint == "foo.googleapis.com"
++    assert options.client_cert_source() == (b"cert", b"key")
++    assert options.quota_project_id == "quote-proj"
++    assert options.credentials_file == "path/to/credentials.json"
++    assert options.scopes == [
++        "https://www.googleapis.com/auth/cloud-platform",
++        "https://www.googleapis.com/auth/cloud-platform.read-only",
++    ]
++    assert options.api_key == "123456"
++    assert options.api_audience == "foo2.googleapis.com"
++    assert options.universe_domain == "foo.com"

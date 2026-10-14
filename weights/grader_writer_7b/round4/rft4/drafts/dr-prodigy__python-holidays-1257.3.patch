@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/tests/countries/test_greece_grader.py
+@@ -0,0 +1,55 @@
++from datetime import date
++from holidays.countries.greece import Greece, GR, GRC
++from tests.common import TestCase
++
++
++class TestGreece(TestCase):
++    @classmethod
++    def setUpClass(cls):
++        super().setUpClass(Greece)
++
++    def test_gr_good_friday(self):
++        checkdates = (
++            date(2019, 4, 19),
++            date(2020, 4, 10),
++            date(2021, 4, 2),
++            date(2022, 4, 15),
++            date(2023, 4, 7),
++            date(2024, 4, 26),
++        )
++
++        for d in checkdates:
++            self.assertIn(d, self.holidays)
++            self.assertIn("Καλύψη", self.holidays[d])
++
++    def test_fixed_holidays(self):
++        years = range(2000, 2025)
++        for y in years:
++            fdays = (
++                (date(y, 1, 1), "Πρωτοχρονιά"),
++                (date(y, 1, 6), "Θεοφάνεια"),
++                (date(y, 3, 25), "Εικοστή Πέμπτη Μαρτίου"),
++                (date(y, 5, 1), "Εργατική Πρωτομαγιά"),
++                (date(y, 5, 3), "Καλύψη"),
++                (date(y, 8, 15), "Κοίμηση της Θεοτόκου"),
++                (date(y, 10, 28), "Ημέρα του Όχι"),
++                (date(y, 12, 25), "Χριστούγεννα"),
++                (date(y, 12, 26), "Επόμενη ημέρα των Χριστουγέννων"),
++            )
++
++            for d, dstr in fdays:
++                self.assertIn(d, self.holidays)
++                self.assertIn(dstr, self.holidays[d])
++
++    def test_variable_holidays(self):
++        years = range(2000, 2025)
++        for y in years:
++            vd = self._good_fridays[y]
++            self.assertIn(vd, self.holidays)
++            self.assertEqual("Καλύψη", self.holidays[vd])

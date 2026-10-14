@@ -1,0 +1,32 @@
+--- /dev/null
++++ b/tests/test_pyquery_grader.py
+@@ -0,0 +1,26 @@
++import os
++import sys
++import time
++from lxml import etree
++from pyquery.pyquery import PyQuery as pq, no_default
++from pyquery.openers import HAS_REQUEST
++from webtest import http
++from webtest.debugapp import debug_app
++from unittest import TestCase
++
++
++sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
++
++
++dirname = os.path.dirname(os.path.abspath(__file__))
++
++
++docs = os.path.join(os.path.dirname(dirname), 'docs')
++
++
++path_to_html_file = os.path.join(dirname, 'test.html')
++
++
++path_to_invalid_file = os.path.join(dirname, 'invalid.xml')
++
++
++class TestBug(TestCase):
++    def test_issue_386(self):
++        assert pq("<foo>&lt;script&gt;// uh oh&lt;/script&gt;bar<boo/>").html() == '&lt;script&gt;// uh oh&lt;/script&gt;bar&lt;boo/&gt;'

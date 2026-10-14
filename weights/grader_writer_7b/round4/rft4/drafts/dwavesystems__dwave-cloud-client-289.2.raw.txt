@@ -1,0 +1,139 @@
+--- /dev/null
++++ b/tests/test_client_grader.py
+@@ -0,0 +1,123 @@
++"""
++Tests the ability to connect to the SAPI server with the `dwave.cloud.qpu.Client`.
++
++test_mock_solver_loading.py duplicates some of these tests against a mock server.
++"""
++
++
++from __future__ import absolute_import
++import json
++import unittest
++import warnings
++import requests.exceptions
++from plucky import merge
++from dwave.cloud.config import load_config
++from dwave.cloud.client import Client
++from dwave.cloud.solver import Solver
++from dwave.cloud.exceptions import (
++    SolverAuthenticationError, SolverError, SolverNotFoundError)
++from dwave.cloud.testing import mock
++import dwave.cloud
++from tests import config
++
++
++class TestClient(unittest.TestCase):
++    def setUp(self):
++        self.endpoint = 'https://api.dwavesys.com/sapi/v1'
++        self.token = 'token1234'
++        self.client = Client(
++            endpoint=self.endpoint,
++            token=self.token,
++            permissive_ssl=True,
++            ssl_context=None)
++        self.solvers = [
++            Solver(id="SOLVER1", endpoint=self.endpoint, token=self.token,
++                   parameters={"beta_range": [0, 10],
++                                "num_reads_range": [1, 10]},
++                   properties={"chip_id": "DW_2000Q_1",
++                                "description": "Solver 1",
++                                "is_online": True,
++                                "is_qpu": True,
++                                "num_active_qubits": 256,
++                                "num_qubits": 256,
++                                "qpu": True},
++                   permissive_ssl=True, ssl_context=None),
++            Solver(id="SOLVER2", endpoint=self.endpoint, token=self.token,
++                   parameters={"beta_range": [0, 10],
++                                "num_reads_range": [1, 10]},
++                   properties={"chip_id": "DW_2000Q_2",
++                                "description": "Solver 2",
++                                "is_online": True,
++                                "is_qpu": True,
++                                "num_active_qubits": 256,
++                                "num_qubits": 256,
++                                "qpu": True},
++                   permissive_ssl=True, ssl_context=None),
++            Solver(id="SOLVER3", endpoint=self.endpoint, token=self.token,
++                   parameters={"beta_range": [0, 10],
++                                "num_reads_range": [1, 10]},
++                   properties={"chip_id": "DW_2000Q_3",
++                                "description": "Solver 3",
++                                "is_online": True,
++                                "is_qpu": True,
++                                "num_active_qubits": 256,
++                                "num_qubits": 256,
++                                "qpu": True},
++                   permissive_ssl=True, ssl_context=None),
++        ]
++
++        self.solver1 = self.solvers[0]
++        self.solver2 = self.solvers[1]
++        self.solver3 = self.solvers[2]
++
++    @mock.patch.object(Client, '_get')
++    def test_filter_with_none_values(self, m_get):
++        # filter with None values
++        m_get.return_value = {'solvers': self.solvers}
++        res = self.client.get_solvers(name=None)
++        self.assertEqual(res, [])
++        res = self.client.get_solvers(properties={'vfyc': None})
++        self.assertEqual(res, [self.solver3, self.solver2, self.solver1])
++        res = self.client.get_solvers(properties={'vfyc': None}, order_by='-properties.vfyc')
++        self.assertEqual(res, [self.solver1, self.solver2, self.solver3])
++
++        # filter with None values, but also other filters
++        res = self.client.get_solvers(properties={'vfyc': None}, is_online=True)
++        self.assertEqual(res, [self.solver3, self.solver2, self.solver1])
++        res = self.client.get_solvers(properties={'vfyc': None}, order_by='properties.vfyc', is_online=True)
++        self.assertEqual(res, [self.solver1, self.solver2, self.solver3])
++
++    @mock.patch.object(Client, '_get')
++    def test_filter_with_non_existent_properties(self, m_get):
++        # filter with non-existent properties
++        m_get.return_value = {'solvers': self.solvers}
++        res = self.client.get_solvers(properties={'nonexistent_prop': 1})
++        self.assertEqual(res, [])
++        res = self.client.get_solvers(properties={'nonexistent_prop': 1}, order_by='properties.nonexistent_prop')
++        self.assertEqual(res, self.solvers)
++        res = self.client.get_solvers(properties={'nonexistent_prop': 1}, order_by='-properties.nonexistent_prop')
++        self.assertEqual(res, list(reversed(self.solvers)))
++        res = self.client.get_solvers(properties={'nonexistent_prop': 1}, order_by='-properties.nonexistent_prop', is_online=True)
++        self.assertEqual(res, list(reversed(self.solvers)))
++
++    @mock.patch.object(Client, '_get')
++    def test_filter_with_invalid_properties(self, m_get):
++        # filter with invalid properties
++        m_get.return_value = {'solvers': self.solvers}
++        with self.assertRaises(ValueError):
++            self.client.get_solvers(properties=['vfyc'])
++        with self.assertRaises(ValueError):
++            self.client.get_solvers(properties={'vfyc': []})
++
++    @mock.patch.object(Client, '_get')
++    def test_filter_with_regex(self, m_get):
++        m_get.return_value = {'solvers': self.solvers}
++        res = self.client.get_solvers(properties={'chip_id': 'DW_2000Q_1'})
++        self.assertEqual(res, [self.solver1])
++        res = self.client.get_solvers(properties={'chip_id': 'DW_2000Q_1'}, order_by='properties.chip_id')
++        self.assertEqual(res, [self.solver1])
++        res = self.client.get_solvers(properties={'chip_id': 'DW_2000Q_1'}, order_by='-properties.chip_id')
++        self.assertEqual(res, [self.solver1])
++
++        # regex is case insensitive
++        res = self.client.get_solvers(properties={'chip_id': 'dw_2000q_1'})
++        self.assertEqual(res, [self.solver1])
++        res = self.client.get_solvers(properties={'chip_id': 'dw_2000q_1'}, order_by='properties.chip_id')
++        self.assertEqual(res, [self.solver1])
++        res = self.client.get_solvers(properties={'chip_id': 'dw_2000q_1'}, order_by='-properties.chip_id')
++        self.assertEqual(res, [self.solver1])
++
++        # regex with non-matching
++        res = self.client.get_solvers(properties={'chip_id': 'notmatching'})
++        self.assertEqual(res, [])
++
++
++if __name__ == '__main__':
++    unittest.main()

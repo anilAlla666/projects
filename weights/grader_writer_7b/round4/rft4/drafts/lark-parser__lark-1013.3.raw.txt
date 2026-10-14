@@ -1,0 +1,95 @@
+--- /dev/null
++++ b/tests/test_visitors_grader.py
+@@ -0,0 +1,100 @@
++import pytest
++from lark import Lark, Transformer, Transformer_NonRecursive
++from lark.tree import Tree, Token
++from lark.visitors import Discard
++
++
++def test_transformer_non_recursive_discard_issue_1021():
++    parser = Lark(r"""
++        start : add ignore_tree?
++        add   : N | add '+' N
++        N     : /[0-9]+/
++        %import common.WS
++        %ignore WS
++    """)
++
++    tree = Tree('start', [
++        Tree('add', [Token('N', '1'), Token('N', '2'), Token('token_ignore', '4')]),
++        Tree('add', [Token('N', '3'), Token('N', '4')]),
++        Tree('ignore_tree', [Token('DO', 'NOT PANIC')]),
++    ])
++
++    for base in (Transformer, Transformer_InPlace, Transformer_NonRecursive, Transformer_InPlaceRecursive):
++        class T(base):
++            def add(self, children):
++                return sum(children)
++
++            def N(self, token):
++                return int(token)
++
++            def ignore_tree(self, children):
++                raise Discard
++
++            def token_ignore(self, token):
++                raise Discard
++
++        transformed = T().transform(tree)
++
++        assert transformed == Tree('start',
++                                  [Tree('add', [1, 2]),
++                                   Tree('add', [3, 4])])
++
++
++@pytest.mark.parametrize("visitor", [Transformer, Transformer_NonRecursive])
++def test_transformer_discard_issue_1021(visitor):
++    parser = Lark(r"""
++        start : add ignore_tree?
++        add   : N | add '+' N
++        N     : /[0-9]+/
++        %import common.WS
++        %ignore WS
++    """)
++
++    tree = Tree('start', [
++        Tree('add', [Token('N', '1'), Token('N', '2'), Token('token_ignore', '4')]),
++        Tree('add', [Token('N', '3'), Token('N', '4')]),
++        Tree('ignore_tree', [Token('DO', 'NOT PANIC')]),
++    ])
++
++    for discard_method in ('raise', 'discard'):
++        class T(visitor):
++            def add(self, children):
++                return sum(children)
++
++            def N(self, token):
++                return int(token)
++
++            def ignore_tree(self, children):
++                if discard_method == 'raise':
++                    raise Discard
++                else:
++                    return Discard
++
++            def token_ignore(self, token):
++                if discard_method == 'raise':
++                    raise Discard
++                else:
++                    return Discard
++
++        try:
++            transformed = T().transform(tree)
++        except Discard:
++            if discard_method == 'raise':
++                assert True
++            else:
++                pytest.fail("Shouldn't have raised Discard")
++        else:
++            if discard_method == 'raise':
++                pytest.fail("Should have raised Discard")
++
++            assert transformed == Tree('start',
++                                      [Tree('add', [1, 2]),
++                                       Tree('add', [3, 4])])

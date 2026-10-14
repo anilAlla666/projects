@@ -1,0 +1,33 @@
+diff --git a/tests/test_add_command.py b/tests/test_add_command.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_add_command.py
+@@ -0,0 +1,34 @@
++import unittest
++from git_machete.client import Client
++from git_machete.options import CommandLineOptions
++
++class TestAddCommand(unittest.TestCase):
++    def setUp(self):
++        self.client = Client()
++        self.cli_opts = CommandLineOptions()
++
++    def test_add_existing_branch(self):
++        # Create a mock repository with an existing branch
++        self.client.repo.create_head("foo/bar")
++
++        # Call the add method with the existing branch name
++        result = self.client.add("foo/bar", self.cli_opts)
++
++        # Check if the result is as expected
++        self.assertTrue(result)
++
++    def test_add_nonexistent_branch(self):
++        # Attempt to add a non-existent branch
++        result = self.client.add("nonexistent/branch", self.cli_opts)
++
++        # Check if the result is as expected
++        self.assertFalse(result)
++
++if __name__ == '__main__':
++    unittest.main()

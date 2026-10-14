@@ -1,0 +1,116 @@
+--- /dev/null
++++ b/unittests/test_launchers_grader.py
+@@ -0,0 +1,110 @@
++import os
++import pytest
++import reframe.core.launchers as launchers
++from reframe.core.backends import getlauncher
++from reframe.core.schedulers import Job, JobScheduler
++
++
++@pytest.fixture(params=[
++    'alps', 'launcherwrapper', 'local', 'mpiexec', 'mpirun',
++    'srun', 'srunalloc', 'ssh', 'upcrun', 'upcxx-run', 'lrun', 'lrun-gpu'
++])
++def launcher(request):
++    if request.param == 'launcherwrapper':
++        # We set the registered_name for the LauncherWrapper just for
++        # convenience for the rest of the unit tests
++        wrapper_cls = launchers.LauncherWrapper
++        wrapper_cls.registered_name = 'launcherwrapper'
++        return wrapper_cls(
++            getlauncher('alps')(), 'ddt', ['--offline']
++        )
++
++    return getlauncher(request.param)()
++
++
++@pytest.fixture
++def make_job():
++    class FakeJobScheduler(JobScheduler):
++        def make_job(self, *args, **kwargs):
++            return Job(*args, **kwargs)
++
++        def emit_preamble(self, job):
++            pass
++
++        def submit(self, job):
++            pass
++
++    return FakeJobScheduler()
++
++
++@pytest.fixture
++def minimal_job(make_job):
++    return make_job.make_job('host', 'user', 'fake_job', 'fake_stdout',
++                            'fake_stderr', 1, 1, 1, 1, 1, 1, 1, 1, 1,
++                            {'foo': None})
++
++
++@pytest.fixture
++def full_job(make_job):
++    return make_job.make_job('host', 'user', 'fake_job', 'fake_stdout',
++                            'fake_stderr', 4, 2, 1, 1, 2, 2, 4, 1, 1,
++                            {'foo': None})
++
++
++@pytest.mark.parametrize('envvar', [
++    'SLURM_CPUS_PER_TASK', 'SRUN_CPUS_PER_TASK'
++])
++def test_srun_envvars(envvar):
++    os.environ[envvar] = '2'
++    try:
++        launcher = getlauncher('srun')()
++        job = Job('host', 'user', 'fake_job', 'fake_stdout', 'fake_stderr',
++                  4, 2, 1, 1, 2, 2, 4, 1, 1, {})
++        command = launcher.run_command(job)
++        assert command == 'srun --cpus-per-task=2 --foo'
++    finally:
++        del os.environ[envvar]
++
++
++def test_srun_no_envvars():
++    launcher = getlauncher('srun')()
++    job = Job('host', 'user', 'fake_job', 'fake_stdout', 'fake_stderr',
++              4, 2, 1, 1, 2, 2, 4, 1, 1, {})
++    command = launcher.run_command(job)
++    assert command == 'srun --foo'
++
++
++def test_srun_alloc_envvars():
++    os.environ['SLURM_CPUS_PER_TASK'] = '2'
++    try:
++        launcher = getlauncher('srunalloc')()
++        job = Job('host', 'user', 'fake_job', 'fake_stdout', 'fake_stderr',
++                  4, 2, 1, 1, 2, 2, 4, 1, 1, {})
++        command = launcher.run_command(job)
++        assert command == ('srun '
++                           '--job-name=fake_job '
++                           '--time=0:10:0 '
++                           '--output=fake_stdout '
++                           '--error=fake_stderr '
++                           '--ntasks=4 '
++                           '--ntasks-per-node=2 '
++                           '--ntasks-per-core=1 '
++                           '--ntasks-per-socket=1 '
++                           '--cpus-per-task=2 '
++                           '--exclusive '
++                           '--hint=multithread '
++                           '--gres=gpu:4 '
++                           '--fake '
++                           '--foo')
++    finally:
++        del os.environ['SLURM_CPUS_PER_TASK']
++
++
++def test_srun_alloc_no_envvars():
++    launcher = getlauncher('srunalloc')()
++    job = Job('host', 'user', 'fake_job', 'fake_stdout', 'fake_stderr',
++              4, 2, 1, 1, 2, 2, 4, 1, 1, {})
++    command = launcher.run_command(job)
++    assert command == ('srun '
++                       '--job-name=fake_job '
++                       '--output=fake_job.out '
++                       '--error=fake_job.err '
++                       '--ntasks=1 '
++                       '--foo')

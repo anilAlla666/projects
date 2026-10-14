@@ -1,0 +1,33 @@
+--- /dev/null
++++ b/tests/test_pydbg_grader.py
+@@ -0,0 +1,27 @@
++import os
++import io
++from pydbg import dbg
++from contextlib import redirect_stdout
++
++
++def something():
++    pass
++
++
++cwd = os.getcwd()
++
++
++def test_functions():
++    def foo(x: int) -> int:
++        return x * 2
++
++    def bar(x: int, y: int) -> int:
++        return x * y
++
++    out = io.StringIO()
++    with redirect_stdout(out):
++        dbg(foo(1))
++        dbg(bar(1, 2))
++
++    want = f"""[{cwd}/tests/test_pydbg.py:15] foo(1) = 2
++[{cwd}/tests/test_pydbg.py:18] bar(1, 2) = 2
++"""
++
++    assert out.getvalue() == want

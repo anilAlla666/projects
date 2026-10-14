@@ -1,0 +1,18 @@
+--- /dev/null
++++ b/tests/test_client_grader.py
+@@ -0,0 +1,15 @@
++import pytest
++from mock import patch
++
++
++def test_kwargs_are_none():
++    """
++    Test that passing kwargs as None will result in the defaults being used
++    """
++    with patch.object(__import__('jwplatform.client').requests.Session, '__init__') as mocked_init:
++        client = __import__('jwplatform.client').Client('key', 'secret', host=None)
++        mocked_init.assert_called_once_with()
++
++
++if __name__ == '__main__':
++    pytest.main()

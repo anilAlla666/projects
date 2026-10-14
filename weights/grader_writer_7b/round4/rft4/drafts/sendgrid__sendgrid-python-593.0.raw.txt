@@ -1,0 +1,189 @@
+--- /dev/null
++++ b/test/test_mail_grader.py
+@@ -0,0 +1,140 @@
++import json
++from sendgrid.helpers.mail import (
++    ASM,
++    APIKeyIncludedException,
++    Attachment,
++    BCCSettings,
++    BypassListManagement,
++    Category,
++    ClickTracking,
++    Content,
++    CustomArg,
++    Email,
++    FooterSettings,
++    Ganalytics,
++    Header,
++    Mail,
++    MailSettings,
++    OpenTracking,
++    Personalization,
++    SandBoxMode,
++    Section,
++    SendGridException,
++    SpamCheck,
++    SubscriptionTracking,
++    Substitution,
++    TrackingSettings,
++    ValidateAPIKey
++)
++
++
++try:
++    import unittest2 as unittest
++except ImportError:
++    import unittest
++
++
++class UnitTests(unittest.TestCase):
++    def test_asm_display_group_limit(self):
++        self.assertRaises(ValueError, ASM, 1, list(range(26)))
++
++    def test_dynamic_template_data(self):
++        mail = Mail()
++        mail.from_email = Email('example@sendgrid.net')
++        mail.to_emails = Email('recipient@example.com')
++        mail.template_id = 'abc'
++        mail.dynamic_template_data = {
++            'key': 'value',
++            'array': ['one', 'two'],
++            'nested': {'foo': 'bar'}
++        }
++        expected_result = {
++            "from": {"email": "example@sendgrid.net"},
++            "template_id": "abc",
++            "personalizations": [
++                {
++                    "to": [{"email": "recipient@example.com"}],
++                    "dynamic_template_data": {
++                        "key": "value",
++                        "array": ["one", "two"],
++                        "nested": {"foo": "bar"}
++                    }
++                }
++            ]
++        }
++
++        self.assertEqual(
++            json.dumps(mail.get(), sort_keys=True),
++            json.dumps(expected_result, sort_keys=True)
++        )
++
++    def test_dynamic_template_data_and_other_content(self):
++        mail = Mail()
++        mail.from_email = Email('example@sendgrid.net')
++        mail.to_emails = Email('recipient@example.com')
++        mail.template_id = 'abc'
++        mail.dynamic_template_data = {
++            'key': 'value',
++            'array': ['one', 'two'],
++            'nested': {'foo': 'bar'}
++        }
++        mail.content = [
++            Content("text/plain", "some text here"),
++            Content("text/html", "<html><body>some text here</body></html>")
++        ]
++        expected_result = {
++            "from": {"email": "example@sendgrid.net"},
++            "template_id": "abc",
++            "personalizations": [
++                {
++                    "to": [{"email": "recipient@example.com"}],
++                    "dynamic_template_data": {
++                        "key": "value",
++                        "array": ["one", "two"],
++                        "nested": {"foo": "bar"}
++                    }
++                }
++            ],
++            "content": [
++                {
++                    "type": "text/plain",
++                    "value": "some text here"
++                },
++                {
++                    "type": "text/html",
++                    "value": "<html><body>some text here</body></html>"
++                }
++            ]
++        }
++
++        self.assertEqual(
++            json.dumps(mail.get(), sort_keys=True),
++            json.dumps(expected_result, sort_keys=True)
++        )
++
++    def test_invalid_template_id(self):
++        mail = Mail()
++        mail.from_email = Email('example@sendgrid.net')
++        mail.to_emails = Email('recipient@example.com')
++        mail.dynamic_template_data = {
++            'key': 'value',
++            'array': ['one', 'two'],
++            'nested': {'foo': 'bar'}
++        }
++
++        self.assertRaises(SendGridException, mail.get)
++
++    def test_get_no_template_id(self):
++        mail = Mail()
++        mail.from_email = Email('example@sendgrid.net')
++        mail.to_emails = Email('recipient@example.com')
++
++        self.assertRaises(SendGridException, mail.get)
++
++    def test_set_subject_after_template_id(self):
++        mail = Mail()
++        mail.from_email = Email('example@sendgrid.net')
++        mail.to_emails = Email('recipient@example.com')
++        mail.template_id = 'abc'
++        mail.subject = 'new subject'
++        expected_result = {
++            "from": {"email": "example@sendgrid.net"},
++            "template_id": "abc",
++            "personalizations": [
++                {
++                    "to": [{"email": "recipient@example.com"}],
++                    "subject": "new subject"
++                }
++            ]
++        }
++
++        self.assertEqual(
++            json.dumps(mail.get(), sort_keys=True),
++            json.dumps(expected_result, sort_keys=True)
++        )
+--- /dev/null
++++ b/test/test_email_grader.py
+@@ -0,0 +1,30 @@
++import json
++from sendgrid.helpers.mail import (Email)
++
++
++try:
++    import unittest2 as unittest
++except ImportError:
++    import unittest
++
++
++class TestEmailObject(unittest.TestCase):
++    def test_add_email_address(self):
++        address = "test@example.com"
++        email = Email(address)
++
++        self.assertEqual(email.email, "test@example.com")
++
++    def test_add_name(self):
++        name = "SomeName"
++        email = Email(name=name)
++
++        self.assertEqual(email.name, name)
++
++    def test_add_name_email(self):
++        name = "SomeName"
++        address = "test@example.com"
++        email = Email(email=address, name=name)
++        self.assertEqual(email.name, name)
++        self.assertEqual(email.email, "test@example.com")

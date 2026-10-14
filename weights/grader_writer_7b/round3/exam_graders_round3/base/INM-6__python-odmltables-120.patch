@@ -1,0 +1,26 @@
+diff --git a/odmltables/tests/test_odml_table.py b/odmltables/tests/test_odml_table.py
+index 3a4b5c6..7d8e9f0 100644
+--- a/odmltables/tests/test_odml_table.py
++++ b/odmltables/tests/test_odml_table.py
+@@ -407,6 +407,21 @@ class TestLoadOdmlFromTable(unittest.TestCase):
+         self.assertEqual(num_props_new, tot_props - sec2_props)
+ 
+     def test_filter_comparison_func_false(self):
++        """
++        Testing conversion of an empty CSV file
++        """
++        empty_csv_file = 'empty.csv'
++        with open(empty_csv_file, 'w') as f:
++            f.write('row_id,column1,column2\n')
++
++        table = OdmlCsvTable()
++        try:
++            table.load_from_file(empty_csv_file)
++        except Exception as e:
++            self.fail(f"An exception was raised: {e}")
++
++        os.remove(empty_csv_file)
++
+         """
+         Keeping/removing all properties by providing True/False as comparison function
+         """

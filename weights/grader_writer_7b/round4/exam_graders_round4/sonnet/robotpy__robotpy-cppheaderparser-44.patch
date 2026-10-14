@@ -1,0 +1,62 @@
+diff --git a/test/test_typedef_return_type.py b/test/test_typedef_return_type.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_typedef_return_type.py
+@@ -0,0 +1,56 @@
++# -*- coding: utf-8 -*-
++import unittest
++
++import CppHeaderParser as CppHeaderParser
++
++
++class TypedefReturnType_TestCase(unittest.TestCase):
++    def test_typedef_unknown_target_return(self):
++        h = """
++typedef C A;
++
++class B
++{
++public:
++   A aMethod();
++};
++"""
++        header = CppHeaderParser.CppHeader(h, "string")
++        self.assertIn("B", header.classes)
++        methods = header.classes["B"]["methods"]["public"]
++        self.assertEqual(1, len(methods))
++        self.assertEqual("aMethod", methods[0]["name"])
++        self.assertIn(methods[0]["rtnType"], ("A", "C"))
++
++    def test_typedef_pointer_return(self):
++        h = """
++typedef C A;
++
++class B
++{
++public:
++   A *aMethod();
++};
++"""
++        header = CppHeaderParser.CppHeader(h, "string")
++        methods = header.classes["B"]["methods"]["public"]
++        self.assertEqual(1, len(methods))
++        self.assertEqual("aMethod", methods[0]["name"])
++
++    def test_typedef_return_in_namespace(self):
++        h = """
++namespace N {
++typedef C A;
++
++class B
++{
++public:
++   A aMethod();
++};
++}
++"""
++        header = CppHeaderParser.CppHeader(h, "string")
++        self.assertIn("N::B", header.classes)
++
++
++if __name__ == "__main__":
++    unittest.main()

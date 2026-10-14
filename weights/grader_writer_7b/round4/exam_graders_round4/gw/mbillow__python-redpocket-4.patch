@@ -1,0 +1,113 @@
+--- /dev/null
++++ b/tests/test_api_grader.py
+@@ -0,0 +1,100 @@
++import pytest
++import responses
++from unittest.mock import MagicMock
++from datetime import date, datetime
++from redpocket import (
++    RedPocket,
++    RedPocketAuthError,
++    RedPocketException,
++    RedPocketAPIError,
++)
++from redpocket.api import _today, RedPocketPhone, RedPocketLine, RedPocketLineDetails
++
++
++@pytest.fixture
++def successful_login():
++    responses.add(responses.GET, "https://www.redpocket.com/login", status=200)
++    responses.add(
++        responses.POST,
++        "https://www.redpocket.com/login",
++        status=302,
++        headers={
++            "Set-Cookie": "redpocket=FAKE_COOKIE",
++            "Location": "/my-lines",
++        },
++    )
++    responses.add(responses.GET, "https://www.redpocket.com/my-lines", status=200)
++
++
++@pytest.fixture
++def mock_line_details():
++    return {
++        "number": 1234567890,
++        "productCode": "A1234567890",
++        "accountStatus": "active",
++        "plan_id": "P1234567890",
++        "plan_code": "P1234567890",
++        "expiration": "2021-05-12",
++        "lastExpiration": "2022-01-02",
++        "lastAutorenew": "2021-12-03",
++        "mainBalance": -1,
++        "voiceBalance": -1,
++        "messagingBalance": -1,
++        "dataBalance": 7657,
++        "phone": {
++            "model": "iPhone 12 Pro Max",
++            "imei": "123456789012345",
++            "sim": "123456789012345",
++            "esn": "123456789012345",
++        },
++    }
++
++
++@pytest.fixture
++def mock_login_page():
++    return """
++        <form action="/login" method="post">
++            <input type="hidden" name="csrf" value="FAKE_CSRF_TOKEN"/>
++        </form>
++    """
++
++
++@pytest.fixture
++def mock_set_cookie_header():
++    return {"Set-Cookie": "redpocket=FAKE_COOKIE"}
++
++
++@responses.activate
++def test_request_type_param(successful_login: None):
++    responses.add(
++        responses.GET,
++        "https://www.redpocket.com/account/get-other-lines",
++        status=200,
++        json={"return_code": 11, "return_data": {}},
++    )
++    responses.add(
++        responses.GET,
++        "https://www.redpocket.com/account/get-details?id=FAKE_LINE_HASH&_=1",
++        status=200,
++        json={"return_code": 1, "return_data": {}},
++    )
++    rp = RedPocket(username="fake", password="password")
++
++    rp.get_lines()
++
++    assert len(responses.calls) == 4
++    assert responses.calls[2].request.params == {}
++    assert responses.calls[3].request.params == {"type": "api", "_": "1"}
++
++
++@responses.activate
++def test_request_no_type_param(successful_login: None):
++    responses.add(
++        responses.GET,
++        "https://www.redpocket.com/account/get-other-lines",
++        status=200,
++        json={"return_code": 11, "return_data": {}},
++    )
++    responses.add(
++        responses.GET,
++        "https://www.redpocket.com/account/get-details?id=FAKE_LINE_HASH",
++        status=200,
++        json={"return_code": 1, "return_data": {}},
++    )
++    rp = RedPocket(username="fake", password="password")
++
++    rp.get_lines()
++
++    assert len(responses.calls) == 4
++    assert responses.calls[2].request.params == {}
++    assert responses.calls[3].request.params == {}

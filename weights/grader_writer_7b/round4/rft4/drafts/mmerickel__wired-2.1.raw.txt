@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/tests/test_container_grader.py
+@@ -0,0 +1,28 @@
++import pytest
++from zope.interface import Interface
++from zope.interface import implementer
++
++
++class IFooService(Interface):
++    pass
++
++
++class IBarService(IFooService):
++    pass
++
++
++class IBazService(IFooService):
++    pass
++
++
++class ContextA:
++    pass
++
++
++def test_class_name_as_str():
++    # https://github.com/mmerickel/wired/issues/24
++    class Greeter:
++        pass
++
++    assert Greeter.__module__ == 'tests.test_container'

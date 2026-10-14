@@ -1,0 +1,76 @@
+--- /dev/null
++++ b/tests/responses/test_responses_grader.py
+@@ -0,0 +1,79 @@
++from __future__ import absolute_import, print_function, division, unicode_literals
++import inspect
++import os
++import re
++import six
++from io import BufferedReader, BytesIO
++from sys import version_info
++import pytest
++import requests
++import responses
++from requests.exceptions import ConnectionError, HTTPError
++from responses import BaseResponse, Response, PassthroughResponse, matchers
++
++
++try:
++    from mock import patch, Mock
++except ImportError:
++    from unittest.mock import patch, Mock  # type: ignore
++
++
++def assert_reset():
++    assert len(responses._default_mock._matches) == 0
++    assert len(responses.calls) == 0
++
++
++def assert_response(resp, body=None, content_type="text/plain"):
++    assert resp.status_code == 200
++    assert resp.reason == "OK"
++    if content_type is not None:
++        assert resp.headers["Content-Type"] == content_type
++    else:
++        assert "Content-Type" not in resp.headers
++    assert resp.text == body
++
++
++def assert_params(resp, expected):
++    assert hasattr(resp, "request"), "Missing request"
++    assert hasattr(resp.request, "params"), "Missing request.params"
++    for key, value in expected.items():
++        assert resp.request.params.get(key) == value, "{} != {}".format(
++            resp.request.params.get(key), value
++        )
++
++
++@pytest.fixture
++def mock_get():
++    responses.add(responses.GET, "http://get")
++    yield
++    responses.reset()
++
++
++def test_passthrough_response_appears_in_calls(mock_get):
++    @responses.activate
++    def run():
++        resp = requests.get("http://passthrough")
++        assert_response(resp)
++        assert len(responses.calls) == 1
++        assert isinstance(responses.calls[0].response, PassthroughResponse)
++
++    run()
++    assert_reset()
++
++
++def test_no_pass_through_response_when_not_matched(mock_get):
++    @responses.activate
++    def run():
++        resp = requests.get("http://notmatched")
++        assert_response(resp, "", content_type=None)
++        assert len(responses.calls) == 1
++        assert isinstance(responses.calls[0].response, Response)
++
++    run()
++    assert_reset()

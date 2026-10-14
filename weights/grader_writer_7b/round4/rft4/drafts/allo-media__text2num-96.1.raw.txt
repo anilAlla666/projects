@@ -1,0 +1,229 @@
+--- /dev/null
++++ b/tests/test_text_to_num_ca_grader.py
+@@ -0,0 +1,33 @@
++"""
++Test the ``text_to_num`` library.
++"""
++
++
++from unittest import TestCase
++from text_to_num import alpha2digit, text2num
++
++
++class TestTextToNumCA(TestCase):
++    def test_alpha2digit_numbers_with_following_multiplier(self):
++        source = "Quatre bilions treinta milións quatrecentos cincanta mil cinc"
++        expected = "4.350.000.005"
++        self.assertEqual(alpha2digit(source, "ca"), expected)
++
++        source = "Un bilion treinta milións quatrecentos cincanta mil cinc"
++        expected = "1.350.000.005"
++        self.assertEqual(alpha2digit(source, "ca"), expected)
++
++        source = "Quatre milions treinta milións quatrecentos cincanta mil cinc"
++        expected = "4.000.350.005"
++        self.assertEqual(alpha2digit(source, "ca"), expected)
++
++        source = "Milles treinta milións quatrecentos cincanta mil cinc"
++        expected = "1.350.005"
++        self.assertEqual(alpha2digit(source, "ca"), expected)
++
++        source = "Treinta milións quatrecentos cincanta mil cinc"
++        expected = "350.005"
++        self.assertEqual(alpha2digit(source, "ca"), expected)
++
++        source = "Quatre centos cincanta mil cinc"
++        expected = "450.005"
++        self.assertEqual(alpha2digit(source, "ca"), expected)
+--- /dev/null
++++ b/tests/test_text_to_num_fr_grader.py
+@@ -0,0 +1,32 @@
++"""
++Test the ``text_to_num`` library.
++"""
++
++
++from unittest import TestCase
++from text_to_num import alpha2digit, text2num
++
++
++class TestTextToNumFR(TestCase):
++    def test_alpha2digit_numbers_with_following_multiplier(self):
++        source = "Quatre bilions trente miliards quatre cent cinquante millions cinq"
++        expected = "4.350.000.005"
++        self.assertEqual(alpha2digit(source, "fr"), expected)
++
++        source = "Un bilion trente miliards quatre cent cinquante millions cinq"
++        expected = "1.350.000.005"
++        self.assertEqual(alpha2digit(source, "fr"), expected)
++
++        source = "Quatre miliards trente miliards quatre cent cinquante millions cinq"
++        expected = "4.000.350.005"
++        self.assertEqual(alpha2digit(source, "fr"), expected)
++
++        source = "Mille trois cent cinquante miliards quatre cent cinquante millions cinq"
++        expected = "1.350.005"
++        self.assertEqual(alpha2digit(source, "fr"), expected)
++
++        source = "Trois cent cinquante miliards quatre cent cinquante millions cinq"
++        expected = "350.005"
++        self.assertEqual(alpha2digit(source, "fr"), expected)
++
++        source = "Quatre cent cinquante millions cinq"
++        expected = "450.005"
++        self.assertEqual(alpha2digit(source, "fr"), expected)
+--- /dev/null
++++ b/tests/test_text_to_num_es_grader.py
+@@ -0,0 +1,33 @@
++"""
++Test the ``text_to_num`` library.
++"""
++
++
++from unittest import TestCase
++from text_to_num import alpha2digit, text2num
++
++
++class TestTextToNumES(TestCase):
++    def test_alpha2digit_numbers_with_following_multiplier(self):
++        source = "Cuatro mil millones treinta millones cuatrocientos cincuenta miles cinco"
++        expected = "4.350.000.005"
++        self.assertEqual(alpha2digit(source, "es"), expected)
++
++        source = "Mil millones treinta millones cuatrocientos cincuenta miles cinco"
++        expected = "1.350.000.005"
++        self.assertEqual(alpha2digit(source, "es"), expected)
++
++        source = "Cuatro mil millones treinta millones cuatrocientos cincuenta miles cinco"
++        expected = "4.000.350.005"
++        self.assertEqual(alpha2digit(source, "es"), expected)
++
++        source = "Trescientos cincuenta millones cuatrocientos cincuenta miles cinco"
++        expected = "350.005"
++        self.assertEqual(alpha2digit(source, "es"), expected)
++
++        source = "Cuatrocientos cincuenta mil cinco"
++        expected = "450.005"
++        self.assertEqual(alpha2digit(source, "es"), expected)
++
++        source = "Dos billones uno mil millones"
++        expected = "2.001.000.000"
++        self.assertEqual(alpha2digit(source, "es"), expected)
+--- /dev/null
++++ b/tests/test_transforms_grader.py
+@@ -0,0 +1,119 @@
++"""
++Test the ``transform`` module.
++"""
++
++
++import logging
++from unittest import TestCase
++from text_to_num import transforms
++
++
++logging.basicConfig(level=logging.INFO)
++
++
++def log_test_case_name(name):
++    logging.info(f"\n\n\n*** TEST CASE NAME ***: {name}\n\n\n")
++
++
++class TestTransforms(TestCase):
++    def setUp(self):
++        self.language = "en"
++        self.relaxed = False
++        self.tokenizer = transforms.Tokenizer()
++        self.transformer = transforms.Transformer(self.language, self.relaxed)
++
++    def tearDown(self):
++        pass
++
++    def test_transform(self):
++        source = "I have three apples."
++        expected = "I have 3 apples."
++        self.assertEqual(transforms.transform(source, self.language), expected)
++
++    def test_transform_with_and(self):
++        source = "I have three apples and two oranges."
++        expected = "I have 3 apples and 2 oranges."
++        self.assertEqual(transforms.transform(source, self.language), expected)
++
++    def test_transform_with_and_relaxed(self):
++        source = "I have three apples and two oranges."
++        expected = "I have 3 apples and 2 oranges."
++        self.assertEqual(
++            transforms.transform(source, self.language, relaxed=self.relaxed),
++            expected,
++        )
++
++    def test_transform_with_and_no_relaxed(self):
++        source = "I have three apples and two oranges."
++        expected = "I have 3 apples and 2 oranges."
++        self.assertEqual(
++            transforms.transform(source, self.language, relaxed=self.relaxed),
++            expected,
++        )
++
++    def test_transform_with_and_and_relaxed(self):
++        source = "I have three apples and two oranges and bananas."
++        expected = "I have 3 apples and 2 oranges and bananas."
++        self.assertEqual(
++            transforms.transform(source, self.language, relaxed=self.relaxed),
++            expected,
++        )
++
++    def test_transform_with_and_and_relaxed_repeated(self):
++        source = (
++            "I have three apples and two oranges and bananas and bananas."
++        )
++        expected = (
++            "I have 3 apples and 2 oranges and bananas and bananas."
++        )
++        self.assertEqual(
++            transforms.transform(source, self.language, relaxed=self.relaxed),
++            expected,
++        )
++
++    def test_transform_with_and_and_relaxed_repeated_and_relaxed_false(self):
++        source = (
++            "I have three apples and two oranges and bananas and bananas."
++        )
++        expected = (
++            "I have 3 apples and 2 oranges and bananas and bananas."
++        )
++        self.assertEqual(
++            transforms.transform(
++                source, self.language, relaxed=False
++            ),
++            expected,
++        )
++
++    def test_transform_with_and_and_relaxed_repeated_and_relaxed_true(self):
++        source = (
++            "I have three apples and two oranges and bananas and bananas."
++        )
++        expected = (
++            "I have 3 apples and 2 oranges and bananas and bananas."
++        )
++        self.assertEqual(
++            transforms.transform(
++                source, self.language, relaxed=self.relaxed
++            ),
++            expected,
++        )
++
++    def test_transform_with_and_and_relaxed_repeated_and_relaxed_true_2(self):
++        source = (
++            "I have three apples and two oranges and bananas and bananas and"
++            "and bananas."
++        )
++        expected = (
++            "I have 3 apples and 2 oranges and bananas and bananas and bananas."
++        )
++        self.assertEqual(
++            transforms.transform(
++                source, self.language, relaxed=self.relaxed
++            ),
++            expected,
++        )

@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/test_urlman_grader.py
+@@ -0,0 +1,27 @@
++import pytest
++import urlman
++
++
++class Post(object):
++    slug = "hello-world"  # the object-specific attribute to refer to in the URL
++
++    class urls(urlman.Urls):
++        view = "/posts/{self.slug}/"
++        authors = "{view}authors/"
++        admin = "{authors}admin/"
++        broken = "/{does_not_exist}/"
++        recursion = "/{recursion}/"
++
++
++@pytest.fixture
++def post():
++    return Post()
++
++
++def test_dunder_attr_access():
++    """Test that __dunder__ attributes are not interpreted as URLs"""
++    class Foo(object):
++        bar = "baz"
++
++    foo = Foo()
++    assert foo.urls.__dict__ == {}

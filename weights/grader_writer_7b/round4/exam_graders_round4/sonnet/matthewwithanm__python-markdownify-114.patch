@@ -1,0 +1,23 @@
+diff --git a/tests/test_captions.py b/tests/test_captions.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_captions.py
+@@ -0,0 +1,22 @@
++import re
++
++from markdownify import markdownify as md
++
++
++def test_table_caption_separated_from_table():
++    out = md('TEXT<table><caption>Caption</caption><tr><td>CELL</td></tr></tbody></table>')
++    assert re.search(r'TEXT\n\n+Caption\n\n+\| CELL \|', out), repr(out)
++
++
++def test_figcaption_at_top_of_figure():
++    out = md('TEXT<figure><figcaption>Caption</figcaption><span>SPAN</span></figure>')
++    assert re.search(r'TEXT\n\n+Caption\n\n+SPAN', out), repr(out)
++
++
++def test_figcaption_at_bottom_of_figure():
++    out = md('<figure><span>SPAN</span><figcaption>Caption</figcaption></figure>TEXT')
++    assert re.search(r'SPAN\n\n+Caption\n\n+TEXT', out), repr(out)

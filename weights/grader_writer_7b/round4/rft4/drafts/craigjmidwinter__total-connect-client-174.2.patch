@@ -1,0 +1,126 @@
+--- /dev/null
++++ b/tests/test_location_grader.py
+@@ -0,0 +1,54 @@
++"""Test total_connect_client location."""
++
++
++import unittest
++from copy import deepcopy
++from unittest.mock import Mock, patch
++import pytest
++from const import (
++    LOCATION_INFO_BASIC_NORMAL,
++    METADATA_DISARMED_LOW_BATTERY,
++    RESPONSE_DISARMED,
++    RESPONSE_GET_ZONE_DETAILS_SUCCESS,
++)
++from total_connect_client.exceptions import PartialResponseError, TotalConnectError
++from total_connect_client.location import DEFAULT_USERCODE, TotalConnectLocation
++
++
++class TestTotalConnectLocation(unittest.TestCase):
++    """Test TotalConnectLocation."""
++
++    def setUp(self):
++        """Set up for location testing."""
++        self.auto_bypass_low_battery = False
++        self.location_normal = TotalConnectLocation(LOCATION_INFO_BASIC_NORMAL, self)
++        self.location_normal._update_status(deepcopy(RESPONSE_DISARMED))
++        self.location_normal._update_partitions(deepcopy(RESPONSE_DISARMED))
++        self.location_normal._update_zones(deepcopy(RESPONSE_DISARMED))
++
++    def tearDown(self):
++        """Tear down."""
++        self.location_normal = None
++
++    def tests_update_status_with_unknown_arming_state(self):
++        """Test _update_status with an unknown arming state."""
++
++        response = deepcopy(RESPONSE_DISARMED)
++        response["ArmingState"] = 999999999
++        with pytest.raises(TotalConnectError):
++            self.location_normal._update_status(response)
++
++        # now update to a known state
++        response["ArmingState"] = 10200
++        self.location_normal._update_status(response)
++        assert self.location_normal.arming_state.value == 10200
++
++        # now update to another known state
++        response["ArmingState"] = 10207
++        self.location_normal._update_status(response)
++        assert self.location_normal.arming_state.value == 10207
++
++        # now update to yet another state
++        response["ArmingState"] = 10208
++        self.location_normal._update_status(response)
++        assert self.location_normal.arming_state.value == 10208
+--- /dev/null
++++ b/tests/test_partition_grader.py
+@@ -0,0 +1,56 @@
++"""Test TotalConnectDevice."""
++
++
++from copy import deepcopy
++from unittest.mock import Mock
++import pytest
++from const import PARTITION_DETAILS_1, PARTITION_DISARMED
++from total_connect_client.client import ArmingHelper
++from total_connect_client.exceptions import PartialResponseError, TotalConnectError
++from total_connect_client.partition import TotalConnectPartition
++
++
++def tests_partition():
++    """Test __init__()."""
++    test_partition = TotalConnectPartition(PARTITION_DETAILS_1, None)
++    assert test_partition.partitionid == 1
++
++    test_partition._update(PARTITION_DISARMED)
++    assert test_partition.arming_state.value == PARTITION_DISARMED["ArmingState"]
++
++    unknown = deepcopy(PARTITION_DISARMED)
++    unknown["ArmingState"] = "999999999"
++    with pytest.raises(TotalConnectError):
++        test_partition._update(unknown)
++
++    # remove ArmingState
++    data = deepcopy(PARTITION_DETAILS_1)
++    del data["ArmingState"]
++    with pytest.raises(PartialResponseError):
++        test_partition._update(data)
++
++    # no info
++    with pytest.raises(PartialResponseError):
++        test_partition._update(None)
++
++    # unknown arming state
++    unknown = deepcopy(PARTITION_DISARMED)
++    unknown["ArmingState"] = 999999999
++    with pytest.raises(TotalConnectError):
++        test_partition._update(unknown)
++
++    # unknown arming state
++    unknown = deepcopy(PARTITION_DISARMED)
++    unknown["ArmingState"] = 10230
++    with pytest.raises(TotalConnectError):
++        test_partition._update(unknown)
++
++
++def tests_arming_state():
++    """Test status functions."""
++
++    partition = TotalConnectPartition(PARTITION_DETAILS_1, None)
++
++    assert partition.arming_state.is_disarming() is False
++    assert partition.arming_state.is_disarmed() is True
++    assert partition.arming_state.is_arming() is False
++    assert partition.arming_state.is_armed() is False
++    assert partition.arming_state.is_armed_away() is False
++    assert partition.arming_state.is_armed_custom_bypass() is False
++    assert partition.arming_state.is_armed_home() is False
++    assert partition.arming_state.is_armed_night() is False
++    assert partition.arming_state.is_pending() is False
++    assert partition.arming_state.is_triggered_police() is False
++    assert partition.arming_state.is_triggered_fire() is False
++    assert partition.arming_state.is_triggered_gas() is False
++    assert partition.arming_state.is_triggered() is False

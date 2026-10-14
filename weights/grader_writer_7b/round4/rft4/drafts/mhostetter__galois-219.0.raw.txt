@@ -1,0 +1,108 @@
+--- /dev/null
++++ b/tests/polys/test_minimal_polys_grader.py
+@@ -0,0 +1,27 @@
++import pytest
++import numpy as np
++import galois
++
++
++PARAMS = [(2,1), (2,2), (2,3), (2,4), (3,1), (3,2), (3,3), (3,4), (5,1), (5,2), (5,3)]
++
++
++MINIMAL_POLYS_2_1 = [
++    (0, [1, 0]),
++    (1, [1, 1]),
++]
++
++
++MINIMAL_POLYS_2_2 = [
++    (0, [1, 0]),
++    (1, [1, 1]),
++    (2, [1, 1, 1]),
++    (3, [1, 1, 1]),
++]
++
++
++def test_degrees_duplicates():
++    # Duplicate degrees should raise a ValueError
++    with pytest.raises(ValueError):
++        galois.Poly.Degrees([0, 0])
++    with pytest.raises(ValueError):
++        galois.Poly.Degrees([0, 0, 0])
+--- /dev/null
++++ b/tests/polys/test_primitive_polys_grader.py
+@@ -0,0 +1,42 @@
++import pytest
++import galois
++
++
++PARAMS = [(2,1), (2,2), (2,3), (2,4), (2,5), (2,6), (2,7), (2,8), (3,1), (3,2), (3,3), (3,4), (3,5), (3,6), (5,1), (5,2), (5,3), (5,4), (2**2,1), (2**2,2), (2**2,3), (3**2,1), (3**2,2), (3**2,3), (5**2,1), (5**2,2)]
++
++
++PRIMITIVE_POLYS_2_1 = [[1, 1]]
++
++
++PRIMITIVE_POLYS_2_2 = [[1, 1], [1, 1, 1]]
++
++
++PRIMITIVE_POLYS_2_3 = [[1, 1], [1, 0, 1, 1], [1, 1, 0, 1]]
++
++
++PRIMITIVE_POLYS_2_4 = [[1, 1], [1, 1, 1], [1, 0, 1, 1, 1], [1, 1, 0, 1, 1]]
++
++
++PRIMITIVE_POLYS_2_5 = [[1, 1], [1, 1, 1], [1, 0, 1, 1, 1], [1, 1, 0, 1, 1, 1], [1, 1, 1, 0, 1, 1]]
++
++
++PRIMITIVE_POLYS_2_6 = [[1, 1], [1, 1, 1], [1, 0, 1, 1, 1], [1, 1, 0, 1, 1, 1], [1, 1, 1, 0, 1, 1, 1], [1, 1, 1, 1, 0, 1, 1]]
++
++
++PRIMITIVE_POLYS_2_7 = [[1, 1], [1, 1, 1], [1, 0, 1, 1, 1], [1, 1, 0, 1, 1, 1], [1, 1, 1, 0, 1, 1, 1], [1, 1, 1, 1, 0, 1, 1, 1], [1, 1, 1, 1, 1, 0, 1, 1]]
++
++
++PRIMITIVE_POLYS_2_8 = [[1, 1], [1, 1, 1], [1, 0, 1, 1, 1], [1, 1, 0, 1, 1, 1], [1, 1, 1, 0, 1, 1, 1], [1, 1, 1, 1, 0, 1, 1, 1], [1, 1, 1, 1, 1, 0, 1, 1, 1], [1, 1, 1, 1, 1, 1, 0, 1, 1]]
++
++
++def test_matlab_primitive_poly():
++    assert galois.matlab_primitive_poly(2, 1).coeffs.tolist()[::-1] == [1, 1]
++    assert galois.matlab_primitive_poly(2, 2).coeffs.tolist()[::-1] == [1, 1, 1]
++    assert galois.matlab_primitive_poly(2, 3).coeffs.tolist()[::-1] == [1, 1, 0, 1]
++    assert galois.matlab_primitive_poly(2, 4).coeffs.tolist()[::-1] == [1, 1, 0, 0, 1]
++    assert galois.matlab_primitive_poly(2, 5).coeffs.tolist()[::-1] == [1, 1, 0, 0, 0, 1]
++    assert galois.matlab_primitive_poly(2, 6).coeffs.tolist()[::-1] == [1, 1, 0, 0, 0, 0, 1]
++    assert galois.matlab_primitive_poly(2, 7).coeffs.tolist()[::-1] == [1, 1, 0, 0, 0, 0, 0, 1]
++    assert galois.matlab_primitive_poly(2, 8).coeffs.tolist()[::-1] == [1, 1, 0, 0, 0, 0, 0, 0, 1]
+--- /dev/null
++++ b/tests/polys/test_square_free_factorizations_grader.py
+@@ -0,0 +1,27 @@
++import pytest
++import numpy as np
++import galois
++
++
++def test_square_free_factorization():
++    # Square-free factorization of a prime power
++    p = 3
++    m = 2
++    n = 1
++    F = galois.GF(p**m)
++    factor, multiplicity = galois.square_free_factorization(F.prim_poly)
++    assert factor.degree == 1
++    assert multiplicity == [n]
++
++    # Square-free factorization of a cyclotomic coset representative
++    p = 3
++    m = 2
++    k = 2
++    F = galois.GF(p**m)
++    factor, multiplicity = galois.square_free_factorization(F.cyclotomic_cosets[k][0])
++    assert factor.degree == 1
++    assert multiplicity == [n]
++
++    # Square-free factorization of a reducible polynomial
++    p = 3
++    m = 2
++    F = galois.GF(p**m)
++    factor, multiplicity = galois.square_free_factorization((F.primitive_element**2 + F.primitive_element + 1)*(F.primitive_element + 1))
++    assert factor == [F.primitive_element**2 + F.primitive_element + 1, F.primitive_element + 1]
++    assert multiplicity == [1, 1]

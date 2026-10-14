@@ -1,0 +1,44 @@
+--- /dev/null
++++ b/tests/test_predicates_grader.py
+@@ -0,0 +1,42 @@
++import unittest
++from dedupe import predicates
++from future.builtins import str
++
++
++class TestEscaping(unittest.TestCase):
++    def test_escaping(self):
++        self.assertEqual(predicates._escape_blockkey(':'), '\\:')
++        self.assertEqual(predicates._escape_blockkey('::'), '\\:\\:')
++        self.assertEqual(predicates._escape_blockkey('x:y:z'), 'x\\:y\\:z')
++        self.assertEqual(predicates._escape_blockkey('x:y\\:z'), 'x\\:y\\:\\:z')
++        self.assertEqual(predicates._escape_blockkey('x:y\\:z\\:w'),
++                         'x\\:y\\:\\:z\\:\\:w')
++
++
++class TestWholeSet(unittest.TestCase):
++    def setUp(self):
++        self.s1 = set(['red', 'blue', 'green'])
++
++    def test_full_set(self):
++        block_val = predicates.wholeSetPredicate(self.s1)
++        self.assertEqual(block_val, (predicates._escape_blockkey(str(self.s1)),))
++
++
++class TestSimpleSet(unittest.TestCase):
++    def setUp(self):
++        self.s1 = set(['red', 'blue', 'green'])
++
++    def test_long_set(self):
++        block_val = predicates.commonSetElementPredicate(self.s1)
++        self.assertEqual(set(block_val),
++                         set((predicates._escape_blockkey(element)
++                              for element in ('blue', 'green', 'red'))))
++
++    def test_empty_set(self):
++        block_val = predicates.commonSetElementPredicate(set())
++        self.assertEqual(block_val, tuple())
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,266 @@
+--- /dev/null
++++ b/aiosmtpd/tests/test_smtp_grader.py
+@@ -0,0 +1,247 @@
++"""Test the SMTP protocol."""
++
++
++import socket
++import asyncio
++import unittest
++from aiosmtpd.controller import Controller
++from aiosmtpd.handlers import Sink
++from aiosmtpd.smtp import SMTP as Server, __ident__ as GREETING
++from aiosmtpd.testing.helpers import reset_connection
++from contextlib import ExitStack
++from smtplib import (
++    SMTP, SMTPDataError, SMTPResponseException, SMTPServerDisconnected)
++from unittest.mock import Mock, PropertyMock, patch
++
++
++CRLF = '\r\n'
++
++
++BCRLF = b'\r\n'
++
++
++class DecodingController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++
++class NoDecodeController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=False)
++
++
++class ReceivingHandler:
++    box = None
++
++    def __init__(self):
++        self.box = []
++
++    async def handle_DATA(self, server, session, envelope):
++        self.box.append(envelope)
++        return '250 OK'
++
++
++class ReceivingHandlerWithStartTLS(ReceivingHandler):
++    def __init__(self):
++        super().__init__()
++        self.expected_tls_handshake = True
++
++    async def handle_STARTTLS(self, server, session, envelope):
++        session.set_tls(True)
++        return '220 Ready to start TLS'
++
++
++class ReceivingHandlerWithoutStartTLS(ReceivingHandler):
++    def __init__(self):
++        super().__init__()
++        self.expected_tls_handshake = False
++
++    async def handle_STARTTLS(self, server, session, envelope):
++        session.set_tls(False)
++        return '530 Authentication required'
++
++
++class StrictASCIIController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True,
++                      enable_SMTPUTF8=True, require_ascii=True)
++
++
++class NonAsciiRecipientController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++    @staticmethod
++    def validate_rcpt_to(rcpt_to):
++        if '@example.com' in rcpt_to:
++            return True
++        raise ValueError('recipient address does not contain @example.com')
++
++
++class MultipleRecipientsController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++    @staticmethod
++    def validate_rcpt_to(rcpt_to):
++        return True
++
++
++class MultipleRecipientsAndSenderController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++    @staticmethod
++    def validate_sender(sender):
++        return sender == '<anne@example.com>'
++
++    @staticmethod
++    def validate_rcpt_to(rcpt_to):
++        return True
++
++
++class MissingRcptToController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++    @staticmethod
++    def validate_rcpt_to(rcpt_to):
++        raise ValueError('Missing recipient address')
++
++
++class InvalidMailFromController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++    @staticmethod
++    def validate_sender(sender):
++        raise ValueError('Invalid sender address')
++
++
++class InvalidRcptToController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++    @staticmethod
++    def validate_rcpt_to(rcpt_to):
++        raise ValueError('Invalid recipient address')
++
++
++class InvalidHeaderNameController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++    @staticmethod
++    def validate_header(header):
++        raise ValueError('Invalid header name')
++
++
++class InvalidHeaderValueController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++    @staticmethod
++    def validate_header_value(header_value):
++        raise ValueError('Invalid header value')
++
++
++class InvalidHeaderContinuationController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++    @staticmethod
++    def validate_header_continuation(header_continuation):
++        raise ValueError('Invalid header continuation')
++
++
++class HeaderTooLongController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++    @staticmethod
++    def validate_header_value(header_value):
++        if len(header_value) > 200:
++            raise ValueError('Header value too long')
++
++
++class HeaderContinuationTooLongController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++    @staticmethod
++    def validate_header_continuation(header_continuation):
++        if len(header_continuation) > 200:
++            raise ValueError('Header continuation too long')
++
++
++class DataSizeLimitController(Controller):
++    def factory(self):
++        return Server(self.handler, data_size_limit=200, decode_data=True,
++                      enable_SMTPUTF8=True)
++
++
++class StrictASCIIControllerForNoDecoding(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=False,
++                      enable_SMTPUTF8=True, require_ascii=True)
++
++
++class NonAsciiRecipientControllerForNoDecoding(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=False, enable_SMTPUTF8=True)
++
++    @staticmethod
++    def validate_rcpt_to(rcpt_to):
++        if '@example.com' in rcpt_to:
++            return True
++        raise ValueError('recipient address does not contain @example.com')
++
++
++class TestStrictMode(unittest.TestCase):
++    def setUp(self):
++        controller = StrictASCIIController(Sink())
++        controller.start()
++        self.addCleanup(controller.stop)
++        self.address = (controller.hostname, controller.port)
++
++    def test_ehlo(self):
++        with SMTP(*self.address) as client:
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            lines = response.splitlines()
++            self.assertNotIn(b'SMTPUTF8', lines)
++
++    def test_ehlo_duplicated(self):
++        with SMTP(*self.address) as client:
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            lines = response.splitlines()
++            self.assertNotIn(b'SMTPUTF8', lines)
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            lines = response.splitlines()
++            self.assertNotIn(b'SMTPUTF8', lines)
++
++    def test_no_decoding_ehlo(self):
++        with SMTP(*self.address) as client:
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            lines = response.splitlines()
++            self.assertIn(b'SMTPUTF8', lines)
++
++    def test_no_decoding_ehlo_duplicated(self):
++        with SMTP(*self.address) as client:
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            lines = response.splitlines()
++            self.assertIn(b'SMTPUTF8', lines)
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            lines = response.splitlines()
++            self.assertIn(b'SMTPUTF8', lines)
++
++    def test_no_decoding_ehlo_after_helo(self):
++        with SMTP(*self.address) as client:
++            code, response = client.helo('example.com')
++            self.assertEqual(code, 250)
++            lines = response.splitlines()
++            self.assertNotIn(b'SMTPUTF8', lines)
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            lines = response.splitlines()
++            self.assertIn(b'SMTPUTF8', lines)
++
++    def test_no_decoding_ehlo_after_ehlo(self):
++        with SMTP(*self.address) as client:
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            lines = response.splitlines()
++            self.assertIn(b'SMTPUTF8', lines)
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            lines = response.splitlines()
++            self.assertIn(b'SMTPUTF8', lines)

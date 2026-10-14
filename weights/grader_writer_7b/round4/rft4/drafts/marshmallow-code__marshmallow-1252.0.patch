@@ -1,0 +1,100 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,50 @@
++import datetime as dt
++from collections import namedtuple
++from functools import partial
++from copy import copy, deepcopy
++import pytest
++from marshmallow import utils
++from tests.base import (
++    assert_datetime_equal,
++    central,
++    assert_time_equal,
++    assert_date_equal,
++)
++
++
++def test_from_iso_datetime_with_Z():
++    # see https://github.com/marshmallow-code/marshmallow/issues/1262
++    d = dt.datetime.now(central)
++    formatted = d.isoformat() + 'Z'
++    result = utils.from_iso(formatted)
++    assert type(result) == dt.datetime
++    assert_datetime_equal(result, d)
++    if utils.dateutil_available:
++        # Note a naive datetime
++        assert result.tzinfo is not None
++
++
++@pytest.mark.parametrize(
++    'input_, expected',
++    [
++        ('1997-07-14', '1997-07-14'),
++        ('1997-07-14T12:00:00', '1997-07-14T12:00:00'),
++        ('1997-07-14T12:00:00+00:00', '1997-07-14T12:00:00+00:00'),
++        ('1997-07-14T12:00:00+0000', '1997-07-14T12:00:00+00:00'),
++        ('1997-07-14T12:00:00Z', '1997-07-14T12:00:00Z'),
++        ('1997-07-14T12:00:00+01:00', '1997-07-14T12:00:00+01:00'),
++    ],
++)
++def test_from_iso(input_, expected):
++    actual = utils.from_iso(input_)
++    assert actual == expected
++
++
++@pytest.mark.parametrize(
++    'input_, expected',
++    [
++        ('1997-07-14', '1997-07-14'),
++        ('1997-07-14T12:00:00', '1997-07-14T12:00:00'),
++    ],
++)
++def test_from_iso_date(input_, expected):
++    actual = utils.from_iso_date(input_)
++    assert actual == expected
+--- /dev/null
++++ b/tests/test_py3/test_utils_grader.py
+@@ -0,0 +1,41 @@
++import datetime as dt
++import pytest
++from marshmallow import fields, Schema
++from marshmallow.utils import from_iso_date
++from tests.base import (
++    assert_datetime_equal,
++    central,
++    assert_time_equal,
++    assert_date_equal,
++)
++
++
++def test_from_iso_datetime_with_Z():
++    # see https://github.com/marshmallow-code/marshmallow/issues/1262
++    d = dt.datetime.now(central)
++    formatted = d.isoformat() + 'Z'
++    result = from_iso(formatted)
++    assert type(result) == dt.datetime
++    assert_datetime_equal(result, d)
++    if utils.dateutil_available:
++        # Note a naive datetime
++        assert result.tzinfo is not None
++
++
++@pytest.mark.parametrize(
++    'input_, expected',
++    [
++        ('1997-07-14', '1997-07-14'),
++        ('1997-07-14T12:00:00', '1997-07-14T12:00:00'),
++        ('1997-07-14T12:00:00+00:00', '1997-07-14T12:00:00+00:00'),
++        ('1997-07-14T12:00:00+0000', '1997-07-14T12:00:00+00:00'),
++        ('1997-07-14T12:00:00Z', '1997-07-14T12:00:00Z'),
++        ('1997-07-14T12:00:00+01:00', '1997-07-14T12:00:00+01:00'),
++    ],
++)
++def test_from_iso(input_, expected):
++    actual = from_iso(input_)
++    assert actual == expected
++
++
++def test_from_iso_date():
++    assert from_iso_date('1997-07-14') == '1997-07-14'

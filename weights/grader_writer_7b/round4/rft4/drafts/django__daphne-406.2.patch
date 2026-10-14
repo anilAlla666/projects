@@ -1,0 +1,24 @@
+--- /dev/null
++++ b/tests/test_http_protocol_grader.py
+@@ -0,0 +1,21 @@
++from twisted.internet import reactor
++from twisted.internet.error import ConnectionDone
++from twisted.python.failure import Failure
++import pytest
++from ..http_protocol import HTTPChannel
++
++
++class FakeTransport:
++    def write(self, data):
++        pass
++
++    def loseConnection(self):
++        pass
++
++
++def test_connection_lost_no_client_addr():
++    channel = HTTPChannel()
++    channel.transport = FakeTransport()
++    failure = Failure(ConnectionDone())
++    channel.connectionLost(failure)
++    assert True

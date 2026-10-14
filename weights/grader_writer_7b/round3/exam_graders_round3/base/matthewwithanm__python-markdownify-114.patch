@@ -1,0 +1,30 @@
+diff --git a/tests/test_markdownify.py b/tests/test_markdownify.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_markdownify.py
+@@ -0,0 +1,45 @@
++import unittest
++from markdownify import markdownify as md
++
++class TestMarkdownify(unittest.TestCase):
++    def test_figure_with_caption(self):
++        html = '<figure><figcaption>Caption</figcaption><span>SPAN</span></figure>'
++        expected_md = 'TEXT\n\nCaption\n\nSPAN\n\nTEXT'
++        result = md('TEXT' + html + 'TEXT')
++        self.assertEqual(result, expected_md)
++
++    def test_figure_with_caption_at_bottom(self):
++        html = '<figure><span>SPAN</span><figcaption>Caption</figcaption></figure>'
++        expected_md = 'TEXT\n\nSPAN\n\nCaption\n\nTEXT'
++        result = md('TEXT' + html + 'TEXT')
++        self.assertEqual(result, expected_md)
++
++    def test_table_with_caption(self):
++        html = '<table><caption>Caption</caption><tr><td>CELL</td></tr></tbody></table>'
++        expected_md = 'TEXT\n\nCaption\n\n| CELL |\n\nTEXT'
++        result = md('TEXT' + html + 'TEXT')
++        self.assertEqual(result, expected_md)
++
++if __name__ == '__main__':
++    unittest.main()

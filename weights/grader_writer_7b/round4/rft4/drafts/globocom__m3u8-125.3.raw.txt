@@ -1,0 +1,108 @@
+--- /dev/null
++++ b/tests/test_parser_grader.py
+@@ -0,0 +1,44 @@
++import m3u8
++import playlists
++import pytest
++from m3u8.parser import cast_date_time, ParseError
++
++
++def test_should_parse_simple_playlist_from_string():
++    data = m3u8.parse(playlists.SIMPLE_PLAYLIST)
++    assert 5220 == data['targetduration']
++    assert 0 == data['media_sequence']
++    assert ['http://media.example.com/entire.ts'] == [c['uri'] for c in data['segments']]
++    assert [5220] == [c['duration'] for c in data['segments']]
++
++
++def test_should_parse_closed_caption_as_string():
++    data = m3u8.parse(playlists.CLOSED_CAPTION_STREAM_INF)
++    assert 'cc' == data['playlists'][0]['stream_info']['closed_captions']
++
++
++def test_should_not_quote_closed_caption():
++    data = m3u8.parse(playlists.CLOSED_CAPTION_STREAM_INF_NO_QUOTES)
++    assert 'cc' == data['playlists'][0]['stream_info']['closed_captions']
++
++
++def test_should_parse_closed_caption_as_string_with_multiple_playlists():
++    data = m3u8.parse(playlists.CLOSED_CAPTION_MULTIPLE_STREAM_INF)
++    assert 'cc' == data['playlists'][0]['stream_info']['closed_captions']
++    assert 'cc' == data['playlists'][1]['stream_info']['closed_captions']
++
++
++def test_should_not_quote_closed_caption_with_multiple_playlists():
++    data = m3u8.parse(playlists.CLOSED_CAPTION_MULTIPLE_STREAM_INF_NO_QUOTES)
++    assert 'cc' == data['playlists'][0]['stream_info']['closed_captions']
++    assert 'cc' == data['playlists'][1]['stream_info']['closed_captions']
++
++
++def test_should_parse_closed_caption_as_none_when_missing():
++    data = m3u8.parse(playlists.STREAM_INF_MISSING_CLOSED_CAPTION)
++    assert 'NONE' == data['playlists'][0]['stream_info']['closed_captions']
++
++
++def test_should_parse_closed_caption_as_none_when_empty():
++    data = m3u8.parse(playlists.STREAM_INF_EMPTY_CLOSED_CAPTION)
++    assert 'NONE' == data['playlists'][0]['stream_info']['closed_captions']
+--- /dev/null
++++ b/tests/test_variant_m3u8_grader.py
+@@ -0,0 +1,48 @@
++import m3u8, playlists
++
++
++def test_create_a_variant_m3u8_with_two_playlists():
++    variant_m3u8 = m3u8.M3U8()
++
++    subtitles = m3u8.Media('english_sub.m3u8', 'SUBTITLES', 'subs', 'en',
++                           'English', 'YES', 'YES', 'NO', None)
++    variant_m3u8.add_media(subtitles)
++
++    low_playlist = m3u8.Playlist('http://example.com/low.m3u8', stream_info={'bandwidth': 1280000, 'program_id': 1, 'closed_captions': 'NONE', 'subtitles': 'subs'}, media=[subtitles], base_uri=None)
++    high_playlist = m3u8.Playlist('http://example.com/high.m3u8', stream_info={'bandwidth': 3000000, 'program_id': 1, 'subtitles': 'subs'}, media=[subtitles], base_uri=None)
++
++    variant_m3u8.add_playlist(low_playlist)
++    variant_m3u8.add_playlist(high_playlist)
++
++    expected_content = """\
++#EXTM3U
++#EXT-X-MEDIA:URI="english_sub.m3u8",TYPE=SUBTITLES,GROUP-ID="subs",LANGUAGE="en",NAME="English",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO
++#EXT-X-STREAM-INF:PROGRAM-ID=1,CLOSED-CAPTIONS=NONE,BANDWIDTH=1280000,SUBTITLES="subs"
++http://example.com/low.m3u8
++#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=3000000,SUBTITLES="subs"
++http://example.com/high.m3u8
++"""
++    assert expected_content == variant_m3u8.dumps()
++
++
++def test_create_a_variant_m3u8_with_two_playlists_and_two_iframe_playlists():
++    variant_m3u8 = m3u8.M3U8()
++
++    subtitles = m3u8.Media('english_sub.m3u8', 'SUBTITLES', 'subs', 'en',
++                           'English', 'YES', 'YES', 'NO', None)
++    variant_m3u8.add_media(subtitles)
++
++    low_playlist = m3u8.Playlist(
++        uri='video-800k.m3u8',
++        stream_info={'bandwidth': 800000,
++                     'program_id': 1,
++                     'res_width': 624,
++                     'res_height': 352,
++                     'codecs': 'avc1.4d001f, mp4a.40.5',
++                     'subtitles': 'subs',
++                     'closed_captions': 'cc'},
++        media=[subtitles],
++        base_uri=None
++    )
++    high_playlist = m3u8.Playlist(
++        uri='video-1200k.m3u8',
++        stream_info={'bandwidth': 1200000,
++                     'program_id': 1,
++                     'res_width': 624,
++                     'res_height': 352,
++                     'codecs': 'avc1.4d001f, mp4a.40.5',
++                     'subtitles': 'subs',
++                     'closed_captions': 'cc'},
++        media=[subtitles],
++        base_uri=None
++    )

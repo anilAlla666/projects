@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/tests/test_quom_grader.py
+@@ -0,0 +1,23 @@
++from pathlib import Path
++import pytest
++from quom import Quom
++
++
++def test_skip_already_processed_files():
++    """
++    Tests skipping of already processed files.
++    """
++    q = Quom(
++        include_directories=[Path()],
++        include_guard_format='QUOM',
++        source_directories=[Path()],
++        skip_already_processed=True,
++    )
++
++    q.process(
++        src_file_path=Path('tests/data/skip_already_processed_files.cpp'),
++    )
++
++    assert q.output == (
++        '#pragma once\n'
++        'int main()\n'
++        '{\n'
++        '\treturn 0;\n'
++        '}'
++    )

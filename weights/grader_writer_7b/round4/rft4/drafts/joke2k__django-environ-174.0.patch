@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_environ_grader.py
+@@ -0,0 +1,13 @@
++from __future__ import unicode_literals
++import warnings
++
++
++def test_custom_db_scheme(env, monkeypatch):
++    env.read_env()
++
++    monkeypatch.setattr(
++        "environ.environ.Env",
++        {"custom": "django.contrib.gis.db.backends.postgis"},
++    )
++    env.db("DATABASE_URL", "custom://user:pass@localhost:5432/mydb")
++    assert env("DATABASE_URL") == "custom://user:pass@localhost:5432/mydb"

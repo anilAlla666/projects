@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/tests/test_client_side_socks_grader.py
+@@ -0,0 +1,25 @@
++import pytest
++
++
++@pytest.fixture
++def server_sock(server):
++    server.sock.listen(1)
++    return server.sock
++
++
++@pytest.mark.parametrize("port", [1024, 1025])
++@pytest.mark.parametrize("host", ["localhost", "127.0.0.1"])
++async def test_pair_creation(pair_factory, host, port, server_sock):
++    server = await pair_factory(None)
++    client = await pair_factory(server)
++    assert client.server_sock == server_sock
++    assert client.sock.getpeername() == ("127.0.0.1", port)
++    assert server.sock.getpeername() == (host, port)
++
++
++@pytest.mark.parametrize("server", [True, False], indirect=True)
++async def test_pair_creation_with_server(pair_factory, server):
++    server = await pair_factory(None)
++    client = await pair_factory(server)
++    assert client.server_sock == server.sock
++    assert client.sock.getpeername() == ("127.0.0.1", 1025)
++    assert server.sock.getpeername() == ("127.0.0.1", 1024)

@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/tests/test_freezing_grader.py
+@@ -0,0 +1,16 @@
++import pytest
++from pyrsistent import freeze
++
++
++def test_freeze_default_dict():
++    mydict = defaultdict(dict)
++    mydict["a"]["x"] = 2
++    mydict["a"]["y"] = 3
++    mydict["b"]["z"] = 4
++
++    frozen = freeze(mydict)
++    assert type(frozen) is PMap
++    assert frozen == pmap({
++        "a": pmap({"x": 2, "y": 3}),
++        "b": pmap({"z": 4})
++    })

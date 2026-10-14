@@ -1,0 +1,253 @@
+--- /dev/null
++++ b/websocket/tests/test_url_grader.py
+@@ -0,0 +1,66 @@
++import os
++import unittest
++from websocket._url import get_proxy_info, parse_url, _is_address_in_network, _is_no_proxy_host
++
++
++"""
++test_url.py
++websocket - WebSocket client library for Python
++
++Copyright 2023 engn33r
++
++Licensed under the Apache License, Version 2.0 (the "License");
++you may not use this file except in compliance with the License.
++You may obtain a copy of the License at
++
++    http://www.apache.org/licenses/LICENSE-2.0
++
++Unless required by applicable law or agreed to in writing, software
++distributed under the License is distributed on an "AS IS" BASIS,
++WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++See the License for the specific language governing permissions and
++limitations under the License.
++"""
++
++
++class ProxyInfoTest(unittest.TestCase):
++    def setUp(self):
++        self.env_vars = os.environ.copy()
++
++    def tearDown(self):
++        os.environ.clear()
++        os.environ.update(self.env_vars)
++
++    def testGetProxyInfoEnvVars(self):
++        os.environ["http_proxy"] = "http://localhost/"
++        os.environ["https_proxy"] = "http://localhost2/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", False), ("localhost", None, None))
++        os.environ["http_proxy"] = "http://localhost:3128/"
++        os.environ["https_proxy"] = "http://localhost2:3128/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", False), ("localhost", 3128, None))
++
++        os.environ["http_proxy"] = "http://localhost/"
++        os.environ["https_proxy"] = "http://localhost2/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", True), ("localhost", None, None))
++        os.environ["http_proxy"] = "http://localhost:3128/"
++        os.environ["https_proxy"] = "http://localhost2:3128/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", True), ("localhost", 3128, None))
++
++        os.environ["http_proxy"] = "http://a:b@localhost/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", False), ("localhost", None, ("a", "b")))
++        os.environ["http_proxy"] = "http://a:b@localhost:3128/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", False), ("localhost", 3128, ("a", "b")))
++
++        os.environ["http_proxy"] = "http://a:b@localhost/"
++        os.environ["https_proxy"] = "http://a:b@localhost2/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", False), ("localhost", None, ("a", "b")))
++        os.environ["http_proxy"] = "http://a:b@localhost:3128/"
++        os.environ["https_proxy"] = "http://a:b@localhost2:3128/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", False), ("localhost", 3128, ("a", "b")))
++
++        os.environ["http_proxy"] = "http://a:b@localhost/"
++        os.environ["https_proxy"] = "http://a:b@localhost2/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", True), ("localhost", None, ("a", "b")))
++        os.environ["http_proxy"] = "http://a:b@localhost:3128/"
++        os.environ["https_proxy"] = "http://a:b@localhost2:3128/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", True), ("localhost", 3128, ("a", "b")))
++
++
++if __name__ == "__main__":
++    unittest.main()
+--- /dev/null
++++ b/websocket/tests/test_websocket_grader.py
+@@ -0,0 +1,153 @@
++import os
++import os.path
++import socket
++import websocket as ws
++import unittest
++from websocket._handshake import _create_sec_websocket_key, \
++    _validate as _validate_header
++from websocket._http import read_headers
++from websocket._utils import validate_utf8
++from base64 import decodebytes as base64decode
++
++
++try:
++    import ssl
++    from ssl import SSLError
++except ImportError:
++    # dummy class of SSLError for ssl none-support environment.
++    class SSLError(Exception):
++        pass
++
++
++LOCAL_WS_SERVER_PORT = os.environ.get('WEBSOCKET_CLIENT_TEST_SERVER_PORT', '8000')
++
++
++TEST_WITH_INTERNET = os.environ.get('TEST_WITH_INTERNET', 'false').lower() != 'false'
++
++
++TEST_WITH_LOCAL_SERVER = os.environ.get('TEST_WITH_LOCAL_SERVER', 'true').lower() != 'false'
++
++
++class ConnectTest(unittest.TestCase):
++    @unittest.skipUnless(TEST_WITH_LOCAL_SERVER, "Tests using local websocket server are disabled")
++    def testLocalServer(self):
++        w = ws.WebSocket()
++        self.assertRaisesRegex(ws.WebSocketException, "^No server found",
++                               w.connect, "ws://non_existent_server")
++        w.connect("ws://127.0.0.1:" + LOCAL_WS_SERVER_PORT)
++        w.close()
++
++    @unittest.skipIf(not TEST_WITH_INTERNET, "Skipping Internet tests.")
++    def testWss(self):
++        w = ws.WebSocket()
++        self.assertRaises(SSLError,
++                          w.connect, "wss://api.bitfinex.com/ws/2")
++        w.close()
++
++    def testBadURLs(self):
++        self.assertRaises(ValueError, ws.WebSocket().connect, "bad://url")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss:/invalidport/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:0")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:65536")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:abc")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport:/path")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport/path/extra")
++        self.assertRaises(ValueError, ws.WebSocket().connect, "wss://invalidport

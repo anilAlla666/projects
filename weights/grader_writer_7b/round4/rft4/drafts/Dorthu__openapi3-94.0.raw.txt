@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/tests/test_schemas_grader.py
+@@ -0,0 +1,35 @@
++from unittest.mock import patch
++
++
++def assert_error_with_schema(
++    error_text: str, schema_path: str, json_or_yaml_str: str
++) -> None:
++    with patch("dorthu.openapi3.schemas._LOGGER") as mock_logger:
++        OpenAPI(json_or_yaml_str=json_or_yaml_str)
++        mock_logger.error.assert_called_once()
++        args, _ = mock_logger.error.call_args
++        assert error_text in args[0]
++        assert schema_path in args[0]
++
++
++@pytest.mark.parametrize(
++    "json_or_yaml_str", ["tests/data/invalid_spec.json", "tests/data/invalid_spec.yaml"]
++)
++def test_invalid_default_value_type(json_or_yaml_str: str) -> None:
++    """Test invalid default value type"""
++    error_text = (
++        "Invalid default value 'someValue' of type 'str' "
++        f"in 'parameters.someParameter.default': must be an integer."
++    )
++    schema_path = "parameters.someParameter"
++    assert_error_with_schema(error_text, schema_path, json_or_yaml_str)
++
++
++@pytest.mark.parametrize(
++    "json_or_yaml_str", ["tests/data/invalid_spec.json", "tests/data/invalid_spec.yaml"]
++)
++def test_valid_default_value_type(json_or_yaml_str: str) -> None:
++    """Test valid default value type"""
++    OpenAPI(json_or_yaml_str=json_or_yaml_str)

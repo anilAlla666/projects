@@ -1,0 +1,105 @@
+--- /dev/null
++++ b/test/unit/test_crc_grader.py
+@@ -0,0 +1,104 @@
++import io
++import string
++import unittest
++from collections import namedtuple
++import pytest
++from crc._crc import (
++    Byte,
++    Calculator,
++    Configuration,
++    Crc8,
++    Crc16,
++    Register,
++    TableBasedRegister,
++    _generate_template,
++    create_lookup_table,
++)
++
++
++Fixture = namedtuple("Fixture", "data checksum")
++
++
++class CrcTestCase(unittest.TestCase):
++    @pytest.fixture(scope="function", autouse=True)
++    def setup(self):
++        self.data = b"123456789"
++        self.calc = Calculator(Crc8.CRC_8_DNP)
++
++    def test_register_digest(self):
++        r = Register(self.calc.config)
++        r.init()
++        r.update(self.data)
++        d = r.digest()
++        assert r.digest() == d
++
++    def test_tablebasedregister_digest(self):
++        r = TableBasedRegister(self.calc.config)
++        r.init()
++        r.update(self.data)
++        d = r.digest()
++        assert r.digest() == d
++
++    def test_register_reset_and_update(self):
++        r = Register(self.calc.config)
++        r.init()
++        r.update(self.data)
++        d1 = r.digest()
++        r.reset()
++        r.update(self.data)
++        d2 = r.digest()
++        assert d1 == d2
++
++    def test_tablebasedregister_reset_and_update(self):
++        r = TableBasedRegister(self.calc.config)
++        r.init()
++        r.update(self.data)
++        d1 = r.digest()
++        r.reset()
++        r.update(self.data)
++        d2 = r.digest()
++        assert d1 == d2
++
++
++class CrcTableTestCase(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.calc = Calculator(Crc8.CRC_8_DNP)
++
++    @pytest.mark.parametrize(
++        ("width", "expected_polymonial"),
++        [
++            (8, 0x31),
++            (16, 0x1021),
++            (32, 0x04C11DB7),
++            (64, 0x9B677999),
++        ],
++    )
++    def test_create_tables(self, width, expected_polymonial):
++        table = create_lookup_table(width, expected_polymonial)
++        # We can't check all bits since there are too many.
++        # But we can check the first and last entry.
++        assert table[0] == 0x00
++        assert table[-1] == 0x00
++
++    @pytest.mark.parametrize(
++        ("width", "expected_polymonial"),
++        [
++            (8, 0x31),
++            (16, 0x1021),
++            (32, 0x04C11DB7),
++            (64, 0x9B677999),
++        ],
++    )
++    def test_create_tables_reversed(self, width, expected_polymonial):
++        table = create_lookup_table(width, expected_polymonial, reverse=True)
++        # We can't check all bits since there are too many.
++        # But we can check the first and last entry.
++        assert table[0] == 0x00
++        assert table[-1] == 0x00
++
++
++if __name__ == "__main__":
++    unittest.main()

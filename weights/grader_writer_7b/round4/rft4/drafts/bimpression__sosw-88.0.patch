@@ -1,0 +1,109 @@
+--- /dev/null
++++ b/sosw/managers/test/unit/test_ecology_grader.py
+@@ -0,0 +1,111 @@
++import boto3
++import logging
++import time
++import unittest
++import os
++from collections import defaultdict
++from unittest.mock import MagicMock, patch
++
++
++logging.getLogger('botocore').setLevel(logging.WARNING)
++
++
++os.environ["STAGE"] = "test"
++
++
++os.environ["autotest"] = "True"
++
++
++from sosw.labourer import Labourer
++from sosw.managers.ecology import EcologyManager
++from sosw.test.variables import TEST_ECOLOGY_CLIENT_CONFIG
++
++
++class ecology_manager_UnitTestCase(unittest.TestCase):
++    TEST_CONFIG = TEST_ECOLOGY_CLIENT_CONFIG
++
++    LABOURER = Labourer(id='some_function', arn='arn:aws:lambda:us-west-2:000000000000:function:some_function')
++
++    def setUp(self):
++        """
++        We keep copies of main parameters here, because they may differ from test to test and cleanup needs them.
++        This is responsibility of the test author to update these values if required from test.
++        """
++
++        self.patcher = patch("sosw.app.get_config")
++        self.get_config_patch = self.patcher.start()
++
++        self.config = self.TEST_CONFIG.copy()
++
++        self.manager = EcologyManager(custom_config=self.config)
++
++    def tearDown(self):
++        self.get_config_patch.stop()
++
++    def test_get_max_labourer_duration__calls_aws_lambda_api(self):
++        mock = MagicMock()
++        mock.describe_function.side_effect = [
++            {"Configuration": {"Timeout": 3}},
++            {"Configuration": {"Timeout": 900}},
++        ]
++        with patch.object(boto3.client, 'lambda_', return_value=mock):
++            actual = self.manager.get_max_labourer_duration(self.LABOURER)
++
++        expected = 3
++        self.assertEqual(actual, expected)
++        mock.describe_function.assert_called_once_with(FunctionName="some_function")
++
++    def test_get_max_labourer_duration__cache_result(self):
++        mock = MagicMock()
++        mock.describe_function.side_effect = [
++            {"Configuration": {"Timeout": 3}},
++            {"Configuration": {"Timeout": 900}},
++        ]
++        with patch.object(boto3.client, 'lambda_', return_value=mock):
++            actual = self.manager.get_max_labourer_duration(self.LABOURER)
++            actual = self.manager.get_max_labourer_duration(self.LABOURER)
++
++        expected = 3
++        self.assertEqual(actual, expected)
++        mock.describe_function.assert_called_once_with(FunctionName="some_function")
++
++    def test_get_max_labourer_duration__timeout_zero(self):
++        mock = MagicMock()
++        mock.describe_function.side_effect = [
++            {"Configuration": {"Timeout": 0}},
++        ]
++        with patch.object(boto3.client, 'lambda_', return_value=mock):
++            actual = self.manager.get_max_labourer_duration(self.LABOURER)
++
++        expected = 900
++        self.assertEqual(actual, expected)
++        mock.describe_function.assert_called_once_with(FunctionName="some_function")
++
++    def test_get_max_labourer_duration__timeout_negative(self):
++        mock = MagicMock()
++        mock.describe_function.side_effect = [
++            {"Configuration": {"Timeout": -1}},
++        ]
++        with patch.object(boto3.client, 'lambda_', return_value=mock):
++            actual = self.manager.get_max_labourer_duration(self.LABOURER)
++
++        expected = 900
++        self.assertEqual(actual, expected)
++        mock.describe_function.assert_called_once_with(FunctionName="some_function")
++
++    def test_get_max_labourer_duration__timeout_none(self):
++        mock = MagicMock()
++        mock.describe_function.side_effect = [
++            {"Configuration": {"Timeout": None}},
++        ]
++        with patch.object(boto3.client, 'lambda_', return_value=mock):
++            actual = self.manager.get_max_labourer_duration(self.LABOURER)
++
++        expected = 900
++        self.assertEqual(actual, expected)
++        mock.describe_function.assert_called_once_with(FunctionName="some_function")

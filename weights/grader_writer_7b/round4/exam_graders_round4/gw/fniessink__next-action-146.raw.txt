@@ -1,0 +1,112 @@
+--- /dev/null
++++ b/tests/unittests/arguments/test_parser_grader.py
+@@ -0,0 +1,100 @@
++""" Unit tests for the argument parsing classes. """
++
++
++import datetime
++import os
++import sys
++import textwrap
++import unittest
++from unittest.mock import call, mock_open, patch
++from next_action.arguments import config, parse_arguments
++
++
++USAGE_MESSAGE = textwrap.fill(
++    "Usage: next-action [-h] [--version] [-c [<config.cfg>] | -w] [-f <todo.txt> ...] [-r <ref>] [-s [<style>]] "
++    "[-a | -n <number>] [-d [<due date>] | -o] [-p [<priority>]] [--] [<context|project> ...]", 120) + "\n"
++
++
++class FilterTest(ParserTestCase):
++    """ Unit tests for the filter options. """
++
++    @patch.object(sys, "argv", ["next-action", "-@home"])
++    def test_single_context(self):
++        """ Test that the argument parser returns the correct contexts. """
++        self.assertEqual({"@home"}, parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work"])
++    def test_multiple_contexts(self):
++        """ Test that the argument parser returns the correct contexts. """
++        self.assertEqual({"@home", "@work"}, parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school"])
++    def test_all_contexts(self):
++        """ Test that the argument parser returns the correct contexts. """
++        self.assertEqual({"@home", "@work", "@school"}, parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_2(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_3(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_4(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_5(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_6(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_7(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_8(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_9(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_10(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_11(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_12(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_13(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_14(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)
++
++    @patch.object(sys, "argv", ["next-action", "-@home", "-@work", "-@school", "-@other"])
++    def test_no_contexts_15(self):
++        """ Test that the argument parser returns an empty set of contexts. """
++        self.assertEqual(set(), parse_arguments()[1].contexts)

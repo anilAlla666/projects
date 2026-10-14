@@ -1,0 +1,111 @@
+--- /dev/null
++++ b/tests/test_patterns_grader.py
+@@ -0,0 +1,102 @@
++import re
++from unittest.mock import ANY
++import httpx
++import pytest
++from respx.patterns import (
++    JSON,
++    URL,
++    Content,
++    Cookies,
++    Data,
++    Headers,
++    Host,
++    Lookup,
++    M,
++    Method,
++    Params,
++    Path,
++    Pattern,
++    Port,
++    QueryParam,
++    Scheme,
++    merge_patterns,
++    parse_url_patterns,
++)
++
++
++def test_parse_url_patterns():
++    patterns = parse_url_patterns("https://foo.bar:443/ham/spam/?egg=yolk")
++    assert patterns == {
++        "scheme": Scheme("https"),
++        "host": Host("foo.bar"),
++        "path": Path("/ham/spam/"),
++        "query_params": Params({"egg": "yolk"}),
++    }
++
++    patterns = parse_url_patterns("https://foo.bar:1337/ham/spam/?egg=yolk")
++    assert patterns == {
++        "scheme": Scheme("https"),
++        "host": Host("foo.bar"),
++        "port": Port(1337),
++        "path": Path("/ham/spam/"),
++        "query_params": Params({"egg": "yolk"}),
++    }
++
++    patterns = parse_url_patterns("https://foo.bar/ham/spam/?egg=yolk", exact=False)
++    assert patterns == {
++        "scheme": Scheme("https"),
++        "host": Host("foo.bar"),
++        "path": Path("/ham/spam/", Lookup.STARTS_WITH),
++        "query_params": Params({"egg": "yolk"}, Lookup.CONTAINS),
++    }
++
++    patterns = parse_url_patterns("all://*.foo.bar")
++    assert len(patterns) == 1
++    assert "host" in patterns
++    assert patterns["host"].lookup is Lookup.REGEX
++
++    patterns = parse_url_patterns("all")
++    assert len(patterns) == 0
++
++
++def test_query_param_value_empty_string():
++    url = "https://foo.bar?bar="
++    mock = M(url=url)
++    request = httpx.Request("GET", url)
++    assert mock.match(request)
++
++
++def test_query_param_value_none():
++    url = "https://foo.bar?bar=None"
++    mock = M(url=url)
++    request = httpx.Request("GET", url)
++    assert mock.match(request)
++
++
++def test_query_param_value_false():
++    url = "https://foo.bar?bar=False"
++    mock = M(url=url)
++    request = httpx.Request("GET", url)
++    assert mock.match(request)
++
++
++def test_query_param_value_true():
++    url = "https://foo.bar?bar=True"
++    mock = M(url=url)
++    request = httpx.Request("GET", url)
++    assert mock.match(request)
++
++
++def test_query_param_value_int():
++    url = "https://foo.bar?bar=123"
++    mock = M(url=url)
++    request = httpx.Request("GET", url)
++    assert mock.match(request)
++
++
++def test_query_param_value_float():
++    url = "https://foo.bar?bar=123.456"
++    mock = M(url=url)
++    request = httpx.Request("GET", url)
++    assert mock.match(request)
++
++
++def test_query_param_value_list():
++    url = "https://foo.bar?bar=1&bar=2"
++    mock = M(url=url)
++    request = httpx.Request("GET", url)
++    assert mock.match(request)

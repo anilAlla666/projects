@@ -1,0 +1,64 @@
+--- /dev/null
++++ b/stacker/tests/lookups/handlers/test_file_grader.py
+@@ -0,0 +1,63 @@
++from __future__ import print_function
++from __future__ import division
++from __future__ import absolute_import
++import unittest
++import mock
++import base64
++import yaml
++import json
++from troposphere import Base64, Join
++
++
++def to_template_dict(obj):
++    """Extract the CFN template dict of an object for test comparisons"""
++
++    if hasattr(obj, 'to_dict') and callable(obj.to_dict):
++        return obj.to_dict()
++    elif isinstance(obj, dict):
++        return dict((key, to_template_dict(value))
++                    for (key, value) in obj.items())
++    elif isinstance(obj, (list, tuple)):
++        return type(obj)(to_template_dict(item) for item in obj)
++    else:
++        return obj
++
++
++class TestFileLookupHandler(TestFileLookupBase):
++    def setUp(self):
++        super(TestFileLookupHandler, self).setUp()
++
++        self.codec_patcher = mock.patch(
++            'stacker.lookups.handlers.file.CODECS',
++            {'parameterized-b64': 'test'},
++        )
++        self.codec_patch = self.codec_patcher.start()
++
++    def tearDown(self):
++        self.codec_patcher.stop()
++
++        super(TestFileLookupHandler, self).tearDown()
++
++    @mock.patch('stacker.lookups.handlers.file.parameterized_codec')
++    @mock.patch('stacker.lookups.handlers.file.read_value_from_path')
++    def test_handler_parameterized_b64(self, content_mock, codec_mock):
++        result = mock.Mock()
++        codec_mock.return_value = result
++
++        out = handler(u'parameterized-b64:file://tmp/test')
++        codec_mock.assert_called_once_with(content_mock.return_value, True)
++
++        self.assertEqual(result, out)
++
++    @mock.patch('stacker.lookups.handlers.file.read_value_from_path')
++    def test_unknown_codec(self, _):
++        with self.assertRaises(ValueError):
++            handler(u'bad:file://tmp/test')
++
++    @classmethod
++    def run_lookup(cls, value, codec='parameterized-b64'):
++        """Convenience method for running lookups in tests"""
++
++        return handler(u'%s:%s' % (codec, value))

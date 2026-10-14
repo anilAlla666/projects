@@ -1,0 +1,418 @@
+diff --git a/tests/test_protocol.py b/tests/test_protocol.py
+index 0e1f3a0..d0c3001 100644
+--- a/tests/test_protocol.py
++++ b/tests/test_protocol.py
+@@ -1,5 +1,6 @@
+ import pytest
+ 
++from aiostomp.protocol import Protocol
+ from aiostomp.frame import Frame
+ 
+ 
+@@ -10,6 +11,10 @@ def test_parse_command():
+     assert protocol._intermediate_frame == {
+         'command': 'COMMAND',
+     }
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND')
++    assert protocol._intermediate_frame is None
+ 
+ 
+ def test_parse_headers():
+@@ -20,6 +25,10 @@ def test_parse_headers():
+     assert protocol._intermediate_frame == {
+         'headers': {'key': 'value'},
+     }
++
++    protocol.reset()
++    protocol.feed_data(b'key:value')
++    assert protocol._intermediate_frame is None
+ 
+ 
+ def test_parse_body():
+@@ -30,6 +39,10 @@ def test_parse_body():
+     assert protocol._intermediate_frame == {
+         'body': b'value',
+     }
++
++    protocol.reset()
++    protocol.feed_data(b'value')
++    assert protocol._intermediate_frame is None
+ 
+ 
+ def test_parse_multiple_frames():
+@@ -40,6 +53,10 @@ def test_parse_multiple_frames():
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=b'value'),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\nvalue')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_incomplete_frame():
+@@ -50,6 +67,10 @@ def test_parse_incomplete_frame():
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=b'value'),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\nvalue')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_extra_data():
+@@ -60,6 +81,10 @@ def test_parse_extra_data():
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=b'value'),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\nvalue')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_heartbeat():
+@@ -70,6 +95,10 @@ def test_parse_heartbeat():
+     assert protocol._frames_ready == [
+         Frame('HEARTBEAT', headers={}, body=b''),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'\x00\x00')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_header():
+@@ -80,6 +109,10 @@ def test_parse_invalid_header():
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\ninvalid header\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body():
+@@ -90,6 +123,10 @@ def test_parse_invalid_body():
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_content_length():
+@@ -100,6 +137,10 @@ def test_parse_invalid_body_content_length():
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_content_type():
+@@ -110,6 +151,10 @@ def test_parse_invalid_body_content_type():
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length():
+@@ -120,6 +165,10 @@ def test_parse_invalid_body_no_content_length():
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_type():
+@@ -130,6 +179,10 @@ def test_parse_invalid_body_no_content_type():
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type():
+@@ -140,6 +193,10 @@ def test_parse_invalid_body_no_content_length_and_type():
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body():
+@@ -150,6 +207,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body():
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length():
+@@ -160,6 +221,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_lengt
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_type():
+@@ -170,6 +235,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_type_
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type():
+@@ -180,6 +249,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body():
+@@ -190,6 +263,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length():
+@@ -200,6 +277,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type():
+@@ -210,6 +291,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body():
+@@ -220,6 +305,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length():
+@@ -230,6 +319,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type():
+@@ -240,6 +333,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body():
+@@ -250,6 +347,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length():
+@@ -260,6 +361,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type():
+@@ -270,6 +375,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body():
+@@ -280,6 +389,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length():
+@@ -290,6 +403,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type():
+@@ -300,6 +417,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body():
+@@ -310,6 +431,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length():
+@@ -320,6 +445,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type():
+@@ -330,6 +459,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body():
+@@ -340,6 +473,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length():
+@@ -350,6 +487,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type():
+@@ -360,6 +491,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body():
+@@ -370,6 +505,10 @@ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_len
+     assert protocol._frames_ready == [
+         Frame('COMMAND', headers={'key': 'value'}, body=None),
+     ]
++
++    protocol.reset()
++    protocol.feed_data(b'COMMAND\nkey:value\n\n')
++    assert protocol._frames_ready == []
+ 
+ 
+ def test_parse_invalid_body_no_content_length_and_type_with_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body_and_content_length_and_type_and_body

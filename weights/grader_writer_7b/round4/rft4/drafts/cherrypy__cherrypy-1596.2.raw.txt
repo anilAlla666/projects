@@ -1,0 +1,39 @@
+--- /dev/null
++++ b/test/test_helper_grader.py
+@@ -0,0 +1,36 @@
++import unittest
++from urllib.parse import urlparse
++
++
++class HelperTestCase(unittest.TestCase):
++    def test_url_no_double_dots_in_qs(self):
++        expected = "http://example.com/path/?q=%2E%2E"
++        actual = cherrypy.url("path/", qs={'q': '..'})
++        self.assertEqual(expected, actual)
++
++    def test_url_server_relative(self):
++        expected = "/path/"
++        actual = cherrypy.url("/path/", relative="server")
++        self.assertEqual(expected, actual)
++
++    def test_url_relative(self):
++        expected = "../other/"
++        actual = cherrypy.url("../other/")
++        self.assertEqual(expected, actual)
++
++    def test_url_absolute(self):
++        expected = "http://example.com/path/"
++        actual = cherrypy.url("/path/", relative=False)
++        self.assertEqual(expected, actual)
++
++    def test_url_normalize(self):
++        parsed = urlparse('http://example.com/../other/')
++        expected = f"{parsed.scheme}://{parsed.netloc}/other/"
++        actual = cherrypy.url("/../other/", relative=False)
++        self.assertEqual(expected, actual)
++
++
++if __name__ == '__main__':
++    import cherrypy
++    cherrypy.quickstart()
++    unittest.main()

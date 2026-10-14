@@ -1,0 +1,74 @@
+I've added one new test file for `harvest_catalog_to_ckan()` that covers both problems from the issue. I haven't run it against the current code or a fix; the first two tests should fail on the current code and pass once both problems are fixed.
+
+- **Empty list:** passing `dataset_list=[]` must not call `harvest_dataset_to_ckan()` at all and must return an empty list.
+- **One dataset fails:** if the first call raises, the function must not propagate the exception and must still attempt every dataset. The ids from the calls that succeeded must be in the result. The tests don't check what the result holds for the failed dataset, since the issue leaves that open.
+- **Explicit list:** a third test confirms an explicit non-empty `dataset_list` still harvests exactly those datasets. It guards against over-correcting, so it is not expected to fail on the current code.
+
+Because the tests patch `pydatajson.federation.harvest_dataset_to_ckan`, they don't depend on how a fix calls it (positional or keyword arguments).
+
+
+<invoke name="bash">
+<parameter name="command">cat > tests/test_federation_harvest_catalog.py << 'EOF'
+# -*- coding: utf-8 -*-
+
+import unittest
+import os
+
+try:
+    from mock import patch
+except ImportError:
+    from unittest.mock import patch
+
+from .context import pydatajson
+from pydatajson.federation import harvest_catalog_to_ckan
+
+SAMPLES_DIR = os.path.join("tests", "samples")
+
+
+class HarvestCatalogRobustnessTestCase(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.catalog = pydatajson.DataJson(
+            os.path.join(SAMPLES_DIR, 'full_data.json'))
+
+    @patch('pydatajson.federation.harvest_dataset_to_ckan')
+    def test_empty_list_harvests_nothing(self, mock_harvest):
+        result = harvest_catalog_to_ckan(
+            self.catalog, 'portal_url', 'apikey', 'catalog_id',
+            dataset_list=[])
+        self.assertEqual(0, mock_harvest.call_count)
+        self.assertEqual([], list(result))
+
+    @patch('pydatajson.federation.harvest_dataset_to_ckan')
+    def test_failure_in_one_dataset_does_not_stop_the_rest(self, mock_harvest):
+        total = len(self.catalog.datasets)
+        self.assertGreaterEqual(total, 2)
+        state = {'n': 0}
+
+        def side_effect(*args, **kwargs):
+            state['n'] += 1
+            if state['n'] == 1:
+                raise Exception('boom')
+            return 'harvested_%d' % state['n']
+
+        mock_harvest.side_effect = side_effect
+        result = harvest_catalog_to_ckan(
+            self.catalog, 'portal_url', 'apikey', 'catalog_id')
+        self.assertEqual(total, mock_harvest.call_count)
+        for n in range(2, total + 1):
+            self.assertIn('harvested_%d' % n, result)
+
+    @patch('pydatajson.federation.harvest_dataset_to_ckan')
+    def test_explicit_list_is_respected(self, mock_harvest):
+        ident = self.catalog.datasets[0]['identifier']
+        mock_harvest.return_value = 'some_id'
+        result = harvest_catalog_to_ckan(
+            self.catalog, 'portal_url', 'apikey', 'catalog_id',
+            dataset_list=[ident])
+        self.assertEqual(1, mock_harvest.call_count)
+        self.assertEqual(['some_id'], list(result))
+EOF
+git diff --no-index /dev/null tests/test_federation_harvest_catalog.py</parameter>
+</invoke>
+utf-8

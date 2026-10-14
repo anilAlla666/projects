@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/tests/test_beautifultable_grader.py
+@@ -0,0 +1,16 @@
++import unittest
++from beautifultable import BeautifulTable
++
++
++class TestAppend(unittest.TestCase):
++    def setUp(self):
++        self.table = BeautifulTable()
++        self.table.columns.header = ["A", "B", "C"]
++
++    def test_append_columns(self):
++        self.assertEqual(len(self.table.columns), 3)
++        self.table.columns.append(["D", "E", "F"])
++        self.assertEqual(len(self.table.columns), 4)
++        self.assertEqual(self.table.columns.header, ["A", "B", "C", "D"])
++        self.assertEqual(len(self.table.rows), 1)
++        self.assertEqual(self.table.rows[0], ["D", "E", "F"])

@@ -1,0 +1,149 @@
+--- /dev/null
++++ b/aiosmtpd/tests/test_smtp_grader.py
+@@ -0,0 +1,147 @@
++"""Test the SMTP protocol."""
++
++
++import socket
++import asyncio
++import unittest
++from aiosmtpd.controller import Controller
++from aiosmtpd.handlers import Sink
++from aiosmtpd.smtp import SMTP as Server, __ident__ as GREETING
++from aiosmtpd.testing.helpers import reset_connection
++from contextlib import ExitStack
++from smtplib import (
++    SMTP, SMTPDataError, SMTPResponseException, SMTPServerDisconnected)
++from unittest.mock import Mock, PropertyMock, patch
++
++
++CRLF = '\r\n'
++
++
++BCRLF = b'\r\n'
++
++
++class DecodingController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++
++class NoDecodeController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=False)
++
++
++class ReceivingHandler:
++    box = None
++
++    def __init__(self):
++        self.box = []
++
++    async def handle_DATA(self, server, session, envelope):
++        self.box.append(envelope)
++        return '250 OK'
++
++
++class StrictASCIIController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=False)
++
++
++class TestDuplicateHello(unittest.TestCase):
++    def setUp(self):
++        controller = SinkController(Sink(), require_starttls=False)
++        controller.start()
++        self.addCleanup(controller.stop)
++        self.address = (controller.hostname, controller.port)
++
++    def test_ehlo(self):
++        with SMTP(*self.address) as client:
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            lines = response.splitlines()
++            self.assertNotIn(b'Duplicate HELO/EHLO', lines)
++
++    def test_helo(self):
++        with SMTP(*self.address) as client:
++            code, response = client.helo('example.com')
++            self.assertEqual(code, 250)
++            code, response = client.helo('example.com')
++            self.assertEqual(code, 250)
++            lines = response.splitlines()
++            self.assertNotIn(b'Duplicate HELO/EHLO', lines)
++
++    def test_noop_after_ehlo(self):
++        with SMTP(*self.address) as client:
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            code, response = client.noop()
++            self.assertEqual(code, 250)
++
++    def test_noop_after_helo(self):
++        with SMTP(*self.address) as client:
++            code, response = client.helo('example.com')
++            self.assertEqual(code, 250)
++            code, response = client.noop()
++            self.assertEqual(code, 250)
++
++    def test_misuse_after_ehlo(self):
++        with SMTP(*self.address) as client:
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            code, response = client.mail('foo@example.com')
++            self.assertEqual(code, 503)
++            code, response = client.rcpt('bar@example.com')
++            self.assertEqual(code, 503)
++            code, response = client.data()
++            self.assertEqual(code, 503)
++            code, response = client.rset()
++            self.assertEqual(code, 250)
++
++    def test_misuse_after_helo(self):
++        with SMTP(*self.address) as client:
++            code, response = client.helo('example.com')
++            self.assertEqual(code, 250)
++            code, response = client.mail('foo@example.com')
++            self.assertEqual(code, 503)
++            code, response = client.rcpt('bar@example.com')
++            self.assertEqual(code, 503)
++            code, response = client.data()
++            self.assertEqual(code, 503)
++            code, response = client.rset()
++            self.assertEqual(code, 250)
++
++
++def _make_controller(handler_class, *args, **kwargs):
++    handler = handler_class(*args, **kwargs)
++    controller = SinkController(handler, require_starttls=False)
++    controller.start()
++    return controller
++
++
++@patch.object(Server, '_handle_exception')
++class TestHandleException(unittest.TestCase):
++    def setUp(self):
++        self.server = Server(None)
++        self.server.session = Mock()
++        self.server.session.host_name = 'example.com'
++
++    def test_handle_exception(self, mock_handle_exception):
++        exception = RuntimeError()
++        self.server.handle_exception(exception)
++        mock_handle_exception.assert_called_once_with(exception)
++
++    def test_handle_exception_raises_runtime_error(self, mock_handle_exception):
++        exception = RuntimeError()
++        mock_handle_exception.side_effect = exception
++        self.assertRaises(RuntimeError, self.server.handle_exception, exception)
++
++    def test_handle_exception_returns_none(self, mock_handle_exception):
++        mock_handle_exception.return_value = None
++        self.assertIsNone(self.server.handle_exception(Exception()))
++
++
++class SinkController(Controller):
++    def factory(self):
++        return Server(self.handler, enable_SMTPUTF8=True)

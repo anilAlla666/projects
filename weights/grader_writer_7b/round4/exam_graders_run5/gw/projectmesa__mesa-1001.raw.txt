@@ -1,0 +1,66 @@
+--- /dev/null
++++ b/tests/test_space_grader.py
+@@ -0,0 +1,61 @@
++import unittest
++import networkx as nx
++import numpy as np
++import pytest
++from mesa.space import ContinuousSpace
++from mesa.space import SingleGrid
++from mesa.space import NetworkGrid
++from tests.test_grid import MockAgent
++
++
++TEST_AGENTS = [(-20, -20), (-20, -20.05), (65, 18)]
++
++
++TEST_AGENTS_GRID = [(1, 1), (10, 0), (10, 10)]
++
++
++TEST_AGENTS_NETWORK_SINGLE = [0, 1, 5]
++
++
++TEST_AGENTS_NETWORK_MULTIPLE = [0, 1, 1]
++
++
++OUTSIDE_POSITIONS = [(70, 10), (30, 20), (100, 10)]
++
++
++REMOVAL_TEST_AGENTS = [
++    (-20, -20),
++    (-20, -20.05),
++    (65, 18),
++    (0, -11),
++    (20, 20),
++    (31, 41),
++    (55, 32),
++]
++
++
++class TestNetworkGrid(unittest.TestCase):
++    """
++    Testing a network-based grid.
++    """
++
++    GRAPH_SIZE = 3
++
++    def setUp(self):
++        """
++        Create a test space and populate with Mock Agents.
++        """
++        G = nx.complete_graph(self.GRAPH_SIZE)
++        self.space = NetworkGrid(G)
++        self.agents = []
++        for i, pos in enumerate(TEST_AGENTS_NETWORK_SINGLE):
++            a = MockAgent(i, self.space)
++            self.agents.append(a)
++            self.space.place_agent(a, pos)
++
++    def test_remove_agent(self):
++        agent_to_remove = self.agents[0]
++        self.space.remove_agent(agent_to_remove)
++        assert agent_to_remove not in self.space.G.nodes[0]["agent"]
++
++
++if __name__ == "__main__":
++    unittest.main()

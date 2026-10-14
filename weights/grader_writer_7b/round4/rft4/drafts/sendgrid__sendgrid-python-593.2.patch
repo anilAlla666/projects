@@ -1,0 +1,119 @@
+--- /dev/null
++++ b/test/test_mail_grader.py
+@@ -0,0 +1,77 @@
++import json
++from sendgrid.helpers.mail import (
++    ASM,
++    APIKeyIncludedException,
++    Attachment,
++    BCCSettings,
++    BypassListManagement,
++    Category,
++    ClickTracking,
++    Content,
++    CustomArg,
++    Email,
++    FooterSettings,
++    Ganalytics,
++    Header,
++    Mail,
++    MailSettings,
++    OpenTracking,
++    Personalization,
++    SandBoxMode,
++    Section,
++    SendGridException,
++    SpamCheck,
++    SubscriptionTracking,
++    Substitution,
++    TrackingSettings,
++    ValidateAPIKey
++)
++
++
++try:
++    import unittest2 as unittest
++except ImportError:
++    import unittest
++
++
++class UnitTests(unittest.TestCase):
++    def test_get_dynamic_template_data_object(self):
++        personalization = Personalization()
++        personalization.add_to(Email("test@example.com"))
++        personalization.dynamic_template_data = {
++            "first_name": "John",
++            "last_name": "Doe",
++            "product": "Awesome Product"
++        }
++
++        expected_result = {
++            "to": [
++                {
++                    "email": "test@example.com"
++                }
++            ],
++            "dynamic_template_data": {
++                "first_name": "John",
++                "last_name": "Doe",
++                "product": "Awesome Product"
++            }
++        }
++
++        self.assertEqual(
++            personalization.get()["personalizations"][0],
++            expected_result
++        )
++
++    def test_get_dynamic_template_data_array_of_objects(self):
++        personalization = Personalization()
++        personalization.add_to(Email("test@example.com"))
++        personalization.dynamic_template_data = [
++            {"name": "John", "age": 30},
++            {"name": "Jane", "age": 31}
++        ]
++
++        expected_result = {
++            "to": [
++                {
++                    "email": "test@example.com"
++                }
++            ],
++            "dynamic_template_data": [
++                {"name": "John", "age": 30},
++                {"name": "Jane", "age": 31}
++            ]
++        }
++
++        self.assertEqual(
++            personalization.get()["personalizations"][0],
++            expected_result
++        )
+--- /dev/null
++++ b/test/test_email_grader.py
+@@ -0,0 +1,25 @@
++import json
++from sendgrid.helpers.mail import (Email)
++
++
++try:
++    import unittest2 as unittest
++except ImportError:
++    import unittest
++
++
++class TestEmailObject(unittest.TestCase):
++    def test_from_string(self):
++        name = "SomeName"
++        address = "test@example.com"
++        name_address = "{0} <{1}>".format(name, address)
++        email = Email(name_address)
++
++        self.assertEqual(email.name, name)
++        self.assertEqual(email.email, "test@example.com")
++
++    def test_from_dict(self):
++        address = "test@example.com"
++        email = Email({"email": address})
++
++        self.assertEqual(email.email, address)

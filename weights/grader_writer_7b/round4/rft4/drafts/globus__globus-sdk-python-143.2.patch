@@ -1,0 +1,124 @@
+--- /dev/null
++++ b/tests/unit/test_oauth2_native_app_grader.py
+@@ -0,0 +1,50 @@
++import hashlib
++import base64
++from six.moves.urllib.parse import quote
++
++
++try:
++    import mock
++except ImportError:
++    from unittest import mock
++
++
++import globus_sdk
++from globus_sdk.auth.oauth2_native_app import make_native_app_challenge
++from tests.framework import CapturedIOTestCase
++
++
++class GlobusNativeAppFlowManagerTests(CapturedIOTestCase):
++    def setUp(self):
++        """
++        Inits a GlobusNativeAppFlowManager, uses a mock AuthClient for testing
++        """
++        super(GlobusNativeAppFlowManagerTests, self).setUp()
++
++        self.ac = mock.Mock()
++        self.ac.client_id = "client_id"
++        self.ac.base_url = "base_url/"
++        self.flow_manager = globus_sdk.auth.GlobusNativeAppFlowManager(
++            self.ac, requested_scopes="scopes", redirect_uri="uri",
++            state="state", verifier="verifier", prefill_named_grant='test_label')
++
++    def test_get_authorize_url(self):
++        """
++        Creates an authorize url, confirms results match object values
++        Confirms additional params passed appear in the url
++        """
++        url = self.flow_manager.get_authorize_url()
++
++        expected_vals = [self.ac.base_url + "v2/oauth2/authorize?",
++                         "client_id=" + self.ac.client_id,
++                         "redirect_uri=" + self.flow_manager.redirect_uri,
++                         "scope=" + self.flow_manager.requested_scopes,
++                         "state=" + self.flow_manager.state,
++                         "response_type=code",
++                         "code_challenge=" +
++                         quote(self.flow_manager.challenge),
++                         "code_challenge_method=S256",
++                         "access_type=online",
++                         "prefill_named_grant=test_label",
++                         ]
++        for val in expected_vals:
++            self.assertIn(val, url)
++
++        # confirm additional params are passed
++        params = {"param1": "value1", "param2": "value2"}
++        param_url = self.flow_manager.get_authorize_url(
++            additional_params=params)
++        for param, value in params.items():
++            self.assertIn(param + "=" + value, param_url)
+--- /dev/null
++++ b/tests/unit/test_auth_client_grader.py
+@@ -0,0 +1,58 @@
++try:
++    import mock
++except ImportError:
++    from unittest import mock
++
++
++import globus_sdk
++from tests.framework import (CapturedIOTestCase,
++                             get_client_data, get_user_data,
++                             SDKTESTER1A_NATIVE1_AUTH_RT)
++from globus_sdk.exc import GlobusAPIError
++
++
++class AuthClientTests(CapturedIOTestCase):
++    def setUp(self):
++        """
++        Instantiates an AuthClient with an access_token authorizer
++        """
++        super(AuthClientTests, self).setUp()
++
++        # get access token
++        client_id = get_client_data()["native_app_client1"]["id"]
++        form_data = {'refresh_token': SDKTESTER1A_NATIVE1_AUTH_RT,
++                     'grant_type': 'refresh_token',
++                     'client_id': client_id}
++        token_res = globus_sdk.AuthClient().oauth2_token(form_data)
++        self.access_token = token_res["access_token"]
++
++        # make auth client
++        self.ac = globus_sdk.AuthClient(
++            authorizer=globus_sdk.AccessTokenAuthorizer(self.access_token),
++            client_id=client_id)
++
++    def test_oauth2_prefill_named_grant(self):
++        """
++        Tests setting the prefill_named_grant parameter
++        """
++        # valid
++        self.ac.oauth2_prefill_named_grant('test_label')
++        self.assertEqual(self.ac._params['prefill_named_grant'], 'test_label')
++
++        # empty
++        self.ac.oauth2_prefill_named_grant('')
++        self.assertNotIn('prefill_named_grant', self.ac._params)
++
++        # None
++        self.ac.oauth2_prefill_named_grant(None)
++        self.assertNotIn('prefill_named_grant', self.ac._params)
++
++        # int
++        with self.assertRaises(ValueError):
++            self.ac.oauth2_prefill_named_grant(1)
++
++        # bool
++        with self.assertRaises(ValueError):
++            self.ac.oauth2_prefill_named_grant(True)
++
++        # list
++        with self.assertRaises(ValueError):
++            self.ac.oauth2_prefill_named_grant(['test'])

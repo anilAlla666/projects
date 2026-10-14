@@ -1,0 +1,31 @@
+--- /dev/null
++++ b/tests/test_to_constant_volume_grader.py
+@@ -0,0 +1,30 @@
++from __future__ import print_function
++import numpy as np
++from binpacking.to_constant_volume import to_constant_volume
++
++
++def test_empty():
++    """
++    Test that we don't get an extra empty bin when all items are larger than bin_size
++    """
++    values = [24, 42]
++    bins = to_constant_volume(values, 20)
++    assert len(bins) == 2
++
++    values = {"a": 24, "b": 42}
++    bins = to_constant_volume(values, 20)
++    assert len(bins) == 2
++
++    values = [(10, 15)]
++    bins = to_constant_volume(values, 20, weight_pos=1)
++    assert len(bins) == 2
++
++    values = {1: 10, 2: 15}
++    bins = to_constant_volume(values, 20, key=lambda x: x[1])
++    assert len(bins) == 2
++
++
++if __name__ == "__main__":
++    test_empty()

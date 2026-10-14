@@ -1,0 +1,43 @@
+--- /dev/null
++++ b/tests/test_linkifier_grader.py
+@@ -0,0 +1,39 @@
++from unittest.mock import patch
++
++
++def test_linkify_with_entity_in_text():
++    """
++    Ensure &amp; is not double-escaped when an entity appears in the text of
++    an <a> tag.
++
++    See: https://github.com/mozilla/bleach/issues/701
++    """
++    from bleach.linkifier import LinkifyFilter
++    from bs4 import BeautifulSoup
++    from html.parser import HTMLParser
++
++    hparser = HTMLParser()
++    filter = LinkifyFilter(hparser)
++
++    text = r'<a href="/">Some&nbsp;entity&rsquo;s</a>'
++
++    with patch.object(filter, "_parse_email", return_value=[]), patch(
++        object(filter, "_parse_urls", return_value=[])
++    ):
++        result = list(filter.iterate(BeautifulSoup(text)))
++
++    assert len(result) == 3
++    assert result[0]["type"] == "StartTag"
++    assert result[0]["name"] == "a"
++    assert result[0]["attributes"]["href"] == "/"
++    assert result[0]["raw_data"] == '<a href="/">'
++    assert result[1]["type"] == "Characters"
++    assert result[1]["data"] == 'Some&nbsp;entity&rsquo;s'
++    assert result[2]["type"] == "EndTag"
++    assert result[2]["name"] == "a"
++    assert result[2]["raw_data"] == "</a>"
++
++
++if __name__ == "__main__":
++    from pytest import main
++
++    main([__file__])

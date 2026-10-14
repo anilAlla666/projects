@@ -1,0 +1,31 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,26 @@
++import pytest
++from pathlib import Path
++from compress_pickle.utils import _stringyfy_path, _infer_compression_from_path
++
++
++def test_set_default_extension():
++    path = Path("test.pkl")
++    assert str(path.with_suffix("")) == _set_default_extension(str(path), None)
++    assert str(path.with_suffix(".pkl")) == _set_default_extension(str(path), "pickle")
++    assert str(path.with_suffix(".gz")) == _set_default_extension(str(path), "gzip")
++    assert str(path.with_suffix(".bz2")) == _set_default_extension(str(path), "bzip2")
++    assert str(path.with_suffix(".xz")) == _set_default_extension(str(path), "xz")
++    assert str(path.with_suffix(".lzma")) == _set_default_extension(str(path), "lzma")
++    assert str(path.with_suffix(".lz4")) == _set_default_extension(str(path), "lz4")
++    assert str(path.with_suffix(".snappy")) == _set_default_extension(
++        str(path), "snappy"
++    )
++    assert str(path.with_suffix(".zstd")) == _set_default_extension(str(path), "zstd")
++
++
++@pytest.fixture(params=[Path, str])
++def file_path(request):
++    return request.param("test.pkl")
++
++
++@pytest.fixture(params=["gz", "bz2"])
++def invalid_extensions(request):
++    return request.param

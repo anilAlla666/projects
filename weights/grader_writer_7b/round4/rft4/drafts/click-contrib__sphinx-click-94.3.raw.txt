@@ -1,0 +1,34 @@
+--- /dev/null
++++ b/tests/test_ext_grader.py
+@@ -0,0 +1,32 @@
++from sphinx_click.ext import _get_help_record
++
++
++def test_get_help_record_with_show_default_none():
++    class DummyOpt(click.Option):
++        def __init__(self, *args, **kwargs):
++            super().__init__(*args, **kwargs)
++            self._params['show_default'] = 'None'
++
++    opt = DummyOpt(['--foo'])
++    assert _get_help_record(opt) == ('--foo', ':default: None')
++
++
++def test_get_help_record_with_show_default_str():
++    class DummyOpt(click.Option):
++        def __init__(self, *args, **kwargs):
++            super().__init__(*args, **kwargs)
++            self._params['show_default'] = 'mydefault'
++
++    opt = DummyOpt(['--foo'])
++    assert _get_help_record(opt) == ('--foo', ':default: mydefault')
++
++
++def test_get_help_record_with_show_default_int():
++    class DummyOpt(click.Option):
++        def __init__(self, *args, **kwargs):
++            super().__init__(*args, **kwargs)
++            self._params['show_default'] = 1
++
++    opt = DummyOpt(['--foo'])
++    assert _get_help_record(opt) == ('--foo', ':default: 1')

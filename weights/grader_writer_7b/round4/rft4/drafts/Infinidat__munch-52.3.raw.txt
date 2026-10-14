@@ -1,0 +1,57 @@
+--- /dev/null
++++ b/tests/test_munch_grader.py
+@@ -0,0 +1,50 @@
++import json
++import pickle
++from collections import namedtuple
++import pytest
++from munch import DefaultFactoryMunch, AutoMunch, DefaultMunch, Munch, munchify, unmunchify
++
++
++def test_from_yml_with_defaults():
++    assert DefaultMunch.fromYAML("""\
++        foo:
++            bar:
++                baz: qux
++    """, default=42) == DefaultMunch({"foo": DefaultMunch({"bar": DefaultMunch({"baz": 42})})})
++
++
++def test_from_yml_without_defaults():
++    with pytest.raises(ValueError):
++        DefaultMunch.fromYAML("""\
++            foo:
++                bar:
++                    baz: qux
++        """)
++
++
++def test_from_yml_with_and_without_defaults():
++    assert DefaultMunch.fromYAML("""\
++        foo:
++            bar:
++                baz: qux
++    """, default=None) == DefaultMunch({"foo": DefaultMunch({"bar": DefaultMunch({"baz": None})})})
++
++
++def test_from_yml_with_non_scalar_default():
++    assert DefaultMunch.fromYAML("""\
++        foo:
++            bar:
++                baz: qux
++    """, default=[42]) == DefaultMunch({"foo": DefaultMunch({"bar": DefaultMunch({"baz": [42]})})})
++
++
++def test_from_yml_with_none_as_default():
++    assert DefaultMunch.fromYAML("""\
++        foo:
++            bar:
++                baz: qux
++    """, default=None) == DefaultMunch({"foo": DefaultMunch({"bar": DefaultMunch({"baz": None})})})
++
++
++def test_from_yml_with_none_as_default_and_value_is_not_none():
++    assert DefaultMunch.fromYAML("""\
++        foo:
++            bar:
++                baz: qux
++    """, default=None) == DefaultMunch({"foo": DefaultMunch({"bar": DefaultMunch({"baz": None})})})

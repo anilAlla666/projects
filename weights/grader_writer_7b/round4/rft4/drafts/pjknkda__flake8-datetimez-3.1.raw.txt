@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/test_flake8_datetimez_grader.py
+@@ -0,0 +1,48 @@
++import pytest
++
++
++def check(code, expected_errors=None):
++    """Check that the code is flagged correctly."""
++    from flake8_datetimez import DateTimeZChecker
++    from flake8.utils import register_checkers
++
++    tree = compile(code, mode="exec")
++    checker = DateTimeZChecker(tree, "dummy_filename")
++    register_checkers(checker)
++
++    assert checker.run() == expected_errors
++
++
++@pytest.mark.parametrize("code", [
++    "dt = datetime.datetime.now()",
++])
++def test_dtz005_is_not_triggered_when_using_strftime_in_format_string(code):
++    """Test that we don't flag when using strftime in the format string."""
++    check(code)
++
++
++@pytest.mark.parametrize("code", [
++    "dt = datetime.datetime.strptime('%Y-%m-%d %H:%M:%S%z')",
++])
++def test_dtz007_is_not_triggered_when_using_strftime_in_format_string(code):
++    """Test that we don't flag when using strftime in the format string."""
++    check(code)
++
++
++@pytest.mark.parametrize("code", [
++    "dt = datetime.datetime.strptime('%Y-%m-%d %H:%M:%S%Z')",
++])
++def test_dtz007_is_triggered_when_using_strftime_in_format_string(code):
++    """Test that we don't flag when using strftime in the format string."""
++    errors = [
++        {
++            "type": "DTZ007",
++            "message": "DTZ007 The use of "
++                       "`datetime.datetime.strptime()` must be followed by "
++                       "`.replace(tzinfo=)`."
++        },
++    ]
++    check(code, errors)
++
++
++if __name__ == "__main__":
++    pytest.main([__file__, "-v"])

@@ -1,0 +1,230 @@
+--- /dev/null
++++ b/jenkinsapi_tests/unittests/test_build_grader.py
+@@ -0,0 +1,117 @@
++import pytest
++import pytz
++from . import configs
++import datetime
++from jenkinsapi.build import Build
++from jenkinsapi.job import Job
++
++
++@pytest.fixture(scope='function')
++def jenkins(mocker):
++    return mocker.MagicMock()
++
++
++@pytest.fixture(scope='function')
++def job(monkeypatch, jenkins):
++    def fake_poll(cls, tree=None):   # pylint: disable=unused-argument
++        return configs.JOB_DATA
++
++    monkeypatch.setattr(Job, '_poll', fake_poll)
++
++    fake_job = Job('http://', 'Fake_Job', jenkins)
++    return fake_job
++
++
++@pytest.fixture(scope='function')
++def build(job, monkeypatch):
++    def fake_poll(cls, tree=None):   # pylint: disable=unused-argument
++        return configs.BUILD_DATA
++
++    monkeypatch.setattr(Build, '_poll', fake_poll)
++
++    return Build('http://', 97, job)
++
++
++def test_get_env_vars(build):
++    """
++    Test retrieving the environment variables from a build.
++    """
++    expected = {
++        'BUILD_ID': '97',
++        'BUILD_NUMBER': '97',
++        'JOB_NAME': 'Fake_Job',
++        'WORKSPACE': '/home/jenkins/workspace/Fake_Job',
++        'NODE_NAME': 'master',
++        'HOME': '/home/jenkins',
++        'JAVA_HOME': '/usr/lib/jvm/java-7-openjdk-amd64',
++        'PATH': '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
++        'LANG': 'en_US.UTF-8',
++        'LC_ALL': 'en_US.UTF-8',
++        'USER': 'jenkins',
++        'LOGNAME': 'jenkins',
++        'PWD': '/home/jenkins/workspace/Fake_Job',
++        'SHLVL': '1',
++        'JENKINS_URL': 'http://localhost:8080/',
++        'JOB_BASE_NAME': 'Fake_Job',
++        'EXECUTOR_NUMBER': '1',
++        'BUILD_DISPLAY_NAME': '#97',
++        'BUILD_TAG': 'jenkins-Fake_Job-97',
++        'GIT_BRANCH': 'origin/unstable',
++        'GIT_COMMIT': '7def9ed6e92580f37d00e4980c36c4d36e68f702',
++        'GIT_URL': 'git@github.com:jenkinsci/job-dsl-plugin.git',
++        'GIT_AUTHOR_NAME': 'John Doe',
++        'GIT_AUTHOR_EMAIL': 'john.doe@example.com',
++        'GIT_COMMITTER_NAME': 'Jane Doe',
++        'GIT_COMMITTER_EMAIL': 'jane.doe@example.com',
++        'WORKSPACE_TMP': '/tmp/jenkins',
++        'JENKINS_SLAVE_AGENT_PORT': '50126',
++        'GIT_LOCAL_BRANCH': 'unstable',
++        'GIT_PREVIOUS_COMMIT': 'b7def9ed6e92580f37d00e4980c36c4d36e68f70',
++        'GIT_PREVIOUS_SUCCESSFUL_COMMIT': '5def9ed6e92580f37d00e4980c36c4d36e68f70',
++        'GIT_URL_INFO': '',
++        'BUILD_CAUSE_GITSCM': 'true',
++        'BUILD_CAUSE': 'Git SCM',
++        'BUILD_CAUSE_TIMESTAMP': '1369944940000',
++        'BUILD_STATUS': ''
++    }
++
++    build._data = {
++        "_class": "hudson.model.FreeStyleBuild",
++        "actions": [
++            {},
++            {"_class": "hudson.scm.SCMRevisionState"},
++            {"_class": "hudson.model.CauseAction", "causes": [{"_class": "hudson.triggers.TimerTrigger$TimerCause", "shortDescription": "Started by timer"}]},
++            {"_class": "org.jenkinsci.plugins.envinject.EnvInjectJobProperty", "enabled": True, "info": {"_class": "org.jenkinsci.plugins.envinject.EnvInjectInfo", "filePaths": "", "keepUnsetVariables": False}},
++            {"_class": "hudson.model.ParametersAction", "parameters": []},
++            {"_class": "hudson.model.RunAction"},
++            {"_class": "hudson.model.CauseAction", "causes": [{"_class": "hudson.model.Cause$UserIdCause", "shortDescription": "Started by user anonymous"}]}
++        ],
++        "building": False,
++        "description": None,
++        "displayName": "#97",
++        "displayNameOrNull": "#97",
++        "duration": 0,
++        "estimatedDuration": 0,
++        "executor": None,
++        "fullDisplayName": "Fake_Job #97",
++        "fullName": "Fake_Job",
++        "id": "97",
++        "keepLog": False,
++        "number": 97,
++        "result": None,
++        "timestamp": 1369944940000,
++        "url": "http://localhost:8080/job/Fake_Job/97/"
++    }
++
++    env_vars = build.get_env_vars()
++    assert env_vars == expected
++
++    # Check that we can get an individual variable
++    assert env_vars['GIT_URL'] == 'git@github.com:jenkinsci/job-dsl-plugin.git'
++
++    # Check that we handle missing variables gracefully
++    assert env_vars.get('missing') is None
+--- /dev/null
++++ b/jenkinsapi_tests/unittests/test_build_scm_git_grader.py
+@@ -0,0 +1,112 @@
++import six
++import pytest
++from . import configs
++from jenkinsapi.build import Build
++from jenkinsapi.job import Job
++
++
++@pytest.fixture(scope='function')
++def jenkins(mocker):
++    return mocker.MagicMock()
++
++
++@pytest.fixture(scope='function')
++def job(monkeypatch, jenkins):
++    def fake_poll(cls, tree=None):   # pylint: disable=unused-argument
++        return configs.JOB_DATA
++
++    monkeypatch.setattr(Job, '_poll', fake_poll)
++
++    fake_job = Job('http://', 'Fake_Job', jenkins)
++    return fake_job
++
++
++@pytest.fixture(scope='function')
++def build(job, monkeypatch):
++    def fake_poll(cls, tree=None):   # pylint: disable=unused-argument
++        return configs.BUILD_SCM_DATA
++
++    monkeypatch.setattr(Build, '_poll', fake_poll)
++
++    return Build('http://', 97, job)
++
++
++def test_git_scm(build):
++    """
++    Can we extract git build revision data from a build object?
++    """
++    assert isinstance(build.get_revision(), six.string_types)
++    assert build.get_revision() == '7def9ed6e92580f37d00e4980c36c4d36e68f702'
++
++
++def test_git_revision_branch(build):
++    """
++    Can we extract git build branch from a build object?
++    """
++    assert isinstance(build.get_revision_branch(), list)
++    assert len(build.get_revision_branch()) == 1
++    assert isinstance(build.get_revision_branch()[0], dict)
++    assert build.get_revision_branch()[0]['SHA1'] == \
++        '7def9ed6e92580f37d00e4980c36c4d36e68f702'
++    assert build.get_revision_branch()[0]['name'] == 'origin/unstable'
++
++
++def test_git_scm_no_changes(build):
++    """
++    Can we detect when there are no changes?
++    """
++    build._data['actions'][1] = {}
++    assert build.get_revision() is None
++    assert build.get_revision_branch() == []
++
++
++def test_git_scm_multiple_commits(build):
++    """
++    Can we deal with multiple commits?
++    """
++    build._data['actions'][1]['revisions'] = [
++        {'commitId': 'abcde', 'branch': [{'name': 'origin/unstable'}]},
++        {'commitId': '12345', 'branch': [{'name': 'origin/master'}]},
++    ]
++    assert build.get_revision() == 'abcde'
++    assert build.get_revision_branch() == [
++        {'SHA1': 'abcde', 'name': 'origin/unstable'},
++        {'SHA1': '12345', 'name': 'origin/master'}
++    ]
++
++
++def test_git_scm_multiple_repos(build):
++    """
++    Can we deal with multiple repositories?
++    """
++    build._data['actions'][1]['scmCommitIds'] = {
++        'git@github.com:jenkinsci/job-dsl-plugin.git': 'abcde',
++        'git@github.com:jenkinsci/jenkins-cli-plugin.git': '12345',
++    }
++    assert build.get_revision() == 'abcde'
++    assert build.get_revision_branch() == [
++        {'SHA1': 'abcde', 'name': 'origin/unstable'},
++        {'SHA1': '12345', 'name': 'origin/master'}
++    ]
++
++
++def test_git_scm_multiple_repos_no_match(build):
++    """
++    Can we deal with multiple repos without a match?
++    """
++    build._data['actions'][1]['scmCommitIds'] = {
++        'git@github.com:jenkinsci/job-dsl-plugin.git': 'abcde',
++        'git@github.com:jenkinsci/jenkins-cli-plugin.git': '12345',
++    }
++    assert build.get_revision() is None
++    assert build.get_revision_branch() == []
++
++
++def test_git_scm_multiple_repos_no_scms(build):
++    """
++    Can we deal with multiple repos but no scm data?
++    """
++    build._data['actions'][1]['scmCommitIds'] = {}
++    assert build.get_revision() is None
++    assert build.get_revision_branch() == []

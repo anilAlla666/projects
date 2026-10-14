@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/tests/types/test_emails_grader.py
+@@ -0,0 +1,20 @@
++import unittest
++from followthemoney.types import registry
++
++
++emails = registry.email
++
++
++class EmailsTest(unittest.TestCase):
++    def test_cleanup_error_handling(self):
++        # This will raise a UnicodeError when encoded to ASCII
++        self.assertIsNone(emails.clean("\uFFFD@domain.org"))
++
++
++if __name__ == "__main__":
++    unittest.main()
+--- /dev/null
++++ b/tests/types/test_mimetypes_grader.py
+@@ -0,0 +1,20 @@
++import unittest
++from followthemoney.types import registry
++
++
++mimetypes = registry.mimetype
++
++
++class MimetypesTest(unittest.TestCase):
++    def test_cleanup_error_handling(self):
++        # This will raise a UnicodeError when encoded to ASCII
++        self.assertIsNone(mimetypes.clean("\uFFFD"))
++
++
++if __name__ == "__main__":
++    unittest.main()

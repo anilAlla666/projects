@@ -1,0 +1,42 @@
+--- /dev/null
++++ b/tests/test_beautifultable_grader.py
+@@ -0,0 +1,35 @@
++import pytest
++
++
++def test_append_columns():
++    from beautifultable import BeautifulTable
++
++    tbl = BeautifulTable()
++    tbl.columns.append(["aaa", "bbb", "ccc"], header="One")
++    tbl.columns.append(["ddd", "eee", "fff"], header="Two")
++    tbl.columns.append(["ggg", "hhh", "iii"], header="Three")
++    print(tbl)
++
++    expected = (
++        "+----+----+----+\n"
++        "| One| Two| Three|\n"
++        "+====+====+======+\n"
++        "| aaa| ddd| ggg|\n"
++        "+----+----+------+\n"
++        "| bbb| eee| hhh|\n"
++        "+----+----+------+\n"
++        "| ccc| fff| iii|\n"
++        "+----+----+------+"
++    )
++    assert str(tbl) == expected
++
++
++@pytest.mark.parametrize(
++    "align,expected",
++    [
++        ("right", "+---+---+-----+\n" "+===+===+=====+\n" "| aaa| ddd| ggg|\n"),
++        ("left", "+---+---+-----+\n" "+===+===+=====+\n" "| aaa| ddd| ggg|\n"),
++    ],
++)
++def test_append_columns_alignment(align, expected):
++    tbl = BeautifulTable(maxwidth=3, alignment=[align])
++    tbl.columns.append(["aaa", "ddd", "ggg"])
++    tbl.columns.append(["bbb", "eee", "hhh"])
++    tbl.columns.append(["ccc", "fff", "iii"])
++    print(tbl)

@@ -1,0 +1,59 @@
+I haven't run these tests. They assume `video_meta_data` accepts `duration` and `frame_rate`, that `Trim` takes the stream kind as its first positional argument, and that `SetPTS().transform` subtracts the start as the code shows. If any of these differs, the tests will error out rather than test the fix.
+
+The tests check that a `Trim` ending after EOF yields metadata clipped to the source duration, both directly and after `SetPTS`. They also check that a trim ending inside the source still gives the expected duration. I avoided asserting on `frames` or `samples` since the issue doesn't pin those down.
+
+```diff
+diff --git a/tests/test_trim_duration.py b/tests/test_trim_duration.py
+new file mode 100644
+index 0000000..3c1d5e7
+--- /dev/null
++++ b/tests/test_trim_duration.py
+@@ -0,0 +1,50 @@
++from unittest import TestCase
++
++from fffw.graph import VIDEO, meta
++from fffw.encoding import filters
++
++
++class TrimDurationTestCase(TestCase):
++    """ Checks trim metadata when trim interval exceeds source duration."""
++
++    def setUp(self) -> None:
++        self.meta = meta.video_meta_data(
++            width=1920,
++            height=1080,
++            duration=10.0,
++            frame_rate=25.0,
++        )
++
++    def test_trim_end_after_eof(self):
++        """ Trim end after EOF must not extend stream duration."""
++        trim = filters.Trim(VIDEO, start=2.0, end=20.0)
++        result = trim.transform(self.meta)
++        self.assertEqual(float(result.start), 2.0)
++        self.assertEqual(float(result.duration), 10.0)
++
++    def test_trim_end_after_eof_with_setpts(self):
++        """ After PTS reset, duration is source duration minus trim start."""
++        trim = filters.Trim(VIDEO, start=2.0, end=20.0)
++        trimmed = trim.transform(self.meta)
++        result = filters.SetPTS(VIDEO).transform(trimmed)
++        self.assertEqual(float(result.start), 0.0)
++        self.assertEqual(float(result.duration), 8.0)
++
++    def test_trim_start_zero_end_after_eof(self):
++        """ Trimming from the beginning to after EOF keeps full duration."""
++        trim = filters.Trim(VIDEO, start=0, end=100)
++        trimmed = trim.transform(self.meta)
++        result = filters.SetPTS(VIDEO).transform(trimmed)
++        self.assertEqual(float(result.duration), 10.0)
++
++    def test_trim_inside_source(self):
++        """ Regular trim inside source duration is not affected."""
++        trim = filters.Trim(VIDEO, start=2.0, end=5.0)
++        trimmed = trim.transform(self.meta)
++        self.assertEqual(float(trimmed.start), 2.0)
++        self.assertEqual(float(trimmed.duration), 5.0)
++        result = filters.SetPTS(VIDEO).transform(trimmed)
++        self.assertEqual(float(result.duration), 3.0)
+```

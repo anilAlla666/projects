@@ -1,0 +1,108 @@
+--- /dev/null
++++ b/tests/test_models_grader.py
+@@ -0,0 +1,100 @@
++import pytest
++from unittest import mock
++from xml.etree import ElementTree as ET
++
++
++NAMESPACE = {
++    'http://www.tableausoftware.com/api': 'ta',
++}
++
++
++def test_paging_with_user():
++    # Arrange
++    fake_page_size = 2
++    fake_page_number = 1
++    fake_total_pages = 2
++    fake_total_available = 3
++
++    fake_api_url = 'fake_api_url'
++    fake_site_id = 'fake_site_id'
++    fake_request_options = {
++        'pageSize': fake_page_size,
++        'pageNumber': fake_page_number,
++        'totalPages': fake_total_pages,
++        'totalAvailable': fake_total_available,
++    }
++    fake_response = """
++    <Users totalSize="{}" pagination={
++            "pageNumber": {},
++            "pageSize": {},
++            "totalPages": {},
++            "totalAvailable": {}
++        }>
++        <User>
++            <Name>Test User</Name>
++        </User>
++    </Users>
++    """.format(fake_total_available, fake_page_number, fake_page_size, fake_total_pages, fake_total_available)
++
++    with mock.patch('tableauserverclient.server.connection.Connection') as connection_mock:
++        connection = connection_mock.return_value
++        server = mock.Mock(api_version='3.3')
++        connection.server_info.api_version = '3.3'
++
++        # Act
++        page = TSC.Pager(server.users)
++
++        # Assert
++        assert len(page) == fake_total_available
++        assert page.total_size == fake_total_available
++        assert page.pagination.page_number == fake_page_number
++        assert page.pagination.page_size == fake_page_size
++        assert page.pagination.total_pages == fake_total_pages
++        assert page.pagination.total_available == fake_total_available
++
++
++class TSC:
++    class Pager(object):
++        def __init__(self, resource):
++            self._resource = resource
++            self._request_options = {}
++
++        @property
++        def request_options(self):
++            return self._request_options
++
++        def __len__(self):
++            return self._resource.request_options['pagination']['totalAvailable']
++
++        def __getitem__(self, index):
++            if index >= len(self):
++                raise IndexError("Index out of range")
++
++            return self._resource[index]
++
++        def __iter__(self):
++            for i in range(len(self)):
++                yield self[i]
++
++    class Users(TSC.Resource):
++        def __init__(self, **kwargs):
++            super().__init__(**kwargs)
++            self._api_endpoint = "/api/{}/sites/{}/users".format(
++                self._connection.server_info.api_version, self._site.id)
++            self._items = set()
++            self._pagination = {'totalAvailable': 0}
++            self._request_options = {'pagination': {}}
++
++        @property
++        def request_options(self):
++            return self._request_options
++
++        def populate_all(self):
++            while True:
++                self._request_options['pagination'].update({
++                    'pageNumber': self._pagination['pageNumber'],
++                    'pageSize': self._pagination['pageSize'],
++                })
++                self._request_options['filter'] = {}
++                items = self._connection.get(self._api_endpoint, self._request_options)
++                self._items.update(items)
++                self._pagination = items.pagination
++                if items.pagination['totalPages'] > self._pagination['pageNumber']:
++                    self._request_options['pagination']['pageNumber'] += 1
++                else:
++                    break

@@ -1,0 +1,122 @@
+--- /dev/null
++++ b/tests/test_enochecker_grader.py
+@@ -0,0 +1,116 @@
++import functools
++import sys
++import tempfile
++import time
++from logging import DEBUG
++import enochecker
++import pytest
++from enochecker import (
++    CHECKER_METHODS,
++    BaseChecker,
++    BrokenServiceException,
++    OfflineException,
++    Result,
++    assert_equals,
++    assert_in,
++    ensure_bytes,
++    ensure_unicode,
++    parse_args,
++    run,
++    serve_once,
++    snake_caseify,
++)
++
++
++STORAGE_DIR: str = "/tmp/enochecker_test"
++
++
++def temp_storage_dir(func):
++    @functools.wraps(func)
++    def wrapper(*args, **kwargs):
++        global STORAGE_DIR
++        try:
++            with tempfile.TemporaryDirectory() as tmpdirname:
++                STORAGE_DIR = tmpdirname
++                return func(*args, **kwargs)
++        finally:
++            STORAGE_DIR = "/tmp/enochecker_test"
++
++    return wrapper
++
++
++class CheckerExampleImpl(BaseChecker):
++    def check(self):
++        return Result.OK
++
++    def putflag(self):
++        self.team_db.store_flag(self.flag)
++
++    def getflag(self):
++        assert_equals(self.team_db.fetch_flag(), self.flag)
++
++    def putnoise(self):
++        self.team_db.store_noise(self.flag)
++
++    def getnoise(self):
++        assert_equals(self.team_db.fetch_noise(), self.flag)
++
++    def havoc(self):
++        pass
++
++
++@pytest.mark.parametrize("round", [None, 1])
++@pytest.mark.parametrize("flag_round", [None, 2])
++@pytest.mark.parametrize("method", CHECKER_METHODS)
++@pytest.mark.parametrize("storage_dir", [None, STORAGE_DIR])
++@pytest.mark.parametrize("use_db_cache", [False, True])
++@pytest.mark.parametrize("json_logging", [True, False])
++def test_init(round, flag_round, method, storage_dir, use_db_cache, json_logging):
++    checker = CheckerExampleImpl(
++        method=method,
++        round=round,
++        flag_round=flag_round,
++        storage_dir=storage_dir,
++        use_db_cache=use_db_cache,
++        json_logging=json_logging,
++    )
++
++    assert checker.method == method
++    assert checker.round == round
++    assert checker.flag_round == flag_round
++    assert checker.storage_dir == storage_dir
++    assert checker.use_db_cache == use_db_cache
++    assert checker.json_logging == json_logging
++
++
++@temp_storage_dir
++def test_deprecated_rounds():
++    checker = CheckerExampleImpl(
++        method="putflag", round=1, flag_round=2, use_db_cache=False
++    )
++
++    with pytest.warns(DeprecationWarning) as record:
++        assert checker.round == checker.current_round == 1
++
++    assert len(record) == 2
++    assert "Passing round as argument to BaseChecker is deprecated" in str(record[0].message)
++    assert "Passing round as argument to BaseChecker is deprecated" in str(record[1].message)
++
++    with pytest.warns(DeprecationWarning) as record:
++        del checker.round
++        del checker.current_round
++
++    assert len(record) == 2
++    assert "is replaced by the property current_round" in str(record[0].message)
++    assert "is replaced by the property current_round" in str(record[1].message)
++
++    with pytest.raises(AttributeError):
++        checker.round
++
++    with pytest.raises(AttributeError):
++        checker.current_round
++
++
++def main():
++    pytest.main(sys.argv)
++
++
++if __name__ == "__main__":
++    main()

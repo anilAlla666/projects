@@ -1,0 +1,24 @@
+--- /dev/null
++++ b/tests/test_reach_grader.py
+@@ -0,0 +1,21 @@
++import numpy as np
++from reach import Reach
++
++
++def test_unk_resets_dtype():
++    # Test that adding an UNK token does not reset the dtype of the vectors
++    vecs = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float32)
++    reach = Reach(vecs, ["a", "b"], unk_word="UNK")
++    assert reach.vectors.dtype == np.float32
++
++    vecs = np.array([[1.0, 2.0], [3.0, 4.0]])
++    reach = Reach(vecs, ["a", "b"], unk_word="UNK")
++    assert reach.vectors.dtype == np.float64
++
++    vecs = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.int32)
++    reach = Reach(vecs, ["a", "b"], unk_word="UNK")
++    assert reach.vectors.dtype == np.int32
++
++    vecs = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.uint8)
++    reach = Reach(vecs, ["a", "b"], unk_word="UNK")
++    assert reach.vectors.dtype == np.uint8

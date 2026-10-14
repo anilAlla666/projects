@@ -1,0 +1,76 @@
+--- /dev/null
++++ b/tests/func/test_diff_grader.py
+@@ -0,0 +1,33 @@
++import hashlib
++import os
++import pytest
++from funcy import first
++from dvc.compat import fspath
++from dvc.utils.fs import remove
++from dvc.exceptions import DvcException
++
++
++def digest(text):
++    return hashlib.md5(bytes(text, "utf-8")).hexdigest()
++
++
++def test_diff_empty(tmp_dir, scm, dvc):
++    tmp_dir.dvc_gen("file", "text")
++
++    assert dvc.diff() == {
++        "added": [],
++        "deleted": [],
++        "modified": [],
++    }
++
++
++def test_diff_no_cache(tmp_dir, scm, dvc):
++    tmp_dir.dvc_gen({"dir": {"file": "file content"}}, commit="first")
++    scm.tag("v1")
++
++    tmp_dir.dvc_gen(
++        {"dir": {"file": "modified file content"}}, commit="second"
++    )
++    scm.tag("v2")
++
++    remove(dvc.cache.local.cache_dir)
++
++    # invalidate_dir_info to force cache loading
++    dvc.cache.local._dir_info = {}
++
++    assert dvc.diff("v1", "v2") == {}
+--- /dev/null
++++ b/tests/func/test_repo_grader.py
+@@ -0,0 +1,28 @@
++import os
++from dvc.cache import Cache
++from dvc.repo import Repo
++from dvc.system import System
++from dvc.compat import fspath
++
++
++def test_diff_empty(tmp_dir, dvc):
++    tmp_dir.dvc_gen("file", "text")
++
++    assert dvc.diff() == {
++        "added": [],
++        "deleted": [],
++        "modified": [],
++    }
++
++
++def test_diff_no_cache(tmp_dir, scm, dvc):
++    tmp_dir.dvc_gen({"dir": {"file": "file content"}}, commit="first")
++    scm.tag("v1")
++
++    tmp_dir.dvc_gen(
++        {"dir": {"file": "modified file content"}}, commit="second"
++    )
++    scm.tag("v2")
++
++    remove(dvc.cache.local.cache_dir)
++
++    # invalidate_dir_info to force cache loading
++    dvc.cache.local._dir_info = {}
++
++    assert dvc.diff("v1", "v2") == {}

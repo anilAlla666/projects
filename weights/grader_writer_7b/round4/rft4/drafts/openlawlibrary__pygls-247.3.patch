@@ -1,0 +1,82 @@
+--- /dev/null
++++ b/tests/test_protocol_grader.py
+@@ -0,0 +1,74 @@
++import json
++from concurrent.futures import Future
++from functools import partial
++from pathlib import Path
++from typing import Optional
++from unittest.mock import Mock
++import pytest
++from pygls.exceptions import JsonRpcException, JsonRpcInvalidParams
++from pygls.lsp import Model, get_method_params_type
++from pygls.lsp.types import ClientCapabilities, InitializeParams, InitializeResult
++from pygls.protocol import JsonRPCNotification, JsonRPCRequestMessage, JsonRPCResponseMessage
++from pygls.protocol import deserialize_message as _deserialize_message
++
++
++TEST_METHOD = 'test_method'
++
++
++class FeatureParams(Model):
++    class InnerType(Model):
++        inner_field: str
++
++    field_a: str
++    field_b: Optional[InnerType] = None
++
++
++def dummy_message(idx=1, msg_id='1'):
++    body = json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": idx})
++    return '\r\n'.join(['Content-Length: ' + str(len(body)), '', body]).encode("utf-8")
++
++
++@pytest.fixture
++def client_server():
++    lsp = Mock()
++    transport = Mock()
++    protocol = Mock(lsp=lsp, transport=transport)
++
++    transport.write.side_effect = lambda x: setattr(protocol, 'sent', x)
++    transport.close.side_effect = lambda: setattr(protocol, 'closed', True)
++    transport.is_closing.return_value = False
++    transport.can_write_eof.return_value = True
++
++    lsp.send_notification.side_effect = lambda *args, **kwargs: setattr(protocol, 'notification_sent', args)
++    lsp.send_request.side_effect = lambda *args, **kwargs: setattr(protocol, 'request_sent', args)
++    lsp.shutdown.side_effect = lambda: setattr(protocol, 'shutdown', True)
++
++    lsp.initialize.return_value = InitializeResult(capabilities={})
++    lsp._server_request_futures = {}
++    lsp._client_request_futures = {}
++    lsp._client_notification_futures = {}
++    lsp._response_queue = []
++    lsp._notification_queue = []
++    lsp._request_queue = []
++    lsp._shutdown = False
++
++    yield protocol, protocol.lsp
++
++    if not transport.is_closing():
++        transport.close()
++
++
++def test_shutdown_response_is_not_empty(client_server):
++    """Regression test for issue #254"""
++    _, server = client_server
++    future = server.lsp._server_request_futures["err"] = Future()
++    server.lsp._handle_response("err", None, None)
++    assert not future.done()
++
++
++def test_initialize_should_return_server_capabilities(client_server):
++    _, server = client_server
++    params = InitializeParams(
++        process_id=1234,
++        root_uri=Path(__file__).parent.as_uri(),
++        capabilities=ClientCapabilities(),
++    )
++
++    server_capabilities = server.lsp.lsp_initialize(params)
++
++    assert isinstance(server_capabilities, InitializeResult)

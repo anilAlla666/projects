@@ -1,0 +1,145 @@
+--- /dev/null
++++ b/nipype/testing/tests/test_utils_grader.py
+@@ -0,0 +1,31 @@
++"""Test testing utilities
++"""
++
++
++import os
++import warnings
++import subprocess
++from mock import patch, MagicMock
++from nipype.testing.utils import TempFATFS
++
++
++@patch('subprocess.check_call', MagicMock())
++@patch('subprocess.Popen', MagicMock(side_effect=OSError()))
++def test_tempfatfs_oserror():
++    try:
++        TempFATFS()
++    except Exception as e:
++        assert isinstance(e, Exception)
++        assert isinstance(e.__cause__, OSError)
++    else:
++        assert False
++
++
++@patch('subprocess.check_call', MagicMock())
++@patch('subprocess.Popen', MagicMock(return_value=MagicMock()))
++def test_tempfatfs_popen_return_none():
++    try:
++        TempFATFS()
++    except Exception as e:
++        assert isinstance(e, Exception)
++        assert isinstance(e.__cause__, subprocess.CalledProcessError)
++    else:
++        assert False
+--- /dev/null
++++ b/nipype/interfaces/fsl/tests/test_utils_grader.py
+@@ -0,0 +1,108 @@
++import os
++import numpy as np
++import nibabel as nb
++import pytest
++import nipype.interfaces.fsl.utils as fsl
++from nipype.interfaces.fsl import no_fsl, Info
++from nipype.testing.fixtures import create_files_in_directory_plus_output_type
++
++
++@pytest.mark.skipif(no_fsl(), reason="fsl is not installed")
++def test_convertxfm(create_files_in_directory_plus_output_type):
++    filelist, outdir, _ = create_files_in_directory_plus_output_type
++    cvt = fsl.ConvertXFM()
++
++    # make sure command gets called
++    assert cvt.cmd == "convert_xfm"
++
++    # test raising error with mandatory args absent
++    with pytest.raises(ValueError):
++        cvt.run()
++
++    # .inputs based parameters setting
++    cvt.inputs.in_file = filelist[0]
++    cvt.inputs.invert_xfm = True
++    cvt.inputs.out_file = "foo.mat"
++    assert cvt.cmdline == 'convert_xfm -omat foo.mat -inverse %s' % filelist[0]
++
++    # constructor based parameter setting
++    cvt2 = fsl.ConvertXFM(
++        in_file=filelist[0],
++        in_file2=filelist[1],
++        concat_xfm=True,
++        out_file="bar.mat")
++    assert cvt2.cmdline == \
++        "convert_xfm -omat bar.mat -concat %s %s" % (filelist[1], filelist[0])
++
++
++@pytest.mark.skipif(no_fsl(), reason="fsl is not installed")
++def test_swapdims(create_files_in_directory_plus_output_type):
++    files, testdir, out_ext = create_files_in_directory_plus_output_type
++    swap = fsl.SwapDimensions()
++
++    # Test the underlying command
++    assert swap.cmd == "fslswapdim"
++
++    # Test mandatory args
++    args = [dict(in_file=files[0]), dict(new_dims=("x", "y", "z"))]
++    for arg in args:
++        wontrun = fsl.SwapDimensions(**arg)
++        with pytest.raises(ValueError):
++            wontrun.run()
++
++    # Now test a basic command line
++    swap.inputs.in_file = files[0]
++    swap.inputs.new_dims = ("x", "y", "z")
++    assert swap.cmdline == "fslswapdim a.nii x y z %s" % os.path.realpath(
++        os.path.join(testdir, "a_newdims%s" % out_ext))
++
++    # Test that we can set an output name
++    swap.inputs.out_file = "b.nii"
++    assert swap.cmdline == "fslswapdim a.nii x y z b.nii"
++
++
++@pytest.mark.skipif(no_fsl(), reason="fsl is not installed")
++def test_volumefrac(create_files_in_directory_plus_output_type):
++    files, testdir, out_ext = create_files_in_directory_plus_output_type
++    volfrac = fsl.VolumeFraction()
++
++    # Test the underlying command
++    assert volfrac.cmd == "fslvolfractions"
++
++    # Test mandatory args
++    args = [dict(in_file=files[0])]
++    for arg in args:
++        wontrun = fsl.VolumeFraction(**arg)
++        with pytest.raises(ValueError):
++            wontrun.run()
++
++    # Now test a basic command line
++    volfrac.inputs.in_file = files[0]
++    assert volfrac.cmdline == "fslvolfractions %s" % files[0]
++
++
++@pytest.mark.skipif(no_fsl(), reason="fsl is not installed")
++def test_create_sform(create_files_in_directory_plus_output_type):
++    files, testdir, out_ext = create_files_in_directory_plus_output_type
++    cfs = fsl.CreateSForm()
++
++    # Test the underlying command
++    assert cfs.cmd == "fslsetunits"
++
++    # Test mandatory args
++    args = [dict(in_file=files[0]), dict(units='xyz')]
++    for arg in args:
++        wontrun = fsl.CreateSForm(**arg)
++        with pytest.raises(ValueError):
++            wontrun.run()
++
++    # Now test a basic command line
++    cfs.inputs.in_file = files[0]
++    cfs.inputs.units = 'xyz'
++    assert cfs.cmdline == "fslsetunits %s xyz" % files[0]
++
++    # Test that we can set an output name
++    cfs.inputs.out_file = "b.nii"
++    assert cfs.cmdline == "fslsetunits b.nii xyz"

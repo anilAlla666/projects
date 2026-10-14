@@ -1,0 +1,41 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,36 @@
++import pytest
++from pathlib import Path
++from nbchkr.utils import (
++    read,
++    remove_cells,
++    write,
++    add_checks,
++    get_tags,
++    get_score,
++    check,
++)
++
++
++@pytest.fixture()
++def example_notebook():
++    return read(Path(__file__).parent.parent / "example.ipynb")
++
++
++def test_remove_cells(example_notebook):
++    assert len(example_notebook["cells"]) == 5
++    removed_cells = remove_cells(example_notebook, tags_regex_patterns_to_ignore=["test"])
++    assert len(removed_cells["cells"]) == 4
++
++
++def test_add_checks(example_notebook):
++    added = add_checks(
++        example_notebook,
++        example_notebook,
++        answer_tag_regex="solution",
++    )
++    assert len(added["cells"]) == 5
++
++
++def test_check(example_notebook):
++    result = check(example_notebook, timeout=5)
++    assert result[0] == 0
++    assert result[1] == 0
++    assert result[2].startswith("# Your notebook has been executed successfully.")

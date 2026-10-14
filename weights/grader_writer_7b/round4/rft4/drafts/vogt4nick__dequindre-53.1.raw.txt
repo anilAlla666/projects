@@ -1,0 +1,101 @@
+--- /dev/null
++++ b/dequindre/tests/test_Dequindre_grader.py
+@@ -0,0 +1,101 @@
++"""Unit tests for the Dequindre class."""
++
++
++from collections import defaultdict
++import pytest
++from dequindre import Task, DAG, Dequindre
++
++
++def test__Dequindre_get_task_schedules():
++    A = Task('A.py', 'test-env')
++    B = Task('B.py', 'test-env')
++    C = Task('C.py', 'test-env')
++    Z = Task('Z.py', 'test-env')
++    dag = DAG()
++    dag.add_tasks({A, B, C, Z})
++    dag.add_edges({A:B, B:C})
++    dq = Dequindre(dag)
++
++    schedules = dq.get_task_schedules()
++
++    assert schedules == [
++        {A}, 
++        {Z}, 
++        {B}, 
++        {C}
++    ]
++
++
++def test__Dequindre_get_schedules():
++    A = Task('A.py', 'test-env')
++    B = Task('B.py', 'test-env')
++    C = Task('C.py', 'test-env')
++    Z = Task('Z.py', 'test-env')
++    dag = DAG()
++    dag.add_tasks({A, B, C, Z})
++    dag.add_edges({A:B, B:C})
++    dq = Dequindre(dag)
++
++    schedules = dq.get_schedules()
++
++    assert schedules == [
++        {A}, 
++        {Z}, 
++        {B}, 
++        {C}
++    ]
++
++
++def test__Dequindre_get_schedule():
++    A = Task('A.py', 'test-env')
++    B = Task('B.py', 'test-env')
++    C = Task('C.py', 'test-env')
++    Z = Task('Z.py', 'test-env')
++    dag = DAG()
++    dag.add_tasks({A, B, C, Z})
++    dag.add_edges({A:B, B:C})
++    dq = Dequindre(dag)
++
++    schedule = dq.get_schedule()
++
++    assert schedule == {
++        1: {A}, 
++        2: {Z}, 
++        3: {B}, 
++        4: {C}
++    }
++
++
++@pytest.mark.parametrize('dag, expected', [
++    (
++        {'A': ['B', 'C'], 'B': [], 'C': []},
++        [
++            {'A'}, 
++            {'B'}, 
++            {'C'}
++        ]
++    ),
++    (
++        {'A': ['B', 'C'], 'B': ['D'], 'C': ['D'], 'D': []},
++        [
++            {'A'},
++            {'B', 'C'},
++            {'D'}
++        ]
++    ),
++    (
++        {'A': ['B', 'C'], 'B': ['E'], 'C': ['E'], 'D': [], 'E': ['D']},
++        [
++            {'A'},
++            {'B', 'C'},
++            {'E'},
++            {'D'}
++        ]
++    ),
++])
++def test__Dequindre_get_schedule_with_dict_input(dag, expected):
++    dq = Dequindre(DAG.from_dict(dag))
++    assert dq.get_schedules() == expected

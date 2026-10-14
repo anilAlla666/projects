@@ -1,0 +1,41 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,42 @@
++import pytest
++from dataclasses import dataclass, is_dataclass
++from serde.core import should_impl_dataclass
++
++
++def test_is_generic():
++    class Foo:
++        pass
++
++    class Bar(Foo):
++        pass
++
++    @dataclass
++    class Bazz:
++        foo: Foo
++
++    assert not is_generic(int)
++    assert not is_generic(str)
++    assert not is_generic(Any)
++    assert not is_generic(type(None))
++    assert not is_generic(object)
++    assert not is_generic(list)
++    assert not is_generic(tuple)
++    assert not is_generic(dict)
++    assert not is_generic(set)
++    assert not is_generic(frozenset)
++    assert not is_generic(Foo)
++    assert not is_generic(Baz)
++    assert not is_generic(Bazz)
++    assert is_generic(Union[int, str])
++    assert is_generic(Optional[str])
++    assert is_generic(List[str])
++    assert is_generic(Tuple[int, str])
++    assert is_generic(Set[int])
++    assert is_generic(FrozenSet[int])
++    assert is_generic(Callable[[int], str])
++    assert is_generic(Type[Foo])
++    assert is_generic(Type[Bazz])

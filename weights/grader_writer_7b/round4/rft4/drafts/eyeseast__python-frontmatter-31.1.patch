@@ -1,0 +1,57 @@
+--- /dev/null
++++ b/tests/test_init_grader.py
+@@ -0,0 +1,47 @@
++import pytest
++from io import StringIO
++from frontmatter import (
++    Post,
++    load,
++    loads,
++    dump,
++    dumps,
++    get_handler,
++)
++
++
++def test_load_with_utf8():
++    """Test loading with UTF-8."""
++    raw_text = '''---
++title: "Über uns"
++---
++This is a post about us.'''
++    text = loads(raw_text)
++    assert isinstance(text.content, str)
++    assert text.title == "Über uns"
++
++
++def test_load_with_utf16_le():
++    """Test loading with UTF-16 LE."""
++    raw_text = '''---
++title: "Über uns"
++---
++This is a post about us.'''
++    text = loads(raw_text.encode("UTF-16LE"), encoding="UTF-16LE")
++    assert isinstance(text.content, str)
++    assert text.title == "Über uns"
++
++
++def test_dump_with_utf8():
++    """Test dumping with UTF-8."""
++    text = Post(
++        content='This is a post about us.',
++        title="Über uns",
++    )
++    output = dumps(text)
++    assert isinstance(output, str)
++    assert "Über uns" in output
++
++
++def test_dump_with_utf16_le():
++    """Test dumping with UTF-16 LE."""
++    text = Post(
++        content='This is a post about us.',
++        title="Über uns",
++    )
++    output = dumps(text, encoding="UTF-16LE")
++    assert isinstance(output, bytes)
++    assert "Über uns".encode("UTF-16LE") in output

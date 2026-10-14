@@ -1,0 +1,47 @@
+--- /dev/null
++++ b/tests/test_dem_grader.py
+@@ -0,0 +1,13 @@
++"""Tests for the pyflwdir.dem module."""
++
++
++import pytest
++import numpy as np
++from pyflwdir import dem
++from test_core import test_data
++
++
++a, flwdir = test_data[0]
++
++
++assert dem._fill_depression(a, connectivity=4).all()
+--- /dev/null
++++ b/tests/test_pyflwdir_grader.py
+@@ -0,0 +1,27 @@
++"""Tests for the pyflwdir module, specifically the wrapping of the methods which 
++themselves are testes elsewhere"""
++
++
++import pytest
++import numpy as np
++from affine import Affine
++import pyflwdir
++from pyflwdir import core, core_nextxy, core_d8
++from test_core import test_data
++
++
++idxs_ds = test_data[0][1]
++
++
++idxs_pit = test_data[0][2]
++
++
++idxs_seq = test_data[0][3]
++
++
++d8 = test_data[0][4]
++
++
++nextxy = core_nextxy.to_array(idxs_ds, d8.shape)
++
++
++flw = pyflwdir.FlwdirRaster(idxs_ds.copy(), d8.shape, "d8", idxs_pit=idxs_pit.copy())

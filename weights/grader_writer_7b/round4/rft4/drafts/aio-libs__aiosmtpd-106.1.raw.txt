@@ -1,0 +1,195 @@
+--- /dev/null
++++ b/aiosmtpd/tests/test_smtp_grader.py
+@@ -0,0 +1,179 @@
++"""Test the SMTP protocol."""
++
++
++import socket
++import asyncio
++import unittest
++from aiosmtpd.controller import Controller
++from aiosmtpd.handlers import Sink
++from aiosmtpd.smtp import SMTP as Server, __ident__ as GREETING
++from aiosmtpd.testing.helpers import reset_connection
++from contextlib import ExitStack
++from smtplib import (
++    SMTP, SMTPDataError, SMTPResponseException, SMTPServerDisconnected)
++from unittest.mock import Mock, PropertyMock, patch
++
++
++CRLF = '\r\n'
++
++
++BCRLF = b'\r\n'
++
++
++class DecodingController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=True, enable_SMTPUTF8=True)
++
++
++class NoDecodeController(Controller):
++    def factory(self):
++        return Server(self.handler, decode_data=False)
++
++
++class ReceivingHandler:
++    box = None
++
++    def __init__(self):
++        self.box = []
++
++    async def handle_DATA(self, server, session, envelope):
++        self.box.append(envelope)
++        return '250 OK'
++
++
++class SinkWithLimit(ReceivingHandler):
++    data_size_limit = 500
++
++
++class StrictASCIIController(Controller):
++    def factory(self):
++        return Server(self.handler, strict_ascii=True)
++
++
++class SinkWithSizeLimit(ReceivingHandler):
++    data_size_limit = 100
++
++
++class SinkWithUnicode(ReceivingHandler):
++    enable_SMTPUTF8 = True
++
++
++class SinkWithTlsContext(NoDecodeController):
++    def factory(self):
++        tls_context = self.make_tls_context()
++        return Server(self.handler, tls_context=tls_context)
++
++
++class SinkWithStartTLS(NoDecodeController):
++    require_starttls = True
++
++
++class SinkWithStartTLSAndTLSContext(NoDecodeController):
++    require_starttls = True
++
++    def factory(self):
++        tls_context = self.make_tls_context()
++        return Server(self.handler, tls_context=tls_context)
++
++
++class SinkWithEnableSMTPUTF8(NoDecodeController):
++    enable_SMTPUTF8 = True
++
++
++class SinkWithRequireAuth(NoDecodeController):
++    require_auth = True
++
++
++class SinkWithRequireSASL(NoDecodeController):
++    require_sasl = True
++
++
++class SinkWithCustomBanner(NoDecodeController):
++    banner = "Welcome!"
++
++
++class SinkWithMaxLineLengthLimit(NoDecodeController):
++    command_size_limit = 10
++
++
++class SinkWithExtendedEhloHook(NoDecodeController):
++    extended_ehlo_hook = lambda s: [
++        '250-EXTENDED_FEATURE_1',
++        '250-EXTENDED_FEATURE_2']
++
++
++class SinkWithBadEhloHook(NoDecodeController):
++    ehlo_hook = lambda s: 'not valid'
++
++
++class SinkWithBadDataHook(NoDecodeController):
++    data_hook = lambda s, e: 'not valid'
++
++
++class SinkWithErrorHook(NoDecodeController):
++    error_hook = lambda s, e: 'not valid'
++
++
++class SinkWithRcptHook(NoDecodeController):
++    rcpt_hook = lambda s, e: 'not valid'
++
++
++class SinkWithVerifyDomainHook(NoDecodeController):
++    verify_domain_hook = lambda s, d: 'not valid'
++
++
++class SinkWithVerifySenderHook(NoDecodeController):
++    verify_sender_hook = lambda s, e: 'not valid'
++
++
++class SinkWithVerifyRecipientHook(NoDecodeController):
++    verify_recipient_hook = lambda s, r: 'not valid'
++
++
++class SinkWithUnknownCommandHook(NoDecodeController):
++    unknown_command_hook = lambda s, c, a: 'not valid'
++
++
++class SinkWithXforwardedforHeader(NoDecodeController):
++    x_forwarded_for_header = True
++
++
++class SinkWithCustomHostname(NoDecodeController):
++    hostname = 'custom-hostname.local'
++
++
++class SinkWithCustomHostnameIPv6(NoDecodeController):
++    hostname = '[::]'
++
++
++class SinkWithCustomHostnamePort(NoDecodeController):
++    hostname = 'localhost:12345'
++
++
++class SinkWithCustomHostnameIPv6Port(NoDecodeController):
++    hostname = '[::]:12345'
++
++
++class SinkWithSessionStateResetOnHelo(NoDecodeController):
++    session_state_reset_on_helo = True
++
++
++class SinkWithSessionStateResetOnHeloFalse(NoDecodeController):
++    session_state_reset_on_helo = False
++
++
++class SinkWithSessionStateResetOnEhlo(NoDecodeController):
++    session_state_reset_on_ehlo = True
++
++
++class SinkWithSessionStateResetOnEhloFalse(NoDecodeController):
++    session_state_reset_on_ehlo = False
++
++
++class TestStrictASCII(unittest.TestCase):
++    def setUp(self):
++        controller = StrictASCIIController(Sink())
++        controller.start()
++        self.addCleanup(controller.stop)
++        self.address = (controller.hostname, controller.port)
++
++    def test_repeated_helo(self):
++        with SMTP(*self.address) as client:
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++
++    def test_repeated_ehlo(self):
++        with SMTP(*self.address) as client:
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)
++            code, response = client.ehlo('example.com')
++            self.assertEqual(code, 250)

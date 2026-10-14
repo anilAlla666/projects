@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_keys_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++
++
++@pytest.mark.parametrize("content", [
++    ("![]()"),
++    ("![](\"http://example.com\")"),
++    ("![](\"http://example.com?foo=bar\")"),
++    ("![](\"http://example.com?foo=bar&baz=quux\")"),
++])
++def test_links(content, tmpdir):
++    """Test that links aren't affected."""
++
++    assert content == content

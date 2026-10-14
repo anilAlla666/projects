@@ -1,0 +1,13 @@
+--- /dev/null
++++ b/tests/test_v21_grader.py
+@@ -0,0 +1,11 @@
++from stix2validator import validate_string
++
++
++def test_snort_pattern_is_not_validated_as_stix():
++    pattern = "[snort:'alert tcp $HOME_NET any -> $EXTERNAL_NET 25 (msg:\"ET POLICY SMTP Data Connection To External Network\"; flow:to_server,established; content:\"VRFY\"; nocase; content:\"\\r\\n\"; nocase; distance:0; within:200; content:\"USER\"; nocase; distance:0; within:200; content:\"PASS\"; nocase; distance:0; within:200; content:\"QUIT\"; nocase; distance:0; within:200; classtype:misc-activity; sid:2000000; rev:1;)']"
++    result = validate_string(pattern, version="2.1")
++    assert len(result.errors) == 0
++    assert len(result.warnings) == 0
++    assert len(result.valid_result_objects) == 1
++    assert result.is_valid()

@@ -1,0 +1,64 @@
+I'm adding a new test file, `cfdm/test/test_dimension_coordinate_no_data_str.py`. I haven't run it. It builds the failing case from the issue and asserts only that printing succeeds and returns something sensible, so it doesn't depend on the exact format the fix chooses.
+
+It covers three cases:
+- **Field print:** delete the data from the `time` dimension coordinate of `example_field(2)` and check that `str(f)` no longer raises. It also checks the output is non-empty and still contains `time`.
+- **Domain print:** the same check on `f.domain`.
+- **Control case:** a field with all its data intact still prints, so the fix can't break the normal path.
+
+I haven't also checked a dimension coordinate that has bounds but no data. I left that out because the issue doesn't say what should be shown for it.
+
+```diff
+diff --git a/cfdm/test/test_dimension_coordinate_no_data_str.py b/cfdm/test/test_dimension_coordinate_no_data_str.py
+new file mode 100644
+--- /dev/null
++++ b/cfdm/test/test_dimension_coordinate_no_data_str.py
+@@ -0,0 +1,53 @@
++import datetime
++import faulthandler
++import unittest
++
++faulthandler.enable()  # to debug seg faults and timeouts
++
++import cfdm
++
++
++class DimensionCoordinateNoDataStrTest(unittest.TestCase):
++    """Printing of fields/domains with data-less dimension coordinates."""
++
++    def setUp(self):
++        cfdm.LOG_LEVEL("DISABLE")
++
++    def test_field_str_dimension_coordinate_no_data(self):
++        f = cfdm.example_field(2)
++        t = f.construct("time")
++        t.del_data()
++        self.assertFalse(t.has_data())
++
++        s = str(f)
++        self.assertIsInstance(s, str)
++        self.assertTrue(len(s) > 0)
++        self.assertIn("time", s)
++        repr(f)
++
++    def test_domain_str_dimension_coordinate_no_data(self):
++        f = cfdm.example_field(2)
++        f.construct("time").del_data()
++        d = f.domain
++
++        s = str(d)
++        self.assertIsInstance(s, str)
++        self.assertIn("time", s)
++        repr(d)
++
++    def test_field_str_with_data_still_works(self):
++        f = cfdm.example_field(2)
++        s = str(f)
++        self.assertIn("time", s)
++
++
++if __name__ == "__main__":
++    print("Run date:", datetime.datetime.now())
++    cfdm.environment()
++    print()
++    unittest.main(verbosity=2)
+```

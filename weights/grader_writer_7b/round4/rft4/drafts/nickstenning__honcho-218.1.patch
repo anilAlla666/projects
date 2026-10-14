@@ -1,0 +1,47 @@
+--- /dev/null
++++ b/tests/test_environ_grader.py
+@@ -0,0 +1,40 @@
++import textwrap
++import pytest
++from honcho import environ
++from honcho import compat
++
++
++def ep(*processes, **kwargs):
++    procfile = environ.Procfile()
++    for name, cmd in processes:
++        procfile.add_process(name, cmd)
++    return list(procfile.expand(**kwargs))
++
++
++def test_invalid_procfile_type_error():
++    with pytest.raises(environ.InvalidProcfileError) as excinfo:
++        ep(('foo-bar', 'echo hello'))
++    expected_message = (
++        "Invalid process type 'foo-bar'. "
++        "Process types may contain only alphanumeric characters."
++    )
++    assert str(excinfo.value) == expected_message
++
++
++def test_invalid_procfile_type_error_includes_process_type():
++    with pytest.raises(environ.InvalidProcfileError) as excinfo:
++        ep(('foo bar', 'echo hello'))
++    expected_message = (
++        "Invalid process type 'foo bar'. "
++        "Process types may contain only alphanumeric characters."
++    )
++    assert str(excinfo.value) == expected_message
++
++
++def test_invalid_procfile_type_error_includes_multiple_types():
++    with pytest.raises(environ.InvalidProcfileError) as excinfo:
++        ep(
++            ('foo-bar', 'echo hello'),
++            ('foo bar', 'echo hello'),
++        )
++    expected_message = (
++        "Invalid process types 'foo-bar' and 'foo bar'. "
++        "Process types may contain only alphanumeric characters."
++    )
++    assert str(excinfo.value) == expected_message

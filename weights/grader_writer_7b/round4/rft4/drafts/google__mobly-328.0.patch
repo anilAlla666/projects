@@ -1,0 +1,117 @@
+--- /dev/null
++++ b/tests/mobly/controllers/test_android_device_test_grader.py
+@@ -0,0 +1,148 @@
++import logging
++import mock
++import os
++import shutil
++import tempfile
++from future.tests.base import unittest
++from mobly.controllers import android_device
++from tests.lib import mock_android_device
++
++
++MOCK_LOG_PATH = "/tmp/logs/MockTest/xx-xx-xx_xx-xx-xx/"
++
++
++MOCK_ADB_LOGCAT_CAT_RESULT = [
++    "02-29 14:02:21.456  4454  Something\n",
++    "02-29 14:02:21.789  4454  Something again\n"
++]
++
++
++MOCK_ADB_LOGCAT = ("02-29 14:02:19.123  4454  Nothing\n"
++                   "%s"
++                   "02-29 14:02:22.123  4454  Something again and again\n"
++                   ) % ''.join(MOCK_ADB_LOGCAT_CAT_RESULT)
++
++
++MOCK_ADB_LOGCAT_BEGIN_TIME = "02-29 14:02:20.123"
++
++
++MOCK_ADB_LOGCAT_END_TIME = "02-29 14:02:22.000"
++
++
++MOCK_SNIPPET_PACKAGE_NAME = 'com.google.mock.snippet'
++
++
++class MockSnippetClient(object):
++    def __init__(self, serial, port):
++        pass
++
++    def set_dut(self, dut_info):
++        pass
++
++
++class TestAndroidDevice(unittest.TestCase):
++    def setUp(self):
++        self.temp_log_path = tempfile.mkdtemp()
++        self.device_model = 'model'
++        self.device_serial = 'serial'
++        self.test_name = 'testName'
++        self.begin_time = 'beginTime'
++        self.end_time = 'endTime'
++        self.ad = android_device.AndroidDevice(serial=self.device_serial)
++        self.ad.log_path = self.temp_log_path
++
++    def tearDown(self):
++        self.ad.stop_adb_logcat()
++        shutil.rmtree(self.temp_log_path)
++
++    @mock.patch(
++        'mobly.controllers.android_device_lib.adb.AdbProxy',
++        return_value=mock_android_device.MockAdbProxy(1))
++    @mock.patch(
++        'mobly.controllers.android_device_lib.fastboot.FastbootProxy',
++        return_value=mock_android_device.MockFastbootProxy(1))
++    @mock.patch(
++        'mobly.controllers.android_device_lib.snippet_client.SnippetClient')
++    @mock.patch('mobly.utils.get_available_host_port')
++    def test_AndroidDevice_debug_tag(self, MockGetPort, MockSnippetClient,
++                                     MockFastboot, MockAdbProxy):
++        mock_serial = 1
++        ad = android_device.AndroidDevice(serial=mock_serial)
++        self.assertEqual(ad.debug_tag, 1)
++        try:
++            raise android_device.DeviceError(ad, 'Something')
++        except android_device.DeviceError as e:
++            self.assertEqual('<AndroidDevice|1> Something', str(e))
++        # Verify that debug tag's setter updates the debug prefix correctly.
++        ad.debug_tag = 'Mememe'
++        try:
++            raise android_device.DeviceError(ad, 'Something')
++        except android_device.DeviceError as e:
++            self.assertEqual('<AndroidDevice|Mememe> Something', str(e))
++        # Verify that repr is changed correctly.
++        try:
++            raise Exception(ad, 'Something')
++        except Exception as e:
++            self.assertEqual("(<AndroidDevice|Mememe>, 'Something')", str(e))
++
++    @mock.patch(
++        'mobly.controllers.android_device_lib.adb.AdbProxy',
++        return_value=mock_android_device.MockAdbProxy(1))
++    @mock.patch(
++        'mobly.controllers.android_device_lib.fastboot.FastbootProxy',
++        return_value=mock_android_device.MockFastbootProxy(1))
++    def test_AndroidDevice_logcat_filename_truncation(self, MockFastboot,
++                                                     MockAdbProxy):
++        """Tests that the logcat filename doesn't truncate the device model."""
++        self.ad.model = 'Device Model With Spaces'
++        self.ad.serial = 'Serial Number With Spaces'
++        self.ad.start_adb_logcat()
++        _, _, logcat_filename = self.ad.adb_logcat_file_path.rpartition('/')
++        self.assertNotIn(' ', logcat_filename)
++
++
++def _mock_get_available_host_port():
++    """Returns a list of mocked ports that are available.
++
++    Returns:
++        List[int]: a list of mocked ports.
++    """
++    return [9000, 9001]
++
++
++if __name__ == "__main__":
++    unittest.main()

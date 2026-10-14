@@ -1,0 +1,68 @@
+--- /dev/null
++++ b/tests/test_protocol_partial_command.py
+@@ -0,0 +1,89 @@
++import unittest
++
++from aiostomp.protocol import StompReader
++
++
++def make_reader():
++    try:
++        return StompReader(None, 'utf-8')
++    except TypeError:
++        return StompReader(None)
++
++
++FRAME = (b'MESSAGE\n'
++         b'destination:/queue/a\n'
++         b'message-id:1\n'
++         b'\n'
++         b'hello\x00')
++
++
++class TestPartialCommand(unittest.TestCase):
++
++    def _check_single_message(self, reader):
++        frames = reader._frames_ready
++        self.assertEqual(len(frames), 1)
++        frame = frames[0]
++        self.assertEqual(frame.command, 'MESSAGE')
++        self.assertEqual(frame.headers['destination'], '/queue/a')
++        self.assertEqual(frame.headers['message-id'], '1')
++        self.assertIn(frame.body, (b'hello', 'hello'))
++
++    def test_command_split_without_newline(self):
++        reader = make_reader()
++        reader.feed_data(b'MESSAGE')
++        self.assertEqual(len(reader._frames_ready), 0)
++        reader.feed_data(FRAME[len(b'MESSAGE'):])
++        self._check_single_message(reader)
++
++    def test_command_split_in_middle(self):
++        reader = make_reader()
++        reader.feed_data(b'ME')
++        reader.feed_data(b'SSAG')
++        reader.feed_data(b'E')
++        self.assertEqual(len(reader._frames_ready), 0)
++        reader.feed_data(FRAME[len(b'MESSAGE'):])
++        self._check_single_message(reader)
++
++    def test_byte_by_byte(self):
++        reader = make_reader()
++        for i in range(len(FRAME)):
++            reader.feed_data(FRAME[i:i + 1])
++        self._check_single_message(reader)
++
++    def test_partial_command_after_complete_frame(self):
++        reader = make_reader()
++        reader.feed_data(FRAME + b'MES')
++        self.assertEqual(len(reader._frames_ready), 1)
++        reader.feed_data(FRAME[3:])
++        self.assertEqual(len(reader._frames_ready), 2)
++        for frame in reader._frames_ready:
++            self.assertEqual(frame.command, 'MESSAGE')
++            self.assertIn(frame.body, (b'hello', 'hello'))
++
++
++if __name__ == '__main__':
++    unittest.main()

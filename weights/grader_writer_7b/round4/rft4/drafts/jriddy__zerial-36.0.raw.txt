@@ -1,0 +1,43 @@
+--- /dev/null
++++ b/tests/test_zerializer_grader.py
+@@ -0,0 +1,36 @@
++import pytest
++from zerial import serialize
++from zerial import deserialize
++import numpy as np
++
++
++@pytest.fixture
++def m_ztructurer(mocker):
++    return mocker.Mock(serialize.Ztructurer)
++
++
++@pytest.mark.parametrize("size", [
++    1,
++    100,
++])
++@pytest.mark.parametrize("order", ["C", "F"])
++def test_serialize_numpy_array(size, order):
++    arr = np.arange(size).reshape((10, size // 10)).copy(order=order)
++    serialized = serialize(arr)
++    deserialized = deserialize(serialized)
++    assert arr.flags.writeable
++    assert deserialized.flags.writeable
++    assert arr.shape == deserialized.shape
++    assert arr.dtype == deserialized.dtype
++    assert (arr == deserialized).all()
++
++
++@pytest.mark.parametrize("size", [
++    1,
++    100,
++])
++@pytest.mark.parametrize("order", ["C", "F"])
++def test_serialize_empty_numpy_array(size, order):
++    arr = np.empty((0,), dtype=float).reshape((0, 0)).copy(order=order)
++    serialized = serialize(arr)
++    deserialized = deserialize(serialized)
++    assert arr.flags.writeable
++    assert deserialized.flags.writeable
++    assert arr.shape == deserialized.shape
++    assert arr.dtype == deserialized.dtype

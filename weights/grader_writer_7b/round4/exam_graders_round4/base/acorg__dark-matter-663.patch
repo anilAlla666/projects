@@ -1,0 +1,28 @@
+diff --git a/test/test_reads_fixed.py b/test/test_reads_fixed.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/test/test_reads_fixed.py
+@@ -0,0 +1,45 @@
++import unittest
++from dark.reads import Read, AARead
++
++class TestAARead(unittest.TestCase):
++    def test_lowercase_translation(self):
++        read = AARead("id", "aAaG")
++        translated_read = read.translated()
++        self.assertEqual(translated_read.sequence, "MetAsp")
++
++class TestRead(unittest.TestCase):
++    def test_lowercase_sequence_in_orf_extraction(self):
++        read = Read("id", "aAAga")
++        orfs = read.orfs()
++        self.assertIn("MetAsp", [orf.sequence for orf in orfs])
++
++    def test_mixed_case_sequence_in_orf_extraction(self):
++        read = Read("id", "aAAGa")
++        orfs = read.orfs()
++        self.assertIn("MetAsp", [orf.sequence for orf in orfs])
++
++if __name__ == '__main__':
++    unittest.main()

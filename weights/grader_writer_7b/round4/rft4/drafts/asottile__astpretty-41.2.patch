@@ -1,0 +1,63 @@
+--- /dev/null
++++ b/tests/test_astpretty_test_grader.py
+@@ -0,0 +1,52 @@
++import ast
++import sys
++import pytest
++import astpretty
++
++
++def _to_module_body(s):
++    return ast.parse(s).body[0]
++
++
++def _to_expr_value(s):
++    return _to_module_body(s).value
++
++
++@pytest.mark.parametrize('s', ('x', '"y"', '5', '[]'))
++def test_is_leaf_true(s):
++    assert astpretty._is_leaf(_to_expr_value(s)) is True
++
++
++def test_pformat_py35_regression():
++    expected = (
++        'Dict(\n'
++        '    keys=[\n'
++        "        Name(id='a', ctx=Load()),\n"
++        '        None,\n'
++        '    ],\n'
++        '    values=[\n'
++        "        Name(id='b', ctx=Load()),\n"
++        "        Name(id='k', ctx=Load()),\n"
++        '    ],\n'
++        ')'
++    )
++    assert astpretty.pformat(_to_expr_value('{a: b, k}')) == expected
++
++
++FUNC_SRC = '''
++def foo(bar, baz=qux):
++    quux()
++'''
++
++
++FUNC_SRC_TYPED27_OUT = '''
++Module(
++    body=[
++        FunctionDef(
++            lineno=1,
++            col_offset=0,
++            end_lineno=3,
++            end_col_offset=10,
++            name='foo',
++            args=arguments(posonlyargs=[], args=[Name(arg='bar', ctx=Param())], vararg=None, kwonlyargs=[Name(arg='baz', ctx=Param())], kw_defaults=[Attribute(value=Name(arg='qux', ctx=Load()), attr='qux', ctx=Load())], kwarg=None, defaults=[]),
++            body=[Expr(value=Call(func=Name(arg='quux', ctx=Load()), args=[], keywords=[], starargs=None, kwargs=None))],
++            decorator_list=[],
++            returns=None,
++            type_comment=None,
++        ),
++    ],
++    type_ignores=[],
++)
++'''

@@ -1,0 +1,308 @@
+--- /dev/null
++++ b/gammapy/datasets/tests/test_flux_points_grader.py
+@@ -0,0 +1,202 @@
++import pytest
++import numpy as np
++from numpy.testing import assert_allclose
++import astropy.units as u
++from astropy.table import Column, Table
++from astropy.time import Time
++from gammapy.data import GTI
++from gammapy.datasets import Datasets, FluxPointsDataset
++from gammapy.estimators import FluxPoints
++from gammapy.modeling import Fit
++from gammapy.modeling.models import (
++    ExpDecayTemporalModel,
++    PowerLawSpectralModel,
++    SkyModel,
++)
++from gammapy.utils.scripts import make_path
++from gammapy.utils.testing import mpl_plot_check, requires_data, requires_dependency
++
++
++@pytest.fixture()
++def test_meta_table(dataset):
++    meta_table = dataset.meta_table
++    assert meta_table["TELESCOP"] == "CTA"
++    assert meta_table["OBS_ID"] == "0001"
++    assert meta_table["INSTRUME"] == "South_Z20_50h"
++
++
++@pytest.fixture()
++def dataset():
++    path = "$GAMMAPY_DATA/tests/spectrum/flux_points/diff_flux_points.fits"
++    table = Table.read(make_path(path))
++    table["e_ref"] = table["e_ref"].quantity.to("TeV")
++    gti = GTI.create(
++        start=0 * u.s, stop=30 * u.min, reference_time=Time("2000-01-01", scale="utc")
++    )
++    data = FluxPoints.from_table(table, format="gadf-sed")
++    data.gti = gti
++    model = SkyModel(
++        spectral_model=PowerLawSpectralModel(
++            index=2, amplitude="1e-11 cm-2 s-1 TeV-1", reference="1 TeV"
++        )
++    )
++    return FluxPointsDataset(data=data, models=model)
++
++
++class TestFluxPointDataset:
++    @staticmethod
++    def test_fit_and_print(dataset):
++        fit = Fit(backend="sherpa", optimize_opts={"method": "simplex"})
++        result = fit.optimize(datasets=[dataset])
++        dataset.plot_fit()
++
++        print(result)
++
++    @staticmethod
++    def test_fit_with_temporal_model(dataset):
++        model = dataset.models.copy()
++        temporal_model = ExpDecayTemporalModel(tau="1 hour")
++        model[0].spectral_model.temporal_model = temporal_model
++
++        dataset.models = model
++        fit = Fit(backend="sherpa", optimize_opts={"method": "simplex"})
++        result = fit.optimize(datasets=[dataset])
++
++        assert result.success
++
++        assert_allclose(result.total_stat, 25.2059, rtol=1e-3)
++
++        tau = model[0].spectral_model.temporal_model.tau
++        assert_allclose(tau.value, 1.0, rtol=1e-3)
++
++        amplitude = model[0].spectral_model.amplitude
++        assert_allclose(amplitude.value, 2.1616e-13, rtol=1e-3)
++
++        reference = model[0].spectral_model.reference
++        assert_allclose(reference.value, 1, rtol=1e-8)
++
++        index = model[0].spectral_model.index
++        assert_allclose(index.value, 2.216, rtol=1e-3)
++
++    @staticmethod
++    def test_fit_and_test_statistics(dataset):
++        fit = Fit(backend="sherpa", optimize_opts={"method": "simplex"})
++        result = fit.optimize(datasets=[dataset])
++        assert result.success
++        stat_profile = fit.stat_profile(
++            datasets=dataset, parameter="amplitude", scan_n_sigma=1, interp="log"
++        )
++        assert_allclose(stat_profile["ts"].max(), 25.2059, rtol=1e-3)
++
++        stat_scan = stat_profile["stat_scan"]
++        assert_allclose(stat_scan[0], 25.2059, rtol=1e-3)
++        assert_allclose(stat_scan[1], 110.244116, rtol=1e-3)
++        assert_allclose(stat_scan[2], 110.292074, rtol=1e-3)
++
++        amplitude = result.values["amplitude"]
++        assert_allclose(amplitude.value, 2.1616e-13, rtol=1e-3)
++
++        amplitude_error = result.errors["amplitude"]
++        assert_allclose(amplitude_error.value, 1.9e-14, rtol=1e-2)
++
++        amplitude_scan = result.scans["amplitude"]["scan_values"]
++        assert_allclose(amplitude_scan, [1.97e-13, 2.16e-13, 2.35e-13], rtol=1e-2)
++
++    @staticmethod
++    def test_fit_and_test_statistics_with_fixed_parameters(dataset):
++        fit = Fit(backend="sherpa", optimize_opts={"method": "simplex"})
++        model = dataset.models.copy()
++        model.parameters["index"].frozen = True
++        dataset.models = model
++        result = fit.optimize(datasets=[dataset])
++        assert result.success
++        stat_profile = fit.stat_profile(
++            datasets=dataset, parameter="amplitude", scan_n_sigma=1, interp="log"
++        )
++        assert_allclose(stat_profile["ts"].max(), 25.2059, rtol=1e-3)
++
++        stat_scan = stat_profile["stat_scan"]
++        assert_allclose(stat_scan[0], 25.2059, rtol=1e-3)
++        assert_allclose(stat_scan[1], 110.244116, rtol=1e-3)
++        assert_allclose(stat_scan[2], 110.292074, rtol=1e-3)
++
++        amplitude = result.values["amplitude"]
++        assert_allclose(amplitude.value, 2.1616e-13, rtol=1e-3)
++
++        amplitude_error = result.errors["amplitude"]
++        assert_allclose(amplitude_error.value, 1.9e-14, rtol=1e-2)
++
++        amplitude_scan = result.scans["amplitude"]["scan_values"]
++        assert_allclose(amplitude_scan, [1.97e-13, 2.16e-13, 2.35e-13], rtol=1e-2)
++
++    @staticmethod
++    def test_fit_and_test_statistics_with_frozen_parameters(dataset):
++        fit = Fit(backend="sherpa", optimize_opts={"method": "simplex"})
++        model = dataset.models.copy()
++        model.parameters["index"].frozen = False
++        model.parameters["amplitude"].frozen = True
++        dataset.models = model
++        result = fit.optimize(datasets=[dataset])
++        assert result.success
++        stat_profile = fit.stat_profile(
++            datasets=dataset, parameter="index", scan_n_sigma=1, interp="log"
++        )
++        assert_allclose(stat_profile["ts"].max(), 25.2059, rtol=1e-3)
++
++        stat_scan = stat_profile["stat_scan"]
++        assert_allclose(stat_scan[0], 25.2059, rtol=1e-3)
++        assert_allclose(stat_scan[1], 110.244116, rtol=1e-3)
++        assert_allclose(stat_scan[2], 110.292074, rtol=1e-3)
++
++        amplitude = result.values["amplitude"]
++        assert_allclose(amplitude.value, 2.1616e-13, rtol=1e-3)
++
++        amplitude_error = result.errors["amplitude"]
++        assert_allclose(amplitude_error.value, 1.9e-14, rtol=1e-2)
++
++        amplitude_scan = result.scans["amplitude"]["scan_values"]
++        assert_allclose(amplitude_scan, [1.97e-13, 2.16e-13, 2.35e-13], rtol=1e-2)
++
++    @staticmethod
++    def test_fit_and_print_with_backend_optimization_options(dataset):
++        fit = Fit(backend="sherpa", optimize_opts={"method": "simplex"})
++        result = fit.optimize(datasets=[dataset], optimizer_opts={"tolerance": 1e-3})
++        dataset.plot_fit()
++
++        print(result)
++
++    @staticmethod
++    def test_fit_and_print_with_custom_optimizer_options(dataset):
++        fit = Fit(backend="minuit")
++        result = fit.optimize(
++            datasets=[dataset],
++            optimizer_opts={
++                "print_level": 0,
++                "strategy": 1,
++                "ftol": 1e-3,
++                "xtol": 1e-3,
++                "gtol": 1e-3,
++            },
++        )
++        dataset.plot_fit()
++
++        print(result)
++
++    @staticmethod
++    def test_fit_and_print_with_custom_optimizer_options_sherpa(dataset):
++        fit = Fit(backend="sherpa")
++        result = fit.optimize(
++            datasets=[dataset],
++            optimizer_opts={
++                "method": "moncar",
++                "maxcalls": 1000,
++            },
++        )
++        dataset.plot_fit()
++
++        print(result)
+--- /dev/null
++++ b/gammapy/estimators/points/tests/test_sensitivity_grader.py
+@@ -0,0 +1,96 @@
++import pytest
++from numpy.testing import assert_allclose
++from gammapy.datasets import SpectrumDataset, SpectrumDatasetOnOff
++from gammapy.estimators import FluxPoints, SensitivityEstimator
++from gammapy.irf import EDispKernelMap
++from gammapy.maps import MapAxis, RegionNDMap
++
++
++@pytest.fixture()
++def spectrum_dataset():
++    e_true = MapAxis.from_energy_bounds("1 TeV", "10 TeV", nbin=20, name="energy_true")
++    e_reco = MapAxis.from_energy_bounds("1 TeV", "10 TeV", nbin=4)
++
++    background = RegionNDMap.create(region="icrs;circle(0, 0, 0.1)", axes=[e_reco])
++    background.data += 3600
++    background.data[0] *= 1e3
++    background.data[-1] *= 1e-3
++    edisp = EDispKernelMap.from_diagonal_response(
++        energy_axis_true=e_true, energy_axis=e_reco, geom=background.geom
++    )
++
++    exposure = RegionNDMap.create(
++        region="icrs;circle(0, 0, 0.1)", axes=[e_true], unit="m2 h", data=1e6
++    )
++
++    return SpectrumDataset(
++        name="test", exposure=exposure, edisp=edisp, background=background
++    )
++
++
++def test_integral_estimation(spectrum_dataset, caplog):
++    dataset = spectrum_dataset.to_image()
++    geom = dataset.background.geom
++
++    dataset_on_off = SpectrumDatasetOnOff.from_spectrum_dataset(
++        dataset=dataset,
++        acceptance=RegionNDMap.from_geom(geom=geom, data=1),
++        acceptance_off=RegionNDMap.from_geom(geom=geom, data=5),
++    )
++
++    sens = SensitivityEstimator(gamma_min=25, bkg_syst_fraction=0.075)
++    table = sens.run(dataset_on_off)
++    flux_points = FluxPoints.from_table(
++        table, sed_type="e2dnde", reference_model=sens.spectrum
++    )
++
++    assert "WARNING" in [_.levelname for _ in caplog.records]
++    assert "Table column name energy will be deprecated by e_ref since v1.2" in [
++        _.message for _ in caplog.records
++    ]
++
++    assert_allclose(table["excess"].data.squeeze(), 270540, rtol=1e-3)
++    assert_allclose(flux_points.flux.data.squeeze(), 7.52e-9, rtol=1e-3)
++
++    # TODO: check that warnings are raised for deprecated columns
++
++
++def test_point_like_estimation(spectrum_dataset, caplog):
++    dataset = spectrum_dataset.to_cube()
++    geom = dataset.background.geom
++
++    dataset_on_off = SpectrumDatasetOnOff.from_spectrum_dataset(
++        dataset=dataset,
++        acceptance=RegionNDMap.from_geom(geom=geom, data=1),
++        acceptance_off=RegionNDMap.from_geom(geom=geom, data=5),
++    )
++
++    sens = SensitivityEstimator(gamma_min=25, bkg_syst_fraction=0.075)
++    table = sens.run(dataset_on_off)
++    flux_points = FluxPoints.from_table(
++        table, sed_type="e2dnde", reference_model=sens.spectrum
++    )
++
++    assert "WARNING" in [_.levelname for _ in caplog.records]
++    assert "Table column name energy will be deprecated by e_ref since v1.2" in [
++        _.message for _ in caplog.records
++    ]
++
++    assert_allclose(table["excess"].data.squeeze(), 270540, rtol=1e-3)
++    assert_allclose(flux_points.flux.data.squeeze(), 7.52e-9, rtol=1e-3)
++
++
++def test_map_like_estimation(spectrum_dataset, caplog):
++    dataset = spectrum_dataset.to_cube()
++    geom = dataset.background.geom
++
++    dataset_on_off = SpectrumDatasetOnOff.from_spectrum_dataset(
++        dataset=dataset,
++        acceptance=RegionNDMap.from_geom(geom=geom, data=1),
++        acceptance_off=RegionNDMap.from_geom(geom=geom, data=5),
++    )
++
++    sens = SensitivityEstimator(gamma_min=25, bkg_syst_fraction=0.075)
++    table = sens.run(dataset_on_off)
++    flux_points = FluxPoints.from_table(
++        table, sed_type="e2dnde", reference_model=sens.spectrum
++    )
++
++    assert "WARNING" in [_.levelname for _ in caplog.records]
++    assert "Table column name energy will be deprecated by e_ref since v1.2" in [
++        _.message for _ in caplog.records
++    ]
++
++    assert_allclose(table["excess"].data.squeeze(), 270540, rtol=1e-3)
++    assert_allclose(flux_points.flux.data.squeeze(), 7.52e-9, rtol=1e-3)

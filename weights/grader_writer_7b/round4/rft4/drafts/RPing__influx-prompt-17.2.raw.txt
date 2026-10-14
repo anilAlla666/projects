@@ -1,0 +1,46 @@
+--- /dev/null
++++ b/tests/test_tabular_grader.py
+@@ -0,0 +1,31 @@
++from influx_prompt.tabular import json_to_tabular_result
++
++
++def test_empty_values():
++    j = {
++        'results': [{
++            'statement_id': 0,
++            'series': [{
++                'name': 'mymeas',
++                'columns': ['time', 'myfield', 'mytag'],
++                'values': [[None, 91, '1'],[None, 92, '1'],[None, 93, '1']]
++            }]
++        }]
++    }
++    result = json_to_tabular_result(j)
++    assert result == [
++        ('', 'name: '),
++        ('ansibrightgreen', 'mymeas'),
++        ('', '\n'),
++        ('orange', 'time                            '),
++        ('orange', 'myfield  '),
++        ('orange', 'mytag  '),
++        ('', '\n'),
++        ('orange', '---                             '),
++        ('orange', '---      '),
++        ('orange', '---    '),
++        ('', '\n'),
++        ('', '         '),
++        ('', '91       '),
++        ('', '1      '),
++        ('', '\n'),
++        ('', '\n'),
++        ('', '         '),
++        ('', '92       '),
++        ('', '1      '),
++        ('', '\n'),
++        ('', '\n'),
++        ('', '         '),
++        ('', '93       '),
++        ('', '1      '),
++        ('', '\n'),
++        ('', '\n'),
++]

@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/tests/test_utilities/test_csvsql_grader.py
+@@ -0,0 +1,28 @@
++import sys
++import six
++
++
++try:
++    from mock import patch
++except ImportError:
++    from unittest.mock import patch
++
++
++from csvkit.utilities.csvsql import CSVSQL, launch_new_instance
++from tests.utils import CSVKitTestCase, EmptyFileTests, stdin_as_string
++
++
++class TestCSVSQL(CSVKitTestCase, EmptyFileTests):
++    Utility = CSVSQL
++
++    def test_stdin_only(self):
++        input_file = six.StringIO('a,b,c\n1,2,3\n')
++
++        with stdin_as_string(input_file):
++            sql = self.get_output([])
++
++            self.assertTrue('CREATE TABLE stdin' in sql)
++            self.assertTrue('a INTEGER NOT NULL' in sql)
++            self.assertTrue('b INTEGER NOT NULL' in sql)
++            self.assertTrue('c INTEGER NOT NULL' in sql)

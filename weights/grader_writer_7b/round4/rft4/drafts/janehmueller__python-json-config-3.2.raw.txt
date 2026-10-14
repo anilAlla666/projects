@@ -1,0 +1,31 @@
+--- /dev/null
++++ b/tests/test_config_node_test_grader.py
+@@ -0,0 +1,29 @@
++from unittest import TestCase
++import pickle
++from python_json_config.config_node import ConfigNode
++
++
++class ConfigNodeTest(TestCase):
++    def setUp(self):
++        self.config_dict = {
++            'key1': 1,
++            'key2': {
++                'key3': 3,
++                'key4': { 'key5': 5 }
++            }
++        }
++
++    def test_pickling(self):
++        node = ConfigNode(self.config_dict)
++
++        # Pickle should work without throwing an error
++        _ = pickle.dumps(node)
++
++        # The object can be loaded again and should contain the same data.
++        loaded_node = pickle.loads(pickle.dumps(node))
++        self.assertEqual(loaded_node.key1, 1)
++        self.assertEqual(loaded_node.key2.key3, 3)
++        self.assertEqual(loaded_node.key2.key4.key5, 5)
++        self.assertEqual(loaded_node.key2.key4.__dict__['_ConfigNode__path'],
++                         ['key2', 'key4'])

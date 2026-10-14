@@ -1,0 +1,119 @@
+--- /dev/null
++++ b/tests/test_client_grader.py
+@@ -0,0 +1,87 @@
++from __future__ import annotations
++import asyncio
++import contextlib
++import itertools
++import logging
++import socket
++from functools import partial
++from typing import Any
++from unittest.mock import AsyncMock, MagicMock, call, create_autospec, patch
++import pytest
++from google.protobuf import message
++from aioesphomeapi._frame_helper.plain_text import APIPlaintextFrameHelper
++from aioesphomeapi.api_pb2 import (
++    AlarmControlPanelCommandRequest,
++    BinarySensorStateResponse,
++    BluetoothConnectionsFreeResponse,
++    BluetoothDeviceClearCacheResponse,
++    BluetoothDeviceConnectionResponse,
++    BluetoothDevicePairingResponse,
++    BluetoothDeviceRequest,
++    BluetoothDeviceUnpairingResponse,
++    BluetoothGATTCharacteristic,
++    BluetoothGATTDescriptor,
++    BluetoothGATTErrorResponse,
++    BluetoothGATTGetServicesDoneResponse,
++    BluetoothGATTGetServicesResponse,
++    BluetoothGATTNotifyDataResponse,
++    BluetoothGATTNotifyResponse,
++    BluetoothGATTReadResponse,
++    BluetoothGATTService,
++    BluetoothGATTWriteResponse,
++    BluetoothLEAdvertisementResponse,
++    BluetoothLERawAdvertisement,
++    BluetoothLERawAdvertisementsResponse,
++    BluetoothServiceData,
++    ButtonCommandRequest,
++    CameraImageRequest,
++    CameraImageResponse,
++    ClimateCommandRequest,
++    ClimatePreset,
++    ColorCapability,
++    CoverCommandRequest,
++    DeviceInfoResponse,
++    DiscoveryInfoResponse,
++    DisconnectReason,
++    EntityCategory,
++    FanCommandRequest,
++    LightCommandRequest,
++    LockCommandRequest,
++    MediaPlayerCommandRequest,
++    NumericInputCommandRequest,
++    OutletCommandRequest,
++    RemoteCommandRequest,
++    RestartRequest,
++    RotateEntityCommandRequest,
++    SceneCommandRequest,
++    SelectCommandRequest,
++    ServiceCallRequest,
++    SwitchCommandRequest,
++    TextCommandRequest,
++    VoiceAssistantAudioSettings,
++    VoiceAssistantRequest,
++    VoiceAssistantResponse,
++)
++from aioesphomeapi.connection import APIConnection
++from aioesphomeapi.constants import (
++    APIVersion,
++    ClimateFanMode,
++    ClimateMode,
++    ClimatePreset,
++    ClimateSwingMode,
++    CoverOperation,
++    EntityCategory,
++    FanDirection,
++    FanSpeed,
++    LightColorCapability,
++    LightEffect,
++    MediaPlayerRepeat,
++    MediaPlayerShuffle,
++    MediaPlayerSource,
++    MediaPlayerState,
++    NumericInputCommand,
++    OutletSwitch,
++    RemoteCommand,
++    RemoteKey,
++    StateClass,
++)
++from aioesphomeapi.device_info import DeviceInfoModel
++from aioesphomeapi.discovery import DiscoveryInfoModel
++from aioesphomeapi.exceptions import InvalidMessageError, UnhandledPacketException
++from aioesphomeapi.frame_helper import FrameHelperBase
++from aioesphomeapi.message import Message
++from aioesphomeapi.packet import Packet
++from aioesphomeapi.plain_text_protocol import PlainTextProtocol
++from aioesphomeapi.protocol import Protocol
++from aioesphomeapi.types import AddressInfo, AddressType
++from .conftest import (
++    ANY_MESSAGE,
++    ANY_PACKET,
++    ANY_PLAINTEXT_PACKET,
++    generate_plaintext_packet,
++)
++
++
++@pytest.mark.asyncio
++async def test_api_version_after_connection_failed(
++    api_client: tuple[
++        APIClient, APIConnection, asyncio.Transport, APIPlaintextFrameHelper
++    ],
++) -> None:
++    """Test api version is None after connection failed."""
++    client, connection, transport, protocol = api_client
++    assert client.api_version == APIVersion(1, 9)
++    transport.close()
++    await asyncio.sleep(0)
++    assert client.api_version is None

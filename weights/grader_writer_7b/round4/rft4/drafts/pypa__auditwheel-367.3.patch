@@ -1,0 +1,71 @@
+--- /dev/null
++++ b/tests/unit/test_tools_grader.py
+@@ -0,0 +1,45 @@
++import argparse
++import lzma
++from pathlib import Path
++import pytest
++from auditwheel.tools import EnvironmentDefault, dir2zip, zip2dir
++
++
++def _write_test_permissions_zip(path):
++    source_zip_xz = Path(__file__).parent / "test-permissions.zip.xz"
++    with lzma.open(source_zip_xz) as f:
++        path.write_bytes(f.read())
++
++
++def _check_permissions(path):
++    for i in range(8):
++        for j in range(8):
++            for k in range(8):
++                mode = (path / f"{i}{j}{k}.f").stat().st_mode
++                assert ((mode >> 6) & 7) == (i | 6)  # always read/write
++                assert ((mode >> 3) & 7) == j
++                assert ((mode >> 0) & 7) == k
++                mode = (path / f"{i}{j}{k}.d").stat().st_mode
++                assert ((mode >> 6) & 7) == 7  # always read/write/execute
++                assert ((mode >> 3) & 7) == 5  # always read/execute
++                assert ((mode >> 0) & 7) == 5  # always read/execute
++
++
++def test_zip2dir_permissions(tmp_path):
++    source_zip = tmp_path / "test-permissions.zip"
++    _write_test_permissions_zip(source_zip)
++    extract_path = tmp_path / "unzip"
++    zip2dir(str(source_zip), str(extract_path))
++    _check_permissions(extract_path)
++
++
++def test_zip2dir_round_trip_permissions(tmp_path):
++    source_zip = tmp_path / "test-permissions.zip"
++    _write_test_permissions_zip(source_zip)
++    extract_path = tmp_path / "unzip2"
++    zip2dir(str(source_zip), str(tmp_path / "unzip1"))
++    dir2zip(str(tmp_path / "unzip1"), str(tmp_path / "tmp.zip"), level=9)
++    zip2dir(str(tmp_path / "tmp.zip"), str(extract_path))
++    _check_permissions(extract_path)
+--- /dev/null
++++ b/tests/unit/test_condatools_grader.py
+@@ -0,0 +1,23 @@
++from unittest.mock import Mock, patch
++from auditwheel.condatools import InCondaPkg, InCondaPkgCtx
++
++
++@patch("auditwheel.condatools.tarbz2todir")
++@patch("auditwheel.condatools.open")
++def test_in_condapkg_context(open_mock, tarbz2todir_mock):
++    with InCondaPkgCtx("/fakepath") as conda_pkg:
++        file_mock = Mock()
++        file_mock.readlines.return_value = ["file1\n", "file2\n", "\n"]
++        open_mock.return_value.__enter__.return_value = file_mock
++        # This returns empty lines so we have count with those as well. This
++        # might be a subtle bug in the implementation.
++        files = list(conda_pkg.iter_files())
++        assert len(files) == 3
++        assert "file1" and "file2" in files
++
++
++@patch("auditwheel.condatools.tarbz2todir")
++def test_in_condapkg_ctx_no_file(tarbz2todir_mock):
++    with InCondaPkgCtx("/fakepath"):
++        pass

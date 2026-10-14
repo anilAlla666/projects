@@ -1,0 +1,51 @@
+--- /dev/null
++++ b/tests/features/test_literals_test_grader.py
+@@ -0,0 +1,45 @@
++import pytest
++from add_trailing_comma._main import _fix_src
++
++
++@pytest.mark.parametrize(
++    ('src', 'expected'),
++    (
++        (
++            'x = (\n'
++            '    1, 2, 3\n'
++            ')',
++
++            'x = (\n'
++            '    1, 2, 3,\n'
++            ')',
++        ),
++        (
++            'x = (\n'
++            '    object, object\n'
++            ')',
++
++            'x = (\n'
++            '    object, object,\n'
++            ')',
++        ),
++        (
++            'x = (\n'
++            '    object  # < comma is added here\n'
++            '), object',
++
++            'x = (\n'
++            '    object  # < comma is added here\n'
++            '),\n'
++            'object',
++        ),
++        (
++            'x = (\n'
++            '    1\n'
++            ')',
++
++            'x = (\n'
++            '    1,\n'
++            ')',
++        ),
++    ),
++)
++def test_fixes_tuple_literals(src, expected):
++    assert _fix_src(src, min_version=(2, 7)) == expected

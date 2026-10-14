@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/test/test_trig_grader.py
+@@ -0,0 +1,23 @@
++import re
++import pytest
++import rdflib
++
++
++TRIPLE = (
++    rdflib.URIRef("http://example.com/s"),
++    rdflib.RDFS.label,
++    rdflib.Literal("example 1"),
++)
++
++
++def test_default_graph_serializes_without_name():
++    data = """
++    <http://example.com/thing#thing_a> <http://example.com/knows> <http://example.com/thing#thing_b> .
++
++    { <http://example.com/thing#thing_c> <http://example.com/knows> <http://example.com/thing#thing_d> . }
++    """
++    g = rdflib.ConjunctiveGraph()
++    g.parse(data=data, format="trig")
++    data = g.serialize(format="trig", encoding="latin-1")
++
++    assert b"None" not in data
+--- /dev/null
++++ b/test/test_w3c_spec/test_trig_w3c_grader.py
+@@ -0,0 +1,25 @@
++"""Runs the tests for the W3C RDF Working Group's TriG test suite.
++
++"""
++
++
++import logging
++from contextlib import ExitStack
++from test.data import TEST_DATA_DIR
++from test.utils import BNodeHandling, GraphHelper, ensure_suffix
++from test.utils.dawg_manifest import ManifestEntry, params_from_sources
++from test.utils.iri import URIMapper
++from test.utils.namespace import RDFT
++from typing import Optional
++import pytest
++from rdflib.graph import Dataset
++
++
++logger = logging.getLogger(__name__)
++
++
++REMOTE_BASE_IRI = "http://www.w3.org/2013/TriGTests/"
++
++
++MAPPER = URIMapper.from_mappings((REMOTE_BASE_IRI, ensure_suffix(TEST_DATA_DIR.as_uri(), "/")))

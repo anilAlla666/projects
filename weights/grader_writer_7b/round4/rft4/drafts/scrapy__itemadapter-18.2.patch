@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/tests/test_adapter_grader.py
+@@ -0,0 +1,25 @@
++import unittest
++from types import MappingProxyType
++from itemadapter.adapter import ItemAdapter
++from tests import AttrsItem, DataClassItem, ScrapySubclassedItem
++
++
++class NonDictTestMixin:
++    def test_get_field_meta_list(self):
++        """Check that get_field_meta() returns a list when called on a non-dict item."""
++        adapter = ItemAdapter(self.item_class(name="asdf", value=1234))
++        self.assertEqual(
++            adapter.get_field_meta("name"),
++            MappingProxyType({"serializer": str}),
++        )
++        self.assertEqual(
++            adapter.get_field_meta("value"),
++            MappingProxyType({"serializer": int}),
++        )
++
++    def test_field_names(self):
++        adapter = ItemAdapter(self.item_class(name="asdf", value=1234))
++        self.assertEqual(
++            sorted(list(adapter.field_names())), ["name", "value"],
++        )

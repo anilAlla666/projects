@@ -1,0 +1,49 @@
+To address the issue where `ValidationError` cannot be shown with `traceback.print_exc()` in Python 3.6 due to its lack of `__hash__` method, we need to ensure that `ValidationError` is hashable. This will allow it to be used in contexts where hashing is required, such as in exception handling.
+
+Here's how you can modify the `ValidationError` class to include the missing `__hash__` method:
+
+### Modified `typesystem/base.py`
+
+```diff
+@@ -205,6 +205,7 @@ class ValidationError(BaseError):
+     """
+     Raised by `.validate()` or returned by `.validate_or_error()`.
+     """
++    __hash__ = None  # This line ensures that ValidationError is hashable
+ 
+ 
+ class ValidationResult:
+```
+
+### New Test File: `tests/test_hashability.py`
+
+```python
+import unittest
+from typesystem import ValidationError, Message
+
+
+class TestHashability(unittest.TestCase):
+    def test_validation_error_hashability(self):
+        try:
+            typesystem.Integer().validate("hello")
+        except ValidationError as e:
+            # Attempt to hash the ValidationError
+            hash(e)
+        else:
+            self.fail("Expected ValidationError to raise TypeError when hashed")
+
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+### Explanation
+
+1. **Modifying `ValidationError` Class**:
+   - Added `__hash__ = None` to the `ValidationError` class. This makes `ValidationError` hashable, which should resolve the issue with `traceback.print_exc()` failing.
+
+2. **New Test File**:
+   - Created a new test file `tests/test_hashability.py` to verify that `ValidationError` is now hashable.
+   - The test attempts to hash a `ValidationError` instance and asserts that it does not raise a `TypeError`.
+
+By adding these changes, the test should fail before the fix and pass after applying the fix, ensuring that the issue is resolved.

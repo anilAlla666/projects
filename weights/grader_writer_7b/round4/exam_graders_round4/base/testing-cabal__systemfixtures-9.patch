@@ -1,0 +1,67 @@
+diff --git a/testing-cabal/systemfixtures/systemfixtures/tests/test_copytree_overlay.py b/testing-cabal/systemfixtures/systemfixtures/tests/test_copytree_overlay.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/testing-cabal/systemfixtures/systemfixtures/tests/test_copytree_overlay.py
+@@ -0,0 +1,60 @@
++import os
++import shutil
++from testtools import TestCase
++from testtools.matchers import DirExists
++
++from ..filesystem import FakeFilesystem
++
++
++class TestCopyTreeOverlay(TestCase):
++
++    def setUp(self):
++        super(TestCopyTreeOverlay, self).setUp()
++        self.fs = self.useFixture(FakeFilesystem())
++        self.overlay_dir = self.fs.root.join('overlay')
++        os.mkdir(self.overlay_dir)
++
++    def test_copytree_to_overlay(self):
++        # Create a source directory with some files
++        source_dir = self.fs.root.join('source')
++        os.mkdir(source_dir)
++        with open(os.path.join(source_dir, 'file.txt'), 'w') as f:
++            f.write('Hello, world!')
++
++        # Copy the source directory to the overlay directory
++        try:
++            shutil.copytree(source_dir, self.overlay_dir)
++        except Exception as e:
++            self.fail(f"Failed to copy tree: {e}")
++
++        # Verify that the files were copied successfully
++        self.assertThat(self.overlay_dir, DirExists())
++        self.assertTrue(os.path.isfile(os.path.join(self.overlay_dir, 'file.txt')))
++        with open(os.path.join(self.overlay_dir, 'file.txt')) as f:
++            content = f.read()
++            self.assertEqual(content, 'Hello, world!')
++
++    def test_copytree_to_overlay_with_existing_files(self):
++        # Create a source directory with some files
++        source_dir = self.fs.root.join('source')
++        os.mkdir(source_dir)
++        with open(os.path.join(source_dir, 'file.txt'), 'w') as f:
++            f.write('Hello, world!')
++
++        # Create a destination directory with the same name but different contents
++        dest_dir = self.fs.root.join('overlay')
++        os.mkdir(dest_dir)
++        with open(os.path.join(dest_dir, 'file.txt'), 'w') as f:
++            f.write('Goodbye, world!')
++
++        # Copy the source directory to the overlay directory
++        try:
++            shutil.copytree(source_dir, dest_dir, dirs_exist_ok=True)
++        except Exception as e:
++            self.fail(f"Failed to copy tree: {e}")
++
++        # Verify that the files were copied successfully
++        self.assertThat(dest_dir, DirExists())
++        self.assertTrue(os.path.isfile(os.path.join(dest_dir, 'file.txt')))
++        with open(os.path.join(dest_dir, 'file.txt')) as f:
++            content = f.read()
++            self.assertEqual(content, 'Hello, world!')

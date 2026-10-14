@@ -1,0 +1,34 @@
+--- /dev/null
++++ b/tests/test_predicates_grader.py
+@@ -0,0 +1,41 @@
++import unittest
++from dedupe import predicates
++from future.builtins import str
++
++
++class TestEscapingColon(unittest.TestCase):
++    def test_escape_colon_in_block_key(self):
++        field = 'foo:'
++        s1 = predicates.SimplePredicate(predicates.wholeFieldPredicate,
++                                        'foo')
++        assert s1({'foo': field}) == (u'foo\\:',)
++
++    def test_escape_colon_in_blocking_key(self):
++        field = 'foo:'
++        s1 = predicates.SimplePredicate(predicates.wholeFieldPredicate,
++                                        'foo')
++        s2 = predicates.SimplePredicate(predicates.wholeFieldPredicate,
++                                        'bar')
++        c1 = predicates.CompoundPredicate((s1, s2))
++        assert c1({'foo': field, 'bar': field}) == (u'foo\\:bar\\:0',)
++
++    def test_no_escape_for_unescaped_colons(self):
++        field = 'foo:'
++        s1 = predicates.SimplePredicate(predicates.wholeFieldPredicate,
++                                        'foo')
++        assert s1({'foo': 'foo:'}) == (u'foo\\:',)
++        assert s1({'foo': 'foo::'}) == (u'foo\\:\\:',)
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_linkify_grader.py
+@@ -0,0 +1,14 @@
++import pytest
++from bleach.linkifier import linkify
++
++
++def test_linkify_entity_in_href():
++    """Ensure & characters aren't double-escaped when parsing links."""
++    assert (
++        linkify(
++            '<a href="/test/?q=Some&nbsp;entity&rsquo;s">Test</a>',
++            skip_tags=["script"],
++        )
++        == '<a href="/test/?q=Some&nbsp;entity&rsquo;s" rel="nofollow">Test</a>'
++    )

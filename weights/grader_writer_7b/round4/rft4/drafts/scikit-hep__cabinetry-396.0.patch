@@ -1,0 +1,71 @@
+--- /dev/null
++++ b/tests/test_model_utils_grader.py
+@@ -0,0 +1,61 @@
++import copy
++import logging
++from unittest import mock
++import numpy as np
++import pyhf
++import pytest
++from cabinetry import model_utils
++from cabinetry.fit.results_containers import FitResults
++
++
++def test_prefit_uncertainties(example_spec):
++    model = pyhf.Workspace(example_spec).model()
++
++    # check that we get zero uncertainties for unconstrained parameters
++    # and fixed parameters
++    pre_fit_unc = model_utils.prefit_uncertainties(model)
++    assert np.allclose(pre_fit_unc, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
++
++    # add an additional shape factor
++    new_spec = copy.deepcopy(example_spec)
++    new_spec["channels"][0]["samples"].append(new_spec["channels"][0]["samples"][0])
++    new_model = pyhf.Workspace(new_spec).model()
++
++    # check that we get zero uncertainties for unconstrained parameters
++    # and fixed parameters
++    pre_fit_unc = model_utils.prefit_uncertainties(new_model)
++    assert np.allclose(pre_fit_unc, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
++
++    # replace shapefactor width by non-zero value
++    new_spec["channels"][0]["samples"][1]["modifiers"][1]["data"] = 0.1
++    new_model = pyhf.Workspace(new_spec).model()
++
++    # check that we get zero uncertainties for unconstrained parameters
++    # and fixed parameters, except for the shapefactor that has non-zero width
++    pre_fit_unc = model_utils.prefit_uncertainties(new_model)
++    assert np.allclose(
++        pre_fit_unc, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.1]
++    )
++
++    # replace shapefactor width by non-zero value
++    new_spec["channels"][0]["samples"][1]["modifiers"][1]["data"] = 0.1
++    new_model = pyhf.Workspace(new_spec).model()
++
++    # check that we get zero uncertainties for unconstrained parameters
++    # and fixed parameters, except for the shapefactor that has non-zero width
++    pre_fit_unc = model_utils.prefit_uncertainties(new_model)
++    assert np.allclose(
++        pre_fit_unc, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.1]
++    )
++
++    # check that we get zero uncertainties for unconstrained parameters
++    # and fixed parameters, except for the shapefactor that has non-zero width
++    pre_fit_unc = model_utils.prefit_uncertainties(new_model)
++    assert np.allclose(
++        pre_fit_unc, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.1]
++    )
++
++    # add an additional shape factor
++    new_spec = copy.deepcopy(example_spec)
++    new_spec["channels"][0]["samples"].append(new_spec["channels"][0]["samples"][0])
++    new_model = pyhf.Workspace(new_spec).model()
++
++    # check that we get zero uncertainties for unconstrained parameters
++    # and fixed parameters, except for the shapefactors that have non-zero width
++    pre_fit_unc = model_utils.prefit_uncertainties(new_model)
++    assert np.allclose(
++        pre_fit_unc, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.1, 0.1, 0.1, 0.1]
++    )

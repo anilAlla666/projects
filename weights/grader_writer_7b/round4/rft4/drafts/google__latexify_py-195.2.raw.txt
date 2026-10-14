@@ -1,0 +1,76 @@
+--- /dev/null
++++ b/src/latexify/codegen/test_expression_codegen_test_grader.py
+@@ -0,0 +1,10 @@
++"""Tests for latexify.codegen.expression_codegen."""
++
++
++from __future__ import annotations
++import ast
++import pytest
++from latexify import ast_utils, exceptions, test_utils
++from latexify.codegen import expression_codegen
++
+ 
+ @test_utils.skip_missing_feature(test_utils.Feature.POW)
+ @pytest.mark.parametrize(
+     "code,latex",
+@@ -32,13 +40,13 @@ def test_visit_bin_op_pow(code: str, latex: str) -> None:
+         expression_codegen.ExpressionCodegen().visit(node) == latex
+     )
+ 
+-
+ @test_utils.skip_missing_feature(test_utils.Feature.POW)
+ @pytest.mark.parametrize(
+     "code,latex",
+     [
+         ("np.power(x, y)", r"x^{y}"),
+         ("pow(x, y)", r"x^{y}"),
++        ("np.exp(x/y)**2", r"\exp\mathopen{}\left( \frac{x}{y} \mathclose{}\right)^{2}"),
+     ],
+ )
+ def test_visit_bin_op_pow_with_numpy_and_builtins(code: str, latex: str) -> None:
+     node = ast_utils.parse_expr(code)
+@@ -131,7 +139,7 @@ def test_visit_unary_operator_minus(code: str, latex: str) -> None:
+     node = ast_utils.parse_expr(code)
+     assert expression_codegen.ExpressionCodegen().visit(node) == latex
+ 
+-
++@test_utils.skip_missing_feature(test_utils.Feature.FACTORIAL)
+ @test_utils.skip_missing_feature(test_utils.Feature.POW)
+ @test_utils.skip_missing_feature(test_utils.Feature.UNARY_MINUS)
+ @pytest.mark.parametrize(
+@@ -163,13 +171,13 @@ def test_visit_unary_operator_factorial(code: str, latex: str) -> None:
+     node = ast_utils.parse_expr(code)
+     assert expression_codegen.ExpressionCodegen().visit(node) == latex
+ 
+-
++@test_utils.skip_missing_feature(test_utils.Feature.POW)
+ @test_utils.skip_missing_feature(test_utils.Feature.FACTORIAL)
+ @test_utils.skip_missing_feature(test_utils.Feature.UNARY_MINUS)
+ @pytest.mark.parametrize(
+     "code,latex",
+     [
+         ("-3! * 5!", r"-3!\cdot5!"),
++        ("-log(x**2)", r"-\log\mathopen{}\left( x^{2} \mathclose{}\right)"),
+     ],
+ )
+ def test_visit_unary_operator_combined(code: str, latex: str) -> None:
+     node = ast_utils.parse_expr(code)
+--- /dev/null
++++ b/src/latexify/codegen/test_codegen_utils_test_grader.py
+@@ -0,0 +1,16 @@
++"""Tests for latexify.codegen.codegen_utils."""
++
++
++from __future__ import annotations
++from typing import Any
++import pytest
++from latexify import exceptions
++from latexify.codegen.codegen_utils import convert_constant
++
++
++def test_convert_constant_unsupported_constant() -> None:
++    with pytest.raises(
++        exceptions.LatexifyNotSupportedError, match="^Unrecognized constant: "
++    ):
++        convert_constant({})

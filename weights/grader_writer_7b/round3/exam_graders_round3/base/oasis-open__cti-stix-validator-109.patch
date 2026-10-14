@@ -1,0 +1,13 @@
+diff --git a/stix2validator/v21/musts.py b/stix2validator/v21/musts.py
+index 1a2b3c4..5d6e7f8 100644
+--- a/stix2validator/v21/musts.py
++++ b/stix2validator/v21/musts.py
+@@ -404,6 +404,10 @@ def patterns(instance, options):
+     """Ensure that the syntax of the pattern of an indicator is valid, and that
+     objects and properties referenced by the pattern are valid.
+     """
++    if instance['type'] != 'indicator' or 'pattern_type' not in instance or instance['pattern_type'] != 'stix':
++        return
++
+     if instance['type'] != 'indicator' or 'pattern' not in instance:
+         return

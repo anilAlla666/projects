@@ -1,0 +1,24 @@
+--- /dev/null
++++ b/tests/test_pyquery_grader.py
+@@ -0,0 +1,16 @@
++import os
++import sys
++import time
++from lxml import etree
++from pyquery.pyquery import PyQuery as pq, no_default
++from pyquery.openers import HAS_REQUEST
++from webtest import http
++from webtest.debugapp import debug_app
++from unittest import TestCase
++
++
++sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
++
++
++dirname = os.path.dirname(os.path.abspath(__file__))
++
++
++class TestHTML(TestCase):
++    def test_html_entity_in_tag(self):
++        doc = pq("<foo>&lt;script&gt;// uh oh&lt;/script&gt;bar<boo/>")
++        self.assertEqual(doc.html(), '&lt;script&gt;// uh oh&lt;/script&gt;bar&lt;boo/&gt;')

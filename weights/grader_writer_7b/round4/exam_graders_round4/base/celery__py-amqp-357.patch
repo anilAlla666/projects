@@ -1,0 +1,58 @@
+diff --git a/t/unit/test_ssl_transport.py b/t/unit/test_ssl_transport.py
+new file mode 100644
+index 0000000..b0a1c2d
+--- /dev/null
++++ b/t/unit/test_ssl_transport.py
+@@ -0,0 +1,60 @@
++import ssl
++from unittest.mock import patch
++
++import pytest
++from amqp import transport
++
++
++class TestSSLTransport:
++    @pytest.mark.parametrize("cert_reqs", [ssl.CERT_NONE, ssl.CERT_OPTIONAL])
++    def test_ssl_context_ordering(self, cert_reqs):
++        mock_sock = Mock()
++        mock_server_hostname = "example.com"
++
++        with patch.object(ssl, "SSLContext") as mock_ssl_context:
++            mock_ssl_context.return_value = mock_ssl_context_instance = Mock()
++
++            transport.SSLTransport(
++                "host",
++                3,
++                cert_reqs=cert_reqs,
++                server_hostname=mock_server_hostname,
++            )
++
++            # Check the order of operations
++            mock_ssl_context.assert_called_once_with(ssl.PROTOCOL_TLS_CLIENT)
++            mock_ssl_context_instance.load_cert_chain.assert_not_called()
++            mock_ssl_context_instance.load_verify_locations.assert_not_called()
++            mock_ssl_context_instance.set_ciphers.assert_not_called()
++            mock_ssl_context_instance.verify_mode.assert_called_once_with(cert_reqs)
++            mock_ssl_context_instance.check_hostname.assert_called_once_with(False)
++
++    def test_ssl_context_no_check_hostname(self):
++        mock_sock = Mock()
++        mock_server_hostname = "example.com"
++
++        with patch.object(ssl, "SSLContext") as mock_ssl_context:
++            mock_ssl_context.return_value = mock_ssl_context_instance = Mock()
++
++            transport.SSLTransport(
++                "host",
++                3,
++                cert_reqs=None,
++                server_hostname=mock_server_hostname,
++            )
++
++            # Check the order of operations
++            mock_ssl_context.assert_called_once_with(ssl.PROTOCOL_TLS_CLIENT)
++            mock_ssl_context_instance.load_cert_chain.assert_not_called()
++            mock_ssl_context_instance.load_verify_locations.assert_not_called()
++            mock_ssl_context_instance.set_ciphers.assert_not_called()
++            mock_ssl_context_instance.verify_mode.assert_called_once_with(None)
++            mock_ssl_context_instance.check_hostname.assert_called_once_with(True)

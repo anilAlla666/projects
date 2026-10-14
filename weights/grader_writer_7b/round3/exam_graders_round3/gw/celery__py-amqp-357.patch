@@ -1,0 +1,21 @@
+diff --git a/t/unit/test_transport.py b/t/unit/test_transport.py
+index 0e0f3a0..d0b0c9c 100644
+--- a/t/unit/test_transport.py
++++ b/t/unit/test_transport.py
+@@ -882,6 +882,16 @@ class TestSSLTransport(object):
+         """
+ 
+         self.t._quick_recv = Mock()
++        self.t._quick_recv.return_value = ''
++
++        self.t._read_buffer = b''
++        self.t._write_buffer = b'foo'
++        self.t._write_offset = 0
++        self.t._write_size = 3
++        self.t._write_count = 0
++        self.t._write_error = None
++        self.t._write_done = False
++
+         self.t._quick_recv.side_effect = [
+             pack('>BHI', 1, 1, 16),
+             socket.error(

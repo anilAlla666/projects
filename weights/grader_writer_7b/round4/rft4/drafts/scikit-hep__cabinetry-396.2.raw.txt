@@ -1,0 +1,48 @@
+--- /dev/null
++++ b/tests/test_model_utils_grader.py
+@@ -0,0 +1,44 @@
++import copy
++import logging
++from unittest import mock
++import numpy as np
++import pyhf
++import pytest
++from cabinetry import model_utils
++from cabinetry.fit.results_containers import FitResults
++
++
++def test_unconstrained_parameter_count(example_spec):
++    model = pyhf.Workspace(example_spec).model()
++    assert model_utils.unconstrained_parameter_count(model) == 4
++
++    # check handling of partially fixed parameters (pyhf #1944)
++    with mock.patch.object(
++        pyhf.pdf.ParameterSet,
++        "suggested_fixed_as_bool",
++        side_effect=lambda p: True,
++    ):
++        assert model_utils.unconstrained_parameter_count(model) == 0
++
++
++@pytest.fixture
++def example_spec_modifiers():
++    spec = {
++        "channels": [
++            {
++                "name": "channel_0",
++                "samples": [
++                    {
++                        "name": "signal",
++                        "data": [1, 2, 3],
++                        "modifiers": [{"name": "lumi"}, {"name": "normsys"}],
++                    },
++                    {
++                        "name": "background",
++                        "data": [4, 5, 6],
++                        "modifiers": [{"name": "shapesys"}],
++                    },
++                ],
++            }
++        ]
++    }
++    return spec

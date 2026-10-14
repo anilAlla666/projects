@@ -1,0 +1,136 @@
+--- /dev/null
++++ b/test/test_future_grader.py
+@@ -0,0 +1,141 @@
++from unittest import mock
++import pytest
++from algosdk.future.transaction import (
++    ApplicationCreateTxn,
++    LogicSigAccount,
++    PaymentTxn,
++    SuggestedParams,
++)
++
++
++@pytest.fixture
++def logic_sig():
++    lsig = LogicSigAccount()
++    return lsig
++
++
++@pytest.fixture
++def sender_keypair():
++    return ("test_sender", "test_sender_key")
++
++
++@pytest.fixture
++def receiver():
++    return "receiver"
++
++
++@pytest.fixture
++def sp():
++    return SuggestedParams(
++        fee_per_byte=1000,
++        first_valid=0,
++        last_valid=1000,
++        flat_fee=True,
++        gh="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++    )
++
++
++@pytest.mark.parametrize("fee_per_byte", [1000, 2000])
++@pytest.mark.parametrize("flat_fee", [True, False])
++@pytest.mark.parametrize("first_valid", [0, 1000])
++@pytest.mark.parametrize("last_valid", [1000, 2000])
++@pytest.mark.parametrize("gh", ["0"*64, "1"*64])
++def test_payment_txn(sp, fee_per_byte, flat_fee, first_valid, last_valid, gh):
++    # Arrange
++    payment_txn = PaymentTxn(sender="", sp=sp, receiver="", amt=0, close_remainder_to="")
++    # Act
++    payment_txn.fee_per_byte = fee_per_byte
++    payment_txn.flat_fee = flat_fee
++    payment_txn.first_valid = first_valid
++    payment_txn.last_valid = last_valid
++    payment_txn.gh = gh
++    # Assert
++    assert payment_txn.fee_per_byte == fee_per_byte
++    assert payment_txn.flat_fee == flat_fee
++    assert payment_txn.first_valid == first_valid
++    assert payment_txn.last_valid == last_valid
++    assert payment_txn.gh == gh
++
++
++@pytest.mark.parametrize("amount", [0, 1000])
++@pytest.mark.parametrize("close_remainder_to", ["", "abc"])
++def test_asset_config_txn(amount, close_remainder_to):
++    # Arrange
++    sender = "sender"
++    sp = SuggestedParams(
++        fee_per_byte=1000,
++        first_valid=0,
++        last_valid=1000,
++        flat_fee=True,
++        gh="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++    )
++    txn = ApplicationCreateTxn(
++        sender=sender,
++        sp=sp,
++        total=0,
++        decimals=0,
++        default_frozen=False,
++        manager="manager",
++        reserve="reserve",
++        freeze="freeze",
++        clawback="clawback",
++        unit_name="unit_name",
++        asset_name="asset_name",
++        url="url",
++        metadata_hash=b"hash",
++        note=b"note",
++        lease=b"lease",
++        rekey_to="rekey_to",
++    )
++    txn.amount = amount
++    txn.close_remainder_to = close_remainder_to
++    # Act
++    actual_txn = txn.get_obj_for_encoding()
++    # Assert
++    expected_txn = {
++        "snd": sender,
++        "fv": 0,
++        "lv": 1000,
++        "fee": 1000,
++        "type": "acfg",
++        "cfgd": 0,
++        "cafs": {},
++        "apat": [],
++        "appindex": 0,
++        "amt": amount,
++        "rcv": close_remainder_to,
++        "apid": 0,
++        "apan": 0,
++        "apanu": 0,
++        "apanai": 0,
++        "apanas": 0,
++        "apanar": 0,
++        "apanat": 0,
++        "apanax": 0,
++        "apaa": [],
++        "apsb": "",
++        "aasa": {},
++        "apfa": False,
++        "apfu": "",
++        "apas": "",
++        "apar": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++        "appl": [
++            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
++        ],
++    }
++    assert actual_txn == expected_txn

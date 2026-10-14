@@ -1,0 +1,112 @@
+--- /dev/null
++++ b/tests/test_dem_grader.py
+@@ -0,0 +1,51 @@
++"""Tests for the pyflwdir.dem module."""
++
++
++import pytest
++import numpy as np
++from pyflwdir import dem
++from test_core import test_data
++
++
++parsed, flwdir = test_data[0]
++
++
++idxs_ds, idxs_pit, seq, rank, mv = parsed
++
++
++def test_slope():
++    elv = np.ones((4, 4))
++    nodata = -9999
++    assert np.all(dem.slope(elv, nodata) == 0)
++    elv.flat[0] == -9999
++    assert np.all(dem.slope(elv, nodata).flat[1:] == 0)
++    elv = np.random.random((4, 4))
++    assert np.all(dem.slope(elv, nodata).flat[1:] >= 0)
++    elv = np.random.random((1, 1))
++    assert np.all(dem.slope(elv, nodata) == 0)
++
++
++def test_hand_fldpln():
++    elevtn = rank  # dz along flow path is 1
++    drain = rank == 0  # only outlets are
++    # hand == elevtn
++    hand = dem.height_above_nearest_drain(idxs_ds, seq, drain, elevtn)
++    assert np.all(hand == elevtn)
++    # max h = 1
++    uparea = np.where(drain, 1, 0)
++    upa_min = 1
++    fldpln = dem.floodplains(idxs_ds, seq, elevtn, uparea, upa_min=upa_min, b=0)
++    assert np.all(fldpln[elevtn > 1] == 0)
++    assert np.all(fldpln[elevtn <= 1] != 0)
++    # max h = uparea
++    fldpln = dem.floodplains(idxs_ds, seq, elevtn, uparea, upa_min=upa_min, b=1)
++    hmax = uparea[drain].max()
++    hmin = uparea[drain].min()
++    assert np.all(fldpln[elevtn > hmax] == 0)
++    assert np.all(fldpln[elevtn < hmin] != 0)
++    # hand == 1 for non-drain cells
++    elevtn = np.ones(flwdir.size)
++    elevtn[drain] = 0
++    hand = dem.height_above_nearest_drain(idxs_ds, seq, drain, elevtn)
++    assert np.all(hand[rank > 0] == 1)
++    # fldpln == 1 for all cells
++    fldpln = dem.floodplains(idxs_ds, seq, elevtn, uparea, upa_min=upa_min, b=1)
++    assert np.all(fldpln[rank >= 0] == 1)
+--- /dev/null
++++ b/tests/test_pyflwdir_grader.py
+@@ -0,0 +1,51 @@
++"""Tests for the pyflwdir module, specifically the wrapping of the methods which 
++themselves are testes elsewhere"""
++
++
++import pytest
++import numpy as np
++from affine import Affine
++import pyflwdir
++from pyflwdir import core, core_nextxy, core_d8
++from test_core import test_data
++
++
++idxs_ds = test_data[0][1]
++
++
++idxs_pit = test_data[0][2]
++
++
++idxs_seq = test_data[0][3]
++
++
++d8 = test_data[0][4]
++
++
++nextxy = core_nextxy.to_array(idxs_ds, d8.shape)
++
++
++flw = pyflwdir.FlwdirRaster(idxs_ds.copy(), d8.shape, "d8", idxs_pit=idxs_pit.copy())
++
++
++def test_dem():
++    elevtn = np.ones(flw.shape)
++    # create values that need fix
++    diff = np.logical_and(flw.rank == 2, flw.upstream_sum(np.ones(flw.shape)) >= 1)
++    elevtn[diff] = 2.0
++    elevtn_new = flw.dem_adjust(elevtn)
++    assert np.all(elevtn_new == 1.0)
++    with pytest.raises(ValueError, match="size does not match"):
++        flw.dem_adjust(np.ones((2, 1)))
++    # hand
++    rank = flw.rank
++    drain = rank == 0
++    hand = flw.hand(drain, elevtn_new)
++    assert np.all(hand[rank > 0] == 0)
++    with pytest.raises(ValueError, match="size does not match"):
++        flw.hand(drain, np.ones((2, 1)))
++    with pytest.raises(ValueError, match="size does not match"):
++        flw.hand(np.ones((2, 1)), elevtn_new)
++    # floodplain
++    fldpln = flw.floodplains(elevtn_new, uparea=drain, upa_min=1, b=1)
++    assert np.all(fldpln.flat[flw.mask] == 1)
++    with pytest.raises(ValueError, match="size does not match"):
++        flw.floodplains(np.ones((2, 1)))

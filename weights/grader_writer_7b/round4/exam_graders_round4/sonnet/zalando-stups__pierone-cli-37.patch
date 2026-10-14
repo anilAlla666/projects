@@ -1,0 +1,51 @@
+--- /dev/null
++++ b/tests/test_cves_no_features.py
+@@ -0,0 +1,50 @@
++from unittest.mock import MagicMock
++
++from click.testing import CliRunner
++from pierone.cli import cli
++
++
++def _response(payload):
++    response = MagicMock()
++    response.status_code = 200
++    response.json.return_value = payload
++    return response
++
++
++def test_cves_clair_layer_without_features(monkeypatch, tmpdir):
++    """Clair returns a layer without 'Features' (e.g. COULDNT_FIGURE_OUT); must not crash."""
++    tags_payload = [{
++        'name': '1.2',
++        'created_by': 'myuser',
++        'created': '2015-08-20T08:14:59.432Z',
++        'clair_id': 'sha256:abc',
++        'severity_fix_available': 'clair:CouldntFigureOut',
++        'severity_no_fix_available': 'clair:CouldntFigureOut',
++    }]
++    clair_payload = {
++        'Layer': {
++            'Name': 'sha256:abc',
++            'NamespaceName': 'ubuntu:16.04',
++            'IndexedByVersion': 2,
++        }
++    }
++
++    def get(url, **kwargs):
++        if '/v1/layers/' in url:
++            return _response(clair_payload)
++        return _response(tags_payload)
++
++    runner = CliRunner()
++    monkeypatch.setattr('stups_cli.config.load_config',
++                        lambda x: {'url': 'foobar', 'clair_url': 'barfoo'})
++    monkeypatch.setattr('zign.api.get_token', MagicMock(return_value='tok123'))
++    monkeypatch.setattr('os.path.expanduser', lambda x: x.replace('~', str(tmpdir)))
++    monkeypatch.setattr('pierone.api.session.get', get)
++    with runner.isolated_filesystem():
++        # catch_exceptions=False: a KeyError would propagate and fail the test
++        result = runner.invoke(cli, ['cves', 'myteam', 'myart', '1.2'], catch_exceptions=False)
++        assert result.exception is None or isinstance(result.exception, SystemExit)
++        assert 'Traceback' not in result.output
++        assert 'KeyError' not in result.output

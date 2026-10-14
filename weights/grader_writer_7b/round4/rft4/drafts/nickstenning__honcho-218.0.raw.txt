@@ -1,0 +1,28 @@
+--- /dev/null
++++ b/tests/test_environ_grader.py
+@@ -0,0 +1,24 @@
++import textwrap
++import pytest
++from honcho import environ
++from honcho import compat
++
++
++def ep(*args, **kwargs):
++    return list(environ.expand_processes(*args, **kwargs))
++
++
++def test_invalid_proc_type_raises_exception():
++    with pytest.raises(ValueError) as excinfo:
++        environ.Procfile().add_process("invalid-process-name", "echo")
++    assert str(excinfo.value) == (
++        "Invalid proc type: 'invalid-process-name'. "
++        "Valid proc types can only contain letters, digits, underscores, "
++        "and hyphens."
++    )
++
++
++def test_invalid_proc_type_in_check_raises_exception():
++    pf = environ.Procfile()
++    pf.add_process("invalid-process-name", "echo")
++    with pytest.raises(ValueError) as excinfo:
++        pf.check()

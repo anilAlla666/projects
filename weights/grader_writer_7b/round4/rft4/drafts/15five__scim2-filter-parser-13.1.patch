@@ -1,0 +1,43 @@
+--- /dev/null
++++ b/tests/test_scim2_filter_parser_transpilers_sql_grader.py
+@@ -0,0 +1,37 @@
++import pytest
++from scim2_filter_parser import parse
++from scim2_filter_parser.transpilers.sql import Transpiler
++
++
++def get_expected(sql):
++    return {
++        'sql': sql,
++        'params': {},
++    }
++
++
++def get_result(scim_expr, params=None):
++    parsed = parse(scim_expr)
++    attr_map = {}
++    transpiler = Transpiler(attr_map)
++    result = transpiler.transpile(parsed)
++    return result
++
++
++def test_get_next_id():
++    transpiler = Transpiler(None)
++    assert transpiler.get_next_id() == ':1'
++    assert transpiler.get_next_id() == ':2'
++
++
++def test_visit_AttrPath__simple_attr_path():
++    transpiler = Transpiler(None)
++    attr_path = parse.AttributePath('name.familyName').get_ast_node()
++    expected = ('name_familyName', [])
++    result = transpiler.visit(attr_path)
++    assert result == expected
++
++
++def test_visit_AttrPath__sub_attr_path():
++    transpiler = Transpiler(None)
++    attr_path = parse.AttributePath('address.postalCode').get_ast_node()
++    expected = ('address_postalCode', ['postalCode'])
++    result = transpiler.visit(attr_path)
++    assert result == expected

@@ -1,0 +1,54 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,51 @@
++from dataclasses import dataclass
++from enum import Enum
++from typing import List
++from dataclasses_json import DataClassJsonMixin
++
++
++class Spec(Enum):
++    fast = 'fast'
++    slow = 'slow'
++
++
++@dataclass
++class Car(DataClassJsonMixin):
++    engine: Spec
++    wheels: List[Spec]
++
++
++def test_to_dict_encode_json_recursion() -> None:
++    car = Car(engine=Spec.fast, wheels=[Spec.fast, Spec.slow])
++
++    assert car.to_dict(encode_json=True) == {
++        "engine": "fast",
++        "wheels": ["fast", "slow"],
++    }
++
++
++def test_to_dict_encode_json_recursive_list_of_dicts() -> None:
++    @dataclass
++    class Engine(DataClassJsonMixin):
++        name: str
++
++    @dataclass
++    class Wheel(DataClassJsonMixin):
++        size: int
++        spec: Spec
++
++    @dataclass
++    class Car(DataClassJsonMixin):
++        engine: Engine
++        wheels: List[Wheel]
++
++    wheel = Wheel(size=15, spec=Spec.fast)
++    car = Car(
++        engine=Engine(name="V8"),
++        wheels=[wheel],
++    )
++
++    assert car.to_dict(encode_json=True) == {
++        "engine": {"name": "V8"},
++        "wheels": [{"size": 15, "spec": "fast"}],
++    }

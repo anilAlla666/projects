@@ -1,0 +1,89 @@
+--- /dev/null
++++ b/tests/model_generator/test_model_generator_grader.py
+@@ -0,0 +1,47 @@
++from dataclasses_avroschema import ModelGenerator, types, field_utils
++from dataclasses_avroschema.model_generator.avro_to_python_utils import render_datetime
++
++
++def test_model_generator_render_with_decimal(schema_with_logical_types: types.JsonDict) -> None:
++    expected_result = """
++from dataclasses_avroschema import AvroModel
++from dataclasses_avroschema import types
++import dataclasses
++import decimal
++import typing
++
++
++@dataclasses.dataclass
++class Event(AvroModel):
++    title: str
++    description: typing.Optional[str] = None
++    date: typing.Optional[decimal.Decimal] = None
++    rating: decimal.Decimal
++    duration_in_mins: int
++    location: typing.Optional[str] = None
++    is_online_event: bool
++    online_url: typing.Optional[str] = None
++    organizer: typing.Optional[str] = None
++    attendees_count: int
++    participants: typing.Dict[str, typing.Any]
++    tags: typing.List[str]
++    category: str
++    birthday: typing.Optional[decimal.Decimal] = None
++    salary: decimal.Decimal
++    price: typing.Optional[decimal.Decimal] = None
++    discount: typing.Optional[decimal.Decimal] = None
++    birthday_date: typing.Optional[decimal.Decimal] = None
++    birthday_date_str: typing.Optional[str] = None
++    birthday_date_isoformat: typing.Optional[str] = None
++    birthday_date_isoformat_tz: typing.Optional[str] = None
++    birthday_datetime: typing.Optional[decimal.Decimal] = None
++    birthday_datetime_str: typing.Optional[str] = None
++    birthday_datetime_isoformat: typing.Optional[str] = None
++    birthday_datetime_isoformat_tz: typing.Optional[str] = None
++    uuid_1: typing.Optional[decimal.Decimal] = None
++    uuid_2: typing.Optional[decimal.Decimal] = None
++    event_uuid: decimal.Decimal = "ad0677ab-bd1c-4383-9d45-e46c56bcc5c9"
++    explicit_with_default: decimal.Decimal = types.Decimal(scale=2, precision=3, default=decimal.Decimal('3.14'))
++
++"""
++    model_generator = ModelGenerator()
++    result = model_generator.render(schema=schema_with_logical_types)
++    assert result.strip() == expected_result.strip()
+--- /dev/null
++++ b/tests/model_generator/test_model_pydantic_generator_grader.py
+@@ -0,0 +1,27 @@
++from dataclasses_avroschema import BaseClassEnum, ModelGenerator, types
++
++
++def test_pydantic_model_with_decimal(schema_with_logical_types: types.JsonDict) -> None:
++    expected_result = """
++from pydantic import BaseModel
++from pydantic import Field
++import typing
++import decimal
++
++
++class Event(BaseModel):
++    title: str
++    description: typing.Optional[str] = None
++    date: typing.Optional[decimal.Decimal] = None
++    rating: decimal.Decimal
++    duration_in_mins: int
++    location: typing.Optional[str] = None
++    is_online_event: bool
++    online_url: typing.Optional[str] = None
++    organizer: typing.Optional[str] = None
++    attendees_count: int
++    participants: typing.Dict[str, typing.Any]
++    tags: typing.List[str]
++    category: str
++    birthday: typing.Optional[decimal.Decimal] = None
++    salary: decimal.Decimal
++    price: typing.Optional[decimal.Decimal] = None
++    discount: typing.Optional[decimal.Decimal] = None
++    explicit_with_default: decimal.Decimal = decimal.Decimal('3.14')
++"""
++    model_generator = ModelGenerator(base_class=BaseClassEnum.PYDANTIC_MODEL.value)
++    result = model_generator.render(schema=schema_with_logical_types)
++    assert result.strip() == expected_result.strip()

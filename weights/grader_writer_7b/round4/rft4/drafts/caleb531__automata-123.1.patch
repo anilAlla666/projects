@@ -1,0 +1,97 @@
+--- /dev/null
++++ b/tests/test_gnfa_grader.py
+@@ -0,0 +1,68 @@
++"""Classes and functions for testing the behavior of GNFAs."""
++
++
++import os
++import tempfile
++from unittest.mock import patch
++import automata.base.exceptions as exceptions
++import tests.test_fa as test_fa
++from automata.fa.dfa import DFA
++from automata.fa.gnfa import GNFA
++from automata.fa.nfa import NFA
++
++
++class TestGNFA(test_fa.TestFA):
++    """A test class for testing generalized nondeterministic finite automata."""
++
++    temp_dir_path = tempfile.gettempdir()
++
++    def test_to_regex_empty(self):
++        """Test the to_regex function on an empty GNFA"""
++        empty_gnfa = GNFA(
++            states={'q0', 'q1'},
++            input_symbols=set(),
++            transitions={},
++            initial_state='q0',
++            final_state='q1'
++        )
++        self.assertEqual(empty_gnfa.to_regex(), '')
++
++    def test_to_regex_one_symbol(self):
++        """Test the to_regex function on a GNFA with one symbol"""
++        gnfa = GNFA(
++            states={'q0', 'q1', 'q2'},
++            input_symbols={'a'},
++            transitions={
++                'q0': {'q1': 'a', 'q2': ''},
++                'q1': {'q2': 'a'},
++                'q2': {}
++            },
++            initial_state='q0',
++            final_state='q2'
++        )
++        self.assertEqual(gnfa.to_regex(), '(aa*)?')
++
++    def test_to_regex_two_symbols(self):
++        """Test the to_regex function on a GNFA with two symbols"""
++        gnfa = GNFA(
++            states={'q0', 'q1', 'q2'},
++            input_symbols={'a', 'b'},
++            transitions={
++                'q0': {'q1': 'a', 'q2': 'b'},
++                'q1': {'q2': 'a'},
++                'q2': {}
++            },
++            initial_state='q0',
++            final_state='q2'
++        )
++        self.assertEqual(gnfa.to_regex(), '(ab)?')
++
++    def test_to_regex_three_symbols(self):
++        """Test the to_regex function on a GNFA with three symbols"""
++        gnfa = GNFA(
++            states={'q0', 'q1', 'q2', 'q3'},
++            input_symbols={'a', 'b', 'c'},
++            transitions={
++                'q0': {'q1': 'a', 'q2': 'b', 'q3': 'c'},
++                'q1': {'q2': 'a'},
++                'q2': {'q3': 'b'},
++                'q3': {}
++            },
++            initial_state='q0',
++            final_state='q3'
++        )
++        self.assertEqual(gnfa.to_regex(), '(abc)?')
+--- /dev/null
++++ b/tests/test_fa_grader.py
+@@ -0,0 +1,17 @@
++"""Classes and functions for testing the behavior of both DFAs and NFAs."""
++
++
++import unittest
++from automata.fa.dfa import DFA
++from automata.fa.gnfa import GNFA
++from automata.fa.nfa import NFA
++
++
++class TestFA(unittest.TestCase):
++    """A test class for testing all finite automata."""
++
++    def setUp(self):
++        """Reset test automata before every test function."""
++        self.dfa = DFA.from_nfa(NFA.from_regex('(ab)*(ac)'))
++        self.nfa = NFA.from_regex('(ab)*(ac)')
++        self.gnfa = GNFA.from_dfa(DFA.from_nfa(NFA.from_regex('(ab)*(ac)')))

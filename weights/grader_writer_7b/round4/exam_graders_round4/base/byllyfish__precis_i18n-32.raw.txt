@@ -1,0 +1,70 @@
+To address the issue described, we need to add tests that verify the behavior of the `additional_mapping_rule` method in the `Nickname` profile. Specifically, we want to ensure that:
+
+1. Non-ASCII space characters are correctly mapped to ASCII space.
+2. Leading and trailing whitespace characters are removed.
+3. Interior sequences of multiple space characters are reduced to a single ASCII space.
+
+We also need to ensure that the method raises a custom error when invalid whitespace characters are detected.
+
+Here is a unified diff that adds two new test files (`test_nickname_profile.py`) next to the existing tests:
+
+```diff
+diff --git a/test_nickname_profile.py b/test_nickname_profile.py
+new file mode 100644
+--- /dev/null
++++ b/test_nickname_profile.py
+@@ -0,0 +1,65 @@
++import unittest
++from precis_i18n.profile import Nickname
++
++class TestNicknameProfile(unittest.TestCase):
++    def setUp(self):
++        self.nickname_profile = Nickname(None, 'Nickname')
++
++    def test_additional_mapping_rule(self):
++        # Test non-ASCII space characters mapped to ASCII space
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u00A0'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2000'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2001'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2002'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2003'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2004'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2005'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2006'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2007'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2008'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u2009'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u200A'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u200B'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u202F'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u205F'), ' ')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\u3000'), ' ')
++
++        # Test leading and trailing whitespace characters removed
++        self.assertEqual(self.nickname_profile.additional_mapping_rule(' a\n'), 'a')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\x1fb\x1f'), 'b')
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('\tc\r\n'), 'c')
++
++        # Test interior sequences of multiple space characters reduced to a single ASCII space
++        self.assertEqual(self.nickname_profile.additional_mapping_rule('  a   b  '), 'a b')
++
++    def test_invalid_whitespace_characters(self):
++        with self.assertRaisesRegex(ValueError, 'invalid_white_space'):
++            self.nickname_profile.additional_mapping_rule('\x1f')
++        with self.assertRaisesRegex(ValueError, 'invalid_white_space'):
++            self.nickname_profile.additional_mapping_rule('\x85')
++        with self.assertRaisesRegex(ValueError, 'invalid_white_space'):
++            self.nickname_profile.additional_mapping_rule('\u2028')
++        with self.assertRaisesRegex(ValueError, 'invalid_white_space'):
++            self.nickname_profile.additional_mapping_rule('\u2029')
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This test file includes two test cases:
+
+1. `test_additional_mapping_rule`: Verifies that non-ASCII space characters are correctly mapped to ASCII space, leading and trailing whitespace characters are removed, and interior sequences of multiple space characters are reduced to a single ASCII space.
+2. `test_invalid_whitespace_characters`: Verifies that the method raises a `ValueError` with the message "invalid_white_space" when encountering invalid whitespace characters.
+
+These tests should fail on the current code and pass once the issue is fixed.

@@ -1,0 +1,49 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,32 @@
++import datetime as dt
++from collections import namedtuple
++from functools import partial
++from copy import copy, deepcopy
++import pytest
++from marshmallow import utils
++from tests.base import (
++    assert_datetime_equal,
++    central,
++    assert_time_equal,
++    assert_date_equal,
++)
++
++
++def test_from_iso_datetime():
++    d = dt.datetime.now(tz=central)
++    formatted = d.isoformat()
++    result = utils.from_iso(formatted)
++    assert type(result) == dt.datetime
++    assert_datetime_equal(result, d)
++    if utils.dateutil_available:
++        # Note a naive datetime
++        assert result.tzinfo is not None
++
++    # Regression test for https://github.com/marshmallow-code/marshmallow/issues/1249
++    d_utc = dt.datetime.utcnow().replace(tzinfo=dt.timezone.utc)
++    formatted_utc = d_utc.isoformat()
++    result_utc = utils.from_iso(formatted_utc)
++    assert type(result_utc) == dt.datetime
++    assert_datetime_equal(result_utc, d_utc)
++    assert result_utc.tzinfo is not None
+--- /dev/null
++++ b/tests/test_py3/test_utils_grader.py
+@@ -0,0 +1,12 @@
++from marshmallow import fields, Schema
++
++
++def test_from_iso_datetime():
++    d = dt.datetime.now(tz=central)
++    formatted = d.isoformat()
++    result = utils.from_iso(formatted)
++    assert type(result) == dt.datetime
++    assert_datetime_equal(result, d)
++    if utils.dateutil_available:
++        # Note a naive datetime
++        assert result.tzinfo is not None

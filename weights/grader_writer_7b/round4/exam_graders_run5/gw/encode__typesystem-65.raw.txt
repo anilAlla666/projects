@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_base_grader.py
+@@ -0,0 +1,14 @@
++import typesystem
++
++
++class Example(typesystem.Schema):
++    a = typesystem.String(max_length=10)
++    b = typesystem.Integer(maximum=5)
++
++
++def test_validation_error_hashability():
++    try:
++        typesystem.Integer().validate("hello")
++    except typesystem.ValidationError:
++        pass

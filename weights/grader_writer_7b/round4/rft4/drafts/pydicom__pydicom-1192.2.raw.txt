@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/pydicom/tests/test_charset_grader.py
+@@ -0,0 +1,22 @@
++"""Unit tests for the pydicom.charset module."""
++
++
++import pytest
++import pydicom.charset
++from pydicom import dcmread, config
++from pydicom.data import get_charset_files, get_testdata_file
++from pydicom.dataelem import DataElement
++from pydicom.filebase import DicomBytesIO
++from pydicom.valuerep import PersonName
++
++
++FILE_PATIENT_NAMES = [
++    ('chrArab', 'قباني^لنزار'),
++    ('chrFren', 'Buc^Jérôme'),
++    ('chrFrenMulti', 'Buc^Jérôme'),
++    ('chrGerm', 'Äneas^Rüdiger'),
++    ('chrGreek', 'Διονυσιος'),
++    ('chrH31', 'Yamada^Tarou=山田^太郎=やまだ^たろう'),
++    ('chrH32', 'ﾔﾏﾀﾞ^ﾀﾛｳ=山田^太郎=やまだ^たろう'),
++    ('chrHbrw', 'שרון^דבורה'),
++    ('chrI2', 'Hong^Gildong=洪^吉洞=홍^길동'),
++    ('chrJapMulti', 'やまだ^たろう'),
++]  # noqa E501

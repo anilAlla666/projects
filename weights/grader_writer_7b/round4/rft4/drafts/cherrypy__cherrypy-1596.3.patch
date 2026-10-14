@@ -1,0 +1,42 @@
+--- /dev/null
++++ b/test/test_helper_grader.py
+@@ -0,0 +1,38 @@
++from __future__ import print_function
++import sys
++
++
++if sys.version_info.major == 3:
++    unichr_ = chr
++else:
++    unichr_ = unichr
++
++
++import unittest
++import cherrypy
++from cherrypy.test import helper
++
++
++class HelperTest(helper.CPWebCase):
++    @classmethod
++    def setup_server(cls):
++        class Root(object):
++            pass
++
++        cherrypy.tree.mount(Root())
++
++    def test_url_normalization(self):
++        # Test cases taken from Python's os.path documentation.
++        test_cases = (
++            ("foo/bar", "../baz"),  # foo/baz
++            ("/foo/bar", "/../baz"),  # /foo/baz
++            ("/foo/bar", "/baz"),  # /baz
++            ("//netloc/foo/bar", "//netloc/../baz"),  # //netloc/foo/baz
++            ("//netloc/foo/bar", "//netloc/baz"),  # //netloc/baz
++            ("file:///a/b/c/d", "g:h"),  # g:h
++            ("file:///a/b/c/d", "g:/h"),  # file:///g/h
++            ("file:///a/b/c/d", "g:h/i"),  # g:h/i
++        )
++
++        for a, b in test_cases:
++            c = cherrypy._cputil.urljoin(a, b)
++            self.assertEqual(c, a.rstrip('/') + '/' + b.lstrip('/'))

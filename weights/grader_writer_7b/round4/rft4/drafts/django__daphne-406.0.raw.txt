@@ -1,0 +1,57 @@
+--- /dev/null
++++ b/tests/test_http_protocol_grader.py
+@@ -0,0 +1,54 @@
++import pytest
++from twisted.internet import reactor
++from twisted.web.http import HTTPChannel, HTTPFactory
++
++
++@pytest.fixture(scope="module")
++def channel():
++    return HTTPChannel()
++
++
++@pytest.fixture
++def factory(channel):
++    f = HTTPFactory()
++    f.protocol = lambda: channel
++    return f
++
++
++@pytest.mark.parametrize(
++    "headers,expected",
++    [
++        (
++            {},
++            None,
++        ),
++        (
++            {"X-Forwarded-For": "127.0.0.1"},
++            ["127.0.0.1"],
++        ),
++        (
++            {
++                "X-Forwarded-For": "127.0.0.1",
++                "X-Forwarded-Port": "8000",
++            },
++            ["127.0.0.1", 8000],
++        ),
++        (
++            {
++                "X-Forwarded-For": "127.0.0.1",
++                "X-Forwarded-Proto": "https",
++            },
++            ["127.0.0.1", None, "https"],
++        ),
++        (
++            {
++                "X-Forwarded-For": "127.0.0.1",
++                "X-Forwarded-Proto": "https",
++                "X-Forwarded-Host": "localhost",
++            },
++            ["127.0.0.1", None, "https", "localhost"],
++        ),
++    ],
++)
++def test_parse_headers(headers, expected):
++    assert channel.parse_headers(headers) == expected

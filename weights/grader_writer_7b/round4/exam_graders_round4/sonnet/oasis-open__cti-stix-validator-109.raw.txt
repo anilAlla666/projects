@@ -1,0 +1,85 @@
+I've added one test file for 2.1 indicators. I haven't run it, so I'm assuming the `validate_instance` / `ValidationOptions` API and the `errors` / `is_valid` result attributes work as I remember them.
+
+The tests check three things:
+- **Snort and YARA indicators:** the validator should not report any pattern-related error. On the current code it fails them with a pattern syntax error, and the tests catch that.
+- **STIX indicators:** a valid STIX pattern still passes, and an invalid one still fails with a pattern error. These guard against a fix that disables pattern checking altogether.
+
+I did not test for warnings, because the validator prints them rather than storing them on the result, so the tests only cover errors.
+
+```diff
+diff --git a/stix2validator/test/v21/test_non_stix_patterns.py b/stix2validator/test/v21/test_non_stix_patterns.py
+new file mode 100644
+--- /dev/null
++++ b/stix2validator/test/v21/test_non_stix_patterns.py
+@@ -0,0 +1,80 @@
++import copy
++import unittest
++
++from stix2validator import ValidationOptions, validate_instance
++
++BASE_INDICATOR = {
++    "type": "indicator",
++    "spec_version": "2.1",
++    "id": "indicator--a932fcc6-e032-476c-826f-cb970a5a1ade",
++    "created": "2016-04-06T20:03:48.000Z",
++    "modified": "2016-04-06T20:03:48.000Z",
++    "name": "Test indicator",
++    "indicator_types": ["malicious-activity"],
++    "pattern": "[file:name = 'foo.exe']",
++    "pattern_type": "stix",
++    "valid_from": "2016-01-01T00:00:00Z",
++}
++
++
++def _run(indicator):
++    options = ValidationOptions(version="2.1")
++    return validate_instance(indicator, options)
++
++
++def _error_messages(results):
++    return [str(e) for e in results.errors]
++
++
++class NonStixPatternTestCases(unittest.TestCase):
++
++    def test_valid_stix_pattern_ok(self):
++        results = _run(copy.deepcopy(BASE_INDICATOR))
++        self.assertTrue(results.is_valid, _error_messages(results))
++
++    def test_invalid_stix_pattern_still_fails(self):
++        ind = copy.deepcopy(BASE_INDICATOR)
++        ind["pattern"] = "[file:name = ]"
++        results = _run(ind)
++        self.assertFalse(results.is_valid)
++
++    def test_snort_pattern_not_validated_as_stix(self):
++        ind = copy.deepcopy(BASE_INDICATOR)
++        ind["pattern_type"] = "snort"
++        ind["pattern"] = (
++            'alert tcp any any -> any any (msg:"test"; content:"abc"; sid:1000001;)'
++        )
++        results = _run(ind)
++        self.assertTrue(results.is_valid, _error_messages(results))
++        self.assertEqual(_error_messages(results), [])
++
++    def test_yara_pattern_not_validated_as_stix(self):
++        ind = copy.deepcopy(BASE_INDICATOR)
++        ind["pattern_type"] = "yara"
++        ind["pattern"] = (
++            'rule test { strings: $a = "abc" condition: $a }'
++        )
++        results = _run(ind)
++        self.assertTrue(results.is_valid, _error_messages(results))
++        self.assertEqual(_error_messages(results), [])
++
++    def test_non_stix_pattern_with_stix_like_garbage(self):
++        ind = copy.deepcopy(BASE_INDICATOR)
++        ind["pattern_type"] = "snort"
++        ind["pattern"] = "this is [not a stix pattern"
++        results = _run(ind)
++        self.assertTrue(results.is_valid, _error_messages(results))
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

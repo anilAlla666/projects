@@ -1,0 +1,32 @@
+--- /dev/null
++++ b/tests/test_parser_grader.py
+@@ -0,0 +1,29 @@
++from unittest import TestCase
++
++
++class TestParser(TestCase):
++    def test_extract_price_text(self):
++        self.assertEqual(
++            "1,235",
++            extract_price_text("1,235"),
++        )
++        self.assertEqual(
++            "35",
++            extract_price_text("35€"),
++        )
++        self.assertEqual(
++            "35",
++            extract_price_text("35\u00A0€"),  # Non-breaking space
++        )
++        self.assertEqual(
++            "35€",
++            extract_price_text("35\u00A0€ 99"),  # Non-breaking space
++        )
++        self.assertEqual(
++            "35€",
++            extract_price_text("\u00A035\u00A0€ 99"),  # Non-breaking space
++        )
++        self.assertEqual(
++            "35",
++            extract_price_text("35\u00A0€ 999"),  # Non-breaking space
++        )

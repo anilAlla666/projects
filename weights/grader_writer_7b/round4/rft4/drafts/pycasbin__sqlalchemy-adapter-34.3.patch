@@ -1,0 +1,25 @@
+--- /dev/null
++++ b/tests/test_adapter_grader.py
+@@ -0,0 +1,22 @@
++from casbin_sqlalchemy_adapter import Adapter
++from casbin_sqlalchemy_adapter import Base
++from casbin_sqlalchemy_adapter import CasbinRule
++from casbin_sqlalchemy_adapter.adapter import Filter
++from sqlalchemy import create_engine
++from sqlalchemy.orm import sessionmaker
++import casbin
++import os
++
++
++def get_fixture(path):
++    dir_path = os.path.split(os.path.realpath(__file__))[0] + "/"
++    return os.path.abspath(dir_path + path)
++
++
++def get_enforcer():
++    engine = create_engine("sqlite://")
++    adapter = Adapter(engine)
++
++    session = sessionmaker(bind=engine)
++    Base.metadata.create_all(engine)
++    return casbin.Enforcer(get_fixture('rbac_model.conf'), adapter)

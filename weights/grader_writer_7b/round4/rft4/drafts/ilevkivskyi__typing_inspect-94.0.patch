@@ -1,0 +1,117 @@
+--- /dev/null
++++ b/test_typing_inspect_grader.py
+@@ -0,0 +1,104 @@
++import sys
++import pytest
++from typing_inspect import (
++    is_generic_type, is_callable_type, is_new_type, is_tuple_type, is_union_type,
++    is_optional_type, is_final_type, is_literal_type, is_typevar, is_classvar,
++    is_forward_ref, get_origin, get_parameters, get_last_args, get_args, get_bound,
++    get_constraints, get_generic_type, get_generic_bases, get_last_origin,
++    typed_dict_keys, get_forward_arg, WITH_FINAL, WITH_LITERAL, LEGACY_TYPING, WITH_NEWTYPE,
++)
++from unittest import TestCase, main, skipIf, skipUnless
++from typing import (
++    Union, Callable, Optional, TypeVar, Sequence, AnyStr, Mapping,
++    MutableMapping, Iterable, Generic, List, Any, Dict, Tuple, NamedTuple,
++)
++from mypy_extensions import TypedDict as METypedDict
++from typing_extensions import TypedDict as TETypedDict
++from typing_extensions import Final
++from typing_extensions import Literal
++from typing_extensions import NewType as NewType_
++
++
++if sys.version_info < (3, 5, 3):
++    WITH_CLASSVAR = False
++    CLASSVAR_GENERIC = []
++    CLASSVAR_TYPEVAR = []
++else:
++    from typing import ClassVar
++    WITH_CLASSVAR = True
++    CLASSVAR_GENERIC = [ClassVar[List[int]], ClassVar]
++    CLASSVAR_TYPEVAR = [ClassVar[int]]
++
++
++if sys.version_info < (3, 5, 3):
++    WITH_CALLABLE = False
++else:
++    from collections.abc import Callable as ABCCallable
++    WITH_CALLABLE = True
++
++
++if sys.version_info >= (3, 7, 2):
++    FROM_COLLECTIONS_ABCS = "collections.abc"
++else:
++    FROM_COLLECTIONS_ABCS = "abc"
++
++
++PY36 = sys.version_info >= (3, 6)
++
++
++PY39 = sys.version_info >= (3, 9)
++
++
++class Other(object):
++    pass
++
++
++T = TypeVar('T')
++
++
++S = TypeVar('S')
++
++
++S_co = TypeVar('S_co', covariant=True)
++
++
++S_contra = TypeVar('S_contra', contravariant=True)
++
++
++class A:
++    def method(self) -> bool: return True
++
++
++B = TypeVar('B', bound=A)
++
++
++C = TypeVar('C', int, str)
++
++
++D = TypeVar('D', int, str)
++
++
++E = TypeVar('E', bound="A")
++
++
++F = TypeVar('F', bound="A")
++
++
++class TD(METypedDict):
++    x: int
++    y: int
++
++
++class TDM(TD):
++    z: str
++
++
++class TDE(TETypedDict):
++    x: int
++    y: int
++
++
++class TestTypingInspect(TestCase):
++    def test_get_parameters(self):
++        T = TypeVar('T')
++        self.assertEqual(get_parameters(Union), ())
++        self.assertEqual(get_parameters(Tuple), ())
++        self.assertEqual(get_parameters(List), (T,))
++        self.assertEqual(get_parameters(Any), ())
++        self.assertEqual(get_parameters(Dict), (T, S))
++        self.assertEqual(get_parameters(MutableMapping), (T, S))
++        self.assertEqual(get_parameters(NamedTuple('NT', [('a', T)])), (T,))
++
++
++if __name__ == '__main__':
++    main()

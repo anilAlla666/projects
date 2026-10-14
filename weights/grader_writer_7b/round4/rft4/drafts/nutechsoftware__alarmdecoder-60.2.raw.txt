@@ -1,0 +1,69 @@
+--- /dev/null
++++ b/test/test_zonetracking_grader.py
+@@ -0,0 +1,55 @@
++from unittest import TestCase
++from mock import Mock, MagicMock
++from alarmdecoder import AlarmDecoder
++from alarmdecoder.panels import ADEMCO
++from alarmdecoder.messages import Message, ExpanderMessage
++from alarmdecoder.zonetracking import Zonetracker, Zone
++
++
++class TestZonetracking(TestCase):
++    def setUp(self):
++        self._alarmdecoder = Mock(spec=AlarmDecoder)
++
++        self._alarmdecoder.mode = ADEMCO
++        self._zonetracker = Zonetracker(self._alarmdecoder)
++
++        self._zonetracker.on_fault += self.fault_event
++        self._zonetracker.on_restore += self.restore_event
++
++        self._faulted = False
++        self._restored = False
++
++    def tearDown(self):
++        pass
++
++    ### Library events
++    def fault_event(self, sender, *args, **kwargs):
++        self._faulted = True
++
++    def restore_event(self, sender, *args, **kwargs):
++        self._restored = True
++
++    ### Util
++    def _build_expander_message(self, msg):
++        msg = ExpanderMessage(msg)
++        zone = self._zonetracker.expander_to_zone(msg.address, msg.channel)
++
++        return zone, msg
++
++    ### Tests
++    def test_comm_failure_handling(self):
++        self.assertEqual(0, len(self._zonetracker._zones))
++        self.assertFalse(self._zonetracker.is_ready())
++
++        msg = Message(
++            '[00000001000000100A--],0bf,[f704009f10bf000208020000000000],"CHECK 103 LngRngRadio       0000"'
++        )
++        self._zonetracker.update(msg)
++
++        self.assertTrue(self._zonetracker.is_ready())
++        self.assertEqual(0, len(self._zonetracker._zones))
++        self.assertEqual([], self._zonetracker._zones_faulted)
++        self.assertEqual(0, self._zonetracker._last_zone_fault)
++
++    def test_comm_failure_with_no_status_resetting(self):
++        self.assertEqual(0, len(self._zonetracker._zones))
++        self.assertFalse(self._zonetracker.is_ready())
++
++        msg = Message(
++            '[00000001000000100A--],0bf,[f704009f10bf000208020000000000],"CHECK 103 LngRngRadio       0000"'
++        )
++        self._zonetracker.update(msg)
++
++        self.assertTrue(self._zonetracker.is_ready())
++        self.assertEqual(0, len(self._zonetracker._zones))
++        self.assertEqual([], self._zonetracker._zones_faulted)
++        self.assertEqual(0, self._zonetracker._last_zone_fault)

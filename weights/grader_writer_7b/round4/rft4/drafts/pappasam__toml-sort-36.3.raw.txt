@@ -1,0 +1,24 @@
+--- /dev/null
++++ b/tests/test_toml_sort_grader.py
+@@ -0,0 +1,22 @@
++"""Test the toml_sort module."""
++
++
++from __future__ import annotations
++from pathlib import Path
++from typing import Any, Callable, Dict, List
++import pytest
++from toml_sort import TomlSort
++from toml_sort.tomlsort import (
++    CommentConfiguration,
++    FormattingConfiguration,
++    SortConfiguration,
++)
++
++
++def test_empty_array(get_fixture: Callable[[str], Path]) -> None:
++    """Empty arrays should be correctly sorted"""
++    unsorted = get_fixture("empty-array")
++    expected = unsorted.read_text()
++
++    assert TomlSort(unsorted.read_text()).sorted() == expected

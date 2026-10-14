@@ -1,0 +1,141 @@
+--- /dev/null
++++ b/tests/backends/test_object_grader.py
+@@ -0,0 +1,63 @@
++from __future__ import annotations
++import numpy
++import pytest
++import vector
++
++
++def test_array_casting():
++    obj = vector.obj(x=1, y=1)
++    assert isinstance(obj, vector.VectorObject2D)
++    assert isinstance(numpy.asanyarray(obj), vector.VectorNumpy2D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    obj = vector.obj(px=1, py=1)
++    assert isinstance(obj, vector.MomentumObject2D)
++    assert isinstance(numpy.asanyarray(obj), vector.MomentumNumpy2D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    obj = vector.obj(x=1, y=1, z=1)
++    assert isinstance(obj, vector.VectorObject3D)
++    assert isinstance(numpy.asanyarray(obj), vector.VectorNumpy3D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    obj = vector.obj(px=1, py=1, pz=1)
++    assert isinstance(obj, vector.MomentumObject3D)
++    assert isinstance(numpy.asanyarray(obj), vector.MomentumNumpy3D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    obj = vector.obj(x=1, y=1, z=1, t=1)
++    assert isinstance(obj, vector.VectorObject4D)
++    assert isinstance(numpy.asanyarray(obj), vector.VectorNumpy4D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    obj = vector.obj(px=1, py=1, pz=1, E=1)
++    assert isinstance(obj, vector.MomentumObject4D)
++    assert isinstance(numpy.asanyarray(obj), vector.MomentumNumpy4D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    with pytest.raises(TypeError):
++        vector.obj(x=1, y=[1, 2])
++
++    with pytest.raises(TypeError):
++        vector.obj(x=1, y=complex(1, 2))
++
++    with pytest.raises(TypeError):
++        vector.obj(x=1, y=False)
++
++    with pytest.raises(TypeError):
++        vector.obj(x=numpy.array([1]), y=2)
++
++    with pytest.raises(TypeError):
++        vector.obj(x=1, y=numpy.array([2]))
++
++    with pytest.raises(TypeError):
++        vector.obj(x=numpy.array([[1]]), y=2)
++
++    with pytest.raises(TypeError):
++        vector.obj(x=1, y=numpy.array([[2]]))
++
++    with pytest.raises(ValueError):
++        vector.obj(x=numpy.array([[1], [2]]), y=numpy.array([[3], [4]]))
+--- /dev/null
++++ b/tests/backends/test_numba_object_grader.py
+@@ -0,0 +1,74 @@
++from __future__ import annotations
++import sys
++import numpy
++import pytest
++import vector
++import vector.backends.object
++
++
++numba = pytest.importorskip("numba")
++
++
++import vector.backends._numba_object  # noqa: E402
++
++
++pytestmark = pytest.mark.numba
++
++
++def test_power_of_vector():
++    # @numba.njit
++    def get_pow_vec(vec, exponent):
++        return vec**exponent
++
++    # @numba.njit
++    def get_pow_vec_obj(vec, exponent):
++        return vec**exponent
++
++    # @numba.njit
++    def get_pow_vec_num(vec, exponent):
++        return vec**exponent
++
++    # @numba.njit
++    def get_pow_vec_obj_num(vec, exponent):
++        return vec**exponent
++
++    vec = vector.obj(x=1, y=2, z=3, t=4)
++
++    out = get_pow_vec(vec, 2)
++    assert isinstance(out, vector.backends.object.ScalarObject)
++    assert out.value == pytest.approx(29)
++
++    out = get_pow_vec_obj(vec, 2)
++    assert isinstance(out, vector.backends.object.ScalarObject)
++    assert out.value == pytest.approx(29)
++
++    out = get_pow_vec_num(vec, 2)
++    assert isinstance(out, vector.backends.object.ScalarObject)
++    assert out.value == pytest.approx(29)
++
++    out = get_pow_vec_obj_num(vec, 2)
++    assert isinstance(out, vector.backends.object.ScalarObject)
++    assert out.value == pytest.approx(29)
++
++    out = get_pow_vec(vec, 0.5)
++    assert isinstance(out, vector.backends.object.ScalarObject)
++    assert out.value == pytest.approx(2.1213203435596424)
++
++    out = get_pow_vec_obj(vec, 0.5)
++    assert isinstance(out, vector.backends.object.ScalarObject)
++    assert out.value == pytest.approx(2.1213203435596424)
++
++    out = get_pow_vec_num(vec, 0.5)
++    assert isinstance(out, vector.backends.object.ScalarObject)
++    assert out.value == pytest.approx(2.1213203435596424)
++
++    out = get_pow_vec_obj_num(vec, 0.5)
++    assert isinstance(out, vector.backends.object.ScalarObject)
++    assert out.value == pytest.approx(2.1213203435596424)
++
++    out = get_pow_vec(vec, 2j)
++    assert isinstance(out, vector.backends.object.ScalarObject)
++    assert out.value == pytest.approx(2j)
++
++    out = get_pow_vec_obj(vec, 2j)
++    assert isinstance(out, vector.backends.object.ScalarObject)
++    assert out.value == pytest.approx(2j)

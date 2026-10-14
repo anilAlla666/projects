@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/test_elasticsearch/test_client_utils_bytes.py
+@@ -0,0 +1,50 @@
++# -*- coding: utf-8 -*-
++from __future__ import unicode_literals
++
++from elasticsearch.client.utils import _escape, _make_path
++
++from .test_cases import TestCase
++
++
++class TestEscapeBytes(TestCase):
++    def test_escape_bytes_does_not_raise(self):
++        self.assertEqual(
++            b'celery-task-meta-c4f1201f',
++            _escape(b'celery-task-meta-c4f1201f'))
++
++    def test_escape_non_ascii_bytes_unchanged(self):
++        self.assertEqual(b'\xc3\xa9', _escape(b'\xc3\xa9'))
++
++    def test_escape_text_still_encoded(self):
++        self.assertEqual('abc'.encode('utf-8'), _escape('abc'))
++        self.assertEqual('é'.encode('utf-8'), _escape('é'))
++
++    def test_escape_list_and_bool_and_int(self):
++        self.assertEqual(b'a,b', _escape(['a', 'b']).encode('utf-8')
++                         if not isinstance(_escape(['a', 'b']), bytes)
++                         else _escape(['a', 'b']))
++        self.assertEqual('true', _escape(True))
++        self.assertEqual('1', _escape(1))
++
++
++class TestMakePathBytes(TestCase):
++    def test_make_path_with_bytes_parts(self):
++        self.assertEqual('/index/type/1',
++                         _make_path(b'index', b'type', 1))
++
++    def test_make_path_with_bytes_id_from_issue(self):
++        self.assertEqual(
++            '/index/doc/celery-task-meta-c4f1201f-eb7b-41d5-9318-a75a8cfbdaa0',
++            _make_path('index', 'doc',
++                       b'celery-task-meta-c4f1201f-eb7b-41d5-9318-a75a8cfbdaa0'))
++
++    def test_make_path_bytes_and_text_equal(self):
++        self.assertEqual(_make_path('idx', 'doc', 'abc'),
++                         _make_path(b'idx', b'doc', b'abc'))
++
++    def test_make_path_non_ascii_bytes(self):
++        self.assertEqual(_make_path('idx', 'é'),
++                         _make_path('idx', 'é'.encode('utf-8')))
++
++    def test_make_path_text_unchanged(self):
++        self.assertEqual('/i/%C3%A9', _make_path('i', 'é'))

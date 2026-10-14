@@ -1,0 +1,141 @@
+--- /dev/null
++++ b/pydicom/tests/test_charset_grader.py
+@@ -0,0 +1,129 @@
++"""Unit tests for the pydicom.charset module."""
++
++
++import pytest
++import pydicom.charset
++from pydicom import dcmread, config
++from pydicom.data import get_charset_files, get_testdata_file
++from pydicom.dataelem import DataElement
++from pydicom.filebase import DicomBytesIO
++from pydicom.valuerep import PersonName
++
++
++FILE_PATIENT_NAMES = [
++    ('chrArab', 'قباني^لنزار'),
++    ('chrFren', 'Buc^Jérôme'),
++    ('chrFrenMulti', 'Buc^Jérôme'),
++    ('chrGerm', 'Äneas^Rüdiger'),
++    ('chrGreek', 'Διονυσιος'),
++    ('chrH31', 'Yamada^Tarou=山田^太郎=やまだ^たろう'),
++    ('chrH32', 'ﾔﾏﾀﾞ^ﾀﾛｳ=山田^太郎=やまだ^たろう'),
++    ('chrHbrw', 'שרון^דבורה'),
++    ('chrI2', 'Hong^Gildong=洪^吉洞=홍^길동'),
++    ('chrJapMulti', 'やまだ^たろう'),
++    ('chrJapMultiExplicitIR6', 'やまだ^たろう'),
++    ('chrKoreanMulti', '김희중'),
++    ('chrRuss', 'Люкceмбypг'),
++    ('chrX1', 'Wang^XiaoDong=王^小東'),
++    ('chrX2', 'Wang^XiaoDong=王^小东'),
++]
++
++
++ENCODED_NAMES = [
++    ('ISO 2022 IR 13', 'ﾔﾏﾀﾞ^ﾀﾛｳ',
++     b'\x1b\x29\x49\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3'),
++    ('ISO 2022 IR 13', 'YAMADA^TAROU',
++     b'\x1b\x29\x49\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3'),
++    ('ISO 2022 IR 13', 'yamada^tarou',
++     b'\x1b\x29\x49\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3'),
++    ('ISO 2022 IR 14', 'ﾔﾏﾀﾞ^ﾀﾛｳ',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 14', 'YAMADA^TAROU',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 14', 'yamada^tarou',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 15', 'ﾔﾏﾀﾞ^ﾀﾛｳ',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 15', 'YAMADA^TAROU',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 15', 'yamada^tarou',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 16', 'ﾔﾏﾀﾞ^ﾀﾛｳ',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 16', 'YAMADA^TAROU',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 16', 'yamada^tarou',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 16E', 'ﾔﾏﾀﾞ^ﾀﾛｳ',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 16E', 'YAMADA^TAROU',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 16E', 'yamada^tarou',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17', 'ﾔﾏﾀﾞ^ﾀﾛｳ',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17', 'YAMADA^TAROU',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17', 'yamada^tarou',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17A', 'ﾔﾏﾀﾞ^ﾀﾛｳ',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17A', 'YAMADA^TAROU',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17A', 'yamada^tarou',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17B', 'ﾔﾏﾀﾞ^ﾀﾛｳ',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17B', 'YAMADA^TAROU',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17B', 'yamada^tarou',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17C', 'ﾔﾏﾀﾞ^ﾀﾛｳ',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17C', 'YAMADA^TAROU',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17C', 'yamada^tarou',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17D', 'ﾔﾏﾀﾞ^ﾀﾛｳ',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17D', 'YAMADA^TAROU',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++    ('ISO 2022 IR 17D', 'yamada^tarou',
++     b'\x1b\x24\x42\xd4\xcf\xc0\xde\x5e\xc0\xdb\xb3\x1b\x28\x42'),
++]
++
++
++@pytest.mark.parametrize("file_name,expected",
++                         FILE_PATIENT_NAMES,
++                         ids=[fn[0] for fn in FILE_PATIENT_NAMES])
++def test_read_specific_char_set_from_file(file_name, expected):
++    """Test read SpecificCharacterSet from file."""
++    ds = dcmread(get_charset_files(file_name)[0], force=True)
++    charsets = ds.SpecificCharacterSet
++    assert isinstance(charsets, list)
++    assert expected == ds.PatientName
++
++
++class TestCharset:
++    """Run various tests related to charset handling."""
++
++    @staticmethod
++    def setup_class():
++        """Create temporary dicom files for use in tests"""
++        config.datetime_conversion = True
++        config.allow_DS_float = True
++        config.use_none_as_empty_text_VR_value = True
++
++    @staticmethod
++    def teardown_class():
++        """Remove the temp files"""
++        config.datetime_conversion = False
++        config.allow_DS_float = False
++        config.use_none_as_empty_text_VR_value = False
++
++    def test_convert_empty_char_set(self):
++        """Test conversion of empty char set."""
++        assert ["iso8859"] == pydicom.charset.convert_encodings("")
++
++    def test_convert_non_str_char_set(self):
++        """Test conversion of non-string char set."""
++        assert ["iso8859"] == pydicom.charset.convert_encodings(None)
++
++    def test_convert_list_of_strings_char_set(self):
++        """Test conversion of list of strings char set."""
++        assert ["iso8859"] == pydicom.charset.convert_encodings([])
++
++    def test_convert_single_str_char_set(self):
++        """Test conversion of single string char set."""
++        assert ["iso8859"] == pydicom.charset.convert_encodings("")

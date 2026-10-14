@@ -1,0 +1,106 @@
+--- /dev/null
++++ b/tests/test_client_grader.py
+@@ -0,0 +1,101 @@
++import re
++import json
++from six.moves.urllib.parse import parse_qs
++import pytest
++from urlobject import URLObject
++import responses
++from nylas.client import APIClient
++from nylas.client.errors import APIClientError
++from nylas.client.restful_models import Contact
++
++
++def urls_equal(url1, url2):
++    """
++    Compare two URLObjects, without regard to the order of their query strings.
++    """
++    return (
++        url1.without_query() == url2.without_query() and
++        url1.query_dict == url2.query_dict
++    )
++
++
++@pytest.fixture
++def api_client():
++    return APIClient(
++        client_id="fake-client-id",
++        client_secret="fake-client-secret",
++        access_token="fake-access-token",
++    )
++
++
++@pytest.fixture
++def api_url():
++    return "https://api.nylas.com"
++
++
++@pytest.fixture
++def mocked_responses():
++    with responses.RequestsMock() as rsps:
++        yield rsps
++
++
++def test_create_resources(mocked_responses, api_client, api_url):
++    contacts_data = [
++        {
++            "id": 1,
++            "name": "first",
++            "email": "first@example.com",
++        }, {
++            "id": 2,
++            "name": "second",
++            "email": "second@example.com",
++        }
++    ]
++    mocked_responses.add(
++        responses.POST,
++        api_url + "/contacts/",
++        content_type='application/json',
++        status=201,
++        body=json.dumps(contacts_data),
++    )
++
++    post_data = list(contacts_data) # make a copy
++    for contact in post_data:
++        del contact["id"]
++
++    contacts = api_client._create_resources(Contact, post_data)
++    assert len(contacts) == 2
++    assert all(isinstance(contact, Contact) for contact in contacts)
++    assert len(mocked_responses.calls) == 1
++
++
++def test_call_resource_method(mocked_responses, api_client, api_url):
++    contact_data = {
++        "id": 1,
++        "name": "first",
++        "email": "first@example.com",
++    }
++    mocked_responses.add(
++        responses.POST,
++        api_url + "/contacts/1/remove_duplicates",
++        content_type='application/json',
++        status=200,
++        body=json.dumps(contact_data),
++    )
++
++    contact = api_client._call_resource_method(
++        Contact, 1, "remove_duplicates", {}
++    )
++    assert isinstance(contact, Contact)
++    assert len(mocked_responses.calls) == 1
++
++
++def test_delete_resource(mocked_responses, api_client, api_url):
++    mocked_responses.add(
++        responses.DELETE,
++        api_url + "/contacts/1",
++        content_type='application/json',
++        status=204,
++        body=""
++    )
++
++    api_client._delete_resource(Contact, 1)
++    assert len(mocked_responses.calls) == 1

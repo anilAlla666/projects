@@ -1,0 +1,31 @@
+--- /dev/null
++++ b/tests/unit/test_us_street_analysis_grader.py
+@@ -0,0 +1,27 @@
++import pytest
++from smartystreets_python_sdk.us_street import Analysis
++
++
++def test_analysis_has_dpv_no_stat():
++    input_data = {
++        'dpv_no_stat': 'Y',
++    }
++    analysis = Analysis(input_data)
++    assert analysis.dpv_no_stat == True
++
++
++@pytest.mark.parametrize(
++    "input_value",
++    [
++        "N",
++        "X",
++        "Z",
++        "None",
++        None,
++    ],
++)
++def test_analysis_has_dpv_no_stat_false_when_not_y(input_value):
++    input_data = {
++        'dpv_no_stat': input_value,
++    }
++    analysis = Analysis(input_data)
++    assert analysis.dpv_no_stat == False

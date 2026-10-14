@@ -1,0 +1,27 @@
+diff --git a/linebot/models/flex_message.py b/linebot/models/flex_message.py
+index 9e9b1f9..b0a2c3d 100644
+--- a/linebot/models/flex_message.py
++++ b/linebot/models/flex_message.py
+@@ -111,7 +111,7 @@ class BubbleContainer(FlexContainer):
+                 :param body: Body block
+                 :type body: :py:class:`linebot.models.flex_message.BoxComponent`
+                 :param footer: Footer block
+-                :type footer: :py:class:`linebot.models.flex_message.BoxComponent`
++                :type footer: :py:class:`linebot.models.flex_message.BaseComponent`
+                 :param styles: Style of each block
+                 :type styles: :py:class:`linebot.models.flex_message.BubbleStyle`
+                 :param action: Action performed when this button is tapped
+@@ -119,7 +119,7 @@ class BubbleContainer(FlexContainer):
+                 :param kwargs:
+                 """
+                 super(BubbleContainer, self).__init__(**kwargs)
+-                self.type = 'bubble'
++                self.type = 'bubble'
+                 self.size = size
+                 self.direction = direction
+                 self.header = self.get_or_new_from_json_dict(header, BoxComponent)
+-                self.hero = self.get_or_new_from_json_dict(hero, ImageComponent)
++                self.hero = self.get_or_new_from_json_dict(hero, BaseComponent)
+                 self.body = self.get_or_new_from_json_dict(body, BoxComponent)
+                 self.footer = self.get_or_new_from_json_dict(footer, BaseComponent)
+                 self.styles = self.get_or_new_from_json_dict(styles, BubbleStyle)

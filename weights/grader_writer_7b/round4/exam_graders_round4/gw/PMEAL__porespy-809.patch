@@ -1,0 +1,92 @@
+--- /dev/null
++++ b/test/unit/test_snow2_grader.py
+@@ -0,0 +1,101 @@
++import pytest
++import numpy as np
++from scipy import stats as spst
++import scipy.ndimage as spim
++import porespy as ps
++import openpnm as op
++from edt import edt
++
++
++ws = op.Workspace()
++
++
++ws.settings['loglevel'] = 50
++
++
++ps.settings.tqdm['disable'] = True
++
++
++class Snow2Test:
++    def setup_class(self):
++        self.spheres3D = ~ps.generators.lattice_spheres(shape=[110, 110, 110],
++                                                        r=15, spacing=27,
++                                                        offset=20)
++        self.spheres2D = ~ps.generators.lattice_spheres(shape=[500, 500], r=30,
++                                                        spacing=56, offset=25)
++
++    def test_two_phases_and_boundary_nodes(self):
++        np.random.seed(0)
++        im1 = ps.generators.blobs(shape=[600, 400],
++                                  porosity=None, blobiness=1) < 0.4
++        im2 = ps.generators.blobs(shape=[600, 400],
++                                  porosity=None, blobiness=1) < 0.7
++        phases = im1 + (im2 * ~im1)*2
++        # phases = phases > 0
++
++        snow_n = ps.networks.snow2(phases,
++                                   phase_alias={1: 'solid',
++                                                2: 'void'},
++                                   boundary_width=5,
++                                   accuracy='high',
++                                   parallelization=None)
++
++        assert snow_n.regions.max() == 210
++        # remove all but 1 pixel-width of boundary regions
++        temp = ps.tools.extract_subsection(
++            im=snow_n.regions,
++            shape=np.array(snow_n.regions.shape)-8)
++        assert temp.max() == 210
++        # remove complete boundary region
++        temp = ps.tools.extract_subsection(
++            im=snow_n.regions,
++            shape=np.array(snow_n.regions.shape)-10)
++        assert temp.max() == 163
++
++    def test_boundary_width_list_of_lists(self):
++        np.random.seed(0)
++        im = ps.generators.blobs(shape=[200, 200], porosity=0.7, blobiness=1.5)
++        snow1 = ps.networks.snow2(im, sigma=0.4, r_max=5, boundary_width=0)
++        assert snow1.regions.max() == 97
++        dt1 = edt(im)
++        dt2 = spim.gaussian_filter(dt1, sigma=0.4)*im
++        pk = ps.filters.find_peaks(dt2, r_max=5)
++        pk = ps.filters.trim_saddle_points(peaks=pk, dt=dt1)
++        pk = ps.filters.trim_nearby_peaks(peaks=pk, dt=dt1)
++        snow2 = ps.networks.snow2(im, boundary_width=[[5, 15], [10, 10]], peaks=pk)
++        assert snow2.regions.max() == 97
++
++    def test_boundary_width_list_of_scalars(self):
++        np.random.seed(0)
++        im = ps.generators.blobs(shape=[200, 200], porosity=0.7, blobiness=1.5)
++        snow1 = ps.networks.snow2(im, sigma=0.4, r_max=5, boundary_width=0)
++        assert snow1.regions.max() == 97
++        dt1 = edt(im)
++        dt2 = spim.gaussian_filter(dt1, sigma=0.4)*im
++        pk = ps.filters.find_peaks(dt2, r_max=5)
++        pk = ps.filters.trim_saddle_points(peaks=pk, dt=dt1)
++        pk = ps.filters.trim_nearby_peaks(peaks=pk, dt=dt1)
++        snow2 = ps.networks.snow2(im, boundary_width=[5, 10], peaks=pk)
++        assert snow2.regions.max() == 97
++
++
++if __name__ == '__main__':
++    t = Snow2Test()
++    self = t
++    t.setup_class()
++    for item in t.__dir__():
++        if item.startswith('test'):
++            print(f'Running test: {item}')
++            t.__getattribute__(item)()

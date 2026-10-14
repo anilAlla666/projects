@@ -1,0 +1,60 @@
+--- /dev/null
++++ b/tests/admin/test_group_users.py
+@@ -0,0 +1,57 @@
++from .. import util
++from .base import TestAdmin
++
++
++class TestGroupUsers(TestAdmin):
++    def test_get_group_users_iterator(self):
++        response = self.client_list.get_group_users_iterator('ABC123')
++        response = next(iter(response))
++        self.assertEqual(response['method'], 'GET')
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/ABC123/users')
++        self.assertEqual(
++            util.params_to_dict(args),
++            {
++                'account_id': [self.client.account_id],
++                'limit': ['100'],
++                'offset': ['0'],
++            })
++
++    def test_get_group_users_no_limit_uses_paging(self):
++        response = self.client_list.get_group_users('ABC123')
++        self.assertIsInstance(response, list)
++        response = response[0]
++        self.assertEqual(response['method'], 'GET')
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/ABC123/users')
++        self.assertEqual(
++            util.params_to_dict(args),
++            {
++                'account_id': [self.client.account_id],
++                'limit': ['100'],
++                'offset': ['0'],
++            })
++
++    def test_get_group_users_with_limit_offset(self):
++        response = self.client_list.get_group_users(
++            'ABC123', limit=20, offset=2)
++        response = response[0]
++        self.assertEqual(response['method'], 'GET')
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/ABC123/users')
++        self.assertEqual(
++            util.params_to_dict(args),
++            {
++                'account_id': [self.client.account_id],
++                'limit': ['20'],
++                'offset': ['2'],
++            })
++
++    def test_get_group_users_with_limit(self):
++        response = self.client_list.get_group_users('ABC123', limit=20)
++        response = response[0]
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v2/groups/ABC123/users')
++        params = util.params_to_dict(args)
++        self.assertEqual(params['limit'], ['20'])
++        self.assertEqual(params['offset'], ['0'])

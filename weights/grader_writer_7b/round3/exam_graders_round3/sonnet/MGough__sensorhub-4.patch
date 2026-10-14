@@ -1,0 +1,31 @@
+--- /dev/null
++++ b/test/test_hub_constructor.py
+@@ -0,0 +1,28 @@
++from unittest.mock import Mock, patch
++
++from smbus2 import SMBus
++
++from sensorhub.hub import SensorHub
++
++
++def test_hub_can_be_constructed_without_arguments():
++    with patch("sensorhub.hub.SMBus") as smbus_class:
++        bus_instance = smbus_class.return_value
++        bus_instance.read_byte_data.side_effect = [0, 25]
++
++        hub = SensorHub()
++
++        assert hub.get_off_board_temperature() == 25
++        smbus_class.assert_called_once()
++        assert bus_instance.read_byte_data.call_count == 2
++
++
++def test_hub_uses_provided_bus_without_creating_a_new_one():
++    bus = Mock(SMBus)
++    bus.read_byte_data.side_effect = [0, 30]
++
++    with patch("sensorhub.hub.SMBus") as smbus_class:
++        hub = SensorHub(bus)
++        assert hub.get_off_board_temperature() == 30
++
++    smbus_class.assert_not_called()

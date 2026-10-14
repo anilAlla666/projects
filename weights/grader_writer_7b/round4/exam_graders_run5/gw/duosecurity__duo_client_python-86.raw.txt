@@ -1,0 +1,160 @@
+--- /dev/null
++++ b/tests/admin/test_admins_grader.py
+@@ -0,0 +1,24 @@
++from .. import util
++import duo_client.admin
++from .base import TestAdmin
++
++
++class TestAdmins(TestAdmin):
++    # Uses underlying paging
++    def test_get_admins_iterator(self):
++        response = self.client_list.get_admins_iterator()
++        response = next(response)
++        self.assertEqual(response['method'], 'GET')
++        (uri, args) = response['uri'].split('?')
++        self.assertEqual(uri, '/admin/v1/admins')
++        self.assertEqual(
++            util.params_to_dict(args),
++            {
++                'account_id': [self.client.account_id],
++                'limit': ['100'],
++                'offset': ['0'],
++            })
++
++    def test_get_admins_with_offset(self):
++        response = self.client_list.get_admins(offset=9001)
++        response = response[0]
++        self.assertEqual(response['method'], 'GET')
+--- /dev/null
++++ b/tests/admin/test_administrative_units_grader.py
+@@ -0,0 +1,24 @@
++from .. import util
++from .base import TestAdmin
++
++
++class TestAdminUnits(TestAdmin):
++    # Uses underlying paging
++    def test_get_administrative_units_iterator(self):
++        expected_path = '/admin/v1/administrative_units'
++        expected_method = 'GET'
++
++        tests = [
++            {
++                'admin_id': 'aaaa',
++                'group_id': '1234',
++                'integration_key': 'aaaaaaaaaaaaaaaaaaaa',
++            },
++            {
++                'admin_id': 'aaaa',
++                'group_id': '1234',
++            },
++            {
++                'admin_id': 'aaaa',
++            },
++            {}
++        ]
++
++        for test in tests:
++            response = (
++                self.client_list.get_administrative_units_iterator(**test)
++            )
++            response = next(response)
++            self.assertEqual(response['method'], expected_method)
+--- /dev/null
++++ b/tests/admin/test_groups_grader.py
+@@ -0,0 +1,24 @@
++from .. import util
++from .base import TestAdmin
++
++
++class TestGroups(TestAdmin):
++    # Uses underlying paging
++    def test_get_group_users_iterator(self):
++        expected_path = '/admin/v2/groups/{group_id}/users'
++        expected_method = 'GET'
++
++        tests = [
++            {
++                'group_id': 'aaaa',
++                'limit': 100,
++                'offset': 0,
++            },
++            {
++                'group_id': 'aaaa',
++            },
++            {}
++        ]
++
++        for test in tests:
++            response = (
++                self.client_list.get_group_users_iterator(**test)
++            )
++            response = next(response)
++            self.assertEqual(response['method'], expected_method)
+--- /dev/null
++++ b/tests/admin/test_memberships_grader.py
+@@ -0,0 +1,24 @@
++from .. import util
++from .base import TestAdmin
++
++
++class TestMemberships(TestAdmin):
++    # Uses underlying paging
++    def test_get_memberships_iterator(self):
++        expected_path = '/admin/v1/memberships'
++        expected_method = 'GET'
++
++        tests = [
++            {
++                'user_id': 'aaaa',
++                'group_id': 'bbbb',
++                'limit': 100,
++                'offset': 0,
++            },
++            {
++                'user_id': 'aaaa',
++            },
++            {
++                'group_id': 'bbbb',
++            },
++            {}
++        ]
++
++        for test in tests:
++            response = (
++                self.client_list.get_memberships_iterator(**test)
++            )
++            response = next(response)
++            self.assertEqual(response['method'], expected_method)
+--- /dev/null
++++ b/tests/admin/test_users_grader.py
+@@ -0,0 +1,24 @@
++from .. import util
++from .base import TestAdmin
++
++
++class TestUsers(TestAdmin):
++    # Uses underlying paging
++    def test_get_user_groups_iterator(self):
++        expected_path = '/admin/v1/users/{user_id}/groups'
++        expected_method = 'GET'
++
++        tests = [
++            {
++                'user_id': 'aaaa',
++                'limit': 100,
++                'offset': 0,
++            },
++            {
++                'user_id': 'aaaa',
++            },
++            {}
++        ]
++
++        for test in tests:
++            response = (
++                self.client_list.get_user_groups_iterator(**test)
++            )
++            response = next(response)
++            self.assertEqual(response['method'], expected_method)

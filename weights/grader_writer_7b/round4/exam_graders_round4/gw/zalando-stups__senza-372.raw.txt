@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/test_aws_grader.py
+@@ -0,0 +1,26 @@
++from unittest.mock import MagicMock
++from senza.aws import (get_security_group, resolve_security_groups,
++                       get_account_id, get_account_alias, list_kms_keys,
++                       encrypt, get_vpc_attribute, resolve_referenced_resource,
++                       parse_time, get_required_capabilities, StackReference,
++                       resolve_topic_arn, matches_any, get_tag)
++
++
++def test_get_security_group(monkeypatch):
++    ec2 = MagicMock()
++    monkeypatch.setattr('boto3.resource', MagicMock(return_value=ec2))
++
++    results = None
++    assert results == get_security_group('myregion', 'group_inexistant')
++
++    ec2.security_groups.filter = MagicMock(side_effect=[
++        [MagicMock(Name='app-test', Id='sg-test')],
++        [MagicMock(Name='physical-resource-id', Id='sg-resource')]])
++
++    assert 'sg-test' == get_security_group('myregion', 'app-test')
++    assert 'sg-resource' == get_security_group('myregion', 'physical-resource-id')
++
++
++def test_get_tag():
++    tags = [{'Key': 'aws:cloudformation:stack-id',
++             'Value': 'arn:aws:cf:eu-west-1:123:stack/test'},
++            {'Key': 'Name',
++             'Value': 'test-123'},
++            {'Key': 'StackVersion',
++             'Value': '123'}]
++
++    assert get_tag(tags, 'StackVersion') == '123'

@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/tests/test_convert_to_dlf_test_grader.py
+@@ -0,0 +1,30 @@
++from ruamel.yaml import YAML
++from exchange_metadata_converter import convert_to_dlf
++
++
++yaml = YAML(typ="safe")
++
++
++def test_name_conversion():
++    """
++    Verify that we can handle non-DNS compliant names.
++    """
++    input_yaml_str = """---
++metadata:
++  name: Finance Proposition Bank
++"""
++    expected_output_yaml_str = """---
++metadata:
++  name: finance-proposition-bank
++"""
++
++    input_yaml = yaml.load(input_yaml_str)
++    output_yaml = convert_to_dlf.convert_dataset(input_yaml)
++
++    actual_output_yaml_str = yaml.dump(output_yaml)
++
++    assert actual_output_yaml_str == expected_output_yaml_str

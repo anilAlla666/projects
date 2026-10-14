@@ -1,0 +1,42 @@
+diff --git a/tests/test_unk_dtype.py b/tests/test_unk_dtype.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_unk_dtype.py
+@@ -0,0 +1,53 @@
++import numpy as np
++import pytest
++
++from reach import Reach
++
++
++def _write_vec(path):
++    path.write_text("3 2\ndog 1.0 2.0\ncat 3.0 4.0\nfish 5.0 6.0\n")
++    return path
++
++
++@pytest.mark.parametrize("dtype", ["float32", "float16"])
++def test_unk_added_preserves_dtype(tmp_path, dtype):
++    path = _write_vec(tmp_path / "vectors.vec")
++    r = Reach.load(str(path), unk_word="<UNK>", desired_dtype=dtype)
++    assert "<UNK>" in r.items
++    assert r.vectors.dtype == np.dtype(dtype)
++    assert r.vectors.shape == (4, 2)
++    # UNK vector is zeros
++    assert np.all(r.vectors[r.items["<UNK>"]] == 0)
++    # other vectors are untouched
++    assert np.allclose(r.vectors[r.items["cat"]], [3.0, 4.0])
++
++
++@pytest.mark.parametrize("dtype", ["float32", "float16"])
++def test_no_unk_preserves_dtype(tmp_path, dtype):
++    path = _write_vec(tmp_path / "vectors.vec")
++    r = Reach.load(str(path), desired_dtype=dtype)
++    assert r.vectors.dtype == np.dtype(dtype)
++
++
++def test_unk_already_present_preserves_dtype(tmp_path):
++    path = tmp_path / "vectors.vec"
++    path.write_text("3 2\ndog 1.0 2.0\n<UNK> 3.0 4.0\nfish 5.0 6.0\n")
++    r = Reach.load(str(path), unk_word="<UNK>", desired_dtype="float32")
++    assert r.vectors.dtype == np.dtype("float32")
++    assert r.vectors.shape == (3, 2)

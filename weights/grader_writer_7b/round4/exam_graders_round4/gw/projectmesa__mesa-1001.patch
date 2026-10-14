@@ -1,0 +1,95 @@
+--- /dev/null
++++ b/tests/test_space_grader.py
+@@ -0,0 +1,110 @@
++import unittest
++import networkx as nx
++import numpy as np
++import pytest
++from mesa.space import ContinuousSpace
++from mesa.space import SingleGrid
++from mesa.space import NetworkGrid
++from tests.test_grid import MockAgent
++
++
++TEST_AGENTS = [(-20, -20), (-20, -20.05), (65, 18)]
++
++
++TEST_AGENTS_GRID = [(1, 1), (10, 0), (10, 10)]
++
++
++TEST_AGENTS_NETWORK_SINGLE = [0, 1, 5]
++
++
++TEST_AGENTS_NETWORK_MULTIPLE = [0, 1, 1]
++
++
++OUTSIDE_POSITIONS = [(70, 10), (30, 20), (100, 10)]
++
++
++REMOVAL_TEST_AGENTS = [
++    (-20, -20),
++    (-20, -20.05),
++    (65, 18),
++    (0, -11),
++    (20, 20),
++    (31, 41),
++    (55, 32),
++]
++
++
++class TestSingleNetworkGrid(NetworkGrid):
++    GRAPH_SIZE = 3
++
++    def __init__(self):
++        G = nx.star_graph(self.GRAPH_SIZE)
++        super().__init__(G)
++        self.agents = []
++        for i in range(self.GRAPH_SIZE):
++            a = MockAgent(i, self)
++            self.add(a, i)
++            self.agents.append(a)
++
++
++class TestMultipleNetworkGrid(NetworkGrid):
++    GRAPH_SIZE = 3
++
++    def __init__(self):
++        G = nx.complete_graph(self.GRAPH_SIZE)
++        super().__init__(G)
++        self.agents = []
++        for i in range(self.GRAPH_SIZE):
++            a = MockAgent(i, self)
++            self.add(a, i)
++            self.agents.append(a)
++
++
++class TestNetworkGrid(unittest.TestCase):
++    def setUp(self):
++        self.single_network_grid = TestSingleNetworkGrid()
++        self.multiple_network_grid = TestMultipleNetworkGrid()
++
++    def test_remove_agent(self):
++        agent_to_remove = self.single_network_grid.agents[0]
++        self.single_network_grid.remove_agent(agent_to_remove)
++        assert agent_to_remove not in self.single_network_grid.G.nodes[0]["agent"]
++        assert agent_to_remove not in self.single_network_grid.agents
++
++        agent_to_remove = self.multiple_network_grid.agents[0]
++        self.multiple_network_grid.remove_agent(agent_to_remove)
++        assert agent_to_remove not in self.multiple_network_grid.G.nodes[0]["agent"]
++        assert agent_to_remove not in self.multiple_network_grid.agents
++
++    def test_remove_agent_not_in_grid(self):
++        agent_to_remove = MockAgent(0, self.single_network_grid)
++        with pytest.raises(ValueError):
++            self.single_network_grid.remove_agent(agent_to_remove)
++
++    def test_remove_agent_invalid_position(self):
++        agent_to_remove = MockAgent(0, self.single_network_grid)
++        self.single_network_grid.add(agent_to_remove, 1)
++        with pytest.raises(ValueError):
++            self.single_network_grid.remove_agent(agent_to_remove, 0)
++
++
++if __name__ == "__main__":
++    unittest.main()

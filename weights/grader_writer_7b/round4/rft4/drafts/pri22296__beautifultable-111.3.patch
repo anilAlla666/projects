@@ -1,0 +1,105 @@
+--- /dev/null
++++ b/tests/test_beautifultable_grader.py
+@@ -0,0 +1,111 @@
++import sys
++import pytest
++from beautifultable import BeautifulTable
++
++
++def check_printing_table_with_columns():
++    tbl = BeautifulTable()
++    tbl.columns.append(["aaa", "bbb", "ccc"], header="One")
++    tbl.columns.append(["ddd", "eee", "fff"], header="Two")
++    tbl.columns.append(["ggg", "hhh", "iii"], header="Three")
++
++    output = [
++        "+-------+-------+-------+",
++        "| One | Two | Three |",
++        "+=======+=======+=======+",
++        "| aaa | ddd | ggg |",
++        "+-------+-------+-------+",
++        "| bbb | eee | hhh |",
++        "+-------+-------+-------+",
++        "| ccc | fff | iii |",
++        "+-------+-------+-------+"
++    ]
++    assert tbl.get_string() == "\n".join(output)
++
++
++def check_printing_table_with_rows():
++    tbl = BeautifulTable()
++    tbl.rows.append(["aaa", "bbb", "ccc"], header="One")
++    tbl.rows.append(["ddd", "eee", "fff"], header="Two")
++    tbl.rows.append(["ggg", "hhh", "iii"], header="Three")
++
++    output = [
++        "+-------+-------+-------+",
++        "| One | Two | Three |",
++        "+=======+=======+=======+",
++        "| aaa | ddd | ggg |",
++        "+-------+-------+-------+",
++        "| bbb | eee | hhh |",
++        "+-------+-------+-------+",
++        "| ccc | fff | iii |",
++        "+-------+-------+-------+"
++    ]
++    assert tbl.get_string() == "\n".join(output)
++
++
++@pytest.mark.parametrize(
++    "method",
++    [
++        "add_row",
++        "add_subheader_row",
++        "add_row_from_list",
++        "add_subheader_row_from_list",
++        "add_row_from_iterable",
++        "add_subheader_row_from_iterable",
++    ],
++)
++def test_append_to_empty_table(method):
++    table = BeautifulTable()
++    getattr(table, method)(["a", "b", "c"])
++
++    assert len(table.columns) == 3
++    assert len(table.rows) == 1
++    assert all(x == ["a", "b", "c"] for x in table.rows[0])
++
++
++def test_append_single_cell():
++    table = BeautifulTable()
++    table.add_row(["a", "b", "c"])
++
++    assert len(table.columns) == 3
++    assert len(table.rows) == 1
++    assert all(x == ["a", "b", "c"] for x in table.rows[0])
++
++    table.add_row(["d", "e", "f"])
++
++    assert len(table.columns) == 3
++    assert len(table.rows) == 2
++    assert all(x == ["a", "b", "c"] for x in table.rows[0])
++    assert all(x == ["d", "e", "f"] for x in table.rows[1])
++
++
++@pytest.mark.parametrize("column", [None, "col"])
++def test_append_empty_table(column):
++    table = BeautifulTable()
++    table.append_column(["a", "b", "c"], header=column)
++
++    assert len(table.columns) == 1
++    assert len(table.rows) == 3
++    assert all(x == ["a"] for x in table.rows[0])
++    assert all(x == ["b"] for x in table.rows[1])
++    assert all(x == ["c"] for x in table.rows[2])
++
++    table.append_column(["d", "e", "f"], header=column)
++
++    assert len(table.columns) == 2
++    assert len(table.rows) == 3
++    assert all(x == ["a"] for x in table.rows[0])
++    assert all(x == ["b"] for x in table.rows[1])
++    assert all(x == ["c"] for x in table.rows[2])
++    assert all(x == ["d"] for x in table.rows[0])
++    assert all(x == ["e"] for x in table.rows[1])
++    assert all(x == ["f"] for x in table.rows[2])

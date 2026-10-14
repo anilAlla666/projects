@@ -1,0 +1,62 @@
+I've added a test file with two tests for the hostname ingress-address case from the issue. I haven't run them against the current code or a fix. They build `ops.model.Network` directly from `network-get` style dicts, so they don't need a fake `network-get` script.
+
+- **Hostname in `ingress-addresses`:** a single AWS ELB hostname must not make `Network` raise, and `ingress_address` and `ingress_addresses` must give back that hostname. It also checks that `bind_address` still resolves to the IP and the egress subnets are unchanged.
+- **Mixed list:** an IP followed by a hostname must keep order, with the IP first.
+
+The tests compare addresses with `str()` rather than a specific type. That way a fix can return a plain string for hostnames, or any object that stringifies to it, without failing the tests.
+
+```diff
+--- /dev/null
++++ b/test/test_network_hostname.py
+@@ -0,0 +1,48 @@
++#!/usr/bin/python3
++# Copyright 2022 Canonical Ltd.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++# http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++import unittest
++
++import ops.model
++
++HOSTNAME = 'acb396cf5563d429f9ebc8aa23ae47ed-1516332866.us-east-1.elb.amazonaws.com'
++
++
++def _info(ingress):
++    return {
++        'bind-addresses': [{
++            'interface-name': 'eth0',
++            'addresses': [{'value': '10.1.0.1', 'cidr': '10.1.0.0/24'}],
++        }],
++        'egress-subnets': ['10.152.183.0/32'],
++        'ingress-addresses': ingress,
++    }
++
++
++class TestNetworkHostnameIngress(unittest.TestCase):
++    def test_hostname_ingress_address(self):
++        net = ops.model.Network(_info([HOSTNAME]))
++        self.assertEqual(len(net.ingress_addresses), 1)
++        self.assertEqual(str(net.ingress_addresses[0]), HOSTNAME)
++        self.assertEqual(str(net.ingress_address), HOSTNAME)
++        self.assertEqual(str(net.bind_address), '10.1.0.1')
++        self.assertEqual([str(s) for s in net.egress_subnets], ['10.152.183.0/32'])
++
++    def test_mixed_ingress_addresses(self):
++        net = ops.model.Network(_info(['192.0.2.1', HOSTNAME]))
++        self.assertEqual([str(a) for a in net.ingress_addresses], ['192.0.2.1', HOSTNAME])
++        self.assertEqual(str(net.ingress_address), '192.0.2.1')
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

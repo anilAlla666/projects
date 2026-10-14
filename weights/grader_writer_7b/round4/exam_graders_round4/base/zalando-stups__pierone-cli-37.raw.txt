@@ -1,0 +1,72 @@
+To address the issue where `pierone` fails with a backtrace when the CVE status is `COULDNT_FIGURE_OUT`, we need to add tests that ensure the application handles this case gracefully without crashing.
+
+Here's a unified diff that adds two new test files:
+
+1. `tests/test_cve_handling.py`: This test will check if the application can handle the `COULDNT_FIGURE_OUT` status without raising an exception.
+2. `tests/test_request_error_handling.py`: This test will simulate a request error and ensure the application handles it correctly.
+
+```diff
+diff --git a/tests/test_cve_handling.py b/tests/test_cve_handling.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_cve_handling.py
+@@ -0,0 +1,35 @@
++import json
++from unittest.mock import MagicMock
++
++from click.testing import CliRunner
++from pierone.cli import cli
++
++
++def test_cve_handling_with_couldnt_figure_out(monkeypatch, tmpdir):
++    response = MagicMock()
++    response.json.return_value = {
++        'Layer': {
++            'Features': [],
++            'Vulnerabilities': [
++                {'Name': 'CVE-2013-5123', 'Severity': 'MEDIUM'}
++            ],
++            'Status': 'COULDNT_FIGURE_OUT'
++        }
++    }
++
++    runner = CliRunner()
++    monkeypatch.setattr('stups_cli.config.load_config', lambda x: {'url': 'foobar', 'clair_url': 'barfoo'})
++    monkeypatch.setattr('zign.api.get_token', MagicMock(return_value='tok123'))
++    monkeypatch.setattr('os.path.expanduser', lambda x: x.replace('~', str(tmpdir)))
++    monkeypatch.setattr('pierone.api.session.get', MagicMock(return_value=response))
++    with runner.isolated_filesystem():
++        result = runner.invoke(cli, ['cves', 'myteam', 'myart', '1.2'], catch_exceptions=False)
++        assert 'CVE-2013-5123' in result.output
++        assert 'COULDNT_FIGURE_OUT' not in result.output
++        assert result.exit_code == 0
++
+diff --git a/tests/test_request_error_handling.py b/tests/test_request_error_handling.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_request_error_handling.py
+@@ -0,0 +1,35 @@
++import json
++from unittest.mock import MagicMock
++
++from click.testing import CliRunner
++from pierone.cli import cli
++
++
++def test_request_error_handling(monkeypatch, tmpdir):
++    response = MagicMock()
++    response.raise_for_status.side_effect = Exception('Request failed')
++
++    runner = CliRunner()
++    monkeypatch.setattr('stups_cli.config.load_config', lambda x: {'url': 'foobar', 'clair_url': 'barfoo'})
++    monkeypatch.setattr('zign.api.get_token', MagicMock(return_value='tok123'))
++    monkeypatch.setattr('os.path.expanduser', lambda x: x.replace('~', str(tmpdir)))
++    monkeypatch.setattr('pierone.api.session.get', MagicMock(return_value=response))
++    with runner.isolated_filesystem():
++        result = runner.invoke(cli, ['cves', 'myteam', 'myart', '1.2'], catch_exceptions=False)
++        assert 'Request failed' in result.output
++        assert result.exit_code != 0
++
+```
+
+These tests will help ensure that the application can handle both the `COULDNT_FIGURE_OUT` status and request errors gracefully, preventing the application from crashing.

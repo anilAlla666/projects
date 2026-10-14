@@ -1,0 +1,146 @@
+--- /dev/null
++++ b/grafanalib/tests/test_core_grader.py
+@@ -0,0 +1,104 @@
++"""Tests for core."""
++
++
++import random
++import grafanalib.core as G
++import pytest
++
++
++def dummy_grid_pos() -> G.GridPos:
++    return G.GridPos(h=1, w=2, x=3, y=4)
++
++
++def dummy_data_link() -> G.DataLink:
++    return G.DataLink(
++        title='dummy title',
++        linkUrl='https://www.dummy-link-url.com',
++        isNewTab=True
++    )
++
++
++def dummy_evaluator() -> G.Evaluator:
++    return G.Evaluator(
++        type=G.EVAL_GT,
++        params=42
++    )
++
++
++def dummy_alert_condition() -> G.AlertCondition:
++    return G.AlertCondition(
++        target=G.Target(
++            refId="A",
++        ),
++        evaluator=dummy_evaluator(),
++        timeRange=G.TimeRange(
++            from_time='5m',
++            to_time='now'
++        ),
++        operator=G.OP_AND,
++        reducerType=G.RTYPE_AVG,
++        type=G.CTYPE_QUERY
++    )
++
++
++def dummy_alert_rule() -> G.AlertRule:
++    return G.AlertRule(
++        title="my rule",
++        message="my message",
++        conditions=[
++            dummy_alert_condition()
++        ],
++        frequency='1h',
++        for_='1m',
++        tags=[]
++    )
++
++
++def dummy_notification_channel() -> G.NotificationChannel:
++    return G.NotificationChannel(
++        name='test notification channel',
++        type='email',
++        settings={'addresses': 'foo@example.com'},
++    )
++
++
++def dummy_notification_rule() -> G.NotificationRule:
++    return G.NotificationRule(
++        name='notification rule',
++        state='any',
++        notificationChannel=dummy_notification_channel(),
++    )
++
++
++def dummy_panel_alert() -> G.PanelAlert:
++    return G.PanelAlert(
++        name="my alert",
++        conditions=[
++            dummy_alert_condition()
++        ],
++        notifications=[dummy_notification_rule()],
++    )
++
++
++def test_use_new_alerts():
++    ac = G.AlertCondition(
++        target=G.Target(
++            refId="A",
++        ),
++        evaluator=dummy_evaluator(),
++        timeRange=G.TimeRange(
++            from_time='5m',
++            to_time='now'
++        ),
++        operator=G.OP_AND,
++        reducerType=G.RTYPE_AVG,
++        type=G.CTYPE_QUERY,
++        useNewAlerts=True
++    )
++
++    json = ac.to_json_data()
++    assert json['useNewAlerts']
++
++    ac.useNewAlerts = False
++    json = ac.to_json_data()
++    assert not json['useNewAlerts']
+--- /dev/null
++++ b/grafanalib/tests/test_grafanalib_grader.py
+@@ -0,0 +1,35 @@
++"""Tests for Grafanalib."""
++
++
++import grafanalib.core as G
++from grafanalib import _gen
++import sys
++
++
++if sys.version_info[0] < 3:
++    from io import BytesIO as StringIO
++else:
++    from io import StringIO
++
++
++def test_auto_refids():
++    """
++    auto_ref_ids() provides refIds for all targets without refIds already
++    set.
++    """
++    dashboard = G.Dashboard(
++        title="Test dashboard",
++        rows=[
++            G.Row(panels=[
++                G.Graph(
++                    title="CPU Usage by Namespace (rate[5m])",
++                    targets=[G.Target(refId=i)
++                             for i in range(53)],
++                ).auto_ref_ids()
++            ]),
++        ],
++    )
++    assert dashboard.rows[0].panels[0].targets[0].refId == 'A'
++    assert dashboard.rows[0].panels[0].targets[25].refId == 'Z'
++    assert dashboard.rows[0].panels[0].targets[26].refId == 'AA'
++    assert dashboard.rows[0].panels[0].targets[51].refId == 'AZ'
++    assert dashboard.rows[0].panels[0].targets[52].refId == 'BA'

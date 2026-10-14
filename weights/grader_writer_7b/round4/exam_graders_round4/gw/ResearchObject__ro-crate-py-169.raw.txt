@@ -1,0 +1,104 @@
+--- /dev/null
++++ b/test/test_model_grader.py
+@@ -0,0 +1,100 @@
++import datetime
++import json
++import sys
++import tempfile
++import timeit
++import uuid
++from pathlib import Path
++import pytest
++from rocrate.rocrate import ROCrate
++from rocrate.model import (
++    DataEntity,
++    File,
++    Dataset,
++    ComputationalWorkflow,
++    Person,
++    Preview,
++    ContextEntity
++)
++
++
++RAW_REPO_URL = "https://raw.githubusercontent.com/ResearchObject/ro-crate-py"
++
++
++def test_entity_immutable_id():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    assert d.id == "FOO"
++    with pytest.raises(AttributeError):
++        d.id = "bar"
++
++
++def test_entity_immutable_id_with_prefix():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    assert d.id == "FOO"
++    with pytest.raises(AttributeError):
++        d.id = "bar"
++
++
++def test_entity_immutable_id_with_uuid():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    assert d.id == "FOO"
++    with pytest.raises(AttributeError):
++        d.id = "bar"
++
++
++def test_entity_immutable_id_with_hash():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    assert d.id == "FOO"
++    with pytest.raises(AttributeError):
++        d.id = "bar"
++
++
++def test_entity_immutable_id_with_custom():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    assert d.id == "FOO"
++    with pytest.raises(AttributeError):
++        d.id = "bar"
++
++
++def test_entity_immutable_id_with_custom_and_prefix():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    assert d.id == "FOO"
++    with pytest.raises(AttributeError):
++        d.id = "bar"
++
++
++def test_entity_immutable_id_with_custom_and_uuid():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    assert d.id == "FOO"
++    with pytest.raises(AttributeError):
++        d.id = "bar"
++
++
++def test_entity_immutable_id_with_custom_and_hash():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    assert d.id == "FOO"
++    with pytest.raises(AttributeError):
++        d.id = "bar"
++
++
++def test_entity_immutable_id_with_custom_and_prefix_and_uuid():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    assert d.id == "FOO"
++    with pytest.raises(AttributeError):
++        d.id = "bar"
++
++
++def test_entity_immutable_id_with_custom_and_prefix_and_hash():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    assert d.id == "FOO"
++    with pytest.raises(AttributeError):
++        d.id = "bar"

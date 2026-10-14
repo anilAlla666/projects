@@ -1,0 +1,113 @@
+This diff adds `tests/test_tuple_as_array.py`. It assumes tuples are accepted as arrays by default, not through an opt-in flag, since the issue leaves that open. I haven't run the tests. They use only `fastjsonschema.compile` and `JsonSchemaException`, and don't depend on whether the validator returns the tuple unchanged.
+
+```diff
+--- /dev/null
++++ b/tests/test_tuple_as_array.py
+@@ -0,0 +1,105 @@
++import pytest
++
++import fastjsonschema
++from fastjsonschema import JsonSchemaException
++
++
++def test_tuple_is_array_type():
++    validate = fastjsonschema.compile({'type': 'array'})
++    validate([1, 2])
++    validate((1, 2))
++    validate(())
++
++
++def test_tuple_with_type_array_or_null():
++    validate = fastjsonschema.compile({'type': ['array', 'null']})
++    validate((1, 2))
++    validate(None)
++    with pytest.raises(JsonSchemaException):
++        validate('abc')
++
++
++@pytest.mark.parametrize('schema_type', ['string', 'object', 'number', 'integer', 'boolean', 'null'])
++def test_tuple_is_not_other_type(schema_type):
++    validate = fastjsonschema.compile({'type': schema_type})
++    with pytest.raises(JsonSchemaException):
++        validate((1, 2))
++
++
++def test_tuple_min_items():
++    validate = fastjsonschema.compile({'type': 'array', 'minItems': 2})
++    validate((1, 2))
++    with pytest.raises(JsonSchemaException):
++        validate((1,))
++
++
++def test_tuple_max_items():
++    validate = fastjsonschema.compile({'type': 'array', 'maxItems': 2})
++    validate((1, 2))
++    with pytest.raises(JsonSchemaException):
++        validate((1, 2, 3))
++
++
++def test_tuple_min_items_without_type():
++    validate = fastjsonschema.compile({'minItems': 2})
++    validate((1, 2))
++    with pytest.raises(JsonSchemaException):
++        validate((1,))
++
++
++def test_tuple_unique_items():
++    validate = fastjsonschema.compile({'type': 'array', 'uniqueItems': True})
++    validate((1, 2, 3))
++    with pytest.raises(JsonSchemaException):
++        validate((1, 2, 1))
++
++
++def test_tuple_items_single_schema():
++    validate = fastjsonschema.compile({'type': 'array', 'items': {'type': 'integer'}})
++    validate((1, 2, 3))
++    with pytest.raises(JsonSchemaException):
++        validate((1, 'a', 3))
++
++
++def test_tuple_items_without_type():
++    validate = fastjsonschema.compile({'items': {'type': 'integer'}})
++    validate((1, 2, 3))
++    with pytest.raises(JsonSchemaException):
++        validate((1, 'a', 3))
++
++
++def test_tuple_items_positional():
++    validate = fastjsonschema.compile({
++        'type': 'array',
++        'items': [{'type': 'integer'}, {'type': 'string'}],
++        'additionalItems': False,
++    })
++    validate((1, 'a'))
++    with pytest.raises(JsonSchemaException):
++        validate(('a', 1))
++    with pytest.raises(JsonSchemaException):
++        validate((1, 'a', 3))
++
++
++def test_nested_tuples_in_object():
++    validate = fastjsonschema.compile({
++        'type': 'object',
++        'properties': {
++            'a': {
++                'type': 'array',
++                'items': {'type': 'array', 'items': {'type': 'integer'}},
++            },
++        },
++    })
++    validate({'a': ((1, 2), (3,))})
++    validate({'a': [(1, 2), [3]]})
++    with pytest.raises(JsonSchemaException):
++        validate({'a': ((1, 'x'),)})
++
++
++def test_tuple_enum_and_not_array_in_anyof():
++    validate = fastjsonschema.compile({
++        'anyOf': [{'type': 'string'}, {'type': 'array', 'minItems': 1}],
++    })
++    validate((1,))
++    with pytest.raises(JsonSchemaException):
++        validate(())
+```

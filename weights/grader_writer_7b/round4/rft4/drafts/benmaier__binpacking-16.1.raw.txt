@@ -1,0 +1,22 @@
+--- /dev/null
++++ b/tests/test_to_constant_volume_grader.py
+@@ -0,0 +1,19 @@
++import unittest
++from binpacking.to_constant_volume import to_constant_volume
++
++
++class TestToConstantVolume(unittest.TestCase):
++
++    def test_empty_bins(self):
++        """
++        Tests that no empty bins are returned when all items are larger than the bin capacity.
++        """
++        weights = [20, 10]
++        bin_capacity = 15
++        bins = to_constant_volume(weights, bin_capacity)
++        self.assertEqual(len(bins), 1)
++        self.assertTrue(all(bin_size == 0 for bin_size in bins))
++
++
++if __name__ == "__main__":
++    unittest.main()

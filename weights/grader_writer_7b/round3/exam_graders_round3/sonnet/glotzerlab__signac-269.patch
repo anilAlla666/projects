@@ -1,0 +1,79 @@
+--- /dev/null
++++ b/tests/test_synced_dict_no_mutation.py
+@@ -0,0 +1,75 @@
++import shutil
++import tempfile
++
++import pytest
++
++import signac
++
++
++@pytest.fixture
++def project():
++    d = tempfile.mkdtemp()
++    try:
++        yield signac.init_project('test_no_mutation', root=d)
++    finally:
++        shutil.rmtree(d, ignore_errors=True)
++
++
++def test_sp_values_does_not_change_nested_type(project):
++    job = project.open_job({'a': {'b': 'c'}}).init()
++    nested_type = type(job.sp.a)
++    nested = job.sp.a
++    job.sp.values()
++    assert type(job.sp.a) is nested_type
++    assert job.sp.a is nested
++    assert job.sp.a.b == 'c'
++
++
++def test_sp_items_does_not_change_nested_type(project):
++    job = project.open_job({'a': {'b': 'c'}}).init()
++    nested_type = type(job.sp.a)
++    list(job.sp.items())
++    assert type(job.sp.a) is nested_type
++    assert job.sp.a.b == 'c'
++
++
++def test_sp_keys_does_not_change_nested_type(project):
++    job = project.open_job({'a': {'b': 'c'}}).init()
++    nested_type = type(job.sp.a)
++    list(job.sp.keys())
++    assert type(job.sp.a) is nested_type
++
++
++def test_doc_values_items_do_not_change_nested_type(project):
++    job = project.open_job({'x': 1}).init()
++    job.doc.a = {'b': 'c'}
++    nested_type = type(job.doc.a)
++    nested = job.doc.a
++    job.doc.values()
++    assert type(job.doc.a) is nested_type
++    assert job.doc.a is nested
++    list(job.doc.items())
++    assert type(job.doc.a) is nested_type
++    assert job.doc.a is nested
++
++
++def test_values_items_content(project):
++    job = project.open_job({'x': 1}).init()
++    job.doc.a = {'b': 'c'}
++    vals = list(job.doc.values())
++    assert len(vals) == 1
++    assert vals[0] == {'b': 'c'}
++    items = list(job.doc.items())
++    assert len(items) == 1
++    assert items[0][0] == 'a'
++    assert items[0][1] == {'b': 'c'}
++
++
++def test_nested_write_after_values_still_syncs(project):
++    job = project.open_job({'x': 1}).init()
++    job.doc.a = {'b': 'c'}
++    job.doc.values()
++    job.doc.a.b = 'd'
++    assert job.doc.a.b == 'd'
++    reopened = project.open_job(id=job.id)
++    assert reopened.doc.a.b == 'd'
++    assert reopened.doc() == {'a': {'b': 'd'}}

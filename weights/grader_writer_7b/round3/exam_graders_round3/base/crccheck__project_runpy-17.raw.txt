@@ -1,0 +1,30 @@
+To address the issue of the `TypeError: 'NoneType' object is not subscriptable`, we need to ensure that the `sql` parameter is properly checked before attempting to access its elements. The error occurs when `sql` is `None`. We can add a check at the beginning of the `filter` method to handle this case.
+
+Here is the updated test file with additional tests to verify the fix:
+
+```diff
+@@ -130,6 +130,22 @@ class HeidiReadableSqlFilter(TestCase):
+         self.assertEqual('foo', record.args[1])
+ 
+     def test_filter_formats_select_from(self):
++        logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=(1.0, None))  # Simulate NoneType sql
++        self.assertFalse(logging_filter.filter(record))
++
++    def test_filter_formats_select_from_empty(self):
++        logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=(1.0, ''))  # Simulate empty string sql
++        self.assertFalse(logging_filter.filter(record))
++
++    def test_filter_formats_select_from_invalid_type(self):
++        logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=(1.0, 123))  # Simulate invalid type sql
++        self.assertFalse(logging_filter.filter(record))
++
++    def test_filter_formats_select_from_valid_sql(self):
+         logging_filter = ReadableSqlFilter()
+         record = mock.MagicMock(args=(1.0, '(yolo) SELECT foo FROM moo'))
+         self.assertTrue(logging_filter.filter(record))
+```
+
+These tests will ensure that the `ReadableSqlFilter` correctly handles cases where `sql` is `None`, an empty string, or an invalid type. If the fix is correct, these tests should fail initially and then pass after the fix is applied.

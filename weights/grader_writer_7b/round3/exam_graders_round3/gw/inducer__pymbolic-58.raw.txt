@@ -1,0 +1,17 @@
+diff --git a/test/test_pymbolic.py b/test/test_pymbolic.py
+index 0f3c011..011000c 100644
+--- a/test/test_pymbolic.py
++++ b/test/test_pymbolic.py
+@@ -645,6 +645,12 @@ def test_differentiator_flags_for_nonsmooth_and_discontinuous():
+     x = prim.Variable("x")
+ 
+     with pytest.raises(ValueError):
++        differentiate(prim.IfElse(prim.Less(x, 0), 1, 2), x)
++
++    result = differentiate(prim.IfElse(prim.Less(x, 0), 1, 2), x, allow_if_else=True)
++    assert result == 0
++
++    with pytest.raises(ValueError):
+         differentiate(pf.fabs(x), x)
+ 
+     result = differentiate(pf.fabs(x), x, allowed_nonsmoothness="continuous")

@@ -1,0 +1,139 @@
+--- /dev/null
++++ b/edk2toolext/tests/test_git_dependency_grader.py
+@@ -0,0 +1,138 @@
++import os
++import unittest
++import logging
++import shutil
++import stat
++import tempfile
++import copy
++from edk2toolext.environment import environment_descriptor_files as EDF
++from edk2toolext.environment.extdeptypes.git_dependency import GitDependency
++from edk2toolext.environment import shell_environment
++
++
++test_dir = None
++
++
++uptodate_version = "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
++
++
++behind_one_version = "762941318ee16e59dabbacb1b4049eec22f0d303"
++
++
++invalid_version = "762941318ee16e59d123456789049eec22f0d303"
++
++
++hw_json_template = '''
++{
++  "scope": "global",
++  "type": "git",
++  "name": "HelloWorld",
++  "source": "https://github.com/octocat/Hello-World.git",
++  "version": "%s",
++  "flags": []
++}
++'''
++
++
++def prep_workspace():
++    global test_dir
++    # if test temp dir doesn't exist
++    if test_dir is None or not os.path.isdir(test_dir):
++        # create the test temp dir
++        test_dir = tempfile.mkdtemp(prefix='edk2toolext-test')
++
++
++def cleanup_workspace():
++    global test_dir
++    if test_dir is not None:
++        # remove the test temp dir
++        shutil.rmtree(test_dir)
++        test_dir = None
++
++
++class TestGitDependency(unittest.TestCase):
++    TEST_DESCRIPTOR = {
++        "type": "git",
++        "name": "HelloWorld",
++        "source": "https://github.com/octocat/Hello-World.git",
++        "version": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
++        "flags": []
++    }
++
++    def tearDown(self):
++        env = shell_environment.GetEnvironment()
++        env.restore_checkpoint(TestGitDependency.env_checkpoint)
++
++    @classmethod
++    def setUpClass(cls):
++        env = shell_environment.GetEnvironment()
++        cls.env_checkpoint = env.checkpoint()
++
++    def test_fetch(self):
++        """ Test fetching a git dependency """
++        env = shell_environment.GetEnvironment()
++        tmpdir = tempfile.mkdtemp(dir=test_dir)
++        try:
++            # initialize the git dependency
++            gitdep = GitDependency(TestGitDependency.TEST_DESCRIPTOR)
++            gitdep.contents_dir = tmpdir
++            # make sure we have nothing there already
++            self.assertFalse(os.path.exists(tmpdir))
++            # fetch
++            gitdep.fetch()
++            # check that we fetched correctly
++            self.assertTrue(os.path.exists(tmpdir))
++            self.assertTrue(os.path.exists(os.path.join(tmpdir, "HelloWorld")))
++        finally:
++            # Cleanup the git repo
++            gitdep.clean()
++            env.restore_checkpoint(TestGitDependency.env_checkpoint)
++
++
++class TestGitDependencyUrlPatching(unittest.TestCase):
++    TEST_DESCRIPTOR = {
++        "type": "git",
++        "name": "HelloWorld",
++        "source": "https://github.com/octocat/Hello-World.git",
++        "version": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
++        "flags": []
++    }
++
++    def tearDown(self):
++        env = shell_environment.GetEnvironment()
++        env.restore_checkpoint(TestGitDependencyUrlPatching.env_checkpoint)
++
++    @classmethod
++    def setUpClass(cls):
++        env = shell_environment.GetEnvironment()
++        cls.env_checkpoint = env.checkpoint()
++
++    def test_url_should_not_be_modified_without_env(self):
++        my_test_descriptor = copy.copy(TestGitDependencyUrlPatching.TEST_DESCRIPTOR)
++        # Add the indicator for patching.
++        my_test_descriptor['url_creds_var'] = 'test_creds_var'
++
++        # Initialize the GitDependency object.
++        git_dep = GitDependency(my_test_descriptor)
++
++        # Assert that the URL is identical.
++        self.assertEqual(git_dep.source, my_test_descriptor['source'])
++
++    def test_url_should_not_be_modified_without_descriptor_field(self):
++        my_test_descriptor = copy.copy(TestGitDependencyUrlPatching.TEST_DESCRIPTOR)
++
++        env = shell_environment.GetEnvironment()
++        # Add the var to the environment.
++        env.set_shell_var('test_creds_var', 'my_stuff')
++
++        # Initialize the GitDependency object.
++        git_dep = GitDependency(my_test_descriptor)
++
++        # Assert that the URL is identical.
++        self.assertEqual(git_dep.source, my_test_descriptor['source'])
++
++
++if __name__ == '__main__':
++    unittest.main()

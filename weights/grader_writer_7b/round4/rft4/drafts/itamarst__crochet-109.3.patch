@@ -1,0 +1,44 @@
+--- /dev/null
++++ b/test/test_eventloop_grader.py
+@@ -0,0 +1,40 @@
++import logging
++from crochet._eventloop import ThreadLogObserver
++
++
++def make_reactor():
++    from twisted.internet.base import ReactorBase
++    return ReactorBase()
++
++
++def test_log_observer_with_bad_handler(monkeypatch):
++    """
++    If an exception is raised during log processing, it does not cause
++    infinite memory usage.
++    """
++    bad_handler = logging.Handler()
++    bad_handler.emit = lambda *a: 1/0
++
++    class MockTwistdLogger(object):
++        def addNonCriticalSystemEvent(self, message, isError=False):
++            self.message = message
++            self.isError = isError
++
++    monkeypatch.setattr('crochet._eventloop.twistdLogger',
++                        MockTwistdLogger())
++
++    obs = ThreadLogObserver(lambda *a: None)
++    obs(bad_handler.makeRecord('', 0, '', 0, '', (), None))
++
++    assert obs._logWritingReactor.running
++    assert not obs._logWritingReactor.listening
++
++
++def test_stop_logging_after_reactor_stopped(monkeypatch):
++    """
++    If the reactor stops before the log observer, it doesn't crash.
++    """
++    obs = ThreadLogObserver(lambda *a: None)
++    obs.stop()
++
++    assert not obs._logWritingReactor.running
++    assert not obs._logWritingReactor.listening

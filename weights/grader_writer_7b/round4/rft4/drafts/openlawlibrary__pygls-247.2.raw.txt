@@ -1,0 +1,62 @@
+--- /dev/null
++++ b/tests/test_types_grader.py
+@@ -0,0 +1,12 @@
++from pygls.lsp.types import CompletionItem, Position, Range
++
++
++def test_completion_item():
++    assert CompletionItem(label='item') == CompletionItem(label='item')
++    assert CompletionItem(label='item') != CompletionItem(label='other item')
++    assert CompletionItem(label='item') != 'something else'
++    assert "item" == repr(CompletionItem(label='item'))
++    assert CompletionItem(label='item', text_edit=TextEdit(range=Range(start=Position(), end=Position()), newText='newText')) == \
++        CompletionItem(label='item', text_edit=TextEdit(range=Range(start=Position(), end=Position()), newText='newText'))
++    assert CompletionItem(label='item', text_edit=TextEdit(range=Range(start=Position(), end=Position()), newText='newText')) != \
++        CompletionItem(label='item', text_edit=TextEdit(range=Range(start=Position(), end=Position()), newText='differentText'))
+--- /dev/null
++++ b/tests/test_protocol_grader.py
+@@ -0,0 +1,45 @@
++import json
++from concurrent.futures import Future
++from functools import partial
++from pathlib import Path
++from typing import Optional
++from unittest.mock import Mock
++import pytest
++from pygls.exceptions import JsonRpcException, JsonRpcInvalidParams
++from pygls.lsp import Model, get_method_params_type
++from pygls.lsp.types import ClientCapabilities, InitializeParams, InitializeResult
++from pygls.protocol import JsonRPCNotification, JsonRPCRequestMessage, JsonRPCResponseMessage
++from pygls.protocol import deserialize_message as _deserialize_message
++
++
++TEST_METHOD = 'test_method'
++
++
++class FeatureParams(Model):
++    class InnerType(Model):
++        inner_field: str
++
++    field_a: str
++    field_b: Optional[InnerType] = None
++
++
++def dummy_message(msg_id='1'):
++    return JsonRPCRequestMessage(jsonrpc='2.0',
++                                 method='test_method',
++                                 params={'key': 'value'},
++                                 id=msg_id)
++
++
++def test_shutdown_should_not_exclude_none(client_server):
++    _, server = client_server
++    server.lsp.shutdown()
++
++    msg = server.lsp._out_queue.get_nowait()
++    assert msg['jsonrpc'] == '2.0'
++    assert msg['id'] is None
++    assert msg['method'] == 'exit'
++    assert msg['params'] is None
++
++    server.lsp.notify_exit()
++    assert server.lsp._transport.is_closing()

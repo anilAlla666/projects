@@ -1,0 +1,56 @@
+To address the issue where the pattern validator should not be invoked for non-STIX patterns, we need to add a check in the `patterns` function to ensure that only STIX patterns are validated. If the pattern type is not STIX, the validation should be skipped.
+
+Here's the updated code with the necessary changes:
+
+```diff
+diff --git a/stix2validator/v21/musts.py b/stix2validator/v21/musts.py
+index 1a2b3c4..5d6e7f8 100644
+--- a/stix2validator/v21/musts.py
++++ b/stix2validator/v21/musts.py
+@@ -404,6 +404,10 @@ def patterns(instance, options):
+     """Ensure that the syntax of the pattern of an indicator is valid, and that
+     objects and properties referenced by the pattern are valid.
+     """
++    if instance['type'] != 'indicator' or 'pattern_type' not in instance or instance['pattern_type'] != 'stix':
++        return
++
+     if instance['type'] != 'indicator' or 'pattern' not in instance:
+         return
+```
+
+This change ensures that the pattern validator is only invoked for STIX patterns. If the pattern type is not STIX, the function returns early without performing any validation.
+
+To verify this fix, we can write a test case that checks both scenarios: when the pattern type is STIX and when it is not STIX. The test should fail before the fix and pass after the fix.
+
+Here's an example test case:
+
+```python
+import unittest
+from stix2validator.v21.musts import patterns
+
+class TestPatterns(unittest.TestCase):
+    def test_stix_pattern(self):
+        instance = {
+            'type': 'indicator',
+            'pattern_type': 'stix',
+            'pattern': '[ipv4-addr:value = "192.168.1.1"]'
+        }
+        result = list(patterns(instance, None))
+        self.assertEqual(len(result), 0)
+
+    def test_non_stix_pattern(self):
+        instance = {
+            'type': 'indicator',
+            'pattern_type': 'snort',
+            'pattern': 'alert tcp any any -> any any (msg:"Example"; sid:1000001; rev:1;)'
+        }
+        result = list(patterns(instance, None))
+        self.assertEqual(len(result), 0)
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+This test case includes two methods: `test_stix_pattern` and `test_non_stix_pattern`. The first method checks that no errors are returned when the pattern type is STIX. The second method checks that no errors are returned when the pattern type is not STIX.
+
+Before applying the fix, the `test_non_stix_pattern` method should fail because the pattern validator is being invoked even though the pattern type is not STIX. After applying the fix, both methods should pass because the pattern validator is only invoked for STIX patterns.

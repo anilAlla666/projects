@@ -1,0 +1,85 @@
+--- /dev/null
++++ b/cfdm/test/test_Domain_grader.py
+@@ -0,0 +1,31 @@
++import datetime
++import faulthandler
++import unittest
++
++
++faulthandler.enable()  # to debug seg faults and timeouts
++
++
++import cfdm
++
++
++class DomainTest(unittest.TestCase):
++    """Unit test for the Domain class."""
++
++    f = cfdm.example_field(1)
++
++    d = f.domain
++
++    def setUp(self):
++        """Preparations called immediately before each test method."""
++        # Disable log messages to silence expected warnings
++        cfdm.LOG_LEVEL("DISABLE")
++        # Note: to enable all messages for given methods, lines or
++        # calls (those without a 'verbose' option to do the same)
++        # e.g. to debug them, wrap them (for methods, start-to-end
++        # internally) as follows:
++        #
++        # cfdm.LOG_LEVEL('DEBUG')
++        # < ... test code ... >
++        # cfdm.log_level('DISABLE')
++
++    def test_Domain_print_no_data(self):
++        """Test printing a domain with constructs having no data."""
++        f = cfdm.example_field(2)
++        t = f.construct("time")
++        t.del_data()
++        print(f)
+--- /dev/null
++++ b/cfdm/test/test_DomainAxis_grader.py
+@@ -0,0 +1,31 @@
++import datetime
++import faulthandler
++import unittest
++
++
++faulthandler.enable()  # to debug seg faults and timeouts
++
++
++import cfdm
++
++
++class DomainAxisTest(unittest.TestCase):
++    """Unit test for the DomainAxis class."""
++
++    d = cfdm.DomainAxis(size=99)
++
++    d.nc_set_dimension("ncdim")
++
++    def setUp(self):
++        """Preparations called immediately before each test method."""
++        # Disable log messages to silence expected warnings
++        cfdm.log_level("DISABLE")
++        # Note: to enable all messages for given methods, lines or
++        # calls (those without a 'verbose' option to do the same)
++        # e.g. to debug them, wrap them (for methods, start-to-end
++        # internally) as follows:
++        #
++        # cfdm.LOG_LEVEL('DEBUG')
++        # < ... test code ... >
++        # cfdm.log_level('DISABLE')
++
++    def test_DomainAxis_print_no_data(self):
++        """Test printing a domain axis with no data."""
++        d = cfdm.DomainAxis()
++        print(d)
++
++
++if __name__ == "__main__":
++    print("Run date:", datetime.datetime.now())
++    cfdm.environment()
++    print()
++    unittest.main(verbosity=2)

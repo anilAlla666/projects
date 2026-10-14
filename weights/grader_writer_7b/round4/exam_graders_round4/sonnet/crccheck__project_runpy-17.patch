@@ -1,0 +1,32 @@
+--- /dev/null
++++ b/test_readable_sql_none.py
+@@ -0,0 +1,36 @@
++import logging
++from unittest import TestCase, mock
++
++from project_runpy import ReadableSqlFilter
++
++
++class ReadableSqlFilterNoneSql(TestCase):
++    def test_filter_handles_none_sql(self):
++        logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=(0.1, None, ()))
++        self.assertTrue(logging_filter.filter(record))
++
++    def test_filter_handles_none_sql_without_params(self):
++        logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=(0.1, None))
++        self.assertTrue(logging_filter.filter(record))
++
++    def test_logger_with_none_sql(self):
++        logger = logging.getLogger('foo.sqlnone')
++        logger.propagate = False
++        handler = logging.NullHandler()
++        logger.addHandler(handler)
++        flt = ReadableSqlFilter()
++        logger.addFilter(flt)
++        try:
++            logger.warning('(%.3f) %s; args=%s', 0.1, None, ())
++        finally:
++            logger.removeFilter(flt)
++            logger.removeHandler(handler)

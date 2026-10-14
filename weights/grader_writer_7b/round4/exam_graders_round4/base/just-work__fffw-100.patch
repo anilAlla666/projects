@@ -1,0 +1,46 @@
+diff --git a/tests/test_trim_filter.py b/tests/test_trim_filter.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_trim_filter.py
+@@ -0,0 +1,52 @@
++from dataclasses import dataclass
++from unittest import TestCase
++
++from fffw.encoding.filters import Trim
++from fffw.meta import Meta, Scene, TS
++
++
++@dataclass
++class TestMeta(Meta):
++    duration: TS = TS(10)
++    scenes: List[Scene] = [Scene(start=TS(0), duration=TS(10))]
++
++
++class TrimFilterTestCase(TestCase):
++    def test_trim_end_after_eof(self):
++        # Arrange
++        trim_filter = Trim(start=TS(0), end=TS(15))
++        metadata = TestMeta(duration=TS(10))
++
++        # Act
++        result = trim_filter.transform(metadata)
++
++        # Assert
++        self.assertEqual(result.duration, TS(10))
++        self.assertEqual(len(result.scenes), 1)
++        self.assertEqual(result.scenes[0].start, TS(0))
++        self.assertEqual(result.scenes[0].duration, TS(10))
++
++    def test_trim_end_before_eof(self):
++        # Arrange
++        trim_filter = Trim(start=TS(0), end=TS(5))
++        metadata = TestMeta(duration=TS(10))
++
++        # Act
++        result = trim_filter.transform(metadata)
++
++        # Assert
++        self.assertEqual(result.duration, TS(5))
++        self.assertEqual(len(result.scenes), 1)
++        self.assertEqual(result.scenes[0].start, TS(0))
++        self.assertEqual(result.scenes[0].duration, TS(5))

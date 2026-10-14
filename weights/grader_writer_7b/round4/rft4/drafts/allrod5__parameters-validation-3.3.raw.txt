@@ -1,0 +1,79 @@
+--- /dev/null
++++ b/test/test_validate_parameters_decorator_grader.py
+@@ -0,0 +1,73 @@
++import pytest
++from pytest import fixture
++from parameters_validation import validate_parameters, non_blank, non_empty, \
++    no_whitespaces
++
++
++@validate_parameters
++def no_validations_function(a: str, b, *, c: dict, d):
++    pass
++
++
++@validate_parameters
++def positional_args_validations_function(a: non_blank(str), b, *, c: dict, d):
++    pass
++
++
++@validate_parameters
++def keyword_args_validations_function(a: str, b, *, c: non_empty(dict), d):
++    pass
++
++
++@validate_parameters
++def args_validations_function(a: non_blank(str), b, *, c: non_empty(dict), d):
++    pass
++
++
++@validate_parameters
++def multiple_validations_function(a: no_whitespaces(non_empty(str))):
++    pass
++
++
++class DecoratedMethods:
++    @validate_parameters
++    def no_validations_method(self, a: str, b, *, c: dict, d):
++        pass
++
++    @staticmethod
++    @validate_parameters
++    def no_validations_staticmethod(a: str, b, *, c: dict, d):
++        pass
++
++    @validate_parameters
++    def positional_args_validations_method(self, a: non_blank(str), b, *, c: dict, d):
++        pass
++
++    @staticmethod
++    @validate_parameters
++    def positional_args_validations_staticmethod(a: non_blank(str), b, *, c: dict, d):
++        pass
++
++    @validate_parameters
++    def keyword_args_validations_method(self, a: str, b, *, c: non_empty(dict), d):
++        pass
++
++    @staticmethod
++    @validate_parameters
++    def keyword_args_validations_staticmethod(a: str, b, *, c: non_empty(dict), d):
++        pass
++
++    @validate_parameters
++    def args_validations_method(self, a: non_blank(str), b, *, c: non_empty(dict), d):
++        pass
++
++    @staticmethod
++    @validate_parameters
++    def args_validations_staticmethod(a: non_blank(str), b, *, c: non_empty(dict), d):
++        pass
++
++    @validate_parameters
++    def multiple_validations_method(self, a: no_whitespaces(non_empty(str))):
++        pass
++
++    @staticmethod
++    @validate_parameters
++    def multiple_validations_staticmethod(a: no_whitespaces(non_empty(str))):
++        pass

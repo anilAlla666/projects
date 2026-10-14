@@ -1,0 +1,69 @@
+--- /dev/null
++++ b/tests/test_util_path_grader.py
+@@ -0,0 +1,61 @@
++import ubelt as ub
++
++
++class TestUtilPath(ub.NumpyTestCase):
++    def test_ensuredir(self):
++        from ubelt.util_path import ensuredir
++        import os
++        import tempfile
++
++        # Test that verbose works
++        verbose = 1
++        tempdir = tempfile.gettempdir()
++        dpath = os.path.join(tempdir, 'test_ensuredir_verbose')
++        if os.path.exists(dpath):
++            os.rmdir(dpath)
++        try:
++            ensuredir(dpath, verbose=verbose)
++            assert os.path.isdir(dpath)
++        finally:
++            os.rmdir(dpath)
++
++        # Test that recreate works
++        verbose = 1
++        tempdir = tempfile.gettempdir()
++        dpath = os.path.join(tempdir, 'test_ensuredir_recreate')
++        try:
++            ensuredir(dpath, verbose=verbose)
++            ensuredir(dpath, recreate=True, verbose=verbose)
++            assert not os.path.isdir(dpath)
++        finally:
++            os.mkdir(dpath)
++            os.rmdir(dpath)
++
++        # Test that recreate works when already exists
++        verbose = 1
++        tempdir = tempfile.gettempdir()
++        dpath = os.path.join(tempdir, 'test_ensuredir_already_exists')
++        try:
++            os.mkdir(dpath)
++            ensuredir(dpath, recreate=True, verbose=verbose)
++            assert os.path.isdir(dpath)
++        finally:
++            os.rmdir(dpath)
++
++        # Test that error occurs when cannot remove dir
++        verbose = 1
++        tempdir = tempfile.gettempdir()
++        dpath = os.path.join(tempdir, 'test_ensuredir_cannot_remove')
++        try:
++            os.mkdir(dpath)
++            subdir = os.path.join(dpath, 'subdir')
++            os.mkdir(subdir)
++            with self.assertRaises(OSError):
++                ensuredir(subdir, recreate=True, verbose=verbose)
++        finally:
++            os.rmdir(subdir)
++            os.rmdir(dpath)
++
++
++if __name__ == '__main__':
++    """
++    CommandLine:
++        python ~/code/ubelt/tests/test_util_path.py
++    """
++    import pytest
++    pytest.main(__file__)

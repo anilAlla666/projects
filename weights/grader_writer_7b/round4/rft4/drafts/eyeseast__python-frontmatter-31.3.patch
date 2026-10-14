@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/tests/test_init_grader.py
+@@ -0,0 +1,27 @@
++"""
++Test suite for python-frontmatter
++
++https://github.com/eyeseast/python-frontmatter
++"""
++
++
++import io
++from frontmatter import load, loads, dump, dumps
++
++
++def test_load_with_encoding():
++    s = u"front matter\n---\n\ncontent"
++    s_utf8 = s.encode('utf-8')
++    assert load(s_utf8, encoding='utf-8').content == s[11:]
++    assert load(io.BytesIO(s_utf8), encoding='utf-8').content == s[11:]
++    assert loads(s_utf8.decode(), encoding='utf-8').content == s[11:]
++
++
++def test_dump_with_encoding():
++    p = load(u"front matter\n---\n\ncontent")
++    output = io.BytesIO()
++    dump(p, output, encoding='utf-8')
++    assert output.getvalue().decode() == u"front matter\n---\n\ncontent"

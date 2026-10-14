@@ -1,0 +1,83 @@
+I could not see the full statistics format, so these tests are built on assumptions about it. They check one property: any dict carrying a `unit` key must also carry a `value` key. They have not been run against the repo, and they assume `units` on a topic lines up with `fields`.
+
+- **Table case:** if the unit currently sits next to the inner `payload` rather than inside it, the table test fails on the current code. If the unit is already beside a `value` key, this test would not catch the bug.
+- **Plain value case:** the issue says this already works, so that test should pass both before and after the fix.
+
+```diff
+diff --git a/tst/test_data_tools_units.py b/tst/test_data_tools_units.py
+new file mode 100644
+--- /dev/null
++++ b/tst/test_data_tools_units.py
+@@ -0,0 +1,72 @@
++from unittest import TestCase
++
++from fdbk.data_tools import run_data_tools
++
++
++def _data(N=10):
++    return [
++        dict(
++            number=i,
++            number2=i * 2,
++            letter=chr(ord('A') + i),
++            timestamp=f'2020-08-23T00:00:{i:02}Z') for i in range(N)]
++
++
++def _find_unit_dicts(obj, found=None):
++    if found is None:
++        found = []
++    if isinstance(obj, dict):
++        if "unit" in obj:
++            found.append(obj)
++        for v in obj.values():
++            _find_unit_dicts(v, found)
++    elif isinstance(obj, (list, tuple)):
++        for v in obj:
++            _find_unit_dicts(v, found)
++    return found
++
++
++def _topic(data_tools):
++    return dict(
++        id='test_id',
++        name='Unit test',
++        fields=["number", "number2", "letter"],
++        units=["m", "s", ""],
++        data_tools=data_tools)
++
++
++class DataToolsUnitTest(TestCase):
++    def test_unit_inside_value_payload_for_plain_value(self):
++        topic_d = _topic([dict(field='number', method='max')])
++        results, warnings = run_data_tools(topic_d, _data())
++
++        self.assertEqual(warnings, [])
++        found = _find_unit_dicts(results)
++        self.assertGreaterEqual(len(found), 1)
++        for d in found:
++            self.assertIn("value", d)
++            self.assertEqual(d["unit"], "m")
++
++    def test_unit_inside_value_payload_for_table_items(self):
++        topic_d = _topic([
++            dict(
++                field='number',
++                method='table_item',
++                parameters=dict(method='max', name='Table')),
++            dict(
++                field='number2',
++                method='table_item',
++                parameters=dict(method='min', name='Table')),
++        ])
++        results, warnings = run_data_tools(topic_d, _data())
++
++        self.assertEqual(warnings, [])
++        self.assertGreaterEqual(len(results), 1)
++        found = _find_unit_dicts(results)
++        units = sorted(d["unit"] for d in found)
++        self.assertEqual(units, ["m", "s"])
++        for d in found:
++            # unit must live in the same dict as the value, not beside it
++            self.assertIn("value", d)
++            self.assertNotIn("payload", d)
+```

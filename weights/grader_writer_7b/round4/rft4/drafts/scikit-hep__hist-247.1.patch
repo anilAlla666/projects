@@ -1,0 +1,37 @@
+--- /dev/null
++++ b/tests/test_plot_grader.py
+@@ -0,0 +1,35 @@
++from __future__ import annotations
++
++
++import numpy as np
++import pytest
++import ROOT
++import hist
++
++
++def test_int_axes():
++    h1 = hist.Hist(hist.axis.Integer(1, 10), hist.axis.Integer(1, 10))
++    h1.fill(1, 1)
++
++    fig, axs = h1.plot()
++    assert isinstance(axs, list)
++    assert len(axs) == 1
++    assert isinstance(axs[0], ROOT.TH2F)
++
++    h1 = hist.Hist(hist.axis.Integer(1, 10), hist.axis.Integer(1, 10))
++    h1.fill(1, 1)
++    h1.plot(overlay=0)
++
++    h1 = hist.Hist(hist.axis.Integer(1, 10), hist.axis.Integer(1, 10))
++    h1.fill(1, 1)
++    h1.plot(overlay=1)
++
++    h1 = hist.Hist(hist.axis.Integer(1, 10), hist.axis.Integer(1, 10))
++    h1.fill(1, 1)
++    h1.plot(overlay=None)
++
++    h1 = hist.Hist(hist.axis.Integer(1, 10), hist.axis.Integer(1, 10))
++    h1.fill(1, 1)
++    with pytest.raises(ValueError):
++        h1.plot(overlay=2)

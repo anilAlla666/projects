@@ -1,0 +1,182 @@
+--- /dev/null
++++ b/test_typing_inspect_grader.py
+@@ -0,0 +1,165 @@
++import sys
++import pytest
++from typing_inspect import (
++    is_generic_type, is_callable_type, is_new_type, is_tuple_type, is_union_type,
++    is_optional_type, is_final_type, is_literal_type, is_typevar, is_classvar,
++    is_forward_ref, get_origin, get_parameters, get_last_args, get_args, get_bound,
++    get_constraints, get_generic_type, get_generic_bases, get_last_origin,
++    typed_dict_keys, get_forward_arg, WITH_FINAL, WITH_LITERAL, LEGACY_TYPING, WITH_NEWTYPE,
++)
++from unittest import TestCase, main, skipIf, skipUnless
++from typing import (
++    Union, Callable, Optional, TypeVar, Sequence, AnyStr, Mapping,
++    MutableMapping, Iterable, Generic, List, Any, Dict, Tuple, NamedTuple,
++)
++from mypy_extensions import TypedDict as METypedDict
++from typing_extensions import TypedDict as TETypedDict
++from typing_extensions import Final
++from typing_extensions import Literal
++from typing_extensions import NewType as NewType_
++
++
++if sys.version_info < (3, 5, 3):
++    WITH_CLASSVAR = False
++    CLASSVAR_GENERIC = []
++    CLASSVAR_TYPEVAR = []
++else:
++    from typing import ClassVar
++    WITH_CLASSVAR = True
++    CLASSVAR_GENERIC = [ClassVar[List[int]], ClassVar]
++    CLASSVAR_TYPEVAR = [ClassVar[int]]
++
++
++if sys.version_info < (3, 5, 3):
++    WITH_CALLABLE_TYPE = False
++else:
++    WITH_CALLABLE_TYPE = True
++
++
++if sys.version_info < (3, 5, 0):
++    WITH_FORWARD_REF = False
++else:
++    WITH_FORWARD_REF = True
++
++
++if sys.version_info < (3, 6, 0):
++    WITH_TUPLE_TYPE = False
++elif sys.version_info < (3, 5, 3):
++    WITH_TUPLE_TYPE = True
++else:
++    WITH_TUPLE_TYPE = False
++
++
++PY36 = sys.version_info >= (3, 6, 0)
++
++
++class Other(object):
++    x: int
++    y: int
++
++
++class TDM(TypedDict):
++    x: int
++    y: int
++
++
++class TDE(TETypedDict):
++    x: int
++    y: int
++
++
++class A:
++    pass
++
++
++class B(A):
++    pass
++
++
++class C(A):
++    pass
++
++
++class D(B, C):
++    pass
++
++
++@pytest.mark.skipif(sys.version_info >= (3, 10, 0), reason="not valid in python 3.10")
++def test_legacy_get_parameters():
++    T = TypeVar('T')
++    class Gen(Generic[T]): pass
++    class SubGen(Gen[T]): pass
++    class NoParam: pass
++    class SubNoParam(NoParam): pass
++    class ParamSub(Generic[T]): pass
++    class DoubleSub(ParamSub[T]): pass
++    class WithParam(Tuple[T, ...]): pass
++    class WithMultiParams(Tuple[T, ...]): pass
++    class WithDefaultParams(Tuple[T, T, T]=()): pass
++    class WithDefaultAndNondefaultParams(Tuple[T, T, T]=(None,)): pass
++    class NonParamSubWithDefault(ParamSub[T]=(None,)): pass
++    class NonParamSubWithNondefault(ParamSub[T]=None): pass
++    class WithOptional(Optional[int]): pass
++    class WithAnyStr(AnyStr): pass
++    class WithSequence(Sequence[T]): pass
++    class WithMutableMapping(MutableMapping[T, int]): pass
++    class WithIterable(Iterable[T]): pass
++    class WithUnion(Union[T, int]): pass
++    class WithCallable(Callable[..., int]): pass
++    class WithCallableWithArgs(Callable[[T], int]): pass
++    class WithNewType(NewType_("new_type", int)): pass
++    class WithClassVar(ClassVar[int]): pass
++    class WithFinal(Final[int]): pass
++    class WithLiteral(Literal[True]): pass
++    class WithForwardRef(ForwardRef('Forward')): pass
++    class WithTupleOfInts(Tuple[int, int]): pass
++    class WithTupleOfAnyStrs(Tuple[AnyStr, AnyStr]): pass
++    class WithTupleOfMixed(Tuple[int, AnyStr]): pass
++    class WithTupleOfNested(Tuple[Tuple[int, int], Tuple[int, int]]): pass
++    class WithTupleOfNestedAndMixed(Tuple[Tuple[int, int], AnyStr]): pass
++    class WithTupleOfNestedAndMixed2(Tuple[Tuple[int, int], Tuple[AnyStr, int]]): pass
++    class WithTupleOfNestedAndMixed3(Tuple[Tuple[int, int], Tuple[int, AnyStr]]): pass
++    class WithTupleOfNestedAndMixed4(Tuple[Tuple[AnyStr, int], Tuple[int, AnyStr]]): pass
++    class WithTupleOfNestedAndMixed5(Tuple[Tuple[int, AnyStr], Tuple[AnyStr, int]]): pass
++    class WithTupleOfNestedAndMixed6(Tuple[Tuple[AnyStr, AnyStr], Tuple[int, int]]): pass
++    class WithTupleOfNestedAndMixed7(Tuple[Tuple[AnyStr, AnyStr], Tuple[int, AnyStr]]): pass
++    class WithTupleOfNestedAndMixed8(Tuple[Tuple[AnyStr, int], Tuple[AnyStr, int]]): pass
++    class WithTupleOfNestedAndMixed9(Tuple[Tuple[AnyStr, int], Tuple[int, AnyStr]]): pass
++    class WithTupleOfNestedAndMixed10(Tuple[Tuple[AnyStr, AnyStr], Tuple[int, AnyStr]]): pass
++    class WithTupleOfNestedAndMixed11(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, int]]): pass
++    class WithTupleOfNestedAndMixed12(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr]]): pass
++    class WithTupleOfNestedAndMixed13(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int]): pass
++    class WithTupleOfNestedAndMixed14(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], AnyStr]): pass
++    class WithTupleOfNestedAndMixed15(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed16(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int]): pass
++    class WithTupleOfNestedAndMixed17(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed18(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int]): pass
++    class WithTupleOfNestedAndMixed19(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed20(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed21(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed22(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed23(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed24(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed25(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed26(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed27(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed28(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed29(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed30(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed31(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed32(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed33(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed34(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed35(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed36(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed37(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed38(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed39(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed40(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed41(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed42(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed43(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed44(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed45(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed46(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed47(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed48(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed49(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed50(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed51(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed52(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed53(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed54(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed55(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed56(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed57(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed58(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed59(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, AnyStr]): pass
++    class WithTupleOfNestedAndMixed60(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, AnyStr], int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int]): pass
++    class WithTupleOfNestedAndMixed61(Tuple[Tuple[AnyStr, AnyStr], Tuple[AnyStr, Any

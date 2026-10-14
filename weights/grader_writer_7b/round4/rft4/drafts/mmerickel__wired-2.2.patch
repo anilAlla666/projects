@@ -1,0 +1,47 @@
+--- /dev/null
++++ b/tests/test_container_grader.py
+@@ -0,0 +1,45 @@
++import pytest
++from zope.interface import Interface
++from zope.interface import implementer
++
++
++class IFooService(Interface):
++    pass
++
++
++class IBarService(IFooService):
++    pass
++
++
++class IBazService(IFooService):
++    pass
++
++
++class ContextA:
++    pass
++
++
++class IContextInterface(Interface):
++    pass
++
++
++@implementer(IContextInterface)
++class ContextWithInterface:
++    pass
++
++
++class DummyService:
++    pass
++
++
++class DummyFactory:
++    def __init__(self, result=None):
++        if result is None:
++            result = DummyService()
++        self.result = result
++        self.calls = []
++
++    def __call__(self, *args, **kwargs):
++        self.calls.append((args, kwargs))
++        return self.result

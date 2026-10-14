@@ -1,0 +1,48 @@
+diff --git a/tests/test_world.py b/tests/test_world.py
+new file mode 100644
+index 0000000..b2c9a1d
+--- /dev/null
++++ b/tests/test_world.py
+@@ -0,0 +1,45 @@
++import unittest
++from esper import World
++
++class TestWorld(unittest.TestCase):
++    def test_create_empty_entity(self):
++        world = World()
++        entity = world.create_entity()
++        self.assertTrue(world.entity_exists(entity))
++
++    def test_add_component_to_nonexistent_entity(self):
++        world = World()
++        made_up_entity = 123
++        with self.assertRaises(KeyError):
++            world.add_component(made_up_entity, None)
++
++    def test_delete_entity(self):
++        world = World()
++        entity = world.create_entity()
++        world.delete_entity(entity)
++        self.assertFalse(world.entity_exists(entity))
++
++    def test_delete_entity_immediately(self):
++        world = World()
++        entity = world.create_entity()
++        world.delete_entity(entity, immediate=True)
++        self.assertFalse(world.entity_exists(entity))
++
++    def test_has_component(self):
++        world = World()
++        entity = world.create_entity()
++        world.add_component(entity, SomeComponent())
++        self.assertTrue(world.has_component(entity, SomeComponent))
++
++    def test_has_components(self):
++        world = World()
++        entity = world.create_entity()
++        world.add_component(entity, SomeComponent())
++        world.add_component(entity, AnotherComponent())
++        self.assertTrue(world.has_components(entity, SomeComponent, AnotherComponent))
++
++if __name__ == '__main__':
++    unittest.main()

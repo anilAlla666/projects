@@ -1,0 +1,126 @@
+--- /dev/null
++++ b/tests/test_projectbuilder_grader.py
+@@ -0,0 +1,115 @@
++from __future__ import unicode_literals
++import copy
++import os
++import sys
++import typing
++import pep517.wrappers
++import pytest
++import build
++
++
++if sys.version_info >= (3, 8):  # pragma: no cover
++    import email
++    from importlib import metadata as importlib_metadata
++
++    email_message_from_string = email.message_from_string
++else:  # pragma: no cover
++    import importlib_metadata
++
++    email_message_from_string = importlib_metadata._compat.email_message_from_string
++
++
++if sys.version_info >= (3,):  # pragma: no cover
++    build_open_owner = 'builtins'
++else:  # pragma: no cover
++    build_open_owner = 'build'
++    FileNotFoundError = IOError
++    PermissionError = OSError
++
++
++DUMMY_METADATA = """
++Version: 1.0.0
++Provides-Extra: some_extra
++""".strip()
++
++
++DEFAULT_BACKEND = {
++    'build-backend': 'setuptools.build_meta:__legacy__',
++    'requires': ['setuptools'],
++}
++
++
++@pytest.fixture
++def test_no_backend_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/no_backend')
++
++
++@pytest.fixture
++def test_no_requires_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/no_requires')
++
++
++@pytest.fixture
++def test_flit_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/flit')
++
++
++@pytest.fixture
++def test_pyproject_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/pyproject')
++
++
++@pytest.fixture
++def test_toml_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/toml')
++
++
++@pytest.fixture
++def test_setup_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/setup')
++
++
++@pytest.fixture
++def test_setuptools_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/setuptools')
++
++
++@pytest.fixture
++def test_setuptools_scm_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/setuptools-scm')
++
++
++@pytest.fixture
++def test_typo():
++    return os.path.join(os.path.dirname(__file__), 'projects/typo')
++
++
++@pytest.fixture
++def test_wheel_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/wheel')
++
++
++@pytest.fixture
++def test_sdist_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/sdist')
++
++
++@pytest.fixture
++def test_sdist_extras_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/extras')
++
++
++@pytest.fixture
++def test_pep517_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/pep517')
++
++
++@pytest.fixture
++def test_pep517_pyproject_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/pep517/pyproject')
++
++
++@pytest.fixture
++def test_pep517_pyproject_toml_path():
++    return os.path.join(os.path.dirname(__file__), 'projects/pep517/pyproject.toml')
++
++
++def test_missing_backend(mocker, test_no_backend_path):
++    mocker.patch('importlib.import_module', autospec=True)
++    mocker.patch('pep517.wrappers.Pep517HookCaller', autospec=True)
++
++    builder = build.ProjectBuilder(test_no_backend_path)
++
++    assert builder._build_system == {'build-backend': '', 'requires': []}

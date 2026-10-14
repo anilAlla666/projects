@@ -1,0 +1,183 @@
+--- /dev/null
++++ b/boule/tests/test_sphere_grader.py
+@@ -0,0 +1,59 @@
++"""
++Test the base Sphere class.
++"""
++
++
++import warnings
++import pytest
++import numpy as np
++import numpy.testing as npt
++from .. import Sphere
++
++
++@pytest.fixture
++def sphere():
++    "A spherical ellipsoid"
++    ellipsoid = Sphere(
++        name="unit_sphere",
++        radius=1.0,
++        geocentric_grav_const=2.0,
++        angular_velocity=1.3,
++    )
++    return ellipsoid
++
++
++def test_normal_gravity_negative_height():
++    """
++    Check normal gravity with negative height
++    """
++    with pytest.warns(UserWarning):
++        gamma = sphere.normal_gravity(latitude=0, height=-100)
++    assert gamma < 0
++
++
++def test_normal_gravity_zero_height():
++    """
++    Check normal gravity with zero height
++    """
++    gamma = sphere.normal_gravity(latitude=0, height=0)
++    assert gamma == 0
++
++
++def test_normal_gravity_above_surface():
++    """
++    Check normal gravity above the surface
++    """
++    gamma = sphere.normal_gravity(latitude=0, height=100)
++    assert gamma > 0
++
++
++def test_normal_gravity_below_surface():
++    """
++    Check normal gravity below the surface
++    """
++    with pytest.warns(UserWarning):
++        gamma = sphere.normal_gravity(latitude=0, height=-100)
++    assert gamma < 0
++
++
++def test_normal_gravity_above_and_below_surface():
++    """
++    Check normal gravity both above and below the surface
++    """
++    with pytest.warns(UserWarning):
++        gamma = sphere.normal_gravity(latitude=[0, 0], height=[-100, 100])
++    assert gamma[0] < 0
++    assert gamma[1] > 0
+--- /dev/null
++++ b/boule/tests/test_ellipsoid_grader.py
+@@ -0,0 +1,109 @@
++"""
++Test the base Ellipsoid class.
++"""
++
++
++import warnings
++import pytest
++import numpy as np
++import numpy.testing as npt
++from .. import Ellipsoid, ELLIPSOIDS
++from .utils import normal_gravity_surface
++
++
++ELLIPSOID_NAMES = [e.name for e in ELLIPSOIDS]
++
++
++@pytest.mark.parametrize("ellipsoid", ELLIPSOIDS, ids=ELLIPSOID_NAMES)
++def test_normal_gravity_against_somigliana(ellipsoid):
++    """
++    Check if normal gravity on the surface satisfies Somigliana equation
++    """
++    latitude = np.linspace(-90, 90, 181)
++    # Somigliana equation applies only to ellipsoids that are their own
++    # equipotential gravity surface. Spheres (with zero flattening) aren't.
++    if ellipsoid.flattening != 0:
++        npt.assert_allclose(
++            ellipsoid.normal_gravity(latitude, height=0),
++            normal_gravity_surface(latitude, ellipsoid),
++        )
++
++
++@pytest.mark.parametrize("ellipsoid", ELLIPSOIDS, ids=ELLIPSOID_NAMES)
++def test_normal_gravity_on_pole_equator(ellipsoid):
++    """
++    Check if normal gravity on the pole and equator has expected sign
++    """
++    # At the pole, the normal gravity should be positive
++    # At the equator, the normal gravity should be zero
++    latitude = np.array([-90, 90, 0])
++    expected_values = np.array([0, 0, 1e5 * ellipsoid.geocentric_grav_const])
++    npt.assert_allclose(expected_values, ellipsoid.normal_gravity(latitude, height=0))
++
++
++@pytest.mark.parametrize("ellipsoid", ELLIPSOIDS, ids=ELLIPSOID_NAMES)
++def test_normal_gravity_above_and_below_surface(ellipsoid):
++    """
++    Check normal gravity above and below the ellipsoid surface
++    """
++    # At the pole, the normal gravity should be positive
++    # At the equator, the normal gravity should be zero
++    latitude = np.array([-90, 90, 0])
++    # Above the surface
++    height_above = 100
++    # Below the surface
++    height_below = -100
++    # Normal gravity above the surface
++    npt.assert_allclose(
++        ellipsoid.normal_gravity(latitude, height=height_above),
++        ellipsoid.normal_gravity(latitude, height=height_above, si_units=True),
++    )
++    # Normal gravity below the surface
++    npt.assert_allclose(
++        ellipsoid.normal_gravity(latitude, height=height_below),
++        ellipsoid.normal_gravity(latitude, height=height_below, si_units=True),
++    )
++
++
++@pytest.mark.parametrize("ellipsoid", ELLIPSOIDS, ids=ELLIPSOID_NAMES)
++def test_normal_gravity_above_surface(ellipsoid):
++    """
++    Check normal gravity above the ellipsoid surface
++    """
++    # At the pole, the normal gravity should be positive
++    # At the equator, the normal gravity should be zero
++    latitude = np.array([-90, 90, 0])
++    # Above the surface
++    height_above = 100
++    npt.assert_allclose(
++        ellipsoid.normal_gravity(latitude, height=height_above),
++        ellipsoid.normal_gravity(latitude, height=height_above, si_units=True),
++    )
++
++
++@pytest.mark.parametrize("ellipsoid", ELLIPSOIDS, ids=ELLIPSOID_NAMES)
++def test_normal_gravity_below_surface(ellipsoid):
++    """
++    Check normal gravity below the ellipsoid surface
++    """
++    # At the pole, the normal gravity should be positive
++    # At the equator, the normal gravity should be zero
++    latitude = np.array([-90, 90, 0])
++    # Below the surface
++    height_below = -100
++    npt.assert_allclose(
++        ellipsoid.normal_gravity(latitude, height=height_below),
++        ellipsoid.normal_gravity(latitude, height=height_below, si_units=True),
++    )
++
++
++@pytest.mark.parametrize("ellipsoid", ELLIPSOIDS, ids=ELLIPSOID_NAMES)
++def test_normal_gravity_at_center_of_earth(ellipsoid):
++    """
++    Check normal gravity at center of the Earth
++    """
++    # At the center of the earth, the normal gravity should be zero
++    latitude = np.array([0])
++    height = np.array([0])
++    npt.assert_allclose(
++        ellipsoid.normal_gravity(latitude, height),
++        ellipsoid.normal_gravity(latitude, height, si_units=True),
++    )

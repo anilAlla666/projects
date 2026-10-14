@@ -1,0 +1,26 @@
+--- /dev/null
++++ b/tests/test_ast3_grader.py
+@@ -0,0 +1,24 @@
++import ast
++import gast
++
++
++def test_named_expr():
++    expr = "(x := 1)"
++    ga = gast.parse(expr)
++    assert gast.dump(ga) == \
++        'Module(body=[Expr(value=Assign(target=Name(id=\'x\', ctx=Store()), value=Constant(value=1)))]'
++
++
++def test_conditional_expr():
++    expr = "True if True else False"
++    ga = gast.parse(expr)
++    assert gast.dump(ga) == \
++        'Module(body=[Expr(value=Compare(left=Constant(value=True), ops=[Eq()], comparators=[Constant(value=True)])), Expr(value=Constant(value=False))])'
++
++
++def test_unary_op():
++    expr = "+1"
++    ga = gast.parse(expr)
++    assert gast.dump(ga) == \
++        'Module(body=[Expr(value=UnaryOp(op=UAdd(), operand=Constant(value=1)))]'

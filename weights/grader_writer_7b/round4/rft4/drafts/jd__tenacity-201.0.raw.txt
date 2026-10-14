@@ -1,0 +1,105 @@
+--- /dev/null
++++ b/tenacity/tests/test_asyncio_grader.py
+@@ -0,0 +1,62 @@
++import asyncio
++import unittest
++import six
++from tenacity import RetryError
++from tenacity import _asyncio as tasyncio
++from tenacity import retry, stop_after_attempt
++from tenacity.tests.test_tenacity import NoIOErrorAfterCount
++
++
++def asynctest(callable_):
++    callable_ = asyncio.coroutine(callable_)
++
++    @six.wraps(callable_)
++    def wrapper(*a, **kw):
++        loop = asyncio.get_event_loop()
++        return loop.run_until_complete(callable_(*a, **kw))
++
++    return wrapper
++
++
++@retry
++@asyncio.coroutine
++def _retryable_coroutine(thing):
++    thing.inc()
++    if thing.counter < thing.count:
++        raise NoIOErrorAfterCount(5)
++    yield from asyncio.sleep(0.00001)
++    thing.go()
++
++
++@retry(stop=stop_after_attempt(2))
++@asyncio.coroutine
++def _retryable_coroutine_with_2_attempts(thing):
++    yield from asyncio.sleep(0.00001)
++    thing.go()
++
++
++class TestAsync(unittest.TestCase):
++    @asynctest
++    def test_retry(self):
++        assert asyncio.iscoroutinefunction(_retryable_coroutine)
++        thing = NoIOErrorAfterCount(5)
++        yield from _retryable_coroutine(thing)
++        assert thing.counter == thing.count
++
++    @asynctest
++    def test_stop_after_attempt(self):
++        assert asyncio.iscoroutinefunction(
++            _retryable_coroutine_with_2_attempts)
++        thing = NoIOErrorAfterCount(2)
++        try:
++            yield from _retryable_coroutine_with_2_attempts(thing)
++        except RetryError:
++            assert thing.counter == 2
++
++    @asynctest
++    def test_attempt_number_is_correct_for_interleaved_coroutines(self):
++
++        attempts = []
++
++        def after(retry_state):
++            attempts.append((retry_state.args[0], retry_state.attempt_number))
++
++        thing1 = NoIOErrorAfterCount(3)
++        thing2 = NoIOErrorAfterCount(3)
++        yield from asyncio.gather(
++            _retryable_coroutine.retry_with(after=after)(thing1),
++            _retryable_coroutine.retry_with(after=after)(thing2))
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/tenacity/tests/test_tenacity_grader.py
+@@ -0,0 +1,27 @@
++import logging
++import time
++import unittest
++import warnings
++from contextlib import contextmanager
++from copy import copy
++import pytest
++import six.moves
++import tenacity
++from tenacity import RetryError, Retrying, retry
++from tenacity.compat import make_retry_state
++
++
++@contextmanager
++def reports_deprecation_warning():
++    __tracebackhide__ = True
++    oldfilters = copy(warnings.filters)
++    warnings.simplefilter('always')
++    try:
++        with pytest.warns(DeprecationWarning):
++            yield
++    finally:
++        warnings.filters = oldfilters
++
++
++if __name__ == '__main__':
++    unittest.main()

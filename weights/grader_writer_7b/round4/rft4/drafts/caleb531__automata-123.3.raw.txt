@@ -1,0 +1,173 @@
+--- /dev/null
++++ b/tests/test_gnfa_grader.py
+@@ -0,0 +1,138 @@
++"""Classes and functions for testing the behavior of GNFAs."""
++
++
++import os
++import tempfile
++from unittest.mock import patch
++import automata.base.exceptions as exceptions
++import tests.test_fa as test_fa
++from automata.fa.dfa import DFA
++from automata.fa.gnfa import GNFA
++from automata.fa.nfa import NFA
++
++
++class TestGNFA(test_fa.TestFA):
++    """A test class for testing generalized nondeterministic finite automata."""
++
++    temp_dir_path = tempfile.gettempdir()
++
++    def test_to_regex_simple_case(self):
++        """
++        Simple case
++        """
++        g = GNFA({
++            "states": {"q", "r"},
++            "input_symbols": {"a", "b"},
++            "transitions": {
++                "q": {
++                    "r": "a"
++                },
++                "r": {}
++            },
++            "initial_state": "q",
++            "final_state": "r"
++        })
++
++        self.assertEqual("a", g.to_regex())
++
++    def test_to_regex_single_char_repeated(self):
++        """
++        Single char repeated
++        """
++        g = GNFA({
++            "states": {"q", "r"},
++            "input_symbols": {"a", "b"},
++            "transitions": {
++                "q": {
++                    "r": "ab"
++                },
++                "r": {}
++            },
++            "initial_state": "q",
++            "final_state": "r"
++        })
++
++        self.assertEqual("(ab)", g.to_regex())
++
++    def test_to_regex_complex_case(self):
++        """
++        Complex case
++        """
++        g = GNFA({
++            "states": {"q", "r", "s", "t", "u"},
++            "input_symbols": {"a", "b"},
++            "transitions": {
++                "q": {
++                    "r": "a",
++                    "s": "b",
++                    "t": None,
++                    "u": None
++                },
++                "r": {
++                    "r": "a",
++                    "s": "b",
++                    "t": None,
++                    "u": None
++                },
++                "s": {
++                    "r": "a",
++                    "s": "b",
++                    "t": None,
++                    "u": None
++                },
++                "t": {
++                    "r": "a",
++                    "s": "b",
++                    "t": None,
++                    "u": None
++                },
++                "u": {
++                    "r": "a",
++                    "s": "b",
++                    "t": None,
++                    "u": None
++                }
++            },
++            "initial_state": "q",
++            "final_state": "u"
++        })
++
++        self.assertEqual("(a|b)?", g.to_regex())
++
++    def test_to_regex_empty_transition(self):
++        """
++        Empty transition
++        """
++        g = GNFA({
++            "states": {"q", "r"},
++            "input_symbols": {"a", "b"},
++            "transitions": {
++                "q": {
++                    "r": ""
++                },
++                "r": {}
++            },
++            "initial_state": "q",
++            "final_state": "r"
++        })
++
++        self.assertEqual("", g.to_regex())
++
++    def test_to_regex_star(self):
++        """
++        Star transition
++        """
++        g = GNFA({
++            "states": {"q", "r"},
++            "input_symbols": {"a", "b"},
++            "transitions": {
++                "q": {
++                    "r": "*"
++                },
++                "r": {}
++            },
++            "initial_state": "q",
++            "final_state": "r"
++        })
++
++        self.assertEqual("*", g.to_regex())
+--- /dev/null
++++ b/tests/test_fa_grader.py
+@@ -0,0 +1,31 @@
++"""Classes and functions for testing the behavior of both DFAs and NFAs."""
++
++
++import unittest
++from automata.fa.dfa import DFA
++from automata.fa.gnfa import GNFA
++from automata.fa.nfa import NFA
++
++
++class TestFA(unittest.TestCase):
++    """A test class for testing all finite automata."""
++
++    def setUp(self):
++        """Reset test automata before every test function."""
++        # DFA which matches all binary strings ending in an odd number of '1's
++        self.dfa = DFA(
++            states={'q0', 'q1', 'q2'},
++            input_symbols={'0', '1'},
++            transitions={
++                'q0': {'0': 'q0', '1': 'q1'},
++                'q1': {'0': 'q0', '1': 'q2'},
++                'q2': {'0': 'q2', '1': 'q1'}
++            },
++            initial_state='q0',
++            final_states={'q1'}
++        )
++        # GNFA which matches strings beginning with 'a', ending with 'a', and containing
++        # no consecutive 'b's
++        self.gnfa = GNFA.from_dfa(self.dfa)

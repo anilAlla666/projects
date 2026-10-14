@@ -1,0 +1,98 @@
+--- /dev/null
++++ b/tests/test_httpdb_grader.py
+@@ -0,0 +1,60 @@
++from collections import namedtuple
++from os import environ
++from pathlib import Path
++from socket import socket
++from subprocess import Popen
++from sys import executable
++from tempfile import mkdtemp
++from time import monotonic, sleep
++from urllib.request import urlopen, URLError
++from http import HTTPStatus
++import pytest
++from mlrun.artifacts import Artifact
++from mlrun.db import HTTPRunDB, RunDBError
++from mlrun import RunObject
++
++
++root = Path(__file__).absolute().parent.parent
++
++
++Server = namedtuple('Server', 'process url log_file conn')
++
++
++def free_port():
++    with socket() as sock:
++        sock.bind(('localhost', 0))
++        return sock.getsockname()[1]
++
++
++def find_free_port(port):
++    start_time = monotonic()
++    while True:
++        try:
++            urlopen(f'http://localhost:{port}/healthz')
++            break
++        except URLError:
++            sleep(0.1)
++        finally:
++            end_time = monotonic()
++            if end_time > start_time + 30:
++                raise RuntimeError('failed to start HTTP server')
++
++
++def run_server(path, port, env=None):
++    args = [executable, '-m', 'mlrun.db.httpd', path, str(port)]
++    process = Popen(args=args, env={**environ, **env})
++    url = f'http://localhost:{port}'
++    log_file = Path(path).parent / 'logs' / 'access.log'
++    return Server(process, url, log_file, HTTPRunDB(url=url))
++
++
++@pytest.fixture
++def create_server(tmp_path, monkeypatch):
++    monkeypatch.chdir(tmp_path)
++    port = free_port()
++    yield lambda env=None: run_server(tmp_path, port, env)
++
++
++def test_artifact(create_server):
++    server: Server = create_server()
++    db = server.conn
++
++    prj, uid, key, body = 'p7', 'u199', 'k800', 'cucumber'
++    artifact = Artifact(key, body).to_json()
++
++    db.store_artifact(key, artifact, uid, project=prj)
+--- /dev/null
++++ b/tests/test_rundb_grader.py
+@@ -0,0 +1,25 @@
++import mlrun
++from conftest import rundb_path, results
++
++
++def get_db():
++    return mlrun.get_run_db(rundb_path).connect()
++
++
++def test_list_artifacts():
++
++    db = get_db()
++    artifacts = db.list_artifacts()
++    assert artifacts, 'empty artifacts result'
++
++    html = artifacts.show(display=False)
++
++    with open('{}/artifacts.html'.format(results), 'w') as fp:
++        fp.write(html)
++
++
++def test_get_artifact_body():
++
++    db = get_db()
++    artifacts = db.list_artifacts()
++    for artifact in artifacts:
++        body = db.get_artifact_body(artifact.key)
++        assert body == artifact.body, 'bad artifact body'

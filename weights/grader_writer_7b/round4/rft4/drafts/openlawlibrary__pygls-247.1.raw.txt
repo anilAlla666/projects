@@ -1,0 +1,175 @@
+--- /dev/null
++++ b/tests/test_types_grader.py
+@@ -0,0 +1,33 @@
++from pygls.lsp.types import Location, Position, Range
++
++
++def test_location():
++    assert Location(
++        uri="file:///document.txt",
++        range=Range(
++            start=Position(line=1, character=2), end=Position(line=3, character=4)
++        ),
++    ) == Location(
++        uri="file:///document.txt",
++        range=Range(
++            start=Position(line=1, character=2), end=Position(line=3, character=4)
++        ),
++    )
++    assert Location(
++        uri="file:///document.txt",
++        range=Range(
++            start=Position(line=1, character=2), end=Position(line=3, character=4)
++        ),
++    ) != Location(
++        uri="file:///another.txt",
++        range=Range(
++            start=Position(line=1, character=2), end=Position(line=3, character=4)
++        ),
++    )
++    assert (
++        Location(
++            uri="file:///document.txt",
++            range=Range(
++                start=Position(line=1, character=2), end=Position(line=3, character=4)
++            ),
++        )
++        != "something else"
++    )
+--- /dev/null
++++ b/tests/test_protocol_grader.py
+@@ -0,0 +1,122 @@
++import json
++from concurrent.futures import Future
++from functools import partial
++from pathlib import Path
++from typing import Optional
++from unittest.mock import Mock
++import pytest
++from pygls.exceptions import JsonRpcException, JsonRpcInvalidParams
++from pygls.lsp import Model, get_method_params_type
++from pygls.lsp.types import ClientCapabilities, InitializeParams, InitializeResult
++from pygls.protocol import JsonRPCNotification, JsonRPCRequestMessage, JsonRPCResponseMessage
++from pygls.protocol import deserialize_message as _deserialize_message
++
++
++TEST_METHOD = 'test_method'
++
++
++class FeatureParams(Model):
++    class InnerType(Model):
++        inner_field: str
++
++    field_a: str
++    field_b: Optional[InnerType] = None
++
++
++def dummy_message(idx=None):
++    body = json.dumps({
++        "jsonrpc": "2.0",
++        "id": idx,
++        "method": "test_method",
++        "params": {},
++    })
++    return '\r\n'.join([
++        'Content-Length: ' + str(len(body)),
++        'Content-Type: application/vscode-jsonrpc; charset=utf-8',
++        '',
++        body,
++    ]).encode("utf-8")
++
++
++def dummy_request():
++    return dummy_message(1)
++
++
++@pytest.fixture
++def client_server():
++    protocol = JsonRPCProtocol()
++    transport = Mock()
++    protocol.init_transport(transport)
++    protocol.start()
++    yield transport, protocol
++    protocol.shutdown()
++    protocol.wait_done()
++
++
++def test_shutdown_should_send_empty_body(client_server):
++    _, server = client_server
++    server.lsp.shutdown()
++
++    # This will block until the shutdown request is sent
++    server.lsp.wait_for_shutdown()
++
++    # Check that the shutdown response was sent
++    assert server.lsp._send_only_body
++    assert server.lsp._send_data.call_args[0][0].strip().decode("utf-8") == ""
++
++
++def test_shutdown_should_send_nothing_if_already_shut_down(client_server):
++    _, server = client_server
++    server.lsp.shutdown()
++    server.lsp.shutdown()
++
++    # This will block until the shutdown request is sent
++    server.lsp.wait_for_shutdown()
++
++    # Check that no shutdown response was sent
++    assert not server.lsp._send_only_body
++    assert not server.lsp._send_data.called
++
++
++def test_shutdown_should_not_send_anything_when_no_client_connection(client_server):
++    _, server = client_server
++    server.lsp.shutdown()
++
++    # The transport should be closed
++    assert server.lsp._transport.is_closing()
++
++    # Check that no shutdown response was sent
++    assert not server.lsp._send_only_body
++    assert not server.lsp._send_data.called
++
++
++def test_shutdown_should_close_transport_after_receiving_shutdown(client_server):
++    _, server = client_server
++
++    # Start the shutdown sequence
++    server.lsp.shutdown()
++
++    # Send the shutdown response manually
++    shutdown_response = JsonRPCResponseMessage(
++        id=1, jsonrpc='2.0', result=None, error=None
++    )
++    server.lsp._send_data(shutdown_response)
++
++    # The transport should be closed
++    assert server.lsp._transport.is_closing()
++
++
++def test_shutdown_should_close_transport_after_receiving_exit(client_server):
++    _, server = client_server
++
++    # Start the shutdown sequence
++    server.lsp.shutdown()
++
++    # Send the exit notification manually
++    server.lsp._handle_notification(EXIT, None)
++
++    # The transport should be closed
++    assert server.lsp._transport.is_closing()
++
++
++EXIT = 'exit'
++
++
++def dummy_response():
++    return JsonRPCResponseMessage(id=1, jsonrpc='2.0', result='response')
++
++
++def dummy_request_with_params():
++    return dummy_message(1)
++
++
++def dummy_notification():
++    return dummy_message(None)

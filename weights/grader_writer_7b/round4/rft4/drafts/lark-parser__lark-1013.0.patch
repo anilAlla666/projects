@@ -1,0 +1,42 @@
+--- /dev/null
++++ b/tests/test_visitors_grader.py
+@@ -0,0 +1,40 @@
++import pytest
++from lark import Lark, Discard
++from lark.visitors import Transformer, Transformer_NonRecursive, Transformer_InPlace, Transformer_InPlaceRecursive
++
++
++def test_transformer_non_recursive_discard_issue_280():
++    grammar = '''
++        start: add add ignore_tree
++        add:   N N
++        ignore_tree: DO
++        token_ignore: "4"
++        %import common.WS
++        %import common.INT
++        %meta DO
++        %ignore WS
++    '''
++
++    parser = Lark(grammar, parser='lalr')
++    tree = parser.parse("1 2 4\n3 4\nDO NOT PANIC")
++
++    for base in (Transformer, Transformer_InPlace, Transformer_NonRecursive, Transformer_InPlaceRecursive):
++        class T(base):
++            def add(self, children):
++                return sum(children)
++
++            def N(self, token):
++                return int(token)
++
++            def ignore_tree(self, children):
++                raise Discard
++
++            def token_ignore(self, token):
++                raise Discard
++
++        transformed = T().transform(tree)
++
++        assert transformed.pretty() == (
++            "start\n  6\n  7\n  1\n  2\n  3\n  4\n"
++        )

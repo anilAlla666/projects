@@ -1,0 +1,34 @@
+--- /dev/null
++++ b/tests/test_api_grader.py
+@@ -0,0 +1,28 @@
++import pytest
++from unittest.mock import MagicMock
++
++
++def test_get_token_configuration_error(monkeypatch):
++    def get_token(name):
++        raise tokens.ConfigurationError('TEST')
++
++    monkeypatch.setattr('tokens.get', get_token)
++    monkeypatch.setattr('stups_cli.config.load_config', lambda x: {})
++
++    with pytest.raises(tokens.ConfigurationError):
++        zign.api.get_token('mytok', ['myscope'])
++
++
++def test_get_token_service_success(monkeypatch):
++    monkeypatch.setattr('tokens.get', lambda x: 'svc123')
++
++    assert zign.api.get_token('mytok', ['myscope']) == 'svc123'
++
++
++def test_get_token_fallback_success(monkeypatch):
++    def get_token(name):
++        raise tokens.ConfigurationError('TEST')
++
++    monkeypatch.setattr('tokens.get', get_token)
++    monkeypatch.setattr('stups_cli.config.load_config', lambda x: {'url': 'http://localhost'})
++    monkeypatch.setattr('os.getenv', lambda x: 'mypass')
++    monkeypatch.setattr('zign.api.get_new_token', lambda *args, **kwargs: {'access_token': 'tt77'})
++
++    assert zign.api.get_token('mytok', ['myscope']) == 'tt77'

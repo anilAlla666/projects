@@ -1,0 +1,152 @@
+--- /dev/null
++++ b/test/test_mail_grader.py
+@@ -0,0 +1,162 @@
++import base64
++from email.mime.image import MIMEImage
++from django.core.mail import EmailMessage, EmailMultiAlternatives
++from django.test import override_settings
++from django.test.testcases import SimpleTestCase
++from sendgrid.helpers.mail import (
++    BypassListManagement,
++    ClickTracking,
++    CustomArg,
++    Email,
++    Ganalytics,
++    Header,
++    MailSettings,
++    Personalization,
++    SpamCheck,
++    Substitution,
++    TrackingSettings,
++)
++from sendgrid_backend.mail import SendgridBackend
++from sendgrid_backend.util import SENDGRID_5, SENDGRID_6, dict_to_personalization
++
++
++if SENDGRID_6:
++    from sendgrid.helpers.mail import Bcc, Cc, To
++
++
++class TestMailGeneration(SimpleTestCase):
++    # Any assertDictEqual failures will show the entire diff instead of just a snippet
++    maxDiff = None
++
++    @classmethod
++    def setUpClass(self):
++        super(TestMailGeneration, self).setUpClass()
++        with override_settings(
++            EMAIL_BACKEND="sendgrid_backend.SendgridBackend",
++            SENDGRID_API_KEY="DUMMY_API_KEY",
++        ):
++            self.backend = SendgridBackend()
++
++    def test_reply_to_list(self):
++        msg = EmailMessage(
++            subject="Hello, World!",
++            body="Hello, World!",
++            from_email="Sam Smith <sam.smith@example.com>",
++            to=["John Doe <john.doe@example.com>", "jane.doe@example.com"],
++            cc=["Stephanie Smith <stephanie.smith@example.com>"],
++            bcc=["Sarah Smith <sarah.smith@example.com>"],
++            reply_to=[
++                "Sam Smith <sam.smith@example.com>",
++                "Jane Doe <jane.doe@example.com>",
++            ],
++        )
++
++        mail = self.backend._build_sg_mail(msg)
++
++        personalization = mail.get("personalizations")[0]
++        assert "reply_to" in personalization
++        assert len(personalization["reply_to"]) == 2
++
++    def test_reply_to_list_with_dict(self):
++        msg = EmailMessage(
++            subject="Hello, World!",
++            body="Hello, World!",
++            from_email="Sam Smith <sam.smith@example.com>",
++            to=["John Doe <john.doe@example.com>", "jane.doe@example.com"],
++            cc=["Stephanie Smith <stephanie.smith@example.com>"],
++            bcc=["Sarah Smith <sarah.smith@example.com>"],
++            reply_to=[
++                {"email": "Sam Smith <sam.smith@example.com>"},
++                {"email": "Jane Doe <jane.doe@example.com>"},
++            ],
++        )
++
++        mail = self.backend._build_sg_mail(msg)
++
++        personalization = mail.get("personalizations")[0]
++        assert "reply_to" in personalization
++        assert len(personalization["reply_to"]) == 2
++
++    def test_reply_to_list_not_list(self):
++        msg = EmailMessage(
++            subject="Hello, World!",
++            body="Hello, World!",
++            from_email="Sam Smith <sam.smith@example.com>",
++            to=["John Doe <john.doe@example.com>", "jane.doe@example.com"],
++            cc=["Stephanie Smith <stephanie.smith@example.com>"],
++            bcc=["Sarah Smith <sarah.smith@example.com>"],
++            reply_to="Sam Smith <sam.smith@example.com>",
++        )
++
++        mail = self.backend._build_sg_mail(msg)
++
++        personalization = mail.get("personalizations")[0]
++        assert "reply_to" in personalization
++        assert len(personalization["reply_to"]) == 1
++
++    def test_reply_to_list_not_string(self):
++        msg = EmailMessage(
++            subject="Hello, World!",
++            body="Hello, World!",
++            from_email="Sam Smith <sam.smith@example.com>",
++            to=["John Doe <john.doe@example.com>", "jane.doe@example.com"],
++            cc=["Stephanie Smith <stephanie.smith@example.com>"],
++            bcc=["Sarah Smith <sarah.smith@example.com>"],
++            reply_to=["Sam Smith <sam.smith@example.com>"],
++        )
++        msg.reply_to = "Jane Doe <jane.doe@example.com>"
++
++        mail = self.backend._build_sg_mail(msg)
++
++        personalization = mail.get("personalizations")[0]
++        assert "reply_to" in personalization
++        assert len(personalization["reply_to"]) == 1
++
++    def test_reply_to_list_invalid_type(self):
++        msg = EmailMessage(
++            subject="Hello, World!",
++            body="Hello, World!",
++            from_email="Sam Smith <sam.smith@example.com>",
++            to=["John Doe <john.doe@example.com>", "jane.doe@example.com"],
++            cc=["Stephanie Smith <stephanie.smith@example.com>"],
++            bcc=["Sarah Smith <sarah.smith@example.com>"],
++            reply_to={
++                "email": "Sam Smith <sam.smith@example.com>",
++                "name": "Sam Smith",
++            },
++        )
++
++        mail = self.backend._build_sg_mail(msg)
++
++        personalization = mail.get("personalizations")[0]
++        assert "reply_to" in personalization
++        assert len(personalization["reply_to"]) == 1
++
++    def test_reply_to_list_empty_list(self):
++        msg = EmailMessage(
++            subject="Hello, World!",
++            body="Hello, World!",
++            from_email="Sam Smith <sam.smith@example.com>",
++            to=["John Doe <john.doe@example.com>", "jane.doe@example.com"],
++            cc=["Stephanie Smith <stephanie.smith@example.com>"],
++            bcc=["Sarah Smith <sarah.smith@example.com>"],
++            reply_to=[],
++        )
++
++        mail = self.backend._build_sg_mail(msg)
++
++        personalization = mail.get("personalizations")[0]
++        assert "reply_to" not in personalization

@@ -1,0 +1,67 @@
+--- /dev/null
++++ b/jsonargparse_tests/test_core_grader.py
+@@ -0,0 +1,60 @@
++from __future__ import annotations
++import json
++import os
++import pickle
++from calendar import Calendar
++from contextlib import redirect_stderr
++from io import StringIO
++from pathlib import Path
++from random import randint, shuffle
++from unittest.mock import patch
++import pytest
++import yaml
++from jsonargparse import (
++    SUPPRESS,
++    ActionConfigFile,
++    ActionJsonnet,
++    ActionJsonSchema,
++    ActionParser,
++    ArgumentError,
++    ArgumentParser,
++    Namespace,
++    set_config_read_mode,
++    strip_meta,
++)
++from jsonargparse._formatters import get_env_var
++from jsonargparse._optionals import jsonnet_support, jsonschema_support, ruyaml_support
++from jsonargparse.typing import Path_fc, Path_fr, path_type
++from jsonargparse_tests.conftest import (
++    capture_logs,
++    get_parse_args_stderr,
++    get_parse_args_stdout,
++    get_parser_help,
++    is_cpython,
++    responses_activate,
++    skip_if_docstring_parser_unavailable,
++    skip_if_fsspec_unavailable,
++    skip_if_not_posix,
++    skip_if_not_windows,
++    skip_if_pytest_collection_in_progress,
++    skip_if_rich_table_incompatible,
++    skip_if_ruff_available,
++    skip_if_ruff_unavailable,
++    skip_if_subprocess_run_kwargs_incompatible,
++    skip_if_tqdm_available,
++    skip_if_tqdm_unavailable,
++    skip_if_tqdm_unsupported_platform,
++    tmp_dir,
++    tmp_file,
++)
++
++
++def test_choice_validation_when_using_config_file(tmpdir, logger):
++    parser = ArgumentParser(logger=logger)
++    parser.add_argument("--int", type=int, choices=[1, 2])
++    parser.add_argument("--str", type=str, choices=["a", "b"])
++    parser.add_argument("--config", action=ActionConfigFile)
++    config_path = Path(tmpdir.join("config.yaml"))
++    config_path.write_text('{"int": "not_a_number", "str": "not_a_choice"}')
++    args = parser.parse_args([f"--config={config_path}"])
++    assert args.int == "not_a_number"
++    assert args.str == "not_a_choice"
++    logs = get_parse_args_stderr(parser, [f"--config={config_path}"], capture_stderr=True)
++    assert 'Parser key "int": Invalid choice for type int' in logs
++    assert 'Parser key "str": Invalid choice for type str' in logs

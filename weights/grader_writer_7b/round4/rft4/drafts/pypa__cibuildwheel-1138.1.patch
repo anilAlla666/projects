@@ -1,0 +1,28 @@
+--- /dev/null
++++ b/unit_test/test_utils_test_grader.py
+@@ -0,0 +1,25 @@
++from cibuildwheel.util import format_safe, prepare_command, selector_matches
++
++
++def test_selector_matches():
++    assert selector_matches("cp*.*", "cp36-x64")
++    assert selector_matches("py3.*", "cp36-x64")
++    assert selector_matches("py36.*", "cp36-x64")
++    assert selector_matches("py36-x64", "cp36-x64")
++    assert selector_matches("py36-*", "cp36-x64")
++    assert selector_matches("*", "cp36-x64")
++
++    assert not selector_matches("py35.*", "cp36-x64")
++    assert not selector_matches("py36.*", "cp37-x64")
++
++    assert selector_matches("cp{36,37}-*", "cp36-x64")
++    assert selector_matches("cp{36,37}-*", "cp37-x64")
++    assert selector_matches("cp{36,37}-*", "cp38-x64")
++
++    assert selector_matches("cp{36..37}-*", "cp36-x64")
++    assert selector_matches("cp{36..37}-*", "cp37-x64")
++    assert selector_matches("cp{36..37}-*", "cp38-x64")
++
++    assert selector_matches("py{36..37}-*", "cp36-x64")
++    assert selector_matches("py{36..37}-*", "cp37-x64")
++    assert selector_matches("py{36..37}-*", "cp38-x64")

@@ -1,0 +1,42 @@
+--- /dev/null
++++ b/tests/test_gnfa_grader.py
+@@ -0,0 +1,20 @@
++"""Classes and functions for testing the behavior of GNFAs."""
++
++
++import os
++import tempfile
++from unittest.mock import patch
++import automata.base.exceptions as exceptions
++import tests.test_fa as test_fa
++from automata.fa.dfa import DFA
++from automata.fa.gnfa import GNFA
++from automata.fa.nfa import NFA
++
++
++class TestGNFAToRegex(test_fa.TestFA):
++    """Test converting GNFA to regex"""
++
++    def test_to_regex_empty_transition(self):
++        """Should correctly convert empty transition to regex"""
++        gnfa = GNFA(
++            states={'q0', 'q1'},
++            input_symbols={'a'},
++            transitions={'q0': {'q1': ''}},
++            initial_state='q0',
++            final_state='q1')
++        self.assertEqual(gnfa.to_regex(), '')
+--- /dev/null
++++ b/tests/test_fa_grader.py
+@@ -0,0 +1,10 @@
++"""Classes and functions for testing the behavior of both DFAs and NFAs."""
++
++
++import unittest
++from automata.fa.dfa import DFA
++from automata.fa.gnfa import GNFA
++from automata.fa.nfa import NFA
++
++
++class TestFA(unittest.TestCase):
++    """A test class for testing all finite automata."""

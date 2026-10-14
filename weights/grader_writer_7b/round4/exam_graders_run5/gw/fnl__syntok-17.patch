@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/syntok/test_tokenizer_test_grader.py
+@@ -0,0 +1,24 @@
++import os
++from typing import List, Iterable
++from unittest import TestCase
++from syntok.tokenizer import Tokenizer, Token
++
++
++def s(tokens: Iterable[Token]) -> List[str]:
++    return list(t.value for t in tokens)
++
++
++class TestTokenizer(TestCase):
++    def setUp(self) -> None:
++        self.tokenizer = Tokenizer()
++
++    def test_not_contractions(self):
++        text = "n't"
++        result = self.tokenizer.split(text)
++        self.assertListEqual(s(result), ["not"])
++        self.assertListEqual([t.offset for t in result], [0])
++
++        text = "don't"
++        result = self.tokenizer.split(text)
++        self.assertListEqual(s(result), ["do", "not"])
++        self.assertListEqual([t.offset for t in result], [0, 2])

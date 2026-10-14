@@ -1,0 +1,56 @@
+--- /dev/null
++++ b/imapclient/test/test_imapclient_grader.py
+@@ -0,0 +1,57 @@
++from __future__ import unicode_literals
++import itertools
++import socket
++import sys
++from datetime import datetime
++import six
++from imapclient.fixed_offset import FixedOffset
++from .testable_imapclient import TestableIMAPClient as IMAPClient
++from .imapclient_test import IMAPClientTest
++from .util import patch, sentinel, Mock
++
++
++class TestRawCommand(IMAPClientTest):
++    def check(self, command, args, expected):
++        typ, data = self.client._raw_command(command, args)
++        self.assertEqual(typ, 'OK')
++        self.assertEqual(data, ['done'])
++        self.assertEqual(self.client._imap.sent, expected)
++
++    def test_empty_string(self):
++        self.check(b'search', [b''],
++                   b'tag UID SEARCH ""\r\n',
++                   )
++
++    def test_no_space_after_text(self):
++        self.check(b'search', [b'TEXT', b'\xfe\xff'],
++                   b'tag UID SEARCH TEXT {2}\r\n'
++                   b'\xfe\xff\r\n'
++                   )
++
++    def test_no_space_between_arguments(self):
++        self.check(b'search', [b'TEXT', b'\xfe\xff', b'TEXT', b'\xcc'],
++                   b'tag UID SEARCH TEXT {2}TEXT {1}\r\n'
++                   b'\xcc\r\n'
++                   )
++
++
++class TestAddressStr(IMAPClientTest):
++    def test_str_none_host(self):
++        addr = self.client.Address(None, None, None, 'foo')
++        self.assertEqual(str(addr), 'foo')
++
++    def test_str_none_mailbox(self):
++        addr = self.client.Address(None, None, 'foo', 'bar')
++        self.assertEqual(str(addr), 'foo@bar')
++
++    def test_str_all_none(self):
++        addr = self.client.Address(None, None, None, None)
++        self.assertEqual(str(addr), '')
++
++
++if __name__ == '__main__':
++    unittest.main()

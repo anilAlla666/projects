@@ -1,0 +1,98 @@
+--- /dev/null
++++ b/dequindre/tests/test_Dequindre_grader.py
+@@ -0,0 +1,83 @@
++"""Unit tests for the Dequindre class."""
++
++
++from collections import defaultdict
++import pytest
++from dequindre import Task, DAG, Dequindre
++
++
++def test__Dequindre_get_schedules():
++    A = Task('A.py', 'test-env')
++    B = Task('B.py', 'test-env')
++    C = Task('C.py', 'test-env')
++    Z = Task('Z.py', 'test-env')
++    dag = DAG()
++    dag.add_tasks({A, B, C, Z})
++    dag.add_edges({A:B, B:C})
++    dq = Dequindre(dag)
++
++    schedules = dq.get_schedules()
++
++    testable = []
++    for k, v in schedules.items():
++        testable.append((k, v))
++
++    assert testable == [
++        (1, [A, Z]),
++        (2, [B]),
++        (3, [C])
++    ]
++
++
++def test__Dequindre_get_task_schedules():
++    A = Task('A.py', 'test-env')
++    B = Task('B.py', 'test-env')
++    C = Task('C.py', 'test-env')
++    Z = Task('Z.py', 'test-env')
++    dag = DAG()
++    dag.add_tasks({A, B, C, Z})
++    dag.add_edges({A:B, B:C})
++    dq = Dequindre(dag)
++
++    schedules = dq.get_task_schedules()
++
++    testable = {hash(k): v for k, v in schedules.items()}
++    assert testable == {
++        hash(A): 1, 
++        hash(B): 2, 
++        hash(C): 3, 
++        hash(Z): 1
++    }
++
++
++def test__Dequindre_get_schedules_cycle():
++    A = Task('A.py', 'test-env')
++    B = Task('B.py', 'test-env')
++    C = Task('C.py', 'test-env')
++    Z = Task('Z.py', 'test-env')
++    dag = DAG()
++    dag.add_tasks({A, B, C, Z})
++    dag.add_edges({A:B, B:C, C:A})
++    dq = Dequindre(dag)
++
++    schedules = dq.get_schedules()
++
++    testable = []
++    for k, v in schedules.items():
++        testable.append((k, v))
++
++    assert testable == [
++        (1, [A]),
++        (2, [B]),
++        (3, [C]),
++        (4, [Z]),
++    ]
++
++
++def test__Dequindre_get_task_schedules_cycle():
++    A = Task('A.py', 'test-env')
++    B = Task('B.py', 'test-env')
++    C = Task('C.py', 'test-env')
++    Z = Task('Z.py', 'test-env')
++    dag = DAG()
++    dag.add_tasks({A, B, C, Z})
++    dag.add_edges({A:B, B:C, C:A})
++    dq = Dequindre(dag)
++
++    schedules = dq.get_task_schedules()
++
++    testable = {hash(k): v for k, v in schedules.items()}
++    assert testable == {
++        hash(A): 1, 
++        hash(B): 2, 
++        hash(C): 3, 
++        hash(Z): 4
++    }

@@ -1,0 +1,206 @@
+--- /dev/null
++++ b/bids/modeling/tests/test_transformations_grader.py
+@@ -0,0 +1,200 @@
++from bids.modeling import transformations as transform
++from bids.variables import SparseRunVariable, DenseRunVariable
++from bids.variables.entities import RunInfo
++from bids.variables.collections import BIDSRunVariableCollection
++from bids.layout import BIDSLayout
++import math
++import pytest
++from os.path import join, sep
++from bids.tests import get_test_data_path
++import numpy as np
++import pandas as pd
++
++
++try:
++    from unittest import mock
++except ImportError:
++    import mock
++
++
++SUBJECTS = ['01', '02']
++
++
++NRUNS = 3
++
++
++SCAN_LENGTH = 480
++
++
++cached_collections = {}
++
++
++@pytest.fixture
++def collection():
++    if 'ds005' not in cached_collections:
++        layout_path = join(get_test_data_path(), 'ds005')
++        layout = BIDSLayout(layout_path)
++        cached_collections['ds005'] = layout.get_collections(
++            'run',
++            types=['events'],
++            scan_length=SCAN_LENGTH,
++            merge=True,
++            sampling_rate=10,
++            subject=SUBJECTS
++        )
++    return cached_collections['ds005'][0]
++
++
++def test_Assign():
++    var = DenseRunVariable(
++        name="rot_x",
++        values=np.arange(5., 20.),
++        run_info=RunInfo({}, 15, 1, "none", 15),
++        source='regressors',
++        sampling_rate=1
++    )
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++
++    # Assign a single variable
++    transform.Assign(coll, "rot_x", output="d_rot_x")
++    assert "d_rot_x" in coll.variables.keys()
++
++    # Assign multiple variables
++    transform.Assign(coll, ["rot_x", "rot_y"], output=["a", "b"])
++    assert "a" in coll.variables.keys()
++    assert "b" in coll.variables.keys()
++
++    # Assign multiple variables using a single function
++    transform.Assign(coll, ["rot_x", "rot_y"], output=["c", "d"],
++                     func=lambda x, y: x + y)
++    assert "c" in coll.variables.keys()
++    assert "d" in coll.variables.keys()
++
++    # Assign multiple variables using multiple functions
++    transform.Assign(coll, ["rot_x", "rot_y"], output=["e", "f"],
++                     func=[lambda x, y: x + y, lambda x, y: x * y])
++    assert "e" in coll.variables.keys()
++    assert "f" in coll.variables.keys()
++
++    # Check that the outputs are correct
++    assert np.allclose(coll["d_rot_x"].values.values,
++                       np.arange(5., 20.))
++    assert np.allclose(coll["a"].values.values,
++                       np.arange(5., 20.))
++    assert np.allclose(coll["b"].values.values,
++                       np.arange(5., 20.))
++    assert np.allclose(coll["c"].values.values,
++                       np.arange(10., 40.))
++    assert np.allclose(coll["d"].values.values,
++                       np.arange(25., 200.))
++    assert np.allclose(coll["e"].values.values,
++                       np.arange(10., 40.))
++    assert np.allclose(coll["f"].values.values,
++                       np.arange(25., 200.))
++
++
++def test_Merge():
++    var = DenseRunVariable(
++        name="rot_x",
++        values=np.arange(5., 20.),
++        run_info=RunInfo({}, 15, 1, "none", 15),
++        source='regressors',
++        sampling_rate=1
++    )
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++
++    # Merge two variables
++    transform.Merge(coll, ["rot_x", "rot_y"], output="merged_var")
++    merged_var = coll["merged_var"]
++
++    # Make sure we have the right shape
++    assert merged_var.shape == (len(coll), 2)
++
++    # And the right values
++    assert np.allclose(merged_var.values.values,
++                       np.vstack((np.arange(5., 20.), np.arange(5., 20.))).T)
++
++
++def test_Split():
++    var = DenseRunVariable(
++        name="rot_x",
++        values=np.arange(5., 20.),
++        run_info=RunInfo({}, 15, 1, "none", 15),
++        source='regressors',
++        sampling_rate=1
++    )
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++
++    # Split a single variable
++    transform.Split(coll, "rot_x", output="split_vars")
++    assert len(coll.variables.keys()) > 1
++
++    # Split multiple variables
++    transform.Split(coll, ["rot_x", "rot_y"], output=["x_split", "y_split"])
++    assert "x_split" in coll.variables.keys()
++    assert "y_split" in coll.variables.keys()
++
++    # Check that the outputs are correct
++    assert np.allclose(coll["x_split"].values.values,
++                       np.arange(5., 20.))
++    assert np.allclose(coll["y_split"].values.values,
++                       np.arange(5., 20.))
++
++
++def test_Rename():
++    var = DenseRunVariable(
++        name="rot_x",
++        values=np.arange(5., 20.),
++        run_info=RunInfo({}, 15, 1, "none", 15),
++        source='regressors',
++        sampling_rate=1
++    )
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++
++    # Rename a single variable
++    transform.Rename(coll, "rot_x", output="rot_z")
++    assert "rot_z" in coll.variables.keys()
++
++    # Rename multiple variables
++    transform.Rename(coll, ["rot_x", "rot_y"], output=["a", "b"])
++    assert "a" in coll.variables.keys()
++    assert "b" in coll.variables.keys()
++
++    # Check that the outputs are correct
++    assert np.allclose(coll["rot_z"].values.values,
++                       np.arange(5., 20.))
++    assert np.allclose(coll["a"].values.values,
++                       np.arange(5., 20.))
++    assert np.allclose(coll["b"].values.values,
++                       np.arange(5., 20.))
++
++
++def test_Select():
++    var = DenseRunVariable(
++        name="rot_x",
++        values=np.arange(5., 20.),
++        run_info=RunInfo({}, 15, 1, "none", 15),
++        source='regressors',
++        sampling_rate=1
++    )
++    coll = BIDSRunVariableCollection([var], sampling_rate=1)
++
++    # Select a single variable
++    transform.Select(coll, ["rot_x"])
++    assert "rot_x" in coll.variables.keys()
++
++    # Select multiple variables
++    transform.Select(coll, ["rot_x", "rot_y"])
++    assert "rot_x" in coll.variables.keys()
++    assert "rot_y" in coll.variables.keys()
++
++    # Drop a single variable
++    transform.Select(coll, [], drop=True)
++    assert "rot_x" not in coll.variables.keys()
++    assert "rot_y" not in coll.variables.keys()
++
++    # Drop multiple variables
++    transform.Select(coll, ["rot_x", "rot_y"], drop=True)
++    assert "rot_x" not in coll.variables.keys()
++    assert "rot_y" not in coll.variables.keys()
++
++    # Drop all variables
++    transform.Select(coll, [], drop=True)
++    assert len(coll.variables.keys()) == 0

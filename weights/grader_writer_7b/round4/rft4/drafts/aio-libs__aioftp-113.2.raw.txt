@@ -1,0 +1,24 @@
+--- /dev/null
++++ b/tests/test_client_side_socks_grader.py
+@@ -0,0 +1,20 @@
++import asyncio
++from unittest.mock import MagicMock
++import pytest
++
++
++@pytest.fixture
++def factory():
++    async def factory():
++        await asyncio.sleep(0.01)
++        return True
++    return factory
++
++
++@pytest.mark.asyncio
++async def test_socks_timeout(factory, Client, socks):
++    client = Client(socks_host=socks.host, socks_port=socks.port,
++                    socks_version=5, username="foo", password="bar",
++                    timeout=0.001)
++    client._factory = MagicMock(side_effect=factory())
++    with pytest.raises(asyncio.TimeoutError):
++        await client.connect()

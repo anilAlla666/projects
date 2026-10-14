@@ -1,0 +1,45 @@
+--- /dev/null
++++ b/tests/test_multimethod_grader.py
+@@ -0,0 +1,44 @@
++import inspect
++import unittest
++from multimethod import multimethod
++
++
++class TestTypeHint(unittest.TestCase):
++    def test_type_hint(self):
++        @multimethod
++        def foo(a: type):
++            return 'type'
++
++        @foo.register
++        def _(a: int):
++            return 'int'
++
++        @foo.register
++        def _(a: str):
++            return 'str'
++
++        self.assertEqual(foo(type), 'type')
++        self.assertEqual(foo(int), 'int')
++        self.assertEqual(foo(str), 'str')
++
++    def test_custom_metaclass(self):
++        class CustomMetaclass(type):
++            def __new__(cls, name, bases, dct):
++                return super().__new__(cls, name, bases, dct)
++
++        @multimethod
++        def bar(a: CustomMetaclass):
++            return 'CustomMetaclass'
++
++        @bar.register
++        def _(a: int):
++            return 'int'
++
++        self.assertEqual(bar(CustomMetaclass), 'CustomMetaclass')
++        self.assertEqual(bar(int), 'int')
++
++
++if __name__ == "__main__":
++    unittest.main()

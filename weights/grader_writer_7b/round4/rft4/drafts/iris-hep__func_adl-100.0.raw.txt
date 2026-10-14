@@ -1,0 +1,50 @@
+--- /dev/null
++++ b/tests/test_util_ast_grader.py
+@@ -0,0 +1,24 @@
++import ast
++from typing import Callable, cast
++import pytest
++from func_adl.util_ast import (
++    _realign_indent,
++    as_ast,
++    function_call,
++    lambda_args,
++    lambda_body_replace,
++    lambda_build,
++    lambda_call,
++    lambda_is_identity,
++    lambda_is_true,
++    lambda_test,
++    lambda_unwrap,
++    parse_as_ast,
++    rewrite_func_as_lambda,
++    scan_for_metadata,
++)
++
++
++def test_realign_indent_2lines_uneven():
++    assert _realign_indent("    test()\n        dude()") == "test()\n    dude()"
++
++
++def test_realign_indent_2lines_uneven2():
++    assert _realign_indent("test()\n    dude()") == "test()\n    dude()"
+--- /dev/null
++++ b/tests/ast/test_func_adl_ast_utils_grader.py
+@@ -0,0 +1,16 @@
++import ast
++from typing import cast
++from func_adl.ast.func_adl_ast_utils import (
++    FuncADLNodeTransformer,
++    FuncADLNodeVisitor,
++    change_extension_functions_to_calls,
++    is_call_of,
++)
++
++
++def test_realign_indent_2lines_uneven2():
++    start = ast.parse("test()\n    dude()")
++    expected = ast.parse("test()\n    dude()")
++
++    result = _realign_indent(cast(str, ast.unparse(start)))
++
++    assert ast.dump(result) == ast.dump(expected)

@@ -1,0 +1,83 @@
+--- /dev/null
++++ b/tests/backend/builders/hooks/test_version_grader.py
+@@ -0,0 +1,50 @@
++import pytest
++from hatchling.builders.hooks.version import VersionBuildHook
++from hatchling.metadata.core import ProjectMetadata
++from hatchling.plugin.manager import PluginManager
++from hatchling.utils.constants import DEFAULT_BUILD_SCRIPT
++
++
++class TestInitialize:
++    def test_custom_metadata_hook(self, temp_dir, helpers):
++        config = {'path': 'baz.py', 'pattern': 'v = "(?P<version>.+)"'}
++        metadata = ProjectMetadata(
++            str(temp_dir),
++            PluginManager(),
++            {
++                'project': {'name': 'foo', 'dynamic': ['version']},
++                'tool': {'hatch': {'metadata': {'hooks': {'custom': {}}}}},
++            },
++        )
++
++        file_path = temp_dir / DEFAULT_BUILD_SCRIPT
++        file_path.write_text(
++            helpers.dedent(
++                """
++                from hatchling.metadata.plugin.interface import MetadataHookInterface
++
++                class CustomHook(MetadataHookInterface):
++                    def update(self, metadata):
++                        metadata['version'] = '1.2.3'
++                """
++            )
++        )
++        version_file = temp_dir / 'baz.py'
++        version_file.write_text(
++            helpers.dedent(
++                """
++                v = "0.0.0"
++                """
++            )
++        )
++
++        build_data = {'artifacts': []}
++        hook = VersionBuildHook(str(temp_dir), config, None, metadata, '', '')
++        hook.initialize([], build_data)
++
++        assert version_file.read_text() == helpers.dedent(
++            """
++            v = "0.0.0"
++            """
++        )
++        assert build_data['artifacts'] == []
+--- /dev/null
++++ b/tests/cli/version/test_version_grader.py
+@@ -0,0 +1,28 @@
++from hatch.project.core import Project
++
++
++def test_set_static(hatch, helpers, temp_dir):
++    project_name = 'My.App'
++
++    with temp_dir.as_cwd():
++        hatch('new', project_name)
++
++    path = temp_dir / 'my-app'
++
++    project = Project(path)
++    config = dict(project.raw_config)
++    config['project']['version'] = '1.2.3'
++    config['project']['dynamic'].remove('version')
++    project.save_config(config)
++
++    with path.as_cwd():
++        result = hatch('version', 'minor,rc')
++
++    assert result.exit_code == 0, result.output
++    assert result.output == helpers.dedent(
++        """
++        Old: 1.2.3
++        New: 1.3.0rc0
++        """
++    )

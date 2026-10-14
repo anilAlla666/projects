@@ -1,0 +1,57 @@
+To address the issue of the `dtype` being reset when adding an `<UNK>` token, we need to ensure that the original `dtype` is preserved during the process. We can achieve this by explicitly converting the new vectors back to the desired `dtype`.
+
+Here's the proposed fix:
+
+```python
+# reach/reach.py
+def __init__(self, vector_file, wordlist=None, num_to_load=None, truncate_embeddings=None, sep=' ', recover_from_errors=False, desired_dtype=np.float32, unk_word='<UNK>', **kwargs):
+    # ... existing code ...
+
+    if unk_word is not None:
+        if unk_word not in items:
+            unk_vec = np.zeros((1, vectors.shape[1]), dtype=desired_dtype)
+            vectors = np.concatenate([unk_vec, vectors], 0)
+            items = [unk_word] + items
+            unk_index = 0
+        else:
+            unk_index = items.index(unk_word)
+    else:
+        unk_index = None
+
+    # Ensure the dtype is preserved
+    vectors = vectors.astype(desired_dtype)
+
+    return cls(
+        vectors,
+        items,
+        name=name,
+        unk_index=unk_index,
+    )
+
+# reach/reach_test.py
+import unittest
+from reach import Reach
+
+class TestReach(unittest.TestCase):
+    def test_unk_token_dtype(self):
+        # Create a sample .vec file with float32 dtype
+        with open('test_vectors.vec', 'w') as f:
+            f.write('2 2\n')
+            f.write('word1 1.0 2.0\n')
+            f.write('word2 3.0 4.0\n')
+
+        # Load the .vec file with float32 dtype
+        reach_instance = Reach('test_vectors.vec', desired_dtype=np.float32)
+
+        # Check if the dtype is preserved
+        self.assertEqual(reach_instance.vectors.dtype, np.float32)
+
+        # Clean up
+        import os
+        os.remove('test_vectors.vec')
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+This fix ensures that the `dtype` of the vectors is preserved even when adding an `<UNK>` token. The test case checks that the loaded vectors have the expected `dtype` after adding the `<UNK>` token.

@@ -1,0 +1,47 @@
+To address the issue, we need to ensure that the `resolve_type` method correctly handles the resolution of typedefs. Specifically, we need to initialize the `typedefs` key in the `rtnType` dictionary before attempting to increment it.
+
+Here's the updated code snippet for `CppHeaderParser/CppHeaderParser.py`:
+
+```diff
+@@ -1951,6 +1951,7 @@ class _CppHeader(Resolver):
+     rtnType = {
+         "aliases": [],
+         "parent": cls,
++        "typedefs": 0,  # Initialize the typedefs key
+         "unresolved": True,
+         "constant": 0,
+         "constexpr": 0,
+```
+
+Now, let's write a test case to verify that this fix resolves the issue. We'll add a new test case to `test/test_CppHeaderParser.py`.
+
+```diff
+@@ -3841,6 +3841,25 @@ class NestedTypedef(unittest.TestCase):
+ 
+ if __name__ == "__main__":
+     unittest.main()
++
++
++class TypedefRegressionTestCase(unittest.TestCase):
++    def setUp(self):
++        self.cppHeader = CppHeaderParser.CppHeader(
++            """
++            typedef C A;
++
++            class B
++            {
++            public:
++               A aMethod();
++            };
++            """,
++            "string",
++        )
++
++    def test_typedef_resolution(self):
++        b_class = self.cppHeader.classes["B"]
++        method = next((m for m in b_class["methods"]["public"] if m["name"] == "aMethod"), None)
++        self.assertIsNotNone(method)
++        self.assertEqual(method["rtnType"], "A")
+```
+
+This test case sets up a simple header with a typedef and a method returning that typedef. It then checks that the method's return type is correctly resolved to the typedef. If the fix is correct, this test should pass without raising an exception.

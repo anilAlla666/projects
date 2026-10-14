@@ -1,0 +1,21 @@
+--- /dev/null
++++ b/tests/test_ansi_colour_rgb_grader.py
+@@ -0,0 +1,17 @@
++import pytest
++from ansi import rgb256
++
++
++def test_rgb256():
++    """Test conversion of RGB values to ANSI codes."""
++    # Test grey scales
++    assert rgb256(0, 0, 0) == '\x1b[38;5;16m'
++    assert rgb256(1, 1, 1) == '\x1b[38;5;17m'
++    assert rgb256(255, 255, 255) == '\x1b[38;5;231m'
++
++    # Test full colour range
++    assert rgb256(255, 0, 0) == '\x1b[38;5;9m'
++    assert rgb256(0, 255, 0) == '\x1b[38;5;10m'
++    assert rgb256(0, 0, 255) == '\x1b[38;5;11m'
++
++    # Test invalid input
++    with pytest.raises(ValueError): rgb256(1, 2, 3, 4)

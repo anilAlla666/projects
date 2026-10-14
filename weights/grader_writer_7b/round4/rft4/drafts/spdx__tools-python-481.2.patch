@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/test_parsers_validation_grader.py
+@@ -0,0 +1,33 @@
++from unittest import TestCase
++import os.path
++from spdx.parsers import validations
++from spdx import utils
++
++
++class TestValidations(TestCase):
++    maxDiff = None
++
++    def setUp(self):
++        self.spdx_file_path = os.path.join(os.path.dirname(__file__), "..", "data", "spdx-file.tag")
++
++    def test_validate_spdx_file__errors_in_spdx_files_are_ignored(self):
++        """Test validate_spdx_file when spdx_file contains errors"""
++        errors = []
++        validations.validate_spdx_file(self.spdx_file_path, errors=errors)
++        expected_errors = [
++            "Unknown tag: UNKNOWN_TAG at line: 4.",
++            "Unknown tag: UNKNOWN_TAG at line: 5.",
++            "Unknown tag: UNKNOWN_TAG at line: 6.",
++            "Unknown tag: UNKNOWN_TAG at line: 7.",
++            "Unknown tag: UNKNOWN_TAG at line: 8.",
++            "Unknown tag: UNKNOWN_TAG at line: 9.",
++            "Unknown tag: UNKNOWN_TAG at line: 10.",
++            "Unknown tag: UNKNOWN_TAG at line: 11.",
++            "Unknown tag: UNKNOWN_TAG at line: 12.",
++            "Unknown tag: UNKNOWN_TAG at line: 13.",
++            "Unknown tag: UNKNOWN_TAG at line: 14.",
++            "Unknown tag: UNKNOWN_TAG at line: 15.",
++            "Unknown tag: UNKNOWN_TAG at line: 16.",
++        ]
++        self.assertEqual(expected_errors, errors)

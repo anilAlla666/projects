@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/tests/test_model_grader.py
+@@ -0,0 +1,24 @@
++from copy import copy, deepcopy
++from textwrap import dedent
++from bibtexparser.model import (
++    Entry,
++    ExplicitComment,
++    Field,
++    ImplicitComment,
++    Preamble,
++    String,
++)
++
++
++def test_entry_setitem():
++    entry = Entry(
++        entry_type="article",
++        key="myEntry",
++        fields=[],
++    )
++
++    entry["new_key"] = "new_value"
++
++    assert len(entry.fields) == 1
++    assert entry.fields[0].key == "new_key"
++    assert entry.fields[0].value == "new_value"

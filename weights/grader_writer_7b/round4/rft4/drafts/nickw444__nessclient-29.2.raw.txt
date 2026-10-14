@@ -1,0 +1,41 @@
+--- /dev/null
++++ b/nessclient_tests/test_event_grader.py
+@@ -0,0 +1,35 @@
++import unittest
++from nessclient.event import (
++    ZoneUpdate, pack_unsigned_short_data_enum, ArmingUpdate,
++    StatusUpdate, ViewStateUpdate, OutputsUpdate, SystemStatusEvent,
++    MiscellaneousAlarmsUpdate)
++from nessclient.packet import Packet, CommandType
++
++
++class SystemStatusEventTestCase(unittest.TestCase):
++    def test_exit_delay_end(self):
++        pkt = make_packet(CommandType.SYSTEM_STATUS, '230001')
++        event = SystemStatusEvent.decode(pkt)
++        self.assertEqual(event.area, 1)
++        self.assertEqual(event.zone, 0)
++        self.assertEqual(event.type,
++                         SystemStatusEvent.EventType.EXIT_DELAY_END)
++
++    def test_zone_sealed(self):
++        pkt = make_packet(CommandType.SYSTEM_STATUS, '010500')
++        event = SystemStatusEvent.decode(pkt)
++        self.assertEqual(event.area, 0)
++        self.assertEqual(event.zone, 5)
++        self.assertEqual(event.type,
++                         SystemStatusEvent.EventType.SEALED)
++
++    def test_zone_unsealed(self):
++        pkt = make_packet(CommandType.SYSTEM_STATUS, '011500')
++        event = SystemStatusEvent.decode(pkt)
++        self.assertEqual(event.area, 0)
++        self.assertEqual(event.zone, 15)
++        self.assertEqual(event.type,
++                         SystemStatusEvent.EventType.UNSEALED)
++
++
++def make_packet(command: CommandType, data: str):
++    return Packet(address=0, command=command,
++                  seq=0, timestamp=None, data=data,
++                  is_user_interface_resp=True)

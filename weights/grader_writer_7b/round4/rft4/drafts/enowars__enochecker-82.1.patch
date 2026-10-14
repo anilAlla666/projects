@@ -1,0 +1,95 @@
+--- /dev/null
++++ b/tests/test_enochecker_grader.py
+@@ -0,0 +1,87 @@
++import functools
++import sys
++import tempfile
++import time
++from logging import DEBUG
++import enochecker
++import pytest
++from enochecker import (
++    CHECKER_METHODS,
++    BaseChecker,
++    BrokenServiceException,
++    OfflineException,
++    Result,
++    assert_equals,
++    assert_in,
++    ensure_bytes,
++    ensure_unicode,
++    parse_args,
++    run,
++    serve_once,
++    snake_caseify,
++)
++
++
++STORAGE_DIR: str = "/tmp/enochecker_test"
++
++
++def temp_storage_dir(func):
++    @functools.wraps(func)
++    def wrapper(*args, **kwargs):
++        global STORAGE_DIR
++        try:
++            with tempfile.TemporaryDirectory() as tmpdirname:
++                STORAGE_DIR = tmpdirname
++                return func(*args, **kwargs)
++        finally:
++            STORAGE_DIR = "/tmp/enochecker_test"
++
++    return wrapper
++
++
++class CheckerExampleImpl(BaseChecker):
++    service_name: str = "testservice"
++
++    def _run_method(self, *args, **kwargs):
++        super()._run_method(*args, **kwargs)
++
++    def _run_service(self, *args, **kwargs):
++        super()._run_service(*args, **kwargs)
++
++
++@temp_storage_dir
++def test_checker():
++    flag = "ENOFLAG"
++    noise = "buzzzz! :)"
++
++    CheckerExampleImpl(method="putflag").run()
++
++    assert CheckerExampleImpl().team_db["flag"] == flag
++    CheckerExampleImpl(method="getflag", flag=flag).run()
++
++    CheckerExampleImpl(method="putnoise", flag=noise).run()
++    assert CheckerExampleImpl().team_db["noise"] == noise
++    CheckerExampleImpl(method="getnoise", flag=noise).run()
++
++    assert CheckerExampleImpl(method="havoc").run().result == Result.OFFLINE
++
++    with pytest.deprecated_call():
++        CheckerExampleImpl(method="round", flag=100).run()
++
++
++@temp_storage_dir
++def test_useragents():
++    flag = "ENOFLAG"
++    checker = CheckerExampleImpl(method="putflag", flag=flag)
++    first_agent = checker.http_useragent
++
++    for _ in range(10):
++        new_agent = checker.http_useragent_randomize()
++        assert checker.http_useragent == new_agent
++        if first_agent != checker.http_useragent:
++            return
++
++    assert first_agent != checker.http_useragent
++
++
++def main():
++    pytest.main(sys.argv)
++
++
++if __name__ == "__main__":
++    main()

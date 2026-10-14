@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/src/test_com2ann_grader.py
+@@ -0,0 +1,31 @@
++"""Tests for the com2ann.py script in the Tools/parser directory."""
++
++
++import unittest
++from com2ann import com2ann, TYPE_COM
++import re
++from textwrap import dedent
++from typing import Optional, List
++
++
++class MainTestCase(unittest.TestCase):
++    def test_multiple_files(self) -> None:
++        self.check(["foo.py", "bar.py"], ["foo.py", "bar.py"])
++
++    def check(self, infiles: List[str], expected_outfiles: List[str]) -> None:
++        from com2ann import main
++
++        main.infiles = infiles
++        main.outfile = None
++        main.options = {}
++
++        main.process_single_entry(main.infiles[0], main.outfile, main.options)
++
++        self.assertEqual(main.outfile, expected_outfiles[0])
++
++        main.process_single_entry(main.infiles[1], main.outfile, main.options)
++
++        self.assertEqual(main.outfile, expected_outfiles[1])
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/tests/test_parsers_validation_grader.py
+@@ -0,0 +1,26 @@
++from unittest import TestCase
++import os.path
++from spdx.parsers import validations
++from spdx.parsers import builders
++from spdx.parsers import parsers
++from spdx.parsers import lexers
++
++
++class TestValidations(TestCase):
++    maxDiff = None
++
++    def setUp(self):
++        # TODO: Move these files somewhere else?
++        self.docfile = os.path.join(os.path.dirname(__file__), "data", "valid-doc.spdx")
++        self.ppkgfile = os.path.join(os.path.dirname(__file__), "data", "valid-pkg.spdx")
++        self.ffile = os.path.join(os.path.dirname(__file__), "data", "valid-file.spdx")
++        self.cpkgfile = os.path.join(
++            os.path.dirname(__file__), "data", "valid-cpkg.spdx"
++        )
++
++    def test_validators_should_fail_with_line_numbers(self):
++        l = lexers.TagHeaderValueLexer()
++        p = parsers.TagValueParser(l)
++        d = p.parse(self.docfile)
++        v = validations.DocumentValidator(d)
++        self.assertRaises(validations.ValidationFailure, v.validate_all)

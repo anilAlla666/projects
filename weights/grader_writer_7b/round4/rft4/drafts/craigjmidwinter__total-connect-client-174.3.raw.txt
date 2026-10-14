@@ -1,0 +1,133 @@
+--- /dev/null
++++ b/tests/test_location_grader.py
+@@ -0,0 +1,64 @@
++"""Test total_connect_client location."""
++
++
++import unittest
++from copy import deepcopy
++from unittest.mock import Mock, patch
++import pytest
++from const import (
++    LOCATION_INFO_BASIC_NORMAL,
++    METADATA_DISARMED_LOW_BATTERY,
++    RESPONSE_DISARMED,
++    RESPONSE_GET_ZONE_DETAILS_SUCCESS,
++)
++from total_connect_client.exceptions import PartialResponseError, TotalConnectError
++from total_connect_client.location import DEFAULT_USERCODE, TotalConnectLocation
++
++
++class TestTotalConnectLocation(unittest.TestCase):
++    """Test TotalConnectLocation."""
++
++    def setUp(self):
++        """Set up for location testing."""
++        self.auto_bypass_low_battery = False
++        self.location_normal = TotalConnectLocation(LOCATION_INFO_BASIC_NORMAL, self)
++        self.location_normal._update_status(deepcopy(RESPONSE_DISARMED))
++        self.location_normal._update_partitions(deepcopy(RESPONSE_DISARMED))
++        self.location_normal._update_zones(deepcopy(RESPONSE_DISARMED))
++
++    def tearDown(self):
++        """Tear down."""
++        self.location_normal = None
++
++    def tests_tests_auto_bypass_low_battery(self):
++        """Test auto bypass of low battery zones."""
++
++        mock_client = Mock()
++        loc = TotalConnectLocation(LOCATION_INFO_BASIC_NORMAL, mock_client)
++
++        # should not try to bypass by default
++        assert loc.auto_bypass_low_battery is False
++        response = deepcopy(RESPONSE_DISARMED)
++        response["PanelMetadataAndStatus"] = METADATA_DISARMED_LOW_BATTERY
++
++        zbp = "total_connect_client.client.TotalConnectLocation.zone_bypass"
++        with patch(zbp) as mock:
++            loc._update_status(response)
++            loc._update_partitions(response)
++            loc._update_zones(response)
++            assert mock.call_count == 0
++
++        # now set to auto bypass
++        loc.auto_bypass_low_battery = True
++
++        # now update status with a low battery and ensure it is bypassed
++        with patch(zbp) as mock:
++            loc._update_status(response)
++            loc._update_partitions(response)
++            loc._update_zones(response)
++            assert mock.call_count == 1
++
++        # now add an unknown state
++        response["PanelMetadataAndStatus"]["ArmingState"] = 10230
++        with patch(zbp) as mock:
++            loc._update_status(response)
++            loc._update_partitions(response)
++            loc._update_zones(response)
++            assert mock.call_count == 0
+--- /dev/null
++++ b/tests/test_partition_grader.py
+@@ -0,0 +1,53 @@
++"""Test TotalConnectDevice."""
++
++
++from copy import deepcopy
++from unittest.mock import Mock
++import pytest
++from const import PARTITION_DETAILS_1, PARTITION_DISARMED
++from total_connect_client.client import ArmingHelper
++from total_connect_client.exceptions import PartialResponseError, TotalConnectError
++from total_connect_client.partition import TotalConnectPartition
++
++
++def tests_partition():
++    """Test __init__()."""
++    test_partition = TotalConnectPartition(PARTITION_DETAILS_1, None)
++    assert test_partition.partitionid == 1
++
++    test_partition._update(PARTITION_DISARMED)
++    assert test_partition.arming_state.value == PARTITION_DISARMED["ArmingState"]
++
++    unknown = deepcopy(PARTITION_DISARMED)
++    unknown["ArmingState"] = "999999999"
++    with pytest.raises(TotalConnectError):
++        test_partition._update(unknown)
++
++    # remove ArmingState
++    data = deepcopy(PARTITION_DETAILS_1)
++    del data["ArmingState"]
++    with pytest.raises(PartialResponseError):
++        test_partition._update(data)
++
++    # no info
++    with pytest.raises(PartialResponseError):
++        test_partition._update(None)
++
++    # unknown state
++    unknown = deepcopy(PARTITION_DISARMED)
++    unknown["ArmingState"] = 10230
++    with pytest.raises(TotalConnectError):
++        test_partition._update(unknown)
++
++
++def tests_arming_state():
++    """Test status functions."""
++
++    partition = TotalConnectPartition(PARTITION_DETAILS_1, None)
++
++    assert partition.arming_state.is_disarming() is False
++    assert partition.arming_state.is_disarmed() is True
++    assert partition.arming_state.is_arming() is False
++    assert partition.arming_state.is_armed() is False
++    assert partition.arming_state.is_armed_away() is False
++    assert partition.arming_state.is_armed_custom_bypass() is False
++    assert partition.arming_state.is_armed_home() is False
++    assert partition.arming_state.is_armed_night() is False
++    assert partition.arming_state.is_pending() is False
++    assert partition.arming_state.is_triggered_police() is False
++    assert partition.arming_state.is_triggered_fire() is False
++    assert partition.arming_state.is_triggered_gas() is False
++    assert partition.arming_state.is_triggered() is False

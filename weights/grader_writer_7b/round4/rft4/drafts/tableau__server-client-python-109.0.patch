@@ -1,0 +1,56 @@
+--- /dev/null
++++ b/tests/test_pager_grader.py
+@@ -0,0 +1,55 @@
++import unittest
++from collections import namedtuple
++from tableauserverclient.server.pager import Pager
++
++
++class TestPager(unittest.TestCase):
++    class FakeItem(object):
++        def __init__(self, name):
++            self.name = name
++
++        def __str__(self):
++            return self.name
++
++        def __eq__(self, other):
++            return self.name == other.name
++
++    def setUp(self):
++        self.fakeitems = [TestPager.FakeItem("fakeitem %s" % i) for i in range(1, 10)]
++
++    def test_iterable(self):
++        p = Pager(self.fakeitems)
++        # make sure we can iterate over the pager
++        items = list(p)
++        self.assertEqual(len(items), len(self.fakeitems))
++        for item in items:
++            self.assertIsInstance(item, TestPager.FakeItem)
++        # make sure we can call it multiple times
++        items = list(p)
++        self.assertEqual(len(items), len(self.fakeitems))
++        for item in items:
++            self.assertIsInstance(item, TestPager.FakeItem)
++
++    def test_printable(self):
++        p = Pager(self.fakeitems)
++        s = str(p)
++        self.assertIn(str(self.fakeitems[0]), s)
++        self.assertIn(str(self.fakeitems[-1]), s)
++
++    def test_empty(self):
++        p = Pager([])
++        s = str(p)
++        self.assertEqual(s, "")
++
++    def test_length(self):
++        p = Pager(self.fakeitems)
++        self.assertEqual(len(p), len(self.fakeitems))
++
++    def test_index(self):
++        p = Pager(self.fakeitems)
++        self.assertEqual(p[0], self.fakeitems[0])
++        self.assertEqual(p[1], self.fakeitems[1])
++        self.assertEqual(p[-1], self.fakeitems[-1])
++        self.assertEqual(p[-2], self.fakeitems[-2])

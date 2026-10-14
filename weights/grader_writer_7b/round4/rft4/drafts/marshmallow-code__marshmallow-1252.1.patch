@@ -1,0 +1,44 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,13 @@
++import datetime as dt
++from collections import namedtuple
++from functools import partial
++from copy import copy, deepcopy
++import pytest
++from marshmallow import utils
++from tests.base import (
++    assert_datetime_equal,
++    central,
++    assert_time_equal,
++    assert_date_equal,
++)
++
+ 
+ @pytest.fixture(params=[dt.datetime, dt.date, dt.time])
+ def datetime_class(request):
+     return request.param
+--- /dev/null
++++ b/tests/test_py3/test_utils_grader.py
+@@ -0,0 +1,20 @@
++import datetime as dt
++import pytest
++from marshmallow import fields, Schema
++from tests.base import assert_datetime_equal, UTC
++
++
++def test_from_iso_datetime_no_timezone_suffix():
++    # Issue 1249: Ensure parsing ISO8601 datetimes works even when no timezone suffix is present.
++    d = dt.datetime.now(tz=UTC)
++    formatted = d.isoformat()[:-1]
++    result = utils.from_iso(formatted)
++    assert type(result) == dt.datetime
++    assert_datetime_equal(result, d.replace(tzinfo=None))
++
++
++def test_from_iso_datetime_with_Z_suffix():
++    d = dt.datetime.now(tz=UTC)
++    formatted = d.isoformat()
++    result = utils.from_iso(formatted)
++    assert type(result) == dt.datetime
++    assert_datetime_equal(result, d)

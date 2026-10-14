@@ -1,0 +1,82 @@
+diff --git a/matchms/similarity/spectrum_similarity_functions.py b/matchms/similarity/spectrum_similarity_functions.py
+index 5cf15bc..b2c3d4e 100644
+--- a/matchms/similarity/spectrum_similarity_functions.py
++++ b/matchms/similarity/spectrum_similarity_functions.py
+@@ -49,14 +49,14 @@ def find_matches(spec1: numpy.ndarray, spec2: numpy.ndarray,
+     """Faster search for matching peaks.
+     Makes use of the fact that spec1 and spec2 contain ordered peak m/z (from
+     low to high m/z).
+ 
+     Parameters
+     ----------
+-    spec1:
++    spec1_mz:
+         Spectrum peaks and intensities as numpy array. Peak mz values must be ordered.
+-    spec2:
++    spec2_mz:
+         Spectrum peaks and intensities as numpy array. Peak mz values must be ordered.
+     tolerance
+         Peaks will be considered a match when <= tolerance apart.
+     shift
+         Shift peaks of second spectra by shift. The default is 0.
+ 
+     Returns
+     -------
+     matches
+         List containing entries of type (idx1, idx2).
+@@ -65,14 +65,14 @@ def find_matches(spec1: numpy.ndarray, spec2: numpy.ndarray,
+     """
+     lowest_idx = 0
+     matches = []
+     for peak1_idx in range(len(spec1_mz)):
+         mz = spec1_mz[peak1_idx]
+         low_bound = mz - tolerance
+         high_bound = mz + tolerance
+         for peak2_idx in range(lowest_idx, len(spec2_mz)):
+             mz2 = spec2_mz[peak2_idx] + shift
+             if mz2 > high_bound:
+                 break
+             if mz2 < low_bound:
+                 lowest_idx = peak2_idx
+             else:
+                 matches.append((peak1_idx, peak2_idx))
+     return matches
+ 
+@@ -86,14 +86,14 @@ def collect_peak_pairs(spec1: numpy.ndarray, spec2: numpy.ndarray,
+     """Find matching pairs between two spectra.
+ 
+     Args
+     ----
+-    spec1:
++    spec1_mz:
+         Spectrum peaks and intensities as numpy array.
+-    spec2:
++    spec2_mz:
+         Spectrum peaks and intensities as numpy array.
+     tolerance
+         Peaks will be considered a match when <= tolerance appart.
+     shift
+         Shift spectra peaks by shift. The default is 0.
+     mz_power:
+         The power to raise mz to in the cosine function. The default is 0, in which
+         case the peak intensity products will not depend on the m/z ratios.
+     intensity_power:
+         The power to raise intensity to in the cosine function. The default is 1.
+ 
+     Returns
+     -------
+     matching_pairs : numpy array
+         Array of found matching peaks.
+@@ -102,14 +102,14 @@ def collect_peak_pairs(spec1: numpy.ndarray, spec2: numpy.ndarray,
+     """
+     matches = find_matches(spec1_mz, spec2_mz, tolerance, shift)
+     idx1 = [x[0] for x in matches]
+     idx2 = [x[1] for x in matches]
+     if len(idx1) == 0:
+         return None
+     matching_pairs = []
+     for i, idx in enumerate(idx1):
+         power_prod_spec1 = (spec1_mz[idx] ** mz_power) * (spec1[idx, 1] ** intensity_power)
+         power_prod_spec2 = (spec2_mz[idx2[i]] ** mz_power) * (spec2[idx2[i], 1] ** intensity_power)
+         matching_pairs.append([idx1[i], idx2[i], power_prod_spec1 * power_prod_spec2])
+     return numpy.array(matching_pairs.copy())

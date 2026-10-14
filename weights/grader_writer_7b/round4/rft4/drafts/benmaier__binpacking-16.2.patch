@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_to_constant_volume_grader.py
+@@ -0,0 +1,14 @@
++import pytest
++from binpacking.to_constant_volume import to_constant_volume
++
++
++def test_empty_bins():
++    assert to_constant_volume([], 10) == [[]]
++    assert to_constant_volume({}, 10) == [{}, {}, {}]
++
++
++def test_bounds():
++    # Test if items outside of the specified bounds are not included in the bins
++    assert to_constant_volume([1, 10, 20], 10, upper_bound=15) == [[1]]
++    assert to_constant_volume({'a': 1, 'b': 10, 'c': 20}, 10, upper_bound=15) == [{'a': 1}, {'b': 10}]

@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/tests/test_api_grader.py
+@@ -0,0 +1,16 @@
++import pytest
++import tokens
++import zign.api
++from unittest.mock import MagicMock
++
++
++def test_get_token_fallback_service_success(monkeypatch):
++    def get_token(name):
++        raise tokens.ServiceUnavailable('SERVICE UNAVAILABLE')
++
++    monkeypatch.setattr('tokens.get', get_token)
++    monkeypatch.setattr('stups_cli.config.load_config', lambda x: {'url': 'http://localhost'})
++    monkeypatch.setattr('os.getenv', lambda x: 'mypass')
++    monkeypatch.setattr('zign.api.get_new_token', lambda *args, **kwargs: {'access_token': 'tt77'})
++
++    assert zign.api.get_token('mytok', ['myscope']) == 'tt77'

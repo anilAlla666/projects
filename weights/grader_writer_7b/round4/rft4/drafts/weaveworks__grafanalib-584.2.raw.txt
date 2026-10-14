@@ -1,0 +1,177 @@
+--- /dev/null
++++ b/grafanalib/tests/test_core_grader.py
+@@ -0,0 +1,132 @@
++"""Tests for core."""
++
++
++import random
++import grafanalib.core as G
++import pytest
++
++
++def dummy_grid_pos() -> G.GridPos:
++    return G.GridPos(h=1, w=2, x=3, y=4)
++
++
++def dummy_data_link() -> G.DataLink:
++    return G.DataLink(
++        title='dummy title',
++        linkUrl='https://www.dummy-link-url.com',
++        isNewTab=True
++    )
++
++
++def dummy_evaluator() -> G.Evaluator:
++    return G.Evaluator(
++        type=G.EVAL_GT,
++        params=42
++    )
++
++
++def dummy_alert_condition() -> G.AlertCondition:
++    return G.AlertCondition(
++        target=G.Target(
++            refId="A",
++        ),
++        evaluator=dummy_evaluator(),
++        timeRange=G.TimeRange(
++            from_time='5m',
++            to_time='now'
++        ),
++        operator=G.OP_AND,
++        reducerType=G.RTYPE_AVG,
++        type=G.CTYPE_QUERY,
++    )
++
++
++def test_target_invalid():
++    with pytest.raises(ValueError, match=r"target should have non-empty 'refId' attribute"):
++        return G.AlertCondition(
++            target=G.Target(refId=""),
++            evaluator=G.Evaluator(
++                type=G.EVAL_GT,
++                params=42),
++            timeRange=G.TimeRange(
++                from_time='5m',
++                to_time='now'
++            ),
++            operator=G.OP_AND,
++            reducerType=G.RTYPE_AVG,
++        )
++
++
++def test_sql_target():
++    t = G.Table(
++        dataSource="some data source",
++        targets=[
++            G.SqlTarget(rawSql="SELECT * FROM example"),
++        ],
++        title="table title",
++    )
++    assert t.to_json_data()["targets"][0].rawQuery is True
++    assert t.to_json_data()["targets"][0].rawSql == "SELECT * FROM example"
++
++
++def test_sql_target_with_source_files():
++    t = G.Table(
++        dataSource="some data source",
++        targets=[
++            G.SqlTarget(srcFilePath="grafanalib/tests/examples/sqltarget_example_files/example.sql"),
++        ],
++        title="table title",
++    )
++    assert t.to_json_data()["targets"][0].rawQuery is True
++    assert t.to_json_data()["targets"][0].rawSql == "SELECT example, count(id)\nFROM test\nGROUP BY example;\n"
++    print(t.to_json_data()["targets"][0])
++
++    t = G.Table(
++        dataSource="some data source",
++        targets=[
++            G.SqlTarget(srcFilePath="grafanalib/tests/examples/sqltarget_example_files/example_with_params.sql", sqlParams={
++                "example": "example",
++                "starting_date": "1970-01-01",
++                "ending_date": "1971-01-01",
++            },),
++        ],
++        title="table title",
++    )
++    assert t.to_json_data()["targets"][0].rawQuery is True
++    assert t.to_json_data()["targets"][0].rawSql == "SELECT example\nFROM test\nWHERE example='example' AND example_date BETWEEN '1970-01-01' AND '1971-01-01';\n"
++    print(t.to_json_data()["targets"][0])
++
++
++def test_use_new_alerts():
++    c = G.AlertCondition(useNewAlerts=True)
++    assert c.to_json_data()['useNewAlerts'] is True
++
++    c = G.AlertCondition(useNewAlerts=False)
++    assert c.to_json_data()['useNewAlerts'] is False
++
++
++def test_alert_expression():
++    expression = G.AlertExpression(
++        children=[],
++        operator=G.OP_AND,
++        reducerType=G.RTYPE_AVG,
++        type=G.CTYPE_EXPRESSION,
++    )
++    assert expression.to_json_data() == {
++        'children': [],
++        'operator': {'type': G.OP_AND},
++        'reducer': {'params': [], 'type': G.RTYPE_AVG},
++        'type': G.CTYPE_EXPRESSION,
++    }
++
++    expression = G.AlertExpression(
++        children=[],
++        operator=G.OP_AND,
++        reducerType=G.RTYPE_AVG,
++        type=G.CTYPE_EXPRESSION,
++        useNewAlerts=True,
++    )
++    assert expression.to_json_data() == {
++        'children': [],
++        'operator': {'type': G.OP_AND},
++        'reducer': {'params': [], 'type': G.RTYPE_AVG},
++        'type': G.CTYPE_EXPRESSION,
++        'useNewAlerts': True,
++    }
+--- /dev/null
++++ b/grafanalib/tests/test_grafanalib_grader.py
+@@ -0,0 +1,35 @@
++"""Tests for Grafanalib."""
++
++
++import grafanalib.core as G
++from grafanalib import _gen
++import sys
++
++
++if sys.version_info[0] < 3:
++    from io import BytesIO as StringIO
++else:
++    from io import StringIO
++
++
++def test_auto_refids():
++    """
++    auto_ref_ids() provides refIds for all targets without refIds already
++    set.
++    """
++    dashboard = G.Dashboard(
++        title="Test dashboard",
++        rows=[
++            G.Row(panels=[
++                G.Graph(
++                    title="CPU Usage by Namespace (rate[5m])",
++                    targets=[G.Target(refId=i)
++                             for i in range(53)],
++                ).auto_ref_ids()
++            ]),
++        ],
++    )
++    assert dashboard.rows[0].panels[0].targets[0].refId == 'A'
++    assert dashboard.rows[0].panels[0].targets[25].refId == 'Z'
++    assert dashboard.rows[0].panels[0].targets[26].refId == 'AA'
++    assert dashboard.rows[0].panels[0].targets[51].refId == 'AZ'
++    assert dashboard.rows[0].panels[0].targets[52].refId == 'BA'

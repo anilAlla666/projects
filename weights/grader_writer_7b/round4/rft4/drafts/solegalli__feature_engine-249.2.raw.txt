@@ -1,0 +1,127 @@
+--- /dev/null
++++ b/tests/test_creation/test_mathematical_combination_grader.py
+@@ -0,0 +1,118 @@
++import numpy as np
++import pandas as pd
++import pytest
++from feature_engine.creation import MathematicalCombination
++
++
++def test_ignore_null_values_in_fit_transform():
++    X_train = pd.DataFrame(
++        {
++            "var_1": [-2, 2, 0, 1, 1],
++            "var_2": [np.nan, 2, 0, 1, 1],
++            "var_3": [2, 2, 0, 1, 1],
++        }
++    )
++    X_test = pd.DataFrame(
++        {
++            "var_1": [-2, 2, 0, 1, 1],
++            "var_2": [np.nan, 2, 0, 1, 1],
++            "var_3": [2, 2, 0, 1, 1],
++        }
++    )
++    transformer = MathematicalCombination(
++        variables_to_combine=["var_1", "var_2", "var_3"],
++        ignore_na=True,
++    )
++
++    transformer.fit(X_train)
++
++    X_test_trans = transformer.transform(X_test)
++
++    ref = pd.DataFrame(
++        {
++            "var_1": [-2, 2, 0, 1, 1],
++            "var_2": [np.nan, 2, 0, 1, 1],
++            "var_3": [2, 2, 0, 1, 1],
++            "sum(var_1-var_2):var_3": [2.0, 4.0, 0.0, 2.0, 2.0],
++            "mean(var_1-var_2):var_3": [2.0, 2.0, 0.0, 1.0, 1.0],
++            "prod(var_1-var_2):var_3": [2.0, 4.0, 0.0, 1.0, 1.0],
++            "std(var_1-var_2):var_3": [2.0, 2.0, 0.0, 1.0, 1.0],
++            "max(var_1-var_2):var_3": [2.0, 2.0, 0.0, 1.0, 1.0],
++            "min(var_1-var_2):var_3": [2.0, 2.0, 0.0, 1.0, 1.0],
++        }
++    )
++
++    pd.testing.assert_frame_equal(ref, X_test_trans)
++
++
++def test_error_if_raise_na_and_use_default_params():
++    X_train = pd.DataFrame(
++        {
++            "var_1": [-2, 2, 0, 1, 1],
++            "var_2": [np.nan, 2, 0, 1, 1],
++            "var_3": [2, 2, 0, 1, 1],
++        }
++    )
++    X_test = pd.DataFrame(
++        {
++            "var_1": [-2, 2, 0, 1, 1],
++            "var_2": [np.nan, 2, 0, 1, 1],
++            "var_3": [2, 2, 0, 1, 1],
++        }
++    )
++    transformer = MathematicalCombination(
++        variables_to_combine=["var_1", "var_2", "var_3"],
++        ignore_na=False,
++    )
++
++    transformer.fit(X_train)
++
++    with pytest.raises(ValueError):
++        transformer.transform(X_test)
++
++
++def test_error_if_raise_na_and_use_custom_params():
++    X_train = pd.DataFrame(
++        {
++            "var_1": [-2, 2, 0, 1, 1],
++            "var_2": [np.nan, 2, 0, 1, 1],
++            "var_3": [2, 2, 0, 1, 1],
++        }
++    )
++    X_test = pd.DataFrame(
++        {
++            "var_1": [-2, 2, 0, 1, 1],
++            "var_2": [np.nan, 2, 0, 1, 1],
++            "var_3": [2, 2, 0, 1, 1],
++        }
++    )
++    transformer = MathematicalCombination(
++        variables_to_combine=["var_1", "var_2", "var_3"],
++        ignore_na=False,
++        math_operations=["mean"],
++    )
++
++    transformer.fit(X_train)
++
++    with pytest.raises(ValueError):
++        transformer.transform(X_test)
++
++
++def test_error_if_ignore_na_and_use_default_params():
++    X_train = pd.DataFrame(
++        {
++            "var_1": [-2, 2, 0, 1, 1],
++            "var_2": [np.nan, 2, 0, 1, 1],
++            "var_3": [2, 2, 0, 1, 1],
++        }
++    )
++    X_test = pd.DataFrame(
++        {
++            "var_1": [-2, 2, 0, 1, 1],
++            "var_2": [np.nan, 2, 0, 1, 1],
++            "var_3": [2, 2, 0, 1, 1],
++        }
++    )
++    transformer = MathematicalCombination(
++        variables_to_combine=["var_1", "var_2", "var_3"],
++        ignore_na=True,
++    )
++
++    transformer.fit(X_train)
++
++    with pytest.raises(ValueError):
++        transformer.transform(X_test)

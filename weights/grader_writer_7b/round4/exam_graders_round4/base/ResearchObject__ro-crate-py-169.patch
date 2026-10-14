@@ -1,0 +1,43 @@
+diff --git a/test/test_model.py b/test/test_model.py
+index 0b2c3d4..e5f6g7h 100644
+--- a/test/test_model.py
++++ b/test/test_model.py
+@@ -465,6 +465,10 @@ def test_context(helpers):
+     assert jsonld["@context"] == [base_context, wfrun_ctx, {k: v}]
+ 
++def test_entity_immutable_id():
++    crate = ROCrate()
++    dataset = crate.add_dataset("Initial ID")
++    with pytest.raises(AttributeError):
++        dataset.id = "New ID"
++
+ def test_add_no_duplicates(test_data_dir, tmpdir):
+     source = test_data_dir / "sample_file.txt"
+     crate = ROCrate()
+diff --git a/test/test_entity_immutable_id.py b/test/test_entity_immutable_id.py
+new file mode 100644
+index 0000000..1234567
+--- /dev/null
++++ b/test/test_entity_immutable_id.py
+@@ -0,0 +1,10 @@
++# Copyright 2019-2023 The University of Manchester, UK
++# Copyright 2020-2023 Vlaams Instituut voor Biotechnologie (VIB), BE
++# Copyright 2020-2023 Barcelona Supercomputing Center (BSC), ES
++# Copyright 2020-2023 Center for Advanced Studies, Research and Development in Sardinia (CRS4), IT
++# Copyright 2022-2023 École Polytechnique Fédérale de Lausanne, CH
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++# http://www.apache.org/licenses/LICENSE-2.0
++
++import pytest
++from rocrate.rocrate import ROCrate
++from rocrate.model.entity import Entity
++
++def test_entity_immutable_id():
++    crate = ROCrate()
++    dataset = crate.add_dataset("Initial ID")
++    with pytest.raises(AttributeError):
++        dataset.id = "New ID"

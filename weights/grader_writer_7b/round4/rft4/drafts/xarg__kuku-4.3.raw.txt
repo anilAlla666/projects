@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/tests/test_dump_grader.py
+@@ -0,0 +1,25 @@
++from unittest.mock import Mock
++import pytest
++from kuku.dump import dump
++
++
++@pytest.mark.parametrize("return_value", [True, False])
++def test_render_none(return_value):
++    class Test(Mock):
++        @property
++        def api_version(self):
++            return "test/v1"
++
++        @property
++        def kind(self):
++            return "Test"
++
++        @property
++        def metadata(self):
++            return {
++                "name": "foo",
++            }
++
++        def to_dict(self):
++            return return_value
++
++    assert dump({"a": Test(None)}) == ""

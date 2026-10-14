@@ -1,0 +1,47 @@
+--- /dev/null
++++ b/tests/test_pydbg_grader.py
+@@ -0,0 +1,44 @@
++import os
++import io
++from pydbg import dbg
++from contextlib import redirect_stdout
++
++
++def something():
++    pass
++
++
++cwd = os.getcwd()
++
++
++def test_functions():
++    def add(x, y):
++        z = x + y
++        return z
++
++    def sub(x, y):
++        z = x - y
++        return z
++
++    def mul(x, y):
++        z = x * y
++        return z
++
++    def div(x, y):
++        z = x // y
++        return z
++
++    out = io.StringIO()
++    with redirect_stdout(out):
++        dbg(add(1, 2))
++        dbg(sub(1, 2))
++        dbg(mul(1, 2))
++        dbg(div(1, 2))
++
++    want = f"""[{cwd}/tests/test_pydbg.py:33] add(1, 2) = 3
++[{cwd}/tests/test_pydbg.py:35] sub(1, 2) = -1
++[{cwd}/tests/test_pydbg.py:37] mul(1, 2) = 2
++[{cwd}/tests/test_pydbg.py:39] div(1, 2) = 0
++"""
++
++    assert out.getvalue() == want

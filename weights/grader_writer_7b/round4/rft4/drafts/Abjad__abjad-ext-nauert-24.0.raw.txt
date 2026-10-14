@@ -1,0 +1,114 @@
+--- /dev/null
++++ b/tests/test_nauert_test_GraceHandlers_grader.py
+@@ -0,0 +1,126 @@
++import abjad
++from abjadext import nauert
++
++
++def test_ConcatenatingGraceHandler_01():
++    durations = [1000, 1, 999]
++    pitches = [0, None, 0]
++    q_event_sequence = nauert.QEventSequence.from_millisecond_pitch_pairs(
++        tuple(zip(durations, pitches))
++    )
++    grace_handler = nauert.ConcatenatingGraceHandler()
++    quantizer = nauert.Quantizer(grace_handler=grace_handler)
++    result = quantizer(q_event_sequence)
++    expected_result = r"""
++    \version "2.21.1"
++    \language "english"
++    << 
++        \context Score <<
++            \context RhythmStaff <<
++                \context Voice = "rhythmic_staff.Voice" <<
++                    {
++                        \tempo 4=60
++                        %%% \time 4/4 %%%
++                        c'4
++                        \grace {
++                            c'16
++                        }
++                        c'4
++                        r4
++                        r4
++                    }
++                >>
++            >>
++        >>
++    >>
++    """
++    assert abjad.lilypond(result) == abjad.string.normalize(expected_result)
++
++
++def test_ConcatenatingGraceHandler_02():
++    durations = [1000, 1, 999, 1000]
++    pitches = [0, 0, None, 0]
++    q_event_sequence = nauert.QEventSequence.from_millisecond_pitch_pairs(
++        tuple(zip(durations, pitches))
++    )
++    grace_handler = nauert.ConcatenatingGraceHandler(
++        replace_rest_with_final_grace_note=True
++    )
++    quantizer = nauert.Quantizer(grace_handler=grace_handler)
++    result = quantizer(q_event_sequence)
++    expected_result = r"""
++    \version "2.21.1"
++    \language "english"
++    << 
++        \context Score <<
++            \context RhythmStaff <<
++                \context Voice = "rhythmic_staff.Voice" <<
++                    {
++                        \tempo 4=60
++                        %%% \time 4/4 %%%
++                        c'4
++                        c'4
++                        c'4
++                        r4
++                    }
++                >>
++            >>
++        >>
++    >>
++    """
++    assert abjad.lilypond(result) == abjad.string.normalize(expected_result)
++
++
++def test_RollingGraceHandler_01():
++    durations = [1000, 1, 999]
++    pitches = [0, None, 0]
++    q_event_sequence = nauert.QEventSequence.from_millisecond_pitch_pairs(
++        tuple(zip(durations, pitches))
++    )
++    grace_handler = nauert.RollingGraceHandler()
++    quantizer = nauert.Quantizer(grace_handler=grace_handler)
++    result = quantizer(q_event_sequence)
++    expected_result = r"""
++    \version "2.21.1"
++    \language "english"
++    << 
++        \context Score <<
++            \context RhythmStaff <<
++                \context Voice = "rhythmic_staff.Voice" <<
++                    {
++                        \tempo 4=60
++                        %%% \time 4/4 %%%
++                        c'4
++                        \grace {
++                            c'16
++                        }
++                        c'4
++                        r4
++                        r4
++                    }
++                >>
++            >>
++        >>
++    >>
++    """
++    assert abjad.lilypond(result) == abjad.string.normalize(expected_result)
++
++
++def _find_last_pitched_q_event(q_events):
++    pitched_q_events = [q_event for q_event in q_events if q_event.is_pitched]
++    return len(pitched_q_events)

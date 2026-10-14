@@ -1,0 +1,48 @@
+Here is a unified diff that adds a new test file `test/test_extract_orfs.py` to test the `extract-ORFs.py` script:
+
+```diff
+diff --git a/test/test_extract_orfs.py b/test/test_extract_orfs.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/test/test_extract_orfs.py
+@@ -0,0 +1,45 @@
++import unittest
++from dark.extract_orfs import extractOrfs
++
++class TestExtractOrfs(unittest.TestCase):
++    def test_mixed_case_translation(self):
++        sequence = "ATGatgc"
++        expected = ["M", "m"]
++        actual = extractOrfs(sequence)
++        self.assertEqual(expected, actual)
++
++    def test_all_uppercase_translation(self):
++        sequence = "ATGATGC"
++        expected = ["M", "M"]
++        actual = extractOrfs(sequence)
++        self.assertEqual(expected, actual)
++
++    def test_all_lowercase_translation(self):
++        sequence = "atgatgc"
++        expected = ["m", "m"]
++        actual = extractOrfs(sequence)
++        self.assertEqual(expected, actual)
++
++    def test_empty_sequence(self):
++        sequence = ""
++        expected = []
++        actual = extractOrfs(sequence)
++        self.assertEqual(expected, actual)
++
++    def test_single_nucleotide_sequence(self):
++        sequence = "A"
++        expected = []
++        actual = extractOrfs(sequence)
++        self.assertEqual(expected, actual)
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This test file includes several test cases to ensure that the `extractOrfs` function works correctly for sequences with mixed case, all uppercase, all lowercase, empty sequences, and single nucleotide sequences. The test cases should fail on the current code because the `extract-ORFs.py` script mistranslates lowercase letters. Once the issue is fixed, these test cases should pass.

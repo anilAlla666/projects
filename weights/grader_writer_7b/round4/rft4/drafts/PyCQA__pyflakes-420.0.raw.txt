@@ -1,0 +1,40 @@
+--- /dev/null
++++ b/pyflakes/test/test_checker_grader.py
+@@ -0,0 +1,43 @@
++import ast
++import sys
++from pyflakes import checker
++from pyflakes.test.harness import TestCase, skipIf
++
++
++class TypeCommentTestCase(TestCase):
++    def test_type_comment_syntax_error(self):
++        """
++        Test that we don't crash on a type comment with a syntax error.
++        """
++        self.flake("""
++def f(x):
++    x = 1  # type: int
++""")
++        self.flake("""
++def f(x):
++    x = 1  # type: int
++""", filename='dummy.py', start_line=1)
++        self.flake("""
++def f(x):
++    x = 1  # type: int
++""", filename='dummy.py', start_line=1, end_line=3)
++        self.flake("""
++def f(x):
++    x = 1  # type: int
++""", filename='dummy.py', start_line=1, end_line=3, start_column=4, end_column=5)
++        self.flake("""
++def f(x):
++    x = 1  # type: int
++""", filename='dummy.py', start_line=1, end_line=3, start_column=4, end_column=5, start_pos=(1, 4),
++                end_pos=(3, 5))
++        self.flake("""
++def f(x):
++    x = 1  # type: int
++""", filename='dummy.py', start_line=1, end_line=3, start_column=4, end_column=5, start_pos=(1, 4),
++                end_pos=(3, 5), offset=(1, 4))

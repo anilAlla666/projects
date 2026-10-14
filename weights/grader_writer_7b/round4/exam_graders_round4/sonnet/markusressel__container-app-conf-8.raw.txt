@@ -1,0 +1,68 @@
+The new tests below check that `FileConfigEntry` and `DirectoryConfigEntry` return `pathlib.Path` objects instead of strings. I haven't run them. They should fail on the current code, which returns `os.path.abspath` strings.
+
+The issue doesn't say whether the returned path must be absolute, so relative inputs are compared after `os.path.abspath` on both sides. They call `_value_to_type` directly rather than going through `EntryTestBase`, because that method is the one shown in the current source.
+
+```diff
+--- /dev/null
++++ b/tests/pathlib_entry_test.py
+@@ -0,0 +1,75 @@
++import os
++import unittest
++from pathlib import Path
++
++from container_app_conf.entry.file import FileConfigEntry, DirectoryConfigEntry
++
++
++class PathlibEntryTest(unittest.TestCase):
++
++    def test_file_entry_returns_path(self):
++        entry = FileConfigEntry(yaml_path=["file"])
++        result = entry._value_to_type("/tmp/test")
++        self.assertIsInstance(result, Path)
++        self.assertEqual(Path("/tmp/test"), result)
++
++    def test_file_entry_relative_returns_path(self):
++        entry = FileConfigEntry(yaml_path=["file"])
++        result = entry._value_to_type("./test")
++        self.assertIsInstance(result, Path)
++        self.assertEqual(os.path.abspath("./test"), os.path.abspath(str(result)))
++
++    def test_file_entry_accepts_path_input(self):
++        entry = FileConfigEntry(yaml_path=["file"])
++        result = entry._value_to_type(Path("/tmp/test"))
++        self.assertIsInstance(result, Path)
++        self.assertEqual(Path("/tmp/test"), result)
++
++    def test_file_entry_check_existence(self):
++        entry = FileConfigEntry(yaml_path=["file"], check_existence=True)
++        with self.assertRaises(FileNotFoundError):
++            entry._value_to_type("/tmp/this_file_should_not_exist_12345")
++
++    def test_directory_entry_returns_path(self):
++        entry = DirectoryConfigEntry(yaml_path=["directory"])
++        result = entry._value_to_type("/tmp")
++        self.assertIsInstance(result, Path)
++        self.assertEqual(Path("/tmp"), result)
++
++    def test_directory_entry_trailing_separator(self):
++        entry = DirectoryConfigEntry(yaml_path=["directory"])
++        result = entry._value_to_type("/something/")
++        self.assertIsInstance(result, Path)
++        self.assertEqual(Path("/something"), result)
++
++    def test_directory_entry_relative_returns_path(self):
++        entry = DirectoryConfigEntry(yaml_path=["directory"], check_existence=True)
++        result = entry._value_to_type("./")
++        self.assertIsInstance(result, Path)
++        self.assertEqual(os.path.abspath("./"), os.path.abspath(str(result)))
++
++    def test_directory_entry_accepts_path_input(self):
++        entry = DirectoryConfigEntry(yaml_path=["directory"])
++        result = entry._value_to_type(Path("/tmp"))
++        self.assertIsInstance(result, Path)
++        self.assertEqual(Path("/tmp"), result)
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

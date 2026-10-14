@@ -1,0 +1,57 @@
+--- /dev/null
++++ b/tests/test_ansi_colour_rgb_grader.py
+@@ -0,0 +1,44 @@
++import pytest
++from ansi.colour.rgb import rgb256, rgb8, rgb16
++
++
++def test_rgb8():
++    """Test rgb8."""
++    assert rgb8(0, 0, 0) == '\x1b[30m'
++    assert rgb8(255, 255, 255) == '\x1b[37m'
++
++
++def test_rgb16():
++    """Test rgb16."""
++    assert rgb16(0, 0, 0) == '\x1b[30m'
++    assert rgb16(255, 255, 255) == '\x1b[37m'
++
++
++def test_rgb256():
++    """Test rgb256."""
++    assert rgb256(0, 0, 0) == '\x1b[38;5;16m'
++    assert rgb256(255, 255, 255) == '\x1b[38;5;231m'
++    assert rgb256(255, 255, 255, bg=True) == '\x1b[48;5;231m'
++
++
++@pytest.mark.parametrize("bg", (False, True))
++def test_rgb256_grey(bg):
++    """Test rgb256 with grey."""
++    assert rgb256(0, 0, 0, bg=bg) == '\x1b[38;5;16m' if not bg else '\x1b[48;5;16m'
++    assert rgb256(1, 1, 1, bg=bg) == '\x1b[38;5;16m' if not bg else '\x1b[48;5;16m'
++    assert rgb256(255, 255, 255, bg=bg) == '\x1b[38;5;231m' if not bg else '\x1b[48;5;231m'
++    assert rgb256(255, 255, 255, bg=bg) == '\x1b[38;5;231m' if not bg else '\x1b[48;5;231m'
++
++
++@pytest.mark.parametrize("bg", (False, True))
++def test_rgb256_other(bg):
++    """Test rgb256 with other colors."""
++    assert rgb256(255, 0, 0, bg=bg) == '\x1b[38;5;9m' if not bg else '\x1b[48;5;9m'
++    assert rgb256(0, 255, 0, bg=bg) == '\x1b[38;5;10m' if not bg else '\x1b[48;5;10m'
++    assert rgb256(0, 0, 255, bg=bg) == '\x1b[38;5;12m' if not bg else '\x1b[48;5;12m'
++
++
++def test_rgb256_value_error():
++    """Test rgb256 ValueError."""
++    with pytest.raises(ValueError):
++        rgb256(-1, 0, 0)
++    with pytest.raises(ValueError):
++        rgb256(0, -1, 0)
++    with pytest.raises(ValueError):
++        rgb256(0, 0, -1)
++    with pytest.raises(ValueError):
++        rgb256(256, 0, 0)
++    with pytest.raises(ValueError):
++        rgb256(0, 256, 0)
++    with pytest.raises(ValueError):
++        rgb256(0, 0, 256)

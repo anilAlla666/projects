@@ -1,0 +1,207 @@
+--- /dev/null
++++ b/tests/test_util_grader.py
+@@ -0,0 +1,108 @@
++from importlib.metadata import EntryPoint
++import pytest
++from flask import Flask
++from flask_multipass import Multipass
++from flask_multipass.auth import AuthProvider
++from flask_multipass.core import _MultipassState
++from flask_multipass.exceptions import AuthenticationFailed
++from flask_multipass.identity import IdentityProvider
++from flask_multipass.util import (classproperty, get_state, resolve_provider_type, convert_provider_data, login_view,
++                                  get_canonical_provider_map, validate_provider_map, SupportsMeta, get_provider_base,
++                                  convert_app_data)
++
++
++@pytest.fixture
++def supports_base():
++    class Base(metaclass=SupportsMeta):
++        __support_attrs__ = {'has_foo': 'foo'}
++        has_foo = True
++
++        def foo(self):
++            pass
++
++    return Base
++
++
++@pytest.mark.parametrize(('config_map', 'canonical_map'), (
++    ({'foo': 'bar'},                                 {'foo': ({'identity_provider': 'bar'},)}),
++    ({'foo': ['bar']},                               {'foo': ({'identity_provider': 'bar'},)}),
++    ({'foo': {'bar'}},                               {'foo': ({'identity_provider': 'bar'},)}),
++    ({'foo': {'identity_provider': 'bar'}},          {'foo': ({'identity_provider': 'bar'},)}),
++    ({'foo': [{'identity_provider': 'bar'}]},        {'foo': ({'identity_provider': 'bar'},)}),
++    ({'foo': [{'identity_provider': 'bar'}, 'moo']}, {'foo': ({'identity_provider': 'bar'},
++                                                              {'identity_provider': 'moo'})}),
++    ({'foo': 'bar', 'meow': 'moo'},                  {'foo': ({'identity_provider': 'bar'},),
++                                                      'meow': ({'identity_provider': 'moo'},)}),
++))
++def test_get_canonical_provider_map(config_map, canonical_map):
++    assert get_canonical_provider_map(config_map) == canonical_map
++
++
++@pytest.mark.parametrize(('criteria', 'type_filter', 'mapping', 'exact', 'expected'), (
++    ({}, '', None, True, None),
++    ({}, '', '(|(objectClass=Person)(objectCategory=user))', True, None),
++    ({'cn': ['foobar'], 'objectSid': [b'\00\xa0foo']}, '', None, True, r"(&(cn=foobar)(objectSid=\00\a0\66\6f\6f))"),
++    ({'givenName': ['Alain'], 'sn': ["D'Issoir"]}, '', None, True, "(&(givenName=Alain)(sn=D'Issoir))"),
++    ({'givenName': ['Alain'], 'last_name': ["D'Issoir"]}, '', {'last_name': 'sn'}, True,
++     "(&(givenName=Alain)(sn=D'Issoir))"),
++    ({'first_name': ['Alain'], 'last_name': ["D'Issoir"]}, '', {'first_name': 'givenName', 'last_name': 'sn'}, True,
++     "(&(givenName=Alain)(sn=D'Issoir))"),
++    ({'first_name': ['Alain'], 'last_name': ["D'Issoir"]}, '(|(objectClass=Person)(objectCategory=user))',
++     {'first_name': 'givenName', 'last_name': 'sn'}, True,
++     "(&(givenName=Alain)(sn=D'Issoir)(|(objectClass=Person)(objectCategory=user)))"),
++    ({}, '', None, False, None),
++    ({}, '', '(|(objectClass=Person)(objectCategory=user))', False, None),
++    ({'givenName': ['Alain'], 'sn': ["D'Issoir"]}, '', None, False, "(&(givenName=*Alain*)(sn=*D'Issoir*))"),
++    ({'givenName': ['Alain'], 'last_name': ["D'Issoir"]}, '', {'last_name': 'sn'}, False,
++     "(&(givenName=*Alain*)(sn=*D'Issoir*))"),
++    ({'first_name': ['Alain'], 'last_name': ["D'Issoir"]}, '', {'first_name': 'givenName', 'last_name': 'sn'}, False,
++     "(&(givenName=*Alain*)(sn=*D'Issoir*))"),
++    ({'first_name': ['Alain'], 'last_name': ["D'Issoir"]}, '(|(objectClass=Person)(objectCategory=user))',
++     {'first_name': 'givenName', 'last_name': 'sn'}, False,
++     "(&(givenName=*Alain*)(sn=*D'Issoir*)(|(objectClass=Person)(objectCategory=user)))"),
++    ({'foo': 'bar', 'baz': 'qux'}, '(objectClass=person)', None, False,
++     "(&(foo=bar)(baz=qux)(objectClass=person))"),
++    ({'foo': 'bar', 'baz': 'qux'}, '(objectClass=person)', {'foo': 'fooprop'}, False,
++     "(&(fooprop=bar)(baz=qux)(objectClass=person))"),
++    ({'foo': 'bar', 'baz': 'qux'}, '(objectClass=person)', {'foo': 'fooprop', 'baz': 'bazprop'}, False,
++     "(&(fooprop=bar)(bazprop=qux)(objectClass=person))")
++))
++def test_convert_provider_data(criteria, type_filter, mapping, exact, expected):
++    assert convert_provider_data(criteria, mapping, type_filter, exact) == expected
++
++
++@pytest.fixture
++def mock_multipass():
++    return MagicMock(spec=Multipass)
++
++
++@pytest.fixture
++def mock_state(mock_multipass):
++    state = _MultipassState()
++    state.multipass = mock_multipass
++    return state
++
++
++@pytest.fixture
++def mock_app(mock_state):
++    app = Flask(__name__)
++    app.config['MULTIPASS_PROVIDER_MAP'] = {}
++    app.extensions = {}
++    app.extensions['multipass'] = mock_state
++    return app
++
++
++@pytest.fixture
++def mock_entry_point_group():
++    return [
++        EntryPoint(name='ldap', value='flask_multipass.providers.ldap:LDAPIdentityProvider'),
++        EntryPoint(name='google', value='flask_multipass.providers.google:GoogleIdentityProvider')
++    ]
+--- /dev/null
++++ b/tests/providers/ldap/test_util_grader.py
+@@ -0,0 +1,109 @@
++from collections import OrderedDict
++from unittest.mock import MagicMock, call
++from urllib.parse import urlsplit
++import ldap
++import pytest
++from flask_multipass.exceptions import MultipassException
++from flask_multipass.providers.ldap.globals import current_ldap
++from flask_multipass.providers.ldap.util import LDAPContext, build_search_filter, find_one, ldap_context, to_unicode
++from flask_multipass.util import convert_app_data
++
++
++@pytest.mark.parametrize(('method', 'triggered_exception', 'caught_exception', 'message'), (
++    ('search_s', ldap.UNAVAILABLE, MultipassException, 'The LDAP server is unavailable'),
++    ('search_s', ldap.CONNECTED_REFUSED, MultipassException, 'The LDAP server is unreachable'),
++    ('search_s', ldap.INVALID_DN_SYNTAX, MultipassException, 'The DN provided is incorrect'),
++    ('search_s', ldap.NO_SUCH_OBJECT, MultipassException, 'The base DN does not exist'),
++    ('search_s', ldap.NOT_ALLOWED_ON_NONLEAF, MultipassException, 'Cannot search in a non-leaf DN'),
++    ('search_s', ldap.AFFECTS_MULTIPLE_DSAS, MultipassException, 'Operation affects multiple DSA instances'),
++    ('search_s', ldap.SERVER_DOWN, MultipassException, 'The LDAP server is unreachable'),
++    ('simple_bind_s', ldap.INVALID_CREDENTIALS, ValueError, 'Invalid bind credentials'),
++    ('simple_bind_s', ldap.SIZELIMIT_EXCEEDED, MultipassException,
++     'Size limit exceeded (try setting a smaller page size)'),
++    ('simple_bind_s', ldap.TIMELIMIT_EXCEEDED, MultipassException,
++     'The time limit for the operation has been exceeded.'),
++    ('simple_bind_s', ldap.TIMEOUT, MultipassException, 'The operation timed out.'),
++    ('simple_bind_s', ldap.FILTER_ERROR, ValueError,
++     'The filter supplied to the operation is invalid. (This is most likely due to a bad user or group filter.)'),
++))
++def test_ldap_context_invalid_credentials(mocker, method, triggered_exception, caught_exception, message):
++    settings = {
++        'uri': 'ldaps://ldap.example.com:636',
++        'bind_dn': 'uid=admin,DC=example,DC=com',
++        'bind_password': 'LemotdepassedeLDAP',
++        'verify_cert': True,
++        'cert_file': '/etc/ssl/certs/ca-certificates.crt',
++        'starttls': True
++    }
++
++    ldap_initialize = mocker.patch('flask_multipass.providers.ldap.util.ReconnectLDAPObject')
++    ldap_conn = MagicMock()
++    getattr(ldap_conn, method).side_effect = triggered_exception
++    ldap_initialize.return_value = ldap_conn
++
++    with pytest.raises(caught_exception) as excinfo:
++        with ldap_context(settings):
++            current_ldap.connection.search_s('dc=example,dc=com', ldap.SCOPE_SUBTREE)
++    assert str(excinfo.value) == message
++
++
++@pytest.mark.parametrize(('base_dn', 'search_filter', 'data', 'expected'), (
++    ('dc=example,dc=com', '(&(mail=alain.dissoir@mail.com)(objectCategory=user))',
++     {'email': 'alain.dissoir@mail.com', 'object_category': 'user'},
++     ('dc=example,dc=com', '(&(mail=alain.dissoir@mail.com)(objectCategory=user))')),
++    ('ou=users,dc=example,dc=com', '(|(objectClass=person)(objectCategory=user))',
++     {'object_category': ['person', 'user']},
++     ('ou=users,dc=example,dc=com', '(|(objectClass=person)(objectCategory=user))')),
++    ('ou=people,dc=example,dc=com', '(&(displayName=John Doe)(objectCategory=organizationalPerson))',
++     {'display_name': 'John Doe', 'object_category': 'organizationalPerson'},
++     ('ou=people,dc=example,dc=com', '(&(displayName=John Doe)(objectCategory=organizationalPerson))'))
++))
++def test_build_search_filter(base_dn, search_filter, data, expected):
++    assert build_search_filter(base_dn, search_filter, data) == expected
++
++
++@pytest.mark.parametrize(('dn', 'expected'), (
++    ('uid=alain,ou=users,dc=example,dc=com', ('uid', 'alain')),
++    ('cn=Alain Dissoir,ou=users,dc=example,dc=com', ('cn', 'Alain Dissoir')),
++    ('ou=people,dc=example,dc=com', ('ou', 'people')),
++    ('ou=people,dc=example,dc=com,', ('ou', 'people')),
++    ('ou=people,,dc=example,dc=com', ('ou', 'people')),
++    ('', None),
++    ('uid=alain,ou=users,', ('uid', 'alain')),
++    ('uid=alain,', ('uid', 'alain')),
++    ('uid=alain,ou=', ('uid', 'alain')),
++    ('uid=alain,ou=people,dc=example,dc=com,', ('uid', 'alain')),
++    ('uid=alain,ou=people,dc=example,dc=com, ', ('uid', 'alain')),
++    ('uid=alain,ou=people,dc=example,dc=com,, ', ('uid', 'alain')),
++    ('uid=alain,ou=people,dc=example,dc=com,, ,', ('uid', 'alain')),
++    ('uid=alain,ou=people,dc=example,dc=com,, , ', ('uid', 'alain')),
++))
++def test_extract_rdn(dn, expected):
++    assert current_ldap.extract_rdn(dn) == expected
++
++
++@pytest.mark.parametrize(('value', 'expected'), (
++    ('string', 'string'),
++    (u'String with unicode \u0151\u017d\u0161', u'String with unicode \u0151\u017d\u0161'),
++    ((u'String with unicode \u0151\u017d\u0161'), u'String with unicode \u0151\u017d\u0161'),
++    ([u'String with unicode \u0151\u017d\u0161'], u'String with unicode \u0151\u017d\u0161'),
++    ([u'String with unicode \u0151\u017d\u0161', u'Another string'], u'String with unicode \u0151\u017d\u0161'),
++    (b'\x00a\x00b\x00c\x00d', b'\x00a\x00b\x00c\x00d'.decode()),
++    ((b'\x00a\x00b\x00c\x00d'), b'\x00a\x00b\x00c\x00d'.decode())
++))
++def test_to_unicode(value, expected):
++    assert to_unicode(value) == expected
++
++
++def test_to_unicode_unsupported_encoding():
++    with pytest.raises(ValueError) as excinfo:
++        to_unicode(b'\xff\xff\xff\xff', encoding='utf-8')
++    assert str(excinfo.value) == 'Unsupported encoding: utf-8'

@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/unit/test_settings_grader.py
+@@ -0,0 +1,30 @@
++import os
++import sys
++from pathlib import Path
++import pytest
++from isort import exceptions, settings
++from isort.settings import Config
++from isort.wrap_modes import WrapModes
++
++
++def test_find_config():
++    cwd = os.getcwd()
++    config_data = settings._find_config(cwd)[1]
++    assert config_data["max_line_length"] == 88
++
++    os.chdir(__file__.rsplit(".", 1)[0])
++    try:
++        config_data = settings._find_config(cwd)[1]
++        assert config_data["max_line_length"] == 120
++    finally:
++        os.chdir(cwd)
++
++
++def test_find_all_configs(tmpdir):
++    setup_cfg = """
++[isort]
++profile=django
++"""
++
++    pyproject_toml = """
++[tool.isort]
++profile = "hug"
++"""

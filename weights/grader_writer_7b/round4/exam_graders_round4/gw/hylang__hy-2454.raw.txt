@@ -1,0 +1,109 @@
+--- /dev/null
++++ b/tests/test_reader_grader.py
+@@ -0,0 +1,100 @@
++import sys
++import traceback
++from math import isnan
++import pytest
++from hy.errors import hy_exc_handler
++from hy.models import (
++    Bytes,
++    Complex,
++    Dict,
++    Expression,
++    Float,
++    FString,
++    Integer,
++    Keyword,
++    List,
++    Set,
++    String,
++    Symbol,
++)
++from hy.reader import read_many
++from hy.reader.exceptions import LexException, PrematureEndOfInput
++
++
++def tokenize(*args, **kwargs):
++    return list(read_many(*args, **kwargs))
++
++
++def peoi():
++    return pytest.raises(PrematureEndOfInput)
++
++
++def lexe():
++    return pytest.raises(LexException)
++
++
++def check_ex(einfo, expected):
++    assert [
++        x.rstrip() for x in traceback.format_exception_only(einfo.type, einfo.value)
++    ] == expected
++
++
++def check_trace_output(capsys, execinfo, expected):
++    out, _ = capsys.readouterr()
++    lines = out.split("\n")
++    assert lines[-1].rstrip() == ""
++    assert lines[:-1] == expected
++
++
++def test_symbol_with_hash():
++    """Symbols starting with a hash are no longer valid"""
++    with pytest.raises(ValueError):
++        tokenize("#foo")
++
++
++def test_symbol_with_hash_in_dotted_ident():
++    """Dotted identifiers containing a hash are no longer valid"""
++    with pytest.raises(ValueError):
++        tokenize("a.#b.c")
++
++
++def test_symbol_with_hash_in_dotted_ident_2():
++    """Dotted identifiers containing a hash are no longer valid"""
++    with pytest.raises(ValueError):
++        tokenize("a.b.#c")
++
++
++def test_symbol_with_hash_in_dotted_ident_3():
++    """Dotted identifiers containing a hash are no longer valid"""
++    with pytest.raises(ValueError):
++        tokenize("a.b.c.#d")
++
++
++def test_symbol_with_hash_in_dotted_ident_4():
++    """Dotted identifiers containing a hash are no longer valid"""
++    with pytest.raises(ValueError):
++        tokenize("a..#b.c")
++
++
++def test_symbol_with_hash_in_dotted_ident_5():
++    """Dotted identifiers containing a hash are no longer valid"""
++    with pytest.raises(ValueError):
++        tokenize("a..b.#c")
++
++
++def test_symbol_with_hash_in_dotted_ident_6():
++    """Dotted identifiers containing a hash are no longer valid"""
++    with pytest.raises(ValueError):
++        tokenize("a..b.c.#d")
++
++
++def test_symbol_with_hash_in_dotted_ident_7():
++    """Dotted identifiers containing a hash are no longer valid"""
++    with pytest.raises(ValueError):
++        tokenize("a..#b..c")
++
++
++def test_symbol_with_hash_in_dotted_ident_8():
++    """Dotted identifiers containing a hash are no longer valid"""
++    with pytest.raises(ValueError):
++        tokenize("a..#b..c")
++
++
++def test_symbol_with_hash_in_dotted_ident_9():
++    """Dotted identifiers containing a hash are no longer valid"""
++    with pytest.raises(ValueError):
++        tokenize("a..#b..c")

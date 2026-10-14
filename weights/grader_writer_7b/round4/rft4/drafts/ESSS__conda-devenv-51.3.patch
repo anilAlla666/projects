@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/tests/test_main_grader.py
+@@ -0,0 +1,25 @@
++import pytest
++
++
++@pytest.mark.parametrize('args', [
++    [],
++    ['--help'],
++    ['-h']
++])
++def test_main_help(args):
++    from conda_devenv import devenv
++    with pytest.raises(SystemExit) as excinfo:
++        devenv.main(args)
++    assert excinfo.value.code == 0
++
++
++@pytest.mark.parametrize('args', [
++    ['--version'],
++    ['-V']
++])
++def test_main_version(args):
++    from conda_devenv import devenv
++    with pytest.raises(SystemExit) as excinfo:
++        devenv.main(args)
++    assert excinfo.value.code == 0

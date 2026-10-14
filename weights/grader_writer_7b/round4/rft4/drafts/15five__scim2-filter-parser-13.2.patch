@@ -1,0 +1,128 @@
+--- /dev/null
++++ b/tests/test_scim2_filter_parser_transpilers_sql_grader.py
+@@ -0,0 +1,121 @@
++import unittest
++from scim2_filter_parser.transpilers.sql import Transpiler, AttrPathPart
++
++
++class TestTranspiler(unittest.TestCase):
++    def setUp(self):
++        self.transpiler = Transpiler({})
++
++    def test_visit_AttrPath__returns_expected_output(self):
++        attr_path_parts = [AttrPathPart(attr_name="name", uri="uri")]
++        attr_path = scim2_ast.AttrPath(attr_name=None, sub_attr=None, uri="uri")
++
++        result = self.transpiler._visit_AttrPath(attr_path_parts, attr_path)
++
++        expected_result = ["name"]
++        self.assertEqual(result, expected_result)
++
++    def test_visit_AttrPath__with_sub_attr__returns_expected_output(self):
++        attr_path_parts = [AttrPathPart(attr_name="name", uri="uri")]
++        sub_attr = scim2_ast.SubAttr(attr_name="sub_attr")
++        attr_path = scim2_ast.AttrPath(attr_name=None, sub_attr=sub_attr, uri="uri")
++
++        result = self.transpiler._visit_AttrPath(attr_path_parts, attr_path)
++
++        expected_result = ["name.sub_attr"]
++        self.assertEqual(result, expected_result)
++
++    def test_visit_AttrPath__with_uri__returns_expected_output(self):
++        attr_path_parts = [AttrPathPart(attr_name="name", uri="uri")]
++        attr_path = scim2_ast.AttrPath(attr_name=None, sub_attr=None, uri="uri")
++
++        result = self.transpiler._visit_AttrPath(attr_path_parts, attr_path)
++
++        expected_result = ["uri.name"]
++        self.assertEqual(result, expected_result)
++
++    def test_visit_AttrPath__with_sub_attr_and_uri__returns_expected_output(self):
++        attr_path_parts = [AttrPathPart(attr_name="name", uri="uri")]
++        sub_attr = scim2_ast.SubAttr(attr_name="sub_attr")
++        attr_path = scim2_ast.AttrPath(attr_name=None, sub_attr=sub_attr, uri="uri")
++
++        result = self.transpiler._visit_AttrPath(attr_path_parts, attr_path)
++
++        expected_result = ["uri.name.sub_attr"]
++        self.assertEqual(result, expected_result)
++
++    def test_visit_AttrPath__with_attr_name__returns_expected_output(self):
++        attr_path_parts = [AttrPathPart(attr_name="name", uri="uri")]
++        attr_path = scim2_ast.AttrPath(attr_name="name", sub_attr=None, uri="uri")
++
++        result = self.transpiler._visit_AttrPath(attr_path_parts, attr_path)
++
++        expected_result = ["name"]
++        self.assertEqual(result, expected_result)
++
++    def test_visit_AttrPath__with_attr_name_and_sub_attr__returns_expected_output(self):
++        attr_path_parts = [AttrPathPart(attr_name="name", uri="uri")]
++        sub_attr = scim2_ast.SubAttr(attr_name="sub_attr")
++        attr_path = scim2_ast.AttrPath(attr_name="name", sub_attr=sub_attr, uri="uri")
++
++        result = self.transpiler._visit_AttrPath(attr_path_parts, attr_path)
++
++        expected_result = ["name.sub_attr"]
++        self.assertEqual(result, expected_result)
++
++    def test_visit_AttrPath__with_attr_name_and_uri__returns_expected_output(self):
++        attr_path_parts = [AttrPathPart(attr_name="name", uri="uri")]
++        attr_path = scim2_ast.AttrPath(attr_name="name", sub_attr=None, uri="uri")
++
++        result = self.transpiler._visit_AttrPath(attr_path_parts, attr_path)
++
++        expected_result = ["uri.name"]
++        self.assertEqual(result, expected_result)
++
++    def test_visit_AttrPath__with_attr_name__sub_attr_and_uri__returns_expected_output(self):
++        attr_path_parts = [AttrPathPart(attr_name="name", uri="uri")]
++        sub_attr = scim2_ast.SubAttr(attr_name="sub_attr")
++        attr_path = scim2_ast.AttrPath(attr_name="name", sub_attr=sub_attr, uri="uri")
++
++        result = self.transpiler._visit_AttrPath(attr_path_parts, attr_path)
++
++        expected_result = ["uri.name.sub_attr"]
++        self.assertEqual(result, expected_result)
++
++    def test_visit_AttrPath__with_namespace__returns_expected_output(self):
++        attr_path_parts = [AttrPathPart(attr_name="name", uri="uri")]
++        namespace = scim2_ast.Namespace(uri="namespace-uri")
++        attr_path = scim2_ast.AttrPath(attr_name="name", sub_attr=None, uri="uri", namespace=namespace)
++
++        result = self.transpiler._visit_AttrPath(attr_path_parts, attr_path)
++
++        expected_result = ["namespace-uri.name"]
++        self.assertEqual(result, expected_result)
++
++    def test_visit_AttrPath__with_namespace_and_sub_attr__returns_expected_output(self):
++        attr_path_parts = [AttrPathPart(attr_name="name", uri="uri")]
++        namespace = scim2_ast.Namespace(uri="namespace-uri")
++        sub_attr = scim2_ast.SubAttr(attr_name="sub_attr")
++        attr_path = scim2_ast.AttrPath(attr_name="name", sub_attr=sub_attr, uri="uri", namespace=namespace)
++
++        result = self.transpiler._visit_AttrPath(attr_path_parts, attr_path)
++
++        expected_result = ["namespace-uri.name.sub_attr"]
++        self.assertEqual(result, expected_result)
++
++    def test_visit_AttrPath__with_namespace_and_uri__returns_expected_output(self):
++        attr_path_parts = [AttrPathPart(attr_name="name", uri="uri")]
++        namespace = scim2_ast.Namespace(uri="namespace-uri")
++        attr_path = scim2_ast.AttrPath(attr_name="name", sub_attr=None, uri="uri", namespace=namespace)
++
++        result = self.transpiler._visit_AttrPath(attr_path_parts, attr_path)
++
++        expected_result = ["namespace-uri.uri.name"]
++        self.assertEqual(result, expected_result)
++
++    def test_visit_AttrPath__with_namespace_sub_attr_and_uri__returns_expected_output(self):
++        attr_path_parts = [AttrPathPart(attr_name="name", uri="uri")]
++        namespace = scim2_ast.Namespace(uri="namespace-uri")
++        sub_attr = scim2_ast.SubAttr(attr_name="sub_attr")
++        attr_path = scim2_ast.AttrPath(attr_name="name", sub_attr=sub_attr, uri="uri", namespace=namespace)
++
++        result = self.transpiler._visit_AttrPath(attr_path_parts, attr_path)
++
++        expected_result = ["namespace-uri.uri.name.sub_attr"]
++        self.assertEqual(result, expected_result)

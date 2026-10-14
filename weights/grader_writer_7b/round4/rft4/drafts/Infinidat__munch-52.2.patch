@@ -1,0 +1,28 @@
+--- /dev/null
++++ b/tests/test_munch_grader.py
+@@ -0,0 +1,25 @@
++import json
++import pickle
++from collections import namedtuple
++import pytest
++from munch import DefaultFactoryMunch, AutoMunch, DefaultMunch, Munch, munchify, unmunchify
++
++
++def test_from_yml():
++    assert Munch.fromYAML("{}") == Munch({})
++    assert Munch.fromYAML("key: value") == Munch({"key": "value"})
++
++    assert DefaultMunch.fromYAML("{}") == DefaultMunch({})
++    assert DefaultMunch.fromYAML("{}").default_value is None
++    assert DefaultMunch.fromYAML("{}").default_factory is None
++    assert DefaultMunch.fromYAML("{}").__class__.__name__ == "DefaultMunch"
++
++    assert DefaultMunch.fromYAML("{}").default_value == DefaultMunch.fromYAML(
++        "{}", default_value=None).default_value
++    assert DefaultMunch.fromYAML("{}").default_factory == DefaultMunch.fromYAML(
++        "{}", default_factory=None).default_factory
++    assert DefaultMunch.fromYAML("{}").__class__.__name__ == DefaultMunch.fromYAML(
++        "{}", __class__.__name__ is None).__class__.__name__
++
++    with pytest.raises(TypeError):
++        DefaultMunch.fromYAML("{}", default_value=None, default_factory=None)

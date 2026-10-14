@@ -1,0 +1,66 @@
+--- /dev/null
++++ b/tests/test_helper_grader.py
+@@ -0,0 +1,53 @@
++from __future__ import print_function
++import pytest
++
++
++try:
++    from urllib.parse import quote
++except ImportError:
++    from urllib import quote
++
++
++def test_url():
++    assert cherrypy.url('') == ''
++    assert cherrypy.url('./a/b/c/') == './a/b/c/'
++    assert cherrypy.url('./a/b/../c/') == './a/c/'
++    assert cherrypy.url('./a/b/../c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative=True) == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='server') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='/foo/bar') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='/foo/../bar') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='/../bar') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='//foo/bar') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='http://foo/bar') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='ftp://foo/bar') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='mailto:a@b.c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='news:/foo/bar') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='tel:+123456789') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='urn:oasis:docbook:dtd:xml:4.5') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='uuid:12345678-1234-1234-1234-123456789abc') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='oid:12345678.1234.1234.1234.123456789abc') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='mid:12345678.1234.1234.1234.123456789abc@example.net') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='tag:example.net,2009:user:foo/bar') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x-a+b:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x-foo-bar:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x-f-o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x_1_foo_bar:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x_1_f_o_o_b_a_r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1_foo_bar:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1_foob:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1foo:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1foob:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1foo:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1foo:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f_o_o_b_a_r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f-o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f--o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f---o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f----o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f-----o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f-------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f--------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f---------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f----------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f-----------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f------------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f-------------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f--------------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f---------------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f----------------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f-----------------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f------------------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f-------------------o-o-b-a-r:c') == './a/c'
++    assert cherrypy.url('./a/b/../c', relative='x1f--------------------o-o-b-a-r:c') == './a/c'

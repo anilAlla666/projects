@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/tests/test_translate_process_graph_grader.py
+@@ -0,0 +1,13 @@
++import unittest
++from src.openeo_pg_parser_python.translate_process_graph import translate_graph
++
++
++class TestTranslateGraph(unittest.TestCase):
++    def test_empty_input(self):
++        with self.assertRaises(ValueError):
++            translate_graph("")
++
++    def test_nonexistent_file(self):
++        with self.assertRaises(FileNotFoundError):
++            translate_graph("non_existent.json")
++
++
++if __name__ == '__main__':
++    unittest.main()

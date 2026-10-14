@@ -1,0 +1,92 @@
+--- /dev/null
++++ b/tests/func/test_diff_grader.py
+@@ -0,0 +1,50 @@
++import hashlib
++import os
++import pytest
++from funcy import first
++from dvc.compat import fspath
++from dvc.utils.fs import remove
++from dvc.exceptions import DvcException
++
++
++def digest(text):
++    return hashlib.md5(bytes(text, "utf-8")).hexdigest()
++
++
++def test_no_scm(tmp_dir, dvc):
++    from dvc.scm.base import NoSCMError
++
++    tmp_dir.dvc_gen("file", "text")
++
++    with pytest.raises(NoSCMError):
++        dvc.diff()
++
++
++def test_empty(tmp_dir, scm, dvc):
++    assert dvc.diff() == {
++        "added": [],
++        "deleted": [],
++        "modified": [],
++    }
++
++
++def test_diff_no_cache(tmp_dir, scm, dvc):
++    tmp_dir.dvc_gen({"dir": {"file": "file content"}}, commit="first")
++    scm.tag("v1")
++
++    tmp_dir.dvc_gen(
++        {"dir": {"file": "modified file content"}}, commit="second"
++    )
++    scm.tag("v2")
++
++    remove(dvc.cache.local.cache_dir)
++
++    # invalidate_dir_info to force cache loading
++    dvc.cache.local._dir_info = {}
++
++    diff = dvc.diff("v1", "v2")
++    assert diff["added"] == []
++    assert diff["deleted"] == []
++    assert first(diff["modified"])["path"] == os.path.join("dir", "")
++
++
++def test_empty_diff_json(tmp_dir, scm, dvc):
++    assert dvc.diff("--json") == '{"added":[],"deleted":[],"modified":[]}'
+--- /dev/null
++++ b/tests/func/test_repo_grader.py
+@@ -0,0 +1,31 @@
++import os
++from dvc.cache import Cache
++from dvc.repo import Repo
++from dvc.system import System
++from dvc.compat import fspath
++
++
++def test_stages(tmp_dir, dvc):
++    def stages():
++        return set(stage.relpath for stage in Repo(fspath(tmp_dir)).stages)
++
++    tmp_dir.dvc_gen({"file": "a", "dir/file": "b", "dir/subdir/file": "c"})
++
++    assert stages() == {
++        "file.dvc",
++        os.path.join("dir", "file.dvc"),
++        os.path.join("dir", "subdir", "file.dvc"),
++    }
++
++    tmp_dir.gen(".dvcignore", "dir")
++
++    assert stages() == {"file.dvc"}
++
++    tmp_dir.dvc_gen({"dir/file": "a"}, commit="modify dir/file")
++
++    assert stages() == {"file.dvc", os.path.join("dir", "file.dvc")}
++
++    tmp_dir.dvc_gen({"dir/subdir/file": "a"}, commit="modify subdir/file")
++
++    assert stages() == {
++        "file.dvc",
++        os.path.join("dir", "file.dvc"),
++        os.path.join("dir", "subdir", "file.dvc"),
++    }

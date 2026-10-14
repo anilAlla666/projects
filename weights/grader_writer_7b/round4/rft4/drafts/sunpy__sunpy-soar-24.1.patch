@@ -1,0 +1,17 @@
+--- /dev/null
++++ b/sunpy_soar/tests/test_sunpy_soar_grader.py
+@@ -0,0 +1,13 @@
++import os
++import astropy.units as u
++import pytest
++import sunpy.map
++from sunpy.net import Fido
++from sunpy.net import attrs as a
++from sunpy.util.exceptions import SunpyDeprecationWarning
++from sunpy_soar.client import SOARClient
++
++
++def test_fetch_with_path_string_interpolation():
++    files = Fido.fetch(Fido.search(
++        a.Time('2021-02-11', '2021-02-12'),
++        a.Instrument('EUI'), a.Level(1), a.soar.Product('EUI-FSI174-IMAGE')), path='{instrument}')

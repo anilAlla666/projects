@@ -1,0 +1,32 @@
+--- /dev/null
++++ b/pycparser/test/test_parsing_grader.py
+@@ -0,0 +1,29 @@
++from .test_common import TestCommon
++
++
++class TestParsing(TestCommon):
++    def test_switch_without_cases(self):
++        """Test parsing of a switch statement without any cases."""
++        self.parse_code("""
++            void foo() {
++                int x;
++                switch(x) {}
++            }
++        """)
++
++    def test_switch_with_empty_body_and_default(self):
++        """Test parsing of a switch statement with an empty body and default case.
++
++        This is valid C code, but not supported by GCC due to a bug:
++        https://gcc.gnu.org/bugzilla/show_bug.cgi?id=96844
++        """
++        self.parse_code("""
++            void foo() {
++                int x;
++                switch(x) { default: }
++            }
++        """)
++
++
++if __name__ == '__main__':
++    TestParsing().run()

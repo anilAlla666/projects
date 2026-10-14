@@ -1,0 +1,44 @@
+--- /dev/null
++++ b/tests/test_cabinetry_grader.py
+@@ -0,0 +1,10 @@
++import logging
++import cabinetry
++
++
++def test__set_logging(caplog):
++    log = logging.getLogger("cabinetry")
++
++    # message not recorded by default
++    log.debug("log message")
++    assert len(caplog.records) == 0
+--- /dev/null
++++ b/tests/test_model_utils_grader.py
+@@ -0,0 +1,28 @@
++import copy
++import logging
++from unittest import mock
++import numpy as np
++import pyhf
++import pytest
++from cabinetry import model_utils
++from cabinetry.fit.results_containers import FitResults
++
++
++def test_prefit_uncertainties(example_spec):
++    model = pyhf.Workspace(example_spec).model()
++    prefit_unc = model_utils.prefit_uncertainties(model)
++    assert np.allclose(prefit_unc, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
++
++    # fixed parameters
++    model.config.modifier_settings["lumi"]["fixed"] = True
++    prefit_unc = model_utils.prefit_uncertainties(model)
++    assert np.allclose(prefit_unc, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
++
++    # partially fixed parameters
++    model.config.modifier_settings["staterror"]["fixed"] = {0: True}
++    prefit_unc = model_utils.prefit_uncertainties(model)
++    assert np.allclose(prefit_unc, [np.nan, 0.0, 0.0, 0.0, 0.0, 0.0])
++
++    # check if NaNs get filled with zeros
++    prefit_unc[prefit_unc != 0] = 0
++    assert np.allclose(prefit_unc, [0.0, 0.0, 0.0, 0.0, 0.0, 0.0])

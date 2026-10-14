@@ -1,0 +1,42 @@
+--- /dev/null
++++ b/tests/test_reader_grader.py
+@@ -0,0 +1,34 @@
++import sys
++import traceback
++from math import isnan
++import pytest
++from hy.errors import hy_exc_handler
++from hy.models import (
++    Bytes,
++    Complex,
++    Dict,
++    Expression,
++    Float,
++    FString,
++    Integer,
++    Keyword,
++    List,
++    Set,
++    String,
++    Symbol,
++)
++from hy.reader import read_many
++from hy.reader.exceptions import LexException, PrematureEndOfInput
++
++
++def tokenize(*args, **kwargs):
++    return list(read_many(*args, **kwargs))
++
++
++def peoi():
++    return pytest.raises(PrematureEndOfInput)
++
++
++def lexe():
++    return pytest.raises(LexException)
++
++
++def test_invalid_symbol():
++    with lexe() as execinfo:
++        tokenize("#foo")
++    assert str(execinfo.value) == "Invalid symbol '#foo'"

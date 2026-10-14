@@ -1,0 +1,35 @@
+diff --git a/control/tests/test_sisotool_matplotlib_join.py b/control/tests/test_sisotool_matplotlib_join.py
+new file mode 100644
+--- /dev/null
++++ b/control/tests/test_sisotool_matplotlib_join.py
+@@ -0,0 +1,45 @@
++"""Test for the sisotool function after fixing the Matplotlib join() deprecation."""
++
++import pytest
++from control.sisotool import sisotool
++from control.xferfcn import TransferFunction
++
++
++def test_sisotool_no_deprecation_warning():
++    """Test that sisotool does not produce a deprecation warning."""
++    sys = TransferFunction([1], [1, 2, 1])  # Example SISO system
++    
++    with pytest.warns(None) as record:
++        sisotool(sys)
++
++    # Check that no deprecation warning was issued
++    assert all(warning.category != DeprecationWarning for warning in record.list)
++
++
++def test_sisotool_with_initial_gain():
++    """Test that sisotool works with the 'initial_gain' parameter."""
++    sys = TransferFunction([1], [1, 2, 1])  # Example SISO system
++    initial_gain = 2.0
+    
++    with pytest.warns(None) as record:
++        sisotool(sys, initial_gain=initial_gain)
++
++    # Check that no deprecation warning was issued
++    assert all(warning.category != DeprecationWarning for warning in record.list)
++
++    # Additional checks can be added here to verify the correctness of the plot

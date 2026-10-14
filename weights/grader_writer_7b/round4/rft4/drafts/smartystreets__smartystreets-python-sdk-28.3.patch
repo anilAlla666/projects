@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/tests/unit/test_analysis_grader.py
+@@ -0,0 +1,24 @@
++from unittest import TestCase
++import json
++from smartystreets_python_sdk.us_street.analysis import Analysis
++
++
++class TestAnalysis(TestCase):
++    def setUp(self):
++        self.obj = {
++            'dpv_match_code': 'Y',
++            'dpv_footnotes': '',
++            'dpv_cmra': '',
++            'dpv_vacant': False,
++            'active': True,
++            'ews_match': True,
++            'footnotes': '',
++            'lacslink_code': '',
++            'lacslink_indicator': False,
++            'suitelink_match': False,
++            'dpv_no_stat': 'NO'
++        }
++
++    def test_dpv_no_stat(self):
++        analysis = Analysis(self.obj)
++        self.assertEqual(analysis.dpv_no_stat, 'NO')

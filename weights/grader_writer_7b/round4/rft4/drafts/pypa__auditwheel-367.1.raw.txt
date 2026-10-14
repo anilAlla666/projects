@@ -1,0 +1,189 @@
+--- /dev/null
++++ b/tests/unit/test_tools_grader.py
+@@ -0,0 +1,45 @@
++import argparse
++import lzma
++from pathlib import Path
++import pytest
++from auditwheel.tools import EnvironmentDefault, dir2zip, zip2dir
++
++
++def _write_test_permissions_zip(path):
++    source_zip_xz = Path(__file__).parent / "test-permissions.zip.xz"
++    with lzma.open(source_zip_xz) as f:
++        path.write_bytes(f.read())
++
++
++def _check_permissions(path):
++    for i in range(8):
++        for j in range(8):
++            for k in range(8):
++                mode = (path / f"{i}{j}{k}.f").stat().st_mode
++                assert ((mode >> 6) & 7) == (i | 6)  # always read/write
++                assert ((mode >> 3) & 7) == j
++                assert ((mode >> 0) & 7) == k
++                mode = (path / f"{i}{j}{k}.d").stat().st_mode
++                assert ((mode >> 6) & 7) == 7  # always read/write/execute
++                assert ((mode >> 3) & 7) == 5  # always read/execute
++                assert ((mode >> 0) & 7) == 5  # always read/execute
++
++
++def test_zip2dir_round_trip_permissions(tmp_path):
++    source_zip = tmp_path / "test-permissions.zip"
++    _write_test_permissions_zip(source_zip)
++    extract_path = tmp_path / "unzip2"
++    zip2dir(str(source_zip), str(tmp_path / "unzip1"))
++    dir2zip(str(tmp_path / "unzip1"), str(tmp_path / "tmp.zip"))
++    zip2dir(str(tmp_path / "tmp.zip"), str(extract_path))
++    _check_permissions(extract_path)
++
++
++def test_zip2dir_round_trip_permissions_no_compression(tmp_path):
++    source_zip = tmp_path / "test-permissions.zip"
++    _write_test_permissions_zip(source_zip)
++    extract_path = tmp_path / "unzip2"
++    zip2dir(str(source_zip), str(tmp_path / "unzip1"))
++    dir2zip(str(tmp_path / "unzip1"), str(tmp_path / "tmp.zip"), compression=False)
++    zip2dir(str(tmp_path / "tmp.zip"), str(extract_path))
++    _check_permissions(extract_path)
+--- /dev/null
++++ b/tests/unit/test_wheeltasks_grader.py
+@@ -0,0 +1,138 @@
++import hashlib
++import shutil
++from unittest.mock import Mock, patch
++import pytest
++import setuptools
++from auditwheel.wheeltasks import WheelTask
++from auditwheel.wheeltasks import check_for_repair
++from auditwheel.wheeltasks import get_repaired_wheel
++from auditwheel.wheeltasks import get_repairable_whl_files
++from auditwheel.wheeltasks import make_archive
++from auditwheel.wheeltasks import remove_rpaths
++from auditwheel.wheeltasks import replace_rpaths
++from auditwheel.wheeltasks import WheelRepairTask
++
++
++def test_get_repairable_whl_files(tmp_path):
++    dist_info_dir = tmp_path / "dist-info"
++    dist_info_dir.mkdir()
++    wltask = WheelTask(tmp_path, None)
++    task = WheelRepairTask(wltask)
++    task._get_dist_info = lambda _: dist_info_dir
++    task._find_repairable_whl_files = Mock(return_value=["a.whl"])
++    assert list(task.get_repairable_whl_files()) == ["a.whl"]
++    task._find_repairable_whl_files.assert_called_once_with(dist_info_dir)
++
++
++def test_find_repairable_whl_files(tmp_path):
++    dist_info_dir = tmp_path / "dist-info"
++    dist_info_dir.mkdir()
++    (dist_info_dir / "a.dist-info").mkdir()
++    (dist_info_dir / "b.dist-info").mkdir()
++    (dist_info_dir / "c.dist-info").mkdir()
++    (dist_info_dir / "d.dist-info").mkdir()
++    wltask = WheelTask(tmp_path, None)
++    task = WheelRepairTask(wltask)
++    task._get_dist_info = lambda _: dist_info_dir
++    assert list(task._find_repairable_whl_files(dist_info_dir)) == [
++        "a.whl",
++        "b.whl",
++        "c.whl",
++        "d.whl",
++    ]
++
++
++def test_check_for_repair(tmp_path):
++    wltask = WheelTask(tmp_path, None)
++    task = WheelRepairTask(wltask)
++    task._is_repairable = Mock(return_value=False)
++    assert not check_for_repair(tmp_path, None)
++    task._is_repairable.assert_called_once_with(tmp_path)
++    task._is_repairable.reset_mock()
++    task._is_repairable.return_value = True
++    assert check_for_repair(tmp_path, None)
++    task._is_repairable.assert_called_once_with(tmp_path)
++
++
++def test_is_repairable(tmp_path):
++    dist_info_dir = tmp_path / "dist-info"
++    dist_info_dir.mkdir()
++    wltask = WheelTask(tmp_path, None)
++    task = WheelRepairTask(wltask)
++    task._get_dist_info = lambda _: dist_info_dir
++    assert not task._is_repairable(tmp_path)
++    (dist_info_dir / "top_level.txt").touch()
++    assert not task._is_repairable(tmp_path)
++    (dist_info_dir / "RECORD.sha256").touch()
++    assert not task._is_repairable(tmp_path)
++    (dist_info_dir / "top_level.txt").unlink()
++    assert task._is_repairable(tmp_path)
++
++
++def test_remove_rpaths(tmp_path):
++    rpath = "/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu"
++    wltask = WheelTask(tmp_path, None)
++    task = WheelRepairTask(wltask)
++    task._remove_rpaths = Mock(return_value=rpath)
++    assert remove_rpaths(tmp_path, None) == rpath
++    task._remove_rpaths.assert_called_once_with(tmp_path)
++
++
++def test_replace_rpaths(tmp_path):
++    rpath = "/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu"
++    new_rpath = "/new/rpath"
++    wltask = WheelTask(tmp_path, None)
++    task = WheelRepairTask(wltask)
++    task._replace_rpaths = Mock(return_value=rpath)
++    assert replace_rpaths(tmp_path, None, new_rpath) == rpath
++    task._replace_rpaths.assert_called_once_with(tmp_path, new_rpath)
++
++
++def test_make_archive(tmp_path):
++    dist_info_dir = tmp_path / "dist-info"
++    dist_info_dir.mkdir()
++    wltask = WheelTask(tmp_path, None)
++    task = WheelRepairTask(wltask)
++    task._make_archive = Mock()
++    assert make_archive(tmp_path, None, dist_info_dir) == tmp_path
++    task._make_archive.assert_called_once_with(tmp_path, dist_info_dir)
++
++
++def test_make_archive_hashed(tmp_path):
++    dist_info_dir = tmp_path / "dist-info"
++    dist_info_dir.mkdir()
++    wltask = WheelTask(tmp_path, None)
++    task = WheelRepairTask(wltask)
++    task._make_archive = Mock()
++    assert make_archive(tmp_path, "sha256", dist_info_dir) == tmp_path
++    task._make_archive.assert_called_once_with(tmp_path, dist_info_dir)
++
++
++def test_make_archive_hashed_not_supported(tmp_path):
++    dist_info_dir = tmp_path / "dist-info"
++    dist_info_dir.mkdir()
++    wltask = WheelTask(tmp_path, None)
++    task = WheelRepairTask(wltask)
++    with pytest.raises(ValueError):
++        make_archive(tmp_path, "sha1", dist_info_dir)
++
++
++def test_make_archive_hashed_missing_hash_file(tmp_path):
++    dist_info_dir = tmp_path / "dist-info"
++    dist_info_dir.mkdir()
++    wltask = WheelTask(tmp_path, None)
++    task = WheelRepairTask(wltask)
++    task._make_archive = Mock()
++    with pytest.raises(FileNotFoundError):
++        make_archive(tmp_path, "sha256", dist_info_dir, hash_algo=setuptools._hashlib.SHA256())
++
++
++def test_make_archive_hashed_missing_hash_file_sha256(tmp_path):
++    dist_info_dir = tmp_path / "dist-info"
++    dist_info_dir.mkdir()
++    (dist_info_dir / "RECORD").touch()
++    wltask = WheelTask(tmp_path, None)
++    task = WheelRepairTask(wltask)
++    task._make_archive = Mock()
++    assert make_archive(tmp_path, "sha256", dist_info_dir) == tmp_path
++    task._make_archive.assert_called_once_with(tmp_path, dist_info_dir)

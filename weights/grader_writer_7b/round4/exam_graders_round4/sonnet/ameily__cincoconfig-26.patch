@@ -1,0 +1,40 @@
+diff --git a/tests/test_secure_field_empty.py b/tests/test_secure_field_empty.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_secure_field_empty.py
+@@ -0,0 +1,45 @@
++from unittest.mock import MagicMock
++
++from cincoconfig.fields import SecureField
++
++
++def _make_cfg():
++    cfg = MagicMock()
++    ctx = MagicMock()
++    secret = MagicMock()
++    secret.method = 'aes'
++    secret.ciphertext = b'abcd'
++    ctx.encrypt.return_value = secret
++    cfg._keyfile.__enter__.return_value = ctx
++    return cfg, ctx
++
++
++class TestSecureFieldEmptyString:
++
++    def test_to_basic_empty_string_is_none(self):
++        cfg, ctx = _make_cfg()
++        field = SecureField(name='secret')
++        assert field.to_basic(cfg, '') is None
++
++    def test_to_basic_empty_string_not_encrypted(self):
++        cfg, ctx = _make_cfg()
++        field = SecureField(name='secret')
++        field.to_basic(cfg, '')
++        ctx.encrypt.assert_not_called()
++
++    def test_to_basic_nonempty_still_encrypted(self):
++        cfg, ctx = _make_cfg()
++        field = SecureField(name='secret')
++        result = field.to_basic(cfg, 'hello')
++        ctx.encrypt.assert_called_once()
++        assert result == {'method': 'aes', 'ciphertext': 'YWJjZA=='}

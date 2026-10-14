@@ -1,0 +1,32 @@
+diff --git a/test/test_model.py b/test/test_model.py
+index 1234567..89abcdef 100644
+--- a/test/test_model.py
++++ b/test/test_model.py
+@@ -2580,6 +2580,25 @@ class TestModel(unittest.TestCase):
+         self.assertEqual(self.backend.relation_remote_app_name(5), 'remoteapp2')
+ 
+     def test_relation_remote_app_name_script_errors(self):
++        # Test handling of non-IP address values in ingress-addresses
++        fake_script(self, 'relation-list', r"""
++        echo '[{"endpoint": "endpoint1", "ingress-addresses": ["acb396cf5563d429f9ebc8aa23ae47ed-1516332866.us-east-1.elb.amazonaws.com"]}]' | jq .
++        """)
++        network_info = self.backend.network_get('endpoint1')
++        self.assertEqual(network_info['ingress-addresses'], ['acb396cf5563d429f9ebc8aa23ae47ed-1516332866.us-east-1.elb.amazonaws.com'])
++
++        # Test handling of empty ingress-addresses
++        fake_script(self, 'relation-list', r"""
++        echo '[{"endpoint": "endpoint2", "ingress-addresses": []}]' | jq .
++        """)
++        network_info = self.backend.network_get('endpoint2')
++        self.assertEqual(network_info['ingress-addresses'], [])
++
++        # Test handling of mixed ingress-addresses
++        fake_script(self, 'relation-list', r"""
++        echo '[{"endpoint": "endpoint3", "ingress-addresses": ["192.168.1.1", "acb396cf5563d429f9ebc8aa23ae47ed-1516332866.us-east-1.elb.amazonaws.com"]}]' | jq .
++        """)
++        network_info = self.backend.network_get('endpoint3')
++        self.assertEqual(network_info['ingress-addresses'], ['192.168.1.1', 'acb396cf5563d429f9ebc8aa23ae47ed-1516332866.us-east-1.elb.amazonaws.com'])
++
+         fake_script(self, 'relation-list', r"""
+         echo "ERROR invalid value \"6\" for option -r: relation not found" >&2  # NOQA
+         exit 2

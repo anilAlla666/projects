@@ -1,0 +1,102 @@
+--- /dev/null
++++ b/src/test_com2ann_grader.py
+@@ -0,0 +1,101 @@
++"""Tests for the com2ann.py script in the Tools/parser directory."""
++
++
++import unittest
++from com2ann import com2ann, TYPE_COM
++import re
++from textwrap import dedent
++from typing import Optional, List
++
++
++class BaseTestCase(unittest.TestCase):
++    def check(self, code: str, expected: Optional[str],
++              n: bool = False, e: bool = False,
++              w: int = 0, i: bool = False) -> None:
++        result = com2ann(dedent(code),
++                         drop_none=n, drop_ellipsis=e, silent=True,
++                         wrap_sig=w, add_future_imports=i)
++        if expected is None:
++            self.assertIs(result, None)
++        else:
++            assert result is not None
++            new_code, _ = result
++            self.assertEqual(new_code, dedent(expected))
++
++
++class MultiFileTestCase(BaseTestCase):
++    def test_multiple_files(self) -> None:
++        self.check("""
++            # file1.py
++            x = 1
++            # file2.py
++            y = 2
++            """,
++                   """
++            # file1.py
++            x = 1
++            # file2.py
++            y = 2
++            """)
++
++    def test_multiple_files_with_outfile(self) -> None:
++        self.check("""
++            # file1.py
++            x = 1
++            # file2.py
++            y = 2
++            """,
++                   """
++            # file1.py
++            x = 1
++            # file2.py
++            y = 2
++            """, outfile="output.py")
++
++    def test_multiple_files_with_outdir(self) -> None:
++        self.check("""
++            # file1.py
++            x = 1
++            # file2.py
++            y = 2
++            """,
++                   """
++            # file1.py
++            x = 1
++            # file2.py
++            y = 2
++            """, outfile="output/")
++
++    def test_multiple_files_with_outdir_and_outfile(self) -> None:
++        self.check("""
++            # file1.py
++            x = 1
++            # file2.py
++            y = 2
++            """,
++                   """
++            # file1.py
++            x = 1
++            # file2.py
++            y = 2
++            """, outfile="output/output.py")
++
++    def test_multiple_files_with_outdir_and_outfile_relative(self) -> None:
++        self.check("""
++            # file1.py
++            x = 1
++            # file2.py
++            y = 2
++            """,
++                   """
++            # file1.py
++            x = 1
++            # file2.py
++            y = 2
++            """, outfile="../output/output.py")
++
++
++if __name__ == '__main__':
++    unittest.main()

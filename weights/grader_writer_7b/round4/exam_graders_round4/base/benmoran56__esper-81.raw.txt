@@ -1,0 +1,62 @@
+Here are the tests that should be added to ensure the fix works correctly:
+
+```diff
+diff --git a/tests/test_world.py b/tests/test_world.py
+new file mode 100644
+index 0000000..b2c9a1d
+--- /dev/null
++++ b/tests/test_world.py
+@@ -0,0 +1,45 @@
++import unittest
++from esper import World
++
++class TestWorld(unittest.TestCase):
++    def test_create_empty_entity(self):
++        world = World()
++        entity = world.create_entity()
++        self.assertTrue(world.entity_exists(entity))
++
++    def test_add_component_to_nonexistent_entity(self):
++        world = World()
++        made_up_entity = 123
++        with self.assertRaises(KeyError):
++            world.add_component(made_up_entity, None)
++
++    def test_delete_entity(self):
++        world = World()
++        entity = world.create_entity()
++        world.delete_entity(entity)
++        self.assertFalse(world.entity_exists(entity))
++
++    def test_delete_entity_immediately(self):
++        world = World()
++        entity = world.create_entity()
++        world.delete_entity(entity, immediate=True)
++        self.assertFalse(world.entity_exists(entity))
++
++    def test_has_component(self):
++        world = World()
++        entity = world.create_entity()
++        world.add_component(entity, SomeComponent())
++        self.assertTrue(world.has_component(entity, SomeComponent))
++
++    def test_has_components(self):
++        world = World()
++        entity = world.create_entity()
++        world.add_component(entity, SomeComponent())
++        world.add_component(entity, AnotherComponent())
++        self.assertTrue(world.has_components(entity, SomeComponent, AnotherComponent))
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+These tests cover the following scenarios:
+1. Creating an empty entity and checking if it exists.
+2. Trying to add a component to a non-existent entity and expecting a KeyError.
+3. Deleting an entity and checking if it no longer exists.
+4. Deleting an entity immediately and checking if it no longer exists.
+5. Checking if an entity has a specific component.
+6. Checking if an entity has multiple specific components.
+
+Make sure to replace `SomeComponent` and `AnotherComponent` with actual component classes that you have defined in your project. These tests should fail with the current implementation and pass after applying the proposed fix.

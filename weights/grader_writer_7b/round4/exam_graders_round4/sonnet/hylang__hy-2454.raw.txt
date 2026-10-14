@@ -1,0 +1,42 @@
+I'll add a new test file that checks that `hy.models.Symbol` rejects strings starting with `#`, and that valid symbols still work.
+
+Current behavior: `Symbol("5")` raises ValueError, because `as_identifier` runs with `reader=None` and the result isn't a Symbol. `Symbol("#foo")` passes, because `#` is not in NON_IDENT. The fix should make it raise ValueError. The issue leaves open whether other `#` forms are rejected, so the tests only use `#foo`, `#` followed by other letters, and similar.
+
+A bare `#` is ambiguous, so I leave it out. A `#` in the middle of a symbol, such as `a#b`, is also left out, because it is probably fine and the issue doesn't say.
+
+I assume the error is ValueError, consistent with `Symbol("5")`, which the issue cites as the model. I confirm that `Symbol("5")` raises ValueError in the test as a baseline.
+
+Reading `#foo` in source is a reader-macro call, so I do not test that.
+
+```diff
+diff --git a/tests/test_symbol_hash.py b/tests/test_symbol_hash.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_symbol_hash.py
+@@ -0,0 +1,25 @@
++import pytest
++
++import hy
++from hy.models import Symbol
++
++
++def test_symbol_number_is_error():
++    with pytest.raises(ValueError):
++        Symbol("5")
++
++
++@pytest.mark.parametrize("name", ["#foo", "#a", "#foo-bar", "#!foo"])
++def test_symbol_leading_hash_is_error(name):
++    with pytest.raises(ValueError):
++        Symbol(name)
++
++
++def test_hy_models_symbol_leading_hash_is_error():
++    with pytest.raises(ValueError):
++        hy.models.Symbol("#foo")
++
++
++def test_ordinary_symbols_still_ok():
++    assert str(Symbol("foo")) == "foo"
++    assert str(Symbol("foo-bar?")) == "foo-bar?"
+```

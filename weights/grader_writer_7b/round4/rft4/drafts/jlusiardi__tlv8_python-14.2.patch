@@ -1,0 +1,95 @@
+--- /dev/null
++++ b/tests/test_tlv8_enum_test_grader.py
+@@ -0,0 +1,46 @@
++import unittest
++import enum
++import tlv8
++
++
++class TestTLV8Enum(unittest.TestCase):
++    def test_decode_enum(self):
++
++        class TestKeys(enum.IntEnum):
++            KEY_1 = 1
++            KEY_2 = 2
++
++        class TestValues(enum.IntEnum):
++            VALUE_1 = 1
++            VALUE_2 = 2
++
++        data = b'\x01\x01\x02'
++        result = tlv8.decode(data, {
++            TestKeys.KEY_1: TestValues
++        }, strict_mode=True)
++        expected = tlv8.EntryList([
++            tlv8.Entry(TestKeys.KEY_1, TestValues.VALUE_2)
++        ])
++        self.assertIsInstance(result[0].type_id, TestKeys)
++        self.assertIsInstance(result[0].data, TestValues)
++        self.assertEqual(expected, result)
++
++    def test_decode_key(self):
++        class TestKeys(enum.IntEnum):
++            KEY_1 = 1
++            KEY_2 = 2
++        data = b'\x01\x03foo'
++        result = tlv8.decode(data, {
++            TestKeys.KEY_1: tlv8.DataType.STRING
++        }, strict_mode=True)
++        expected = tlv8.EntryList([
++            tlv8.Entry(TestKeys.KEY_1, 'foo')
++        ])
++        self.assertIsInstance(result[0].type_id, TestKeys)
++        self.assertEqual(expected, result)
++
++    def test_decode_value(self):
++        class TestValues(enum.IntEnum):
++            VALUE_1 = 1
++            VALUE_2 = 2
++        data = b'\x01\x01\x02'
++        result = tlv8.decode(data, {
++            1: TestValues
++        }, strict_mode=True)
++        expected = tlv8.EntryList([
++            tlv8.Entry(1, 2)
++        ])
++        self.assertIsInstance(result[0].data, TestValues)
++        self.assertEqual(expected, result)
+--- /dev/null
++++ b/tests/test_tlv8_entry_tests_grader.py
+@@ -0,0 +1,35 @@
++import unittest
++import tlv8
++
++
++class TestTLV8Entry(unittest.TestCase):
++    def test_format_string(self):
++        data = [
++            tlv8.Entry(1, 3.141),
++            tlv8.Entry(2, [
++                tlv8.Entry(3, 'hello'),
++                tlv8.Entry(4, 'world'),
++            ]),
++            tlv8.Entry(1, 2)
++        ]
++        print(tlv8.format_string(data, 0))
++
++    def test_format_string_error_1(self):
++        self.assertRaises(ValueError, tlv8.format_string, {}, 0)
++
++    def test_format_string_error_2(self):
++        self.assertRaises(ValueError, tlv8.format_string, [1], 0)
++
++    def test_format_string_error_3(self):
++        self.assertRaises(ValueError, tlv8.format_string, [], 0)
++
++    def test_create_entry_error(self):
++        self.assertRaises(ValueError, tlv8.Entry, 256, b'', tlv8.DataType.BYTES)
++        self.assertRaises(ValueError, tlv8.Entry, 1, '', tlv8.DataType.BYTES)
++        self.assertRaises(ValueError, tlv8.Entry, 1, b'', tlv8.DataType.INT)
++        self.assertRaises(ValueError, tlv8.Entry, 1, b'', tlv8.DataType.FLOAT)
++        self.assertRaises(ValueError, tlv8.Entry, 1, b'', tlv8.DataType.BOOL)
++        self.assertRaises(ValueError, tlv8.Entry, 1, b'', tlv8.DataType.UINT8)
++        self.assertRaises(ValueError, tlv8.Entry, 1, b'', tlv8.DataType.UINT16)
++        self.assertRaises(ValueError, tlv8.Entry, 1, b'', tlv8.DataType.UINT32)
++        self.assertRaises(ValueError, tlv8.Entry, 1, b'', tlv8.DataType.UINT64)

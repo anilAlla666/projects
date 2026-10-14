@@ -1,0 +1,100 @@
+diff --git a/taxii2client/test/test_trailing_slash.py b/taxii2client/test/test_trailing_slash.py
+new file mode 100644
+--- /dev/null
++++ b/taxii2client/test/test_trailing_slash.py
+@@ -0,0 +1,89 @@
++import json
++
++import responses
++
++from taxii2client import Collection
++
++HOST = "http://localhost:5000/trustgroup1/collections/"
++COLL_ID = "91a7b528-80eb-42ed-a74d-c6fbd5a26116"
++BASE = HOST + COLL_ID
++OBJ_ID = "indicator--252c7c11-daf2-42bd-843b-be65edca9f61"
++
++TAXII = "application/vnd.oasis.taxii+json; version=2.0"
++STIX = "application/vnd.oasis.stix+json; version=2.0"
++
++COLLECTION_INFO = {
++    "id": COLL_ID,
++    "title": "Test collection",
++    "description": "desc",
++    "can_read": True,
++    "can_write": True,
++    "media_types": [STIX],
++}
++
++OBJECT = {
++    "type": "bundle",
++    "id": "bundle--8f4d2c1e-5a4b-4c0a-9c58-3d0f6b6e2a11",
++    "spec_version": "2.0",
++    "objects": [],
++}
++
++
++def _register_collection():
++    for u in (BASE, BASE + "/"):
++        responses.add(responses.GET, u, body=json.dumps(COLLECTION_INFO),
++                      status=200, content_type=TAXII)
++
++
++def _requested_urls():
++    return [c.request.url for c in responses.calls]
++
++
++@responses.activate
++def test_get_object_no_trailing_slash():
++    _register_collection()
++    responses.add(responses.GET, BASE + "/objects/" + OBJ_ID + "/",
++                  body=json.dumps(OBJECT), status=200, content_type=STIX)
++
++    coll = Collection(BASE, user="user1", password="Password1")
++    coll.get_object(OBJ_ID)
++
++    for url in _requested_urls():
++        assert COLL_ID + "objects" not in url
++    assert any(u.split("?")[0] == BASE + "/objects/" + OBJ_ID + "/"
++               for u in _requested_urls())
++
++
++@responses.activate
++def test_get_object_with_trailing_slash():
++    _register_collection()
++    responses.add(responses.GET, BASE + "/objects/" + OBJ_ID + "/",
++                  body=json.dumps(OBJECT), status=200, content_type=STIX)
++
++    coll = Collection(BASE + "/", user="user1", password="Password1")
++    coll.get_object(OBJ_ID)
++
++    assert any(u.split("?")[0] == BASE + "/objects/" + OBJ_ID + "/"
++               for u in _requested_urls())
++
++
++@responses.activate
++def test_get_objects_no_trailing_slash():
++    _register_collection()
++    responses.add(responses.GET, BASE + "/objects/",
++                  body=json.dumps(OBJECT), status=200, content_type=STIX)
++
++    coll = Collection(BASE, user="user1", password="Password1")
++    coll.get_objects()
++
++    for url in _requested_urls():
++        assert COLL_ID + "objects" not in url
++    assert any(u.split("?")[0] == BASE + "/objects/"
++               for u in _requested_urls())
++
++
++@responses.activate
++def test_get_objects_with_trailing_slash():
++    _register_collection()
++    responses.add(responses.GET, BASE + "/objects/",
++                  body=json.dumps(OBJECT), status=200, content_type=STIX)
++
++    coll = Collection(BASE + "/", user="user1", password="Password1")
++    coll.get_objects()
++
++    assert any(u.split("?")[0] == BASE + "/objects/"
++               for u in _requested_urls())

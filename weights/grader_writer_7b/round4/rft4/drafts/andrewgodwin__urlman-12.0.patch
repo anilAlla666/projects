@@ -1,0 +1,33 @@
+--- /dev/null
++++ b/test_urlman_grader.py
+@@ -0,0 +1,29 @@
++import pytest
++import urlman
++
++
++class Post(object):
++    slug = "hello-world"  # the object-specific attribute to refer to in the URL
++
++    class urls(urlman.Urls):
++        view = "/posts/{self.slug}/"
++        authors = "{view}authors/"
++        admin = "{authors}admin/"
++        broken = "/{does_not_exist}/"
++        recursion = "/{recursion}/"
++
++
++@pytest.fixture
++def post():
++    return Post()
++
++
++def test_qualname_attr_access(post):
++    """Sphinx uses __qualname__ to resolve inheritance"""
++    assert post.urls.__qualname__ == "<class 'test_urlman.Post'>.urls"
++
++
++class Blog(object):
++    slug = "blog"
++
++    def atom(self):
++        return self.urls.posts + "atom/"

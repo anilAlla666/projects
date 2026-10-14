@@ -1,0 +1,160 @@
+--- /dev/null
++++ b/tests/test_abjadext_nauert_test_GraceHandlers_grader.py
+@@ -0,0 +1,130 @@
++"""
++..  container:: example
++
++    Basic usage:
++
++    >>> durations = [1000, 1, 999, 1000]
++    >>> pitches = [0, None, 0, 0]
++    >>> q_event_sequence = nauert.QEventSequence.from_millisecond_pitch_pairs(
++    ...     tuple(zip(durations, pitches))
++    ... )
++    >>> quantizer = nauert.Quantizer()
++    >>> result = quantizer(q_event_sequence)
++    >>> abjad.show(result) # doctest: +SKIP
++
++    ..  docs::
++
++        >>> string = abjad.lilypond(result)
++        >>> print(string)
++        \new Voice
++        {
++            {
++                \tempo 4=60
++                %%% \time 4/4 %%%
++                c'4
++                r4
++                c'4
++                r4
++            }
++        }
++
++..  container:: example
++
++    When ``discard_grace_rest`` is set to ``False``, grace rests are not
++    discarded.
++
++    >>> grace_handler = nauert.ConcatenatingGraceHandler(discard_grace_rest=False)
++    >>> result = quantizer(q_event_sequence, grace_handler=grace_handler)
++    >>> abjad.show(result) # doctest: +SKIP
++
++    ..  docs::
++
++        >>> string = abjad.lilypond(result)
++        >>> print(string)
++        \new Voice
++        {
++            {
++                \tempo 4=60
++                %%% \time 4/4 %%%
++                c'4
++                \grace {
++                    r16
++                }
++                c'4
++                r4
++                r4
++            }
++        }
++
++..  container:: example
++
++    When ``replace_rest_with_final_grace_note`` is set to ``False`` (the
++    default behaviour), grace notes are allowed to be attached to a rest.
++
++    >>> grace_handler = nauert.ConcatenatingGraceHandler(
++    ...     replace_rest_with_final_grace_note=False
++    ... )
++    >>> result = quantizer(q_event_sequence, grace_handler=grace_handler)
++    >>> abjad.show(result) # doctest: +SKIP
++
++    ..  docs::
++
++        >>> string = abjad.lilypond(result)
++        >>> print(string)
++        \new Voice
++        {
++            {
++                \tempo 4=60
++                %%% \time 4/4 %%%
++                c'4
++                \grace {
++                    c'16
++                }
++                r4
++                c'4
++                r4
++            }
++        }
++
++..  container:: example
++
++    When ``replace_rest_with_final_grace_note`` is set to ``True``, any
++    rest with grace notes attached to it is replaced by the last pitched
++    grace note in the grace container.
++
++    >>> grace_handler = nauert.ConcatenatingGraceHandler(
++    ...     replace_rest_with_final_grace_note=True
++    ... )
++    >>> result = quantizer(q_event_sequence, grace_handler=grace_handler)
++    >>> abjad.show(result) # doctest: +SKIP
++
++    ..  docs::
++
++        >>> string = abjad.lilypond(result)
++        >>> print(string)
++        \new Voice
++        {
++            {
++                \tempo 4=60
++                %%% \time 4/4 %%%
++                c'4
++                c'4
++                c'4
++                r4
++            }
++        }
++
++"""
++
++
++import pytest
++import abjad
++from abjadext.nauert import ConcatenatingGraceHandler, Quantizer, PitchedQEvent, SilentQEvent
++
++
++def test_GraceHandlers_concatenatinggracehandler_01():
++    durations = [1000, 1, 999, 1000]
++    pitches = [0, None, 0, 0]
++    q_event_sequence = nauert.QEventSequence.from_millisecond_pitch_pairs(
++        tuple(zip(durations, pitches))
++    )
++    quantizer = nauert.Quantizer()
++    grace_handler = nauert.ConcatenatingGraceHandler(replace_rest_with_final_grace_note=True)
++    result = quantizer(q_event_sequence, grace_handler=grace_handler)
++    assert abjad.wellformed(result)
++    assert format(result) == abjad.String.normalize(
++        r"""
++        \version "2.21.2"
++        \language "english"
++
++        \score {
++            <<
++                \new Score <<
++                    \new GlobalContext {
++                        \explicitMetronomeMark \default
++                        \time 4/4
++                    }
++                    \new Voice {
++                        c'4
++                        c'4
++                        c'4
++                        r4
++                    }
++                >>
++            >>
++        }
++        """
++    )

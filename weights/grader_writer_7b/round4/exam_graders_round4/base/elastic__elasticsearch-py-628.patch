@@ -1,0 +1,33 @@
+diff --git a/test_elasticsearch/test_client_utils.py b/test_elasticsearch/test_client_utils.py
+new file mode 100644
+--- /dev/null
++++ b/test_elasticsearch/test_client_utils.py
+@@ -0,0 +1,25 @@
++import unittest
++from elasticsearch.client.utils import _escape
++
++class TestEscapeBytes(unittest.TestCase):
++    def test_escape_bytes(self):
++        value = b'celery-task-meta-c4f1201f-eb7b-41d5-9318-a75a8cfbdaa0'
++        escaped_value = _escape(value)
++        self.assertEqual(escaped_value, b'celery-task-meta-c4f1201f-eb7b-41d5-9318-a75a8cfbdaa0')
++
++    def test_escape_str(self):
++        value = 'celery-task-meta-c4f1201f-eb7b-41d5-9318-a75a8cfbdaa0'
++        escaped_value = _escape(value)
++        self.assertEqual(escaped_value, b'celery-task-meta-c4f1201f-eb7b-41d5-9318-a75a8cfbdaa0')
++
++    def test_escape_int(self):
++        value = 12345
++        escaped_value = _escape(value)
++        self.assertEqual(escaped_value, b'12345')
++
++    def test_escape_bool_true(self):
++        value = True
++        escaped_value = _escape(value)
++        self.assertEqual(escaped_value, b'true')
++
++    def test_escape_bool_false(self):
++        value = False
++        escaped_value = _escape(value)
++        self.assertEqual(escaped_value, b'false')

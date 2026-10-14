@@ -1,0 +1,86 @@
+--- /dev/null
++++ b/test_apig_wsgi_grader.py
+@@ -0,0 +1,80 @@
++import sys
++from base64 import b64encode
++from io import BytesIO
++import pytest
++from apig_wsgi import make_lambda_handler
++
++
++@pytest.fixture()
++def simple_app():
++    def app(environ, start_response):
++        app.environ = environ
++        start_response("200 OK", app.headers, app.exc_info)
++        return BytesIO(app.response)
++
++    app.headers = [("Content-Type", "text/plain")]
++    app.response = b"Hello World\n"
++    app.handler = make_lambda_handler(app)
++    app.exc_info = None
++    yield app
++
++
++def make_event(
++    method="GET",
++    qs_params=None,
++    headers=None,
++    body="",
++    binary=False,
++    request_context=None,
++):
++    if headers is None:
++        headers = {"Host": "example.com"}
++
++    event = {
++        "httpMethod": method,
++        "path": "/",
++        "queryStringParameters": qs_params,
++        "headers": headers,
++    }
++
++    if body:
++        event["body"] = body
++        event["isBase64Encoded"] = binary
++
++    if request_context is not None:
++        event["requestContext"] = request_context
++
++    return event
++
++
++class TestResponseClass:
++    def test_text_plain_with_gzip_encoding(self, simple_app):
++        response = simple_app.handler(
++            make_event(headers={"Content-Type": "text/plain"}, body=b"\x1F\x8B"),
++            None,
++        )["body"]
++        assert isinstance(response, bytes)
++
++    def test_application_json_with_gzip_encoding(self, simple_app):
++        response = simple_app.handler(
++            make_event(
++                headers={"Content-Type": "application/json"},
++                body=b"\x1F\x8B",
++            ),
++            None,
++        )["body"]
++        assert isinstance(response, bytes)
++
++    def test_text_plain_without_gzip_encoding(self, simple_app):
++        response = simple_app.handler(
++            make_event(headers={"Content-Type": "text/plain"}, body=b"foo"),
++            None,
++        )["body"]
++        assert isinstance(response, str)
++
++    def test_application_json_without_gzip_encoding(self, simple_app):
++        response = simple_app.handler(
++            make_event(
++                headers={"Content-Type": "application/json"},
++                body=b'{"key":"value"}',
++            ),
++            None,
++        )["body"]
++        assert isinstance(response, str)

@@ -1,0 +1,119 @@
+--- /dev/null
++++ b/jsonargparse_tests/test_core_grader.py
+@@ -0,0 +1,117 @@
++from __future__ import annotations
++import json
++import os
++import pickle
++from calendar import Calendar
++from contextlib import redirect_stderr
++from io import StringIO
++from pathlib import Path
++from random import randint, shuffle
++from unittest.mock import patch
++import pytest
++import yaml
++from jsonargparse import (
++    SUPPRESS,
++    ActionConfigFile,
++    ActionJsonnet,
++    ActionJsonSchema,
++    ActionParser,
++    ArgumentError,
++    ArgumentParser,
++    Namespace,
++    set_config_read_mode,
++    strip_meta,
++)
++from jsonargparse._formatters import get_env_var
++from jsonargparse._optionals import jsonnet_support, jsonschema_support, ruyaml_support
++from jsonargparse.typing import Path_fc, Path_fr, path_type
++from jsonargparse_tests.conftest import (
++    capture_logs,
++    get_parse_args_stderr,
++    get_parse_args_stdout,
++    get_parser_help,
++    is_cpython,
++    responses_activate,
++    skip_if_docstring_parser_unavailable,
++    skip_if_fsspec_unavailable,
++    skip_if_not_posix,
++    skip_if_windows,
++    tmpdir,
++)
++
++
++@pytest.fixture(scope="function")
++def example_parser():
++    class Example:
++        def __init__(self, val: int, val_list: list, opt1: str, opt2: str = "opt2-default", opt3: str = SUPPRESS):
++            self.val = val
++            self.val_list = val_list
++            self.opt1 = opt1
++            self.opt2 = opt2
++            self.opt3 = opt3
++
++    parser = ArgumentParser(add_env_meta=False, add_help=False)
++    parser.add_subclass_arguments(Example, name="example")
++    yield parser
++    parser.exit_on_error = False
++
++
++def test_merge_config():
++    class Foo:
++        def __init__(self, foo_arg: str, bar: Bar):
++            self.foo_arg = foo_arg
++            self.bar = bar
++
++    class Bar:
++        def __init__(self, baz: Baz):
++            self.baz = baz
++
++    class Baz:
++        def __init__(self, qux: str):
++            self.qux = qux
++
++    parser = ArgumentParser()
++    parser.add_subclass_arguments(Foo, name="foo")
++    parser.add_subclass_arguments(Baz, name="baz")
++
++    args = parser.parse_args(["--foo.arg", "value", "--foo.bar.baz.qux", "qux-value"])
++    cfg = parser.merge_config(args)
++
++    assert args == cfg
++    assert cfg.foo_arg == "value"
++    assert cfg.foo.bar.baz.qux == "qux-value"
++
++    cfg_from = Namespace(foo_bar_baz={"qux": "other_qux"})
++    cfg = parser.merge_config(cfg_from, args)
++    assert cfg.foo_arg == "value"
++    assert cfg.foo.bar.baz.qux == "other_qux"
++
++
++def test_merge_config_with_choice_validation():
++    parser = ArgumentParser()
++    parser.add_argument("--arg", choices=("a", "b"))
++
++    args = parser.parse_args([])
++    cfg = parser.merge_config(args)
++    assert args == cfg
++    assert cfg.arg is None
++
++    args = parser.parse_args(["--arg=a"])
++    cfg = parser.merge_config(args)
++    assert args == cfg
++    assert cfg.arg == "a"
++
++    args = parser.parse_args(["--arg=b"])
++    cfg = parser.merge_config(args)
++    assert args == cfg
++    assert cfg.arg == "b"
++
++    args = parser.parse_args(["--arg=x"])
++    cfg = parser.merge_config(args)
++    assert args == cfg
++    assert cfg.arg == "x"
++
++    with pytest.raises(ArgumentError) as ctx:
++        parser.merge_config(Namespace(arg="x"), args)
++    assert 'Parser key "arg": "x" does not match one of the allowed values: "a", "b"' in str(ctx.value)

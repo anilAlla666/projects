@@ -1,0 +1,92 @@
+--- /dev/null
++++ b/tests/test_data_grader.py
+@@ -0,0 +1,35 @@
++"""Test data packet logic"""
++
++
++import numpy as np
++from pyflipdot.data import ImagePacket, Packet
++
++
++class TestPackets(object):
++    def test_tall_image(self):
++        # Send an image as below ('p' indicates byte alignment padding)
++        # (0)  | 1, 0 |
++        # (1)  | 0, 0 |
++        # (2)  | 0, 0 |
++        # (3)  | 0, 0 |
++        # (4)  | 0, 0 |
++        # (5)  | 0, 0 |
++        # (6)  | 0, 0 |
++        # (7)  | 0, 0 | -> | 0x01, 0x00 | -> [0x01, 0x02, 0x00, 0x00]
++        # (8)  | 0, 0 |    | 0x02, 0x00 |
++        # (9)  | 1, 0 |
++        # (10) | 0, 0 |
++        # (11) | 0, 0 |
++        # (12) | 0, 0 |
++        # (13) | 0, 0 |
++        # (14) | 0, 0 |
++        # (15) | 0, 0 |
++        # (16) | 0, 0 |
++        # (17) | 0, 0 |
++        image = np.full((18, 2), False)
++        image[0, 0] = True
++        image[9, 0] = True
++
++        packet = ImagePacket(1, image)
++        packet_data = packet.get_bytes()
++        assert packet_data == b'\x02110401020000\x03B4'
+--- /dev/null
++++ b/tests/test_pyflipdot_grader.py
+@@ -0,0 +1,46 @@
++"""Tests for `pyflipdot` module."""
++
++
++from unittest.mock import MagicMock
++import numpy as np
++import pytest
++from pyflipdot.pyflipdot import HanoverController
++from pyflipdot.sign import HanoverSign
++
++
++@pytest.fixture
++def serial_port():
++    return MagicMock()
++
++
++@pytest.fixture
++def controller(serial_port):
++    return HanoverController(serial_port)
++
++
++class TestController(object):
++    def test_draw_good_image(self, controller, serial_port):
++        # Add a sign
++        sign = HanoverSign(1, 2, 3)
++        controller.add_sign('dev', sign)
++
++        # Construct and draw image as below
++        # ('p' indicates byte alignment padding)
++        # (0) | 1, 0 |    | p, p |
++        # (1) | 0, 0 | -> | p, p |
++        # (2) | 0, 1 |    | p, p |
++        # (3)             | p, p |
++        # (4)             | p, p |
++        # (5)             | 0, 1 |
++        # (6)             | 0, 0 |
++        # (7)             | 1, 0 |
++        image = np.full((3, 2), False)
++        image[0, 0] = True
++        image[2, 1] = True
++
++        controller.draw_image(image)
++        serial_port.write.assert_called_once_with(b'\x0211020104\x0374')
++
++    def test_draw_bad_image(self, controller):
++        sign = HanoverSign(1, 2, 3)
++        controller.add_sign('dev', sign)
++
++        with pytest.raises(ValueError):
++            # Construct image with different number of rows/columns
++            bad_image = np.full((4, 5), True)
++            controller.draw_image(bad_image)

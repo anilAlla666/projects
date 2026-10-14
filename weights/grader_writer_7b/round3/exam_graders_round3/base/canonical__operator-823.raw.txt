@@ -1,0 +1,40 @@
+To ensure that the fix resolves the issue, we need to add a test that checks if the `Network` class correctly handles non-IP address values in the `ingress-addresses`. The existing test file `test/test_model.py` already contains several test cases, so we can add a new test case to cover this scenario.
+
+Here's the unified diff:
+
+```diff
+diff --git a/test/test_model.py b/test/test_model.py
+index 1234567..89abcdef 100644
+--- a/test/test_model.py
++++ b/test/test_model.py
+@@ -2580,6 +2580,25 @@ class TestModel(unittest.TestCase):
+         self.assertEqual(self.backend.relation_remote_app_name(5), 'remoteapp2')
+ 
+     def test_relation_remote_app_name_script_errors(self):
++        # Test handling of non-IP address values in ingress-addresses
++        fake_script(self, 'relation-list', r"""
++        echo '[{"endpoint": "endpoint1", "ingress-addresses": ["acb396cf5563d429f9ebc8aa23ae47ed-1516332866.us-east-1.elb.amazonaws.com"]}]' | jq .
++        """)
++        network_info = self.backend.network_get('endpoint1')
++        self.assertEqual(network_info['ingress-addresses'], ['acb396cf5563d429f9ebc8aa23ae47ed-1516332866.us-east-1.elb.amazonaws.com'])
++
++        # Test handling of empty ingress-addresses
++        fake_script(self, 'relation-list', r"""
++        echo '[{"endpoint": "endpoint2", "ingress-addresses": []}]' | jq .
++        """)
++        network_info = self.backend.network_get('endpoint2')
++        self.assertEqual(network_info['ingress-addresses'], [])
++
++        # Test handling of mixed ingress-addresses
++        fake_script(self, 'relation-list', r"""
++        echo '[{"endpoint": "endpoint3", "ingress-addresses": ["192.168.1.1", "acb396cf5563d429f9ebc8aa23ae47ed-1516332866.us-east-1.elb.amazonaws.com"]}]' | jq .
++        """)
++        network_info = self.backend.network_get('endpoint3')
++        self.assertEqual(network_info['ingress-addresses'], ['192.168.1.1', 'acb396cf5563d429f9ebc8aa23ae47ed-1516332866.us-east-1.elb.amazonaws.com'])
++
+         fake_script(self, 'relation-list', r"""
+         echo "ERROR invalid value \"6\" for option -r: relation not found" >&2  # NOQA
+         exit 2
+```
+
+This new test case simulates the scenario where the `ingress-addresses` contain non-IP address values and verifies that the `Network` class correctly handles these values without raising an exception. It also includes additional test cases to handle empty and mixed lists of ingress addresses.

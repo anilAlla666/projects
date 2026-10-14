@@ -1,0 +1,64 @@
+--- /dev/null
++++ b/tests/test_binary_quadratic_model_grader.py
+@@ -0,0 +1,62 @@
++import unittest
++import random
++import itertools
++import tempfile
++import shutil
++import json
++import collections
++from os import path
++import jsonschema
++import numpy as np
++import dimod
++from dimod.io.json import bqm_json_schema
++
++
++try:
++    import networkx as nx
++    _networkx = True
++except ImportError:
++    _networkx = False
++
++
++try:
++    import pandas as pd
++    _pandas = True
++except ImportError:
++    _pandas = False
++
++
++try:
++    import scipy
++    _scipy = True
++except ImportError:
++    _scipy = False
++
++
++class TestBinaryQuadraticModel(unittest.TestCase):
++    def test_fix_variables(self):
++        bqm = dimod.BinaryQuadraticModel({}, {}, 0.0, dimod.BINARY)
++
++        bqm.fix_variables({'a': 0})
++        self.assertEqual(bqm.linear, {})
++
++        bqm.fix_variables({'a': 1})
++        self.assertEqual(bqm.linear, {})
++
++        bqm.fix_variables({'a': 0, 'b': 1})
++        self.assertEqual(bqm.linear, {})
++
++        bqm = dimod.BinaryQuadraticModel({1: 1, 2: 2}, {(1, 2): 0.5}, 0.5, dimod.SPIN)
++
++        bqm.fix_variables({1: -1, 2: -1})
++        self.assertEqual(bqm.linear, {})
++        self.assertEqual(bqm.quadratic, {})
++        self.assertAlmostEqual(bqm.offset, 2.0)
++
++        bqm = dimod.BinaryQuadraticModel({1: 1, 2: 2}, {(1, 2): 0.5}, 0.5, dimod.SPIN)
++
++        bqm.fix_variables({1: -1, 2: 1})
++        self.assertEqual(bqm.linear, {})
++        self.assertEqual(bqm.quadratic, {})
++        self.assertAlmostEqual(bqm.offset, 2.0)

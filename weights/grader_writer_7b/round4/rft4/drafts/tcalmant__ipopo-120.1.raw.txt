@@ -1,0 +1,245 @@
+--- /dev/null
++++ b/tests/ipopo/test_handlers_grader.py
+@@ -0,0 +1,247 @@
++"""
++Tests iPOPO handlers, using the sample logger handler
++
++:author: Thomas Calmant
++"""
++
++
++import sys
++
++
++try:
++    import unittest2 as unittest
++except ImportError:
++    import unittest
++
++
++from pelix.framework import FrameworkFactory
++import pelix.ipopo.handlers.constants as constants
++from tests.ipopo import install_bundle, install_ipopo
++
++
++__version_info__ = (1, 0, 1)
++
++
++__version__ = ".".join(str(x) for x in __version_info__)
++
++
++HANDLER_BUNDLE_NAME = "samples.handler.logger"
++
++
++COMPONENT_BUNDLE_NAME = "samples.handler.sample"
++
++
++HANDLER_ID = "sample.handler.logger"
++
++
++COMPONENT_NAME = "sample-logger-component"
++
++
++class TestHandlers(unittest.TestCase):
++    """
++    Tests iPOPO handlers
++    """
++
++    @classmethod
++    def setUpClass(cls):
++        # Create the framework
++        cls.framework = FrameworkFactory.get_framework()
++        cls.framework.start()
++
++    @classmethod
++    def tearDownClass(cls):
++        # Delete the framework
++        FrameworkFactory.delete_framework()
++
++    def test_requires_var_filter_update(self):
++        """
++        Tests RequiresVarFilter updates
++        """
++        # Get the IPoPo service
++        ipopo = install_ipopo(self.framework)
++
++        # Install the sample bundle
++        install_bundle(self.framework, COMPONENT_BUNDLE_NAME)
++
++        # Instantiate the component
++        ipopo.instantiate(COMPONENT_NAME, "component_1", {
++            "test_property": "first"})
++
++        # Get the component
++        component = ipopo.get_component_instance("component_1")
++        self.assertIsNotNone(component)
++
++        # Get the property
++        prop = component.test_property
++        self.assertEqual(prop, "first")
++
++        # Change the property
++        ipopo.bind("requires_var_filter", {"test_property": "second"})
++
++        # Update the property
++        ipopo.set_property("component_1", "test_property", "third")
++
++        # Check the result
++        prop = component.test_property
++        self.assertEqual(prop, "third")
++
++        # Update the property again
++        ipopo.set_property("component_1", "test_property", "fourth")
++
++        # Check the result
++        prop = component.test_property
++        self.assertEqual(prop, "fourth")
++
++        # Try with a bad filter
++        ipopo.unbind("requires_var_filter", {"test_property": "bad"})
++
++        # Reset the property
++        ipopo.set_property("component_1", "test_property", None)
++
++        # Check the result
++        prop = component.test_property
++        self.assertIsNone(prop)
++
++        # Unbind the component
++        ipopo.unbind("component_1")
++
++    def test_requires_var_filter_update_invalid(self):
++        """
++        Tests RequiresVarFilter updates with invalid filters
++        """
++        # Get the IPoPo service
++        ipopo = install_ipopo(self.framework)
++
++        # Install the sample bundle
++        install_bundle(self.framework, COMPONENT_BUNDLE_NAME)
++
++        # Instantiate the component
++        ipopo.instantiate(COMPONENT_NAME, "component_1", {
++            "test_property": "first"})
++
++        # Get the component
++        component = ipopo.get_component_instance("component_1")
++        self.assertIsNotNone(component)
++
++        # Get the property
++        prop = component.test_property
++        self.assertEqual(prop, "first")
++
++        # Bind with a bad filter
++        ipopo.bind("requires_var_filter", {"test_property": "bad"})
++
++        # Check the component's lifecycle
++        comp_state = ipopo.get_computed_state("component_1")
++        self.assertEqual(comp_state, 0)
++
++        # Unbind the component
++        ipopo.unbind("component_1")
++
++    def test_requires_var_filter_no_update(self):
++        """
++        Tests RequiresVarFilter updates without change
++        """
++        # Get the IPoPo service
++        ipopo = install_ipopo(self.framework)
++
++        # Install the sample bundle
++        install_bundle(self.framework, COMPONENT_BUNDLE_NAME)
++
++        # Instantiate the component
++        ipopo.instantiate(COMPONENT_NAME, "component_1", {
++            "test_property": "first"})
++
++        # Get the component
++        component = ipopo.get_component_instance("component_1")
++        self.assertIsNotNone(component)
++
++        # Get the property
++        prop = component.test_property
++        self.assertEqual(prop, "first")
++
++        # Bind with the same filter
++        ipopo.bind("requires_var_filter", {"test_property": "first"})
++
++        # Check the component's lifecycle
++        comp_state = ipopo.get_computed_state("component_1")
++        self.assertEqual(comp_state, 2)
++
++        # Unbind the component
++        ipopo.unbind("component_1")
++
++    def test_requires_var_filter_update_empty(self):
++        """
++        Tests RequiresVarFilter updates with empty filter
++        """
++        # Get the IPoPo service
++        ipopo = install_ipopo(self.framework)
++
++        # Install the sample bundle
++        install_bundle(self.framework, COMPONENT_BUNDLE_NAME)
++
++        # Instantiate the component
++        ipopo.instantiate(COMPONENT_NAME, "component_1", {
++            "test_property": "first"})
++
++        # Get the component
++        component = ipopo.get_component_instance("component_1")
++        self.assertIsNotNone(component)
++
++        # Get the property
++        prop = component.test_property
++        self.assertEqual(prop, "first")
++
++        # Bind with empty filter
++        ipopo.bind("requires_var_filter", {})
++
++        # Check the component's lifecycle
++        comp_state = ipopo.get_computed_state("component_1")
++        self.assertEqual(comp_state, 0)
++
++        # Unbind the component
++        ipopo.unbind("component_1")
++
++    def test_requires_var_filter_bind_invalid(self):
++        """
++        Tests RequiresVarFilter bind() with invalid filter
++        """
++        # Get the IPoPo service
++        ipopo = install_ipopo(self.framework)
++
++        # Install the sample bundle
++        install_bundle(self.framework, COMPONENT_BUNDLE_NAME)
++
++        # Instantiate the component
++        ipopo.instantiate(COMPONENT_NAME, "component_1", {
++            "test_property": "first"})
++
++        # Get the component
++        component = ipopo.get_component_instance("component_1")
++        self.assertIsNotNone(component)
++
++        # Get the property
++        prop = component.test_property
++        self.assertEqual(prop, "first")
++
++        # Bind with a bad filter
++        ipopo.bind("requires_var_filter", {"test_property": "bad"})
++
++        # Check the component's lifecycle
++        comp_state = ipopo.get_computed_state("component_1")
++        self.assertEqual(comp_state, 0)
++
++        # Unbind the component
++        ipopo.unbind("component_1")
++
++
++if __name__ == "__main__":
++    # Set logging level
++    import logging
++    logging.basicConfig(level=logging.DEBUG)
++
++    unittest.main()

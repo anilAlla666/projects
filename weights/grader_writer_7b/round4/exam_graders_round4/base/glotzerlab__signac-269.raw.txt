@@ -1,0 +1,64 @@
+To address the issue described, we need to ensure that calling `values()` on a `_SyncedAttrDict` object does not modify the underlying dictionary in place. Instead, it should return a view or a copy of the values that does not interfere with the original data structure.
+
+Here's a proposed fix along with the corresponding tests:
+
+### Proposed Fix
+
+We will modify the `values()` method to return a view of the values rather than converting the entire dictionary to a regular `dict`. This ensures that the original `_SyncedAttrDict` remains unchanged.
+
+```python
+# signac/core/synceddict.py
+
+class _SyncedAttrDict(MutableMapping):
+    # ... (existing code)
+
+    def values(self):
+        self._synced_load()
+        return self._data.values()
+
+    # ... (remaining code)
+```
+
+### Tests
+
+We will add a test file named `test_values.py` next to the existing tests to verify that calling `values()` does not modify the original `_SyncedAttrDict`.
+
+```diff
+diff --git a/tests/test_values.py b/tests/test_values.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_values.py
+@@ -0,0 +1,34 @@
++import unittest
++from signac import init_project
++
++class TestValues(unittest.TestCase):
++    def test_values_does_not_modify_original(self):
++        project = init_project('test')
++        job = project.open_job({'a': {'b': 'c'}}).init()
++        
++        original_type = type(job.sp.a)
++        job.sp.values()
++        modified_type = type(job.sp.a)
++
++        self.assertEqual(original_type, modified_type)
++        self.assertIsInstance(job.sp.a, dict)
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+### Explanation
+
+1. **Proposed Fix**:
+   - The `values()` method now directly returns the `.values()` view of the `_data` dictionary without converting it to a regular `dict`.
+   - This ensures that the original `_SyncedAttrDict` remains unchanged when `values()` is called.
+
+2. **Tests**:
+   - We create a new test class `TestValues` with a single test method `test_values_does_not_modify_original`.
+   - This test initializes a project and opens a job with a nested dictionary.
+   - It then calls `values()` on the `_SyncedAttrDict` and checks if the type of the attribute remains the same after the call.
+   - The test asserts that the type of `job.sp.a` is still `_SyncedAttrDict` and that it can be converted to a regular `dict`.
+
+These changes should ensure that calling `values()` on a `_SyncedAttrDict` object does not modify the underlying dictionary in place, thus resolving the issue.

@@ -1,0 +1,252 @@
+--- /dev/null
++++ b/tests/commands/test_run_test_utils_grader.py
+@@ -0,0 +1,107 @@
++import datetime
++import json
++import os
++import re
++import requests_mock
++from click.testing import CliRunner
++from tests.fixture_data import (
++    CONFIG_DATA,
++    CONFIG_YAML,
++    DEPLOYMENT_VERSION_DATA,
++    EXECUTION_DATA,
++    PIPELINE_DATA,
++    PROJECT_DATA,
++    YAML_WITH_EXTRACT_TRAIN_EVAL,
++)
++from valohai_cli import git
++from valohai_cli.commands.execution.run import run
++from valohai_cli.ctx import get_project
++from valohai_cli.utils import get_random_string
++
++
++ALTERNATIVE_YAML = 'batch.yaml'
++
++
++class RunAPIMock(requests_mock.Mocker):
++
++    def __init__(
++        self,
++        project_id,
++        commit_id='f' * 16,
++        deployment_id=666,
++        additional_payload_values=None,
++        deployment_version_name='220801.0',
++    ):
++        super().__init__()
++        self.last_create_execution_payload = None
++        self.project_id = project_id
++        self.commit_id = commit_id
++        self.deployment_id = deployment_id
++        self.deployment_version_name = deployment_version_name
++        self.additional_payload_values = additional_payload_values or {}
++
++    def handle_create_execution(self, request, context):
++        body_json = json.loads(request.body.decode('utf-8'))
++        assert body_json['commit'] == self.commit_id
++        assert body_json['project'] == self.project_id
++        assert body_json['step'] == self.step_name
++        assert body_json['environment'] == self.environment
++        assert body_json['title'] == self.title
++        assert body_json['tags'] == self.tags
++        assert body_json['runtime_config'] == self.runtime_config
++        assert body_json['image'] == self.image
++        assert body_json['download_directory'] == self.download_directory
++        assert body_json['watch'] == self.watch
++        assert body_json['parameters'] == self.parameters
++        assert body_json['inputs'] == self.inputs
++        assert body_json['environment_variables'] == self.environment_variables
++        self.last_create_execution_payload = body_json
++        context.status_code = 201
++        return EXECUTION_DATA.copy()
++
++    def handle_create_endpoint(self, request, context):
++        body_json = json.loads(request.body.decode('utf-8'))
++        if body_json['endpoint_configurations'].get('predict-digit'):
++            files = body_json['endpoint_configurations']['predict-digit']['files']
++            assert files.get('model')
++        context.status_code = 201
++        return DEPLOYMENT_VERSION_DATA.copy()
++
++    def handle_create_pipeline(self, request, context):
++        body_json = json.loads(request.body.decode('utf-8'))
++        assert body_json['project'] == self.project_id
++        assert len(body_json['edges']) == 5
++        assert len(body_json['nodes']) == 3
++        context.status_code = 201
++        return PIPELINE_DATA.copy()
++
++    def handle_create_commit(self, request, context):
++        assert request.body
++        commit_id = f"~{get_random_string()}"
++        self.commit_id = commit_id  # Only accept the new commit
++        return {
++            'repository': '8',
++            'identifier': commit_id,
++            'ref': 'adhoc',
++            'ctime': '2017-03-09T14:56:53.875721Z',
++            'commit_time': '2017-03-09T14:56:53.875475Z',
++        }
++
++
++class RunTestSetup:
++    def __init__(self, monkeypatch, adhoc, step_name='train'):
++        self.adhoc = adhoc
++        self.project_id = PROJECT_DATA['id']
++        self.commit_id = 'f' * 40
++        monkeypatch.setattr(git, 'get_current_commit', lambda dir: self.commit_id)
++
++        with open(get_project().get_config_filename(), 'w') as yaml_fp:
++            yaml_fp.write(CONFIG_YAML)
++
++        # Create an alternative yaml as well (monorepo style)
++        with open(get_project().get_config_filename(yaml_path=ALTERNATIVE_YAML), 'w') as yaml_fp:
++            yaml_fp.write(YAML_WITH_EXTRACT_TRAIN_EVAL)
++
++        self.args = [step_name]
++        if adhoc:
++            self.args.insert(0, '--adhoc')
++        self.values = {}
++        self._run_api_mock = None
++
++    @property
++    def run_api_mock(self) -> RunAPIMock:
++        if not self._run_api_mock:
++            self._run_api_mock = RunAPIMock(self.project_id, self.commit_id, self.values)
++        return self._run_api_mock
++
++    def run(self, *, catch_exceptions=True, verify_adhoc=True) -> str:
++        with self.run_api_mock:
++            output = CliRunner().invoke(run, self.args, catch_exceptions=catch_exceptions).output
++            if verify_adhoc:
++                # Making sure that non-adhoc executions don't turn adhoc or vice versa.
++                assert ('Uploaded ad-hoc code' in output) == self.adhoc
++                assert f"#{EXECUTION_DATA['counter']}" in output
++        return output
+--- /dev/null
++++ b/tests/commands/test_run_test_utils_grader_grader.py
+@@ -0,0 +1,53 @@
++import json
++import re
++import shutil
++import tempfile
++from pathlib import Path
++from typing import Dict
++import requests_mock
++from click.testing import CliRunner
++from pytest import fixture
++from tests.commands.run_test_utils import RunTestSetup
++from tests.fixture_data import CONFIG_YAML, EXECUTION_DATA, PROJECT_DATA, RUN_CONFIGS, RUN_PARAMS
++from valohai_cli.commands.execution.run import run
++from valohai_cli.ctx import get_project
++from valohai_cli.exceptions import CLIError
++from valohai_cli.models import Execution
++
++
++@fixture
++def temp_dir(monkeypatch):
++    tmpdir = tempfile.mkdtemp()
++    monkeypatch.chdir(tmpdir)
++    yield tmpdir
++    shutil.rmtree(tmpdir)
++
++
++@fixture
++def setup_temp_file(temp_dir):
++    path = Path(temp_dir) / 'test.json'
++    data = {'a': 1}
++    path.write_text(json.dumps(data))
++    return path
++
++
++@fixture
++def setup_parameters(temp_dir):
++    params_dir = Path(temp_dir) / 'params'
++    params_dir.mkdir()
++    for k, v in RUN_PARAMS.items():
++        (params_dir / k).write_text(v)
++    return params_dir
++
++
++@fixture
++def setup_runtime_configs(temp_dir):
++    rc_dir = Path(temp_dir) / 'rc'
++    rc_dir.mkdir()
++    for k, v in RUN_CONFIGS.items():
++        (rc_dir / k).write_text(json.dumps(v))
++    return rc_dir
++
++
++def _assert_executable(execution: Execution, setup: RunTestSetup):
++    assert execution.title == setup.title
++    assert execution.commit == setup.commit_id
++    assert execution.step == setup.step_name
++    assert execution.environment == setup.environment
++    assert execution.parameters == setup.parameters
++    assert execution.environment_variables == setup.environment_variables
+--- /dev/null
++++ b/tests/commands/test_run__grader.py
+@@ -0,0 +1,56 @@
++from click import UsageError
++from click.testing import CliRunner
++from tests.commands.run_test_utils import RunTestSetup
++from tests.commands.test_run_test_utils import _assert_executable
++from tests.fixture_data import (
++    EXECUTION_DATA,
++    INPUT_URL,
++    PROJECT_DATA,
++    RUN_CONFIGS,
++    RUN_PARAMS,
++    RUN_PARAMETER_FILE_CONTENTS,
++    RUN_PARAMETER_FILE_PATH,
++    RUN_PARAMETERS,
++)
++from valohai_cli.commands.execution.run import run
++from valohai_cli.ctx import get_project
++from valohai_cli.models import Execution
++
++
++def test_step_run_success(runner, logged_in_and_linked):
++    setup = RunTestSetup(adhoc=False)
++    setup.values.update(RUN_PARAMETERS)
++    setup.args.extend(['--env-variable-name=value'])
++    setup.args.extend([RUN_PARAMETER_FILE_PATH])
++    setup.args.extend([f"--env-variable-name={value}" for value in RUN_ENV_VARIABLE_VALUES])
++    setup.args.extend([f"--input-url={INPUT_URL}"])
++    setup.args.extend(["--download-directory=/tmp", "--watch"])
++    setup.args.extend([f"--runtime-config-{k}={v}" for k, v in RUN_CONFIGS.items()])
++    with setup.run_api_mock:
++        result = runner.invoke(run, setup.args)
++        assert result.exit_code == 0
++        exec_id = EXECUTION_DATA["counter"]
++        assert f"Execution #{exec_id} started." in result.output
++        assert f"Started at {datetime.datetime.utcnow().isoformat(timespec='seconds')}Z" in result.output
++        execution = Execution.from_model(EXECUTION_DATA)
++        _assert_executable(execution, setup)
++
++
++def test_step_run_failure(runner, logged_in_and_linked):
++    setup = RunTestSetup(adhoc=False)
++    setup.values.update(RUN_PARAMETERS)
++    setup.args.extend(['--env-variable-name=value'])
++    setup.args.extend([RUN_PARAMETER_FILE_PATH])
++    setup.args.extend([f"--env-variable-name={value}" for value in RUN_ENV_VARIABLE_VALUES])
++    setup.args.extend([f"--input-url={INPUT_URL}"])
++    setup.args.extend(["--download-directory=/tmp", "--watch"])
++    setup.args.extend([f"--runtime-config-{k}={v}" for k, v in RUN_CONFIGS.items()])
++    setup.args.extend(['--invalid-parameter'])
++    with setup.run_api_mock:
++        result = runner.invoke(run, setup.args)
++        assert result.exit_code != 0
++        assert 'Failed to validate input URL' in result.output
++        assert 'Invalid parameter: invalid-parameter' in result.output
++
++
++RUN_ENV_VARIABLE_VALUES = [
++    'value',
++    'another-value',
++    'yet-another-value',
++    'last-value',
++]

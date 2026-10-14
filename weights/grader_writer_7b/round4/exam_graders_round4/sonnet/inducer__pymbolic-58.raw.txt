@@ -1,0 +1,80 @@
+I've added a new test file for the `if`/`else` precedence issue. I haven't run it. The tests parse `10 if x or y else 20` and similar expressions, and compare the result with an `If` built from separately parsed pieces, so they don't depend on how `LogicalOr` or `LogicalAnd` are constructed internally. They should fail on the current code because the parser raises a `ParseError` when `or` or `and` appears in the condition.
+
+The cases cover:
+- `or` in the condition
+- `and` in the condition
+- `or` and `and` mixed in the condition
+- `or` in the condition with `not` as the first operand
+- `or` in the condition with a comparison as the first operand
+- `or` in the condition inside parentheses
+- a parsed expression, `x or y`, used as the condition
+- an `or` expression in the else branch
+
+```diff
+--- /dev/null
++++ b/test/test_parser_if_precedence.py
+@@ -0,0 +1,63 @@
++import pymbolic.primitives as prim
++from pymbolic import parse
++
++
++def test_if_with_logical_or_condition():
++    expr = parse("10 if x or y else 20")
++    assert isinstance(expr, prim.If)
++    assert expr.then == 10
++    assert expr.else_ == 20
++    assert expr.condition == parse("x or y")
++    assert isinstance(expr.condition, prim.LogicalOr)
++
++
++def test_if_with_logical_and_condition():
++    expr = parse("10 if x and y else 20")
++    assert isinstance(expr, prim.If)
++    assert expr.then == 10
++    assert expr.else_ == 20
++    assert expr.condition == parse("x and y")
++    assert isinstance(expr.condition, prim.LogicalAnd)
++
++
++def test_if_with_mixed_logical_condition():
++    expr = parse("1 if x or y and z else 2")
++    assert isinstance(expr, prim.If)
++    assert expr.condition == parse("x or y and z")
++    assert expr.then == 1
++    assert expr.else_ == 2
++
++
++def test_if_with_not_and_or_condition():
++    expr = parse("1 if not x or y else 2")
++    assert isinstance(expr, prim.If)
++    assert expr.condition == parse("not x or y")
++    assert expr.then == 1
++    assert expr.else_ == 2
++
++
++def test_if_with_comparison_or_condition():
++    expr = parse("a if x < 1 or y > 2 else b")
++    assert isinstance(expr, prim.If)
++    assert expr.condition == parse("x < 1 or y > 2")
++    assert expr.then == prim.Variable("a")
++    assert expr.else_ == prim.Variable("b")
++
++
++def test_if_with_parenthesized_or_condition_unchanged():
++    assert parse("10 if (x or y) else 20") == parse("10 if x or y else 20")
++
++
++def test_if_condition_built_from_parsed_pieces():
++    x, y = prim.Variable("x"), prim.Variable("y")
++    cond = parse("x or y")
++    assert parse("10 if x or y else 20") == prim.If(cond, 10, 20)
++    assert cond.children == (x, y)
++
++
++def test_if_else_branch_with_or():
++    expr = parse("a if c else x or y")
++    assert isinstance(expr, prim.If)
++    assert expr.condition == prim.Variable("c")
++    assert expr.then == prim.Variable("a")
++    assert expr.else_ == parse("x or y")
+```

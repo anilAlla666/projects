@@ -1,0 +1,26 @@
+--- /dev/null
++++ b/tests/test_grader_generated.py
+@@ -0,0 +1,23 @@
++import unittest
++from mesa.space import NetworkGrid
++from tests.test_grid import MockAgent
++
++class TestNetworkGrid(unittest.TestCase):
++    def setUp(self):
++        G = nx.Graph()
++        G.add_node(0)
++        G.add_node(1)
++        G.add_edge(0, 1)
++        
++        self.networkgrid = NetworkGrid(G)
++        self.agent = MockAgent(0, self.networkgrid)
++        self.networkgrid.place_agent(self.agent, 0)
++
++    def test_remove_agent(self):
++        self.assertIn(self.agent, self.networkgrid.G.nodes[0]['agent'])
++        self.networkgrid.remove_agent(self.agent)
++        self.assertNotIn(self.agent, self.networkgrid.G.nodes[0]['agent'])
++        self.assertIsNone(self.agent.pos)
++
++if __name__ == "__main__":
++    unittest.main()

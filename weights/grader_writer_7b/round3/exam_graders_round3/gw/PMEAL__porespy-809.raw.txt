@@ -1,0 +1,19 @@
+diff --git a/test/unit/test_snow2.py b/test/unit/test_snow2.py
+index 0e1f0a1..c30000c 100644
+--- a/test/unit/test_snow2.py
++++ b/test/unit/test_snow2.py
+@@ -345,6 +345,14 @@ class Snow2Test:
+         phases = im1 + (im2 * ~im1)*2
+         # phases = phases > 0
+ 
++        snow_n = ps.networks.snow2(phases,
++                                   phase_alias={1: 'solid',
++                                                2: 'void'},
++                                   boundary_width=[[5, 10], 10],
++                                   accuracy='high',
++                                   parallelization=None)
++
++        assert snow_n.regions.max() == 210
+         snow_n = ps.networks.snow2(phases,
+                                    phase_alias={1: 'solid',
+                                                 2: 'void'},

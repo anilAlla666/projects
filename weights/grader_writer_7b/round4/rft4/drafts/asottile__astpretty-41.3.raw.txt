@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/tests/test_astpretty_test_grader.py
+@@ -0,0 +1,24 @@
++import ast
++import sys
++import pytest
++import astpretty
++
++
++def _to_module_body(s):
++    return ast.parse(s).body[0]
++
++
++def _to_expr_value(s):
++    return _to_module_body(s).value
++
++
++@pytest.mark.parametrize('indent, expected', (('    ', '    '), (4, '    ')))
++def test_pformat_indent_string(indent, expected):
++    src = 'print("hello")'
++    actual = astpretty.pformat(astpretty.ast3.parse(src), indent=indent)
++    assert actual.startswith(expected)
++
++
++@pytest.mark.parametrize('indent, expected', (('    ', 4), (4, 4)))
++def test_pformat_indent_number(indent, expected):
++    src = 'print("hello")'
++    actual = astpretty.pformat(astpretty.ast3.parse(src), indent=indent)
++    assert len(actual.splitlines()[1].lstrip()) == expected

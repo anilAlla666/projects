@@ -1,0 +1,118 @@
+--- /dev/null
++++ b/tests/test_cli_grader.py
+@@ -0,0 +1,100 @@
++import json
++import os
++import re
++from unittest.mock import MagicMock
++from click.testing import CliRunner
++from pierone.cli import cli
++
++
++def test_cves(monkeypatch, tmpdir):
++    pierone_service_payload = {
++        'clair_id': '123',
++        'created_by': 'myuser',
++        'created': '2015-08-20T08:14:59.432Z',
++        'sha256': 'abc',
++        'size': 123456789,
++        'manifest': '{"config": {"digest": "sha256:123"}}',
++        'layers': [{
++            'digest': 'sha256:123',
++            'media_type': 'application/vnd.docker.image.rootfs.diff.tar.gzip',
++            'size': 123456789
++        }]
++    }
++
++    clair_service_payload = {
++        'Vulnerabilities': [
++            {
++                'Name': 'CVE-2013-5123',
++                'Severity': 'High',
++                'Description': 'Some description',
++                'Package': {
++                    'Name': 'somepackage',
++                    'Version': '1.0',
++                    'Namespace': 'ubuntu',
++                    'Type': 'deb'
++                },
++                'FixedIn': [
++                    {
++                        'Version': '1.1',
++                        'Namespace': 'ubuntu',
++                        'Type': 'deb'
++                    }
++                ],
++                'References': [
++                    'http://www.cvedetails.com/cve/CVE-2013-5123.html'
++                ]
++            },
++            {
++                'Name': 'CVE-2013-5124',
++                'Severity': 'Medium',
++                'Description': 'Some description',
++                'Package': {
++                    'Name': 'somepackage',
++                    'Version': '1.0',
++                    'Namespace': 'ubuntu',
++                    'Type': 'deb'
++                },
++                'FixedIn': [],
++                'References': [
++                    'http://www.cvedetails.com/cve/CVE-2013-5124.html'
++                ]
++            }
++        ],
++        'Features': [
++            {
++                'Name': 'somepackage',
++                'Version': '1.0',
++                'Namespace': 'ubuntu',
++                'Type': 'deb'
++            }
++        ]
++    }
++
++    response = MagicMock()
++    response.json.side_effect = [
++        pierone_service_payload,
++        clair_service_payload
++    ]
++
++    runner = CliRunner()
++    monkeypatch.setattr('stups_cli.config.load_config', lambda x: {'url': 'foobar', 'clair_url': 'barfoo'})
++    monkeypatch.setattr('zign.api.get_token', MagicMock(return_value='tok123'))
++    monkeypatch.setattr('os.path.expanduser', lambda x: x.replace('~', str(tmpdir)))
++    monkeypatch.setattr('pierone.api.session.get', MagicMock(return_value=response))
++    with runner.isolated_filesystem():
++        result = runner.invoke(cli, ['cves', 'myteam', 'myart', '1.2'], catch_exceptions=False)
++        assert 'CVE-2013-5123' in result.output
++        assert re.match('[^\n]+\n[^\n]+HIGH', result.output), 'Results should be ordered by highest priority'
++
++
++def test_cves_with_unknown_layer(monkeypatch, tmpdir):
++    pierone_service_payload = {
++        'clair_id': None,
++        'created_by': 'myuser',
++        'created': '2015-08-20T08:14:59.432Z',
++        'sha256': 'abc',
++        'size': 123456789,
++        'manifest': '{"config": {"digest": "sha256:123"}}',
++        'layers': [{
++            'digest': 'sha256:123',
++            'media_type': 'application/vnd.docker.image.rootfs.diff.tar.gzip',
++            'size': 123456789
++        }]
++    }
++
++    response = MagicMock()
++    response.json.return_value = pierone_service_payload
++
++    runner = CliRunner()
++    monkeypatch.setattr('stups_cli.config.load_config', lambda x: {'url': 'foobar', 'clair_url': 'barfoo'})
++    monkeypatch.setattr('zign.api.get_token', MagicMock(return_value='tok123'))
++    monkeypatch.setattr('os.path.expanduser', lambda x: x.replace('~', str(tmpdir)))
++    monkeypatch.setattr('pierone.api.session.get', MagicMock(return_value=response))
++    with runner.isolated_filesystem():
++        result = runner.invoke(cli, ['cves', 'myteam', 'myart', '1.2'], catch_exceptions=False)
++        assert 'COULDNT_FIGURE_OUT' in result.output

@@ -1,0 +1,109 @@
+--- /dev/null
++++ b/tests/test_confidence_grader.py
+@@ -0,0 +1,113 @@
++import os
++import pytest
++import pandas as pd
++import numpy as np
++import mokapot
++
++
++@pytest.fixture
++def pin_data():
++    """Return sample PIN data."""
++    pin_file = os.path.join(os.path.dirname(mokapot.__file__), "data/phospho_rep1.pin")
++    psm_data = mokapot.read_pin(pin_file)
++    psm_data = psm_data.filter(lambda x: x["charge"] == 1)
++    return psm_data
++
++
++def test_linear_vs_grouped(pin_data):
++    """Compare LinearConfidence and GroupedConfidence scores."""
++    # Prepare the data
++    model = mokapot.Model(
++        estimator="RandomForestClassifier", n_estimators=10, random_state=0
++    )
++    psm_data = pin_data
++    psm_data = psm_data.filter(lambda x: x["charge"] == 1)
++
++    # Fit linear model
++    conf_linear, _ = mokapot.brew(psm_data, model)
++
++    # Fit grouped model
++    conf_grouped, _ = mokapot.brew(psm_data, model, group_column="charge")
++
++    # Get scores
++    scores_linear = conf_linear.psms["mokapot score"]
++    scores_grouped = conf_grouped.group_confidence_estimates[0].psms[
++        "mokapot score"
++    ]
++
++    # Check that mean scores are the same
++    assert np.isclose(scores_linear.mean(), scores_grouped.mean())
++
++    # Check that std deviation of scores are the same
++    assert np.isclose(scores_linear.std(), scores_grouped.std())
++
++    # Check that min values are the same
++    assert np.isclose(scores_linear.min(), scores_grouped.min())
++
++    # Check that max values are the same
++    assert np.isclose(scores_linear.max(), scores_grouped.max())
++
++    # Check that quartiles are the same
++    assert np.all(np.isclose(pd.qcut(scores_linear, q=[0, 0.25, 0.5, 0.75], retbins=False),
++                             pd.qcut(scores_grouped, q=[0, 0.25, 0.5, 0.75], retbins=False)))
++
++    # Check that count values are the same
++    assert np.all(np.isclose(pd.value_counts(scores_linear),
++                             pd.value_counts(scores_grouped)))
++
++
++def test_grouped_with_decoys(pin_data):
++    """Test GroupedConfidence with decoy PSMs."""
++    # Prepare the data
++    model = mokapot.Model(
++        estimator="RandomForestClassifier", n_estimators=10, random_state=0
++    )
++    psm_data = pin_data
++
++    # Filter charge state to remove decoys
++    psm_data = psm_data.filter(lambda x: x["charge"] == 1)
++
++    # Fit grouped model
++    conf_grouped, _ = mokapot.brew(psm_data, model, group_column="charge")
++
++    # Add decoys back to data
++    psm_data["decoy"] = False
++    psm_data.loc[psm_data.spectrum_id.str.contains(r"Decoy"), "decoy"] = True
++
++    # Fit grouped model again
++    conf_grouped_decoys, _ = mokapot.brew(psm_data, model, group_column="charge")
++
++    # Get scores
++    scores_grouped = conf_grouped.group_confidence_estimates[0].psms[
++        "mokapot score"
++    ]
++    scores_grouped_decoys = conf_grouped_decoys.group_confidence_estimates[0].psms[
++        "mokapot score"
++    ]
++
++    # Check that mean scores are the same
++    assert np.isclose(scores_grouped.mean(), scores_grouped_decoys.mean())
++
++    # Check that std deviation of scores are the same
++    assert np.isclose(scores_grouped.std(), scores_grouped_decoys.std())
++
++    # Check that min values are the same
++    assert np.isclose(scores_grouped.min(), scores_grouped_decoys.min())
++
++    # Check that max values are the same
++    assert np.isclose(scores_grouped.max(), scores_grouped_decoys.max())
++
++    # Check that quartiles are the same
++    assert np.all(np.isclose(pd.qcut(scores_grouped, q=[0, 0.25, 0.5, 0.75], retbins=False),
++                             pd.qcut(scores_grouped_decoys, q=[0, 0.25, 0.5, 0.75], retbins=False)))
++
++    # Check that count values are the same
++    assert np.all(np.isclose(pd.value_counts(scores_grouped),
++                             pd.value_counts(scores_grouped_decoys)))

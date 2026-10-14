@@ -1,0 +1,54 @@
+--- /dev/null
++++ b/tests/test_parser_grader.py
+@@ -0,0 +1,34 @@
++import os
++import pytest
++from datetime import datetime, timedelta, time
++from ogn_lib import exceptions, parser, constants
++
++
++def get_messages(n_messages=float('inf')):
++    test_dir = os.path.dirname(os.path.realpath(__file__))
++
++    with open(os.path.join(test_dir, 'messages.txt'), 'r') as f:
++        lines = f.readlines()
++
++    messages = []
++    for i, l in enumerate(lines):
++        if i >= n_messages:
++            break
++
++        messages.append(l.strip())
++
++    return messages
++
++
++class TestCapturs:
++    def test_process(self):
++        parser.Capturs.parse_message(
++            "FLRDDEEF1>OGCAPT,qAS,CAPTURS:/065144h4837.56N/00233.80E'000/000/")
++
++    def test_destto(self):
++        assert 'OGCAPT' in parser.Capturs.__destto__
++
++
++class TestServerParser:
++    def test_parse_beacon_comment(self, mocker):
++        msg = ('LKHS>APRS,TCPIP*,qAC,GLIDERN2:/211635h4902.45NI01429.51E&'
++               '000/000/A=001689 comment')
++        data = parser.ServerParser.parse_message(msg)
++
++        assert data['comment'] == 'comment'
+--- /dev/null
++++ b/tests/test_ogn_lib_grader.py
+@@ -0,0 +1,10 @@
++import ogn_lib
++
++
++def test_entry_points():
++    ogn_lib.OgnClient
++    ogn_lib.Parser
++    ogn_lib.AirplaneType
++    ogn_lib.AddressType
++    ogn_lib.BeaconType
++    ogn_lib.parser.Capturs

@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/systemfixtures/tests/test_filesystem_direntry.py
+@@ -0,0 +1,50 @@
++import os
++import shutil
++import sys
++
++from testtools import TestCase, skipIf
++from testtools.matchers import (
++    DirExists,
++    FileContains,
++)
++
++from fixtures import TempDir
++
++from ..filesystem import FakeFilesystem
++
++
++@skipIf(sys.version_info < (3, 6), "os.DirEntry paths need Python 3.6+")
++class FakeFilesystemDirEntryTest(TestCase):
++
++    def setUp(self):
++        super(FakeFilesystemDirEntryTest, self).setUp()
++        self.fs = self.useFixture(FakeFilesystem())
++
++    def _make_source(self):
++        src = self.useFixture(TempDir()).path
++        with open(os.path.join(src, "file.txt"), "w") as fd:
++            fd.write("hello")
++        os.mkdir(os.path.join(src, "sub"))
++        with open(os.path.join(src, "sub", "other.txt"), "w") as fd:
++            fd.write("world")
++        return src
++
++    def test_copytree_to_fake_dir(self):
++        src = self._make_source()
++        self.fs.add("/foo")
++        os.makedirs("/foo")
++        shutil.copytree(src, "/foo/dst")
++        self.assertThat("/foo/dst", DirExists())
++        self.assertThat("/foo/dst/file.txt", FileContains("hello"))
++        self.assertThat("/foo/dst/sub/other.txt", FileContains("world"))
++        # The files really live under the fake root.
++        self.assertThat(
++            os.path.join(self.fs.root.path, "foo/dst/file.txt"),
++            FileContains("hello"))
++
++    def test_open_direntry(self):
++        src = self._make_source()
++        self.fs.add("/foo")
++        entries = [e for e in os.scandir(src) if e.name == "file.txt"]
++        with open(entries[0], "rb") as fd:
++            self.assertEqual(b"hello", fd.read())

@@ -1,0 +1,122 @@
+--- /dev/null
++++ b/tests/test_parser_pipenv_grader.py
+@@ -0,0 +1,32 @@
++import os
++from unittest import TestCase
++from cyclonedx_py.parser.pipenv import PipEnvFileParser
++
++
++class TestPipEnvParser(TestCase):
++    def test_hashes_not_in_pipfile(self) -> None:
++        tests_pipfile_lock = os.path.join(os.path.dirname(__file__), 'fixtures/pipfile-lock-hashes-not-in-pipfile.txt')
++
++        parser = PipEnvFileParser(pipenv_lock_filename=tests_pipfile_lock)
++        self.assertEqual(2, parser.component_count())
++
++        c_botocore = next(filter(lambda c: c.name == 'botocore', parser.get_components()), None)
++        self.assertIsNotNone(c_botocore)
++        c_boto3 = next(filter(lambda c: c.name == 'boto3', parser.get_components()), None)
++        self.assertIsNotNone(c_boto3)
++
++        self.assertEqual('botocore', c_botocore.name)
++        self.assertEqual('1.23.54', c_botocore.version)
++        self.assertEqual(2, len(c_botocore.external_references), f'{c_botocore.external_references}')
++        self.assertEqual(1, len(c_botocore.external_references.pop().hashes))
++
++        self.assertEqual('boto3', c_boto3.name)
++        self.assertEqual('1.20.54', c_boto3.version)
++        self.assertEqual(2, len(c_boto3.external_references), f'{c_boto3.external_references}')
++        self.assertEqual(2, len(c_boto3.external_references.pop().hashes))
++
++    def test_hashes_not_in_pipfile_only_dev_deps(self) -> None:
++        tests_pipfile_lock = os.path.join(os.path.dirname(__file__), 'fixtures/pipfile-lock-hashes-only-dev-deps.txt')
++
++        parser = PipEnvFileParser(pipenv_lock_filename=tests_pipfile_lock)
++        self.assertEqual(0, parser.component_count())
+--- /dev/null
++++ b/tests/test_parser_conda_grader.py
+@@ -0,0 +1,27 @@
++import os
++import re
++from unittest import TestCase
++from cyclonedx_py.parser.conda import CondaListExplicitParser, CondaListJsonParser
++
++
++class TestCondaParser(TestCase):
++    def test_conda_list_explicit_sha256(self) -> None:
++        conda_list_ouptut_file = os.path.join(os.path.dirname(__file__),
++                                              'fixtures/conda-list-explicit-sha256.txt')
++
++        with (open(conda_list_ouptut_file, 'r')) as conda_list_output_fh:
++            parser = CondaListExplicitParser(conda_data=conda_list_output_fh.read())
++
++        self.assertEqual(34, parser.component_count())
++        components = parser.get_components()
++
++        c_idna = next(filter(lambda c: c.name == 'idna', components), None)
++        self.assertIsNotNone(c_idna)
++        self.assertEqual('idna', c_idna.name)
++        self.assertEqual('2.10', c_idna.version)
++        self.assertEqual(1, len(c_idna.external_references), f'{c_idna.external_references}')
++        self.assertEqual(1, len(c_idna.external_references.pop().hashes))
++
++        self.assertEqual(12, len(list(filter(lambda c: c.external_references, components))))
+--- /dev/null
++++ b/tests/test_parser_poetry_grader.py
+@@ -0,0 +1,29 @@
++import os
++from unittest import TestCase
++from cyclonedx_py.parser.poetry import PoetryLockParser
++
++
++class TestPoetryParser(TestCase):
++    def test_hashes_not_in_poetry_lock(self) -> None:
++        poetry_lock_ouptut_file = os.path.join(os.path.dirname(__file__), 'fixtures/pyproject-poetry-lock-hashes.txt')
++
++        with (open(poetry_lock_ouptut_file, 'r')) as poetry_lock_output_fh:
++            parser = PoetryLockParser(poetry_lock_data=poetry_lock_output_fh.read())
++
++        self.assertEqual(3, parser.component_count())
++        components = parser.get_components()
++
++        c_botocore = next(filter(lambda c: c.name == 'botocore', components), None)
++        self.assertIsNotNone(c_botocore)
++        c_boto3 = next(filter(lambda c: c.name == 'boto3', components), None)
++        self.assertIsNotNone(c_boto3)
++
++        self.assertEqual('botocore', c_botocore.name)
++        self.assertEqual('1.23.54', c_botocore.version)
++        self.assertEqual(2, len(c_botocore.external_references), f'{c_botocore.external_references}')
++        self.assertEqual(1, len(c_botocore.external_references.pop().hashes))
++
++        self.assertEqual('boto3', c_boto3.name)
++        self.assertEqual('1.20.54', c_boto3.version)
++        self.assertEqual(2, len(c_boto3.external_references), f'{c_boto3.external_references}')
++        self.assertEqual(2, len(c_boto3.external_references.pop().hashes))
+--- /dev/null
++++ b/tests/test_parser_requirements_grader.py
+@@ -0,0 +1,24 @@
++import os
++from unittest import TestCase
++from cyclonedx_py.parser.requirements import RequirementsTxtParser
++
++
++class TestRequirementsParser(TestCase):
++    def test_hashes_not_in_requirements_txt(self) -> None:
++        requirements_txt_ouptut_file = os.path.join(os.path.dirname(__file__), 'fixtures/requirements.txt')
++
++        with (open(requirements_txt_ouptut_file, 'r')) as requirements_txt_output_fh:
++            parser = RequirementsTxtParser(requirements_data=requirements_txt_output_fh.read())
++
++        self.assertEqual(2, parser.component_count())
++        components = parser.get_components()
++
++        c_botocore = next(filter(lambda c: c.name == 'botocore', components), None)
++        self.assertIsNotNone(c_botocore)
++        c_boto3 = next(filter(lambda c: c.name == 'boto3', components), None)
++        self.assertIsNotNone(c_boto3)
++
++        self.assertEqual('botocore', c_botocore.name)
++        self.assertEqual('1.23.54', c_botocore.version)
++        self.assertEqual(2, len(c_botocore.external_references), f'{c_botocore.external_references}')
++        self.assertEqual(1, len(c_botocore.external_references.pop().hashes))

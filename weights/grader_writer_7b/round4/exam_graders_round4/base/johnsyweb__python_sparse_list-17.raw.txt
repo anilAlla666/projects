@@ -1,0 +1,44 @@
+To address the issue of deleting an empty slice from a sparse list failing, we need to add a test that checks if the operation does not raise an exception when attempting to delete an empty slice. This test should fail with the current implementation and pass after the fix.
+
+Here is the unified diff that adds a new test file `test_delete_empty_slice.py`:
+
+```diff
+diff --git a/test_sparse_list.py b/test_sparse_list.py
+index 3a2b3c4..5d6e7f8 100644
+--- a/test_sparse_list.py
++++ b/test_sparse_list.py
+@@ -329,6 +329,11 @@ class TestSparseList(unittest.TestCase):
+         self.assertEqual([None, 2, 3], sl)
+ 
+     def test_remove_non_value(self):
++        sl = sparse_list.SparseList([1, 2, 3])
++        self.assertRaises(ValueError, sl.remove, 4)
++
++    def test_remove_default_value_does_nothing(self):
++        sl = sparse_list.SparseList(4, None)
++        sl.remove(None)
+         self.assertEqual([None, None, None, None], sl)
+ 
+     def test_set_slice_observes_stop(self):
+diff --git a/test_delete_empty_slice.py b/test_delete_empty_slice.py
+new file mode 100644
+index 0000000..1234567
+--- /dev/null
++++ b/test_delete_empty_slice.py
+@@ -0,0 +1,14 @@
++#!/usr/bin/env python
++
++import unittest
++import sparse_list
++
++class TestDeleteEmptySlice(unittest.TestCase):
++    def test_delete_empty_slice(self):
++        sl = sparse_list.SparseList(range(5), None)
++        del sl[3:3]
++        self.assertEqual(list(sl), [0, 1, 2, 3, None])
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This new test file `test_delete_empty_slice.py` contains a single test method `test_delete_empty_slice`. This test creates a sparse list with values `[0, 1, 2, 3, None]`, deletes an empty slice at index 3, and then checks if the list remains unchanged. The test will fail with the current implementation because it raises an `IndexError`. After fixing the issue, the test should pass.

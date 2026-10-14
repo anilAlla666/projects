@@ -1,0 +1,67 @@
+--- /dev/null
++++ b/tests/test_adapter_grader.py
+@@ -0,0 +1,64 @@
++import unittest
++from types import MappingProxyType
++from itemadapter.adapter import ItemAdapter
++from tests import AttrsItem, DataClassItem, ScrapySubclassedItem
++
++
++class NonDictTestMixin(object):
++    def test_field_names_list(self):
++        adapter = ItemAdapter(self.item_class())
++        self.assertIsInstance(adapter.field_names(), list)
++
++    def test_field_names_set(self):
++        adapter = ItemAdapter(self.item_class(name="asdf", value=1234))
++        self.assertIsInstance(adapter.field_names(), set)
++
++    def test_field_names_len_iter(self):
++        adapter = ItemAdapter(self.item_class(name="asdf", value=1234))
++        self.assertEqual(len(adapter.field_names()), 2)
++        self.assertEqual(sorted(list(iter(adapter.field_names()))), ["name", "value"])
++
++    def test_field_names_unordered(self):
++        adapter = ItemAdapter(self.item_class(name="asdf", value=1234))
++        self.assertEqual(sorted(list(iter(adapter.field_names()))), ["name", "value"])
++
++
++class DictTestCase(unittest.TestCase, BaseTestMixin):
++    item_class = dict
++
++    def test_get_value_keyerror_item_dict(self):
++        """Instantiate without default values"""
++        adapter = ItemAdapter(self.item_class())
++        with self.assertRaises(KeyError):
++            adapter["name"]
++
++    def test_empty_metadata(self):
++        adapter = ItemAdapter(self.item_class(name="foo", value=5))
++        for field_name in ("name", "value", "undefined_field"):
++            self.assertEqual(adapter.get_field_meta(field_name), MappingProxyType({}))
++
++
++class ScrapySubclassedItemTestCase(NonDictTestMixin, unittest.TestCase):
++    item_class = ScrapySubclassedItem
++
++    def test_get_value_keyerror_item_dict(self):
++        """Instantiate without default values"""
++        adapter = ItemAdapter(self.item_class())
++        with self.assertRaises(KeyError):
++            adapter["name"]
++
++
++class DataClassItemTestCase(NonDictTestMixin, unittest.TestCase):
++    item_class = DataClassItem
++
++    def test_field_names_set(self):
++        adapter = ItemAdapter(self.item_class(name="asdf", value=1234))
++        self.assertIsInstance(adapter.field_names(), set)
++
++    def test_field_names_unordered(self):
++        adapter = ItemAdapter(self.item_class(name="asdf", value=1234))
++        self.assertEqual(sorted(list(iter(adapter.field_names()))), ["name", "value"])
++
++
++if __name__ == "__main__":
++    unittest.main()

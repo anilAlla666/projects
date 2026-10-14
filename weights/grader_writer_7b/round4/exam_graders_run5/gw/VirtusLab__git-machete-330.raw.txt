@@ -1,0 +1,12 @@
+--- /dev/null
++++ b/tests/test_cli_grader.py
+@@ -0,0 +1,11 @@
++from unittest.mock import patch
++
++
++def test_add_command_with_non_existing_branch_raises_error(machete_repo):
++    with patch("git_machete.client.Client._add") as mock_add:
++        mock_add.side_effect = Exception()
++        with machete_repo.as_git_repository() as repo:
++            assert repo.git.machete(["add", "non-existing"])
++            mock_add.assert_called_once_with(repo, "non-existing")

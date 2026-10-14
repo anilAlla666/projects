@@ -1,0 +1,75 @@
+I couldn't run these tests. They rely on the `mocked_responses`, `api_client` and `api_url` fixtures from the existing test setup, which I haven't seen. The 2xx tests use `_create_resources` and `_call_resource_method`, the two client methods already exercised in `tests/test_client.py`. They mock 201 and 202 success responses and should fail on the current code, which only accepts 200. A third test checks that a 404 still raises `NotFoundError`; it should already pass today and guards against the fix swallowing real errors.
+
+```diff
+--- /dev/null
++++ b/tests/test_success_status_codes.py
+@@ -0,0 +1,66 @@
++import json
++import pytest
++import responses
++from nylas.client.errors import NotFoundError
++from nylas.client.restful_models import Contact
++
++
++@pytest.mark.parametrize("status", [200, 201, 202])
++def test_create_resources_accepts_2xx(
++    mocked_responses, api_client, api_url, status
++):
++    contacts_data = [
++        {"id": 1, "name": "first", "email": "first@example.com"},
++        {"id": 2, "name": "second", "email": "second@example.com"},
++    ]
++    mocked_responses.add(
++        responses.POST,
++        api_url + "/contacts/",
++        content_type='application/json',
++        status=status,
++        body=json.dumps(contacts_data),
++    )
++
++    post_data = [
++        {"name": c["name"], "email": c["email"]} for c in contacts_data
++    ]
++    contacts = api_client._create_resources(Contact, post_data)
++    assert len(contacts) == 2
++    assert all(isinstance(contact, Contact) for contact in contacts)
++    assert len(mocked_responses.calls) == 1
++
++
++@pytest.mark.parametrize("status", [201, 202])
++def test_call_resource_method_accepts_2xx(
++    mocked_responses, api_client, api_url, status
++):
++    contact_data = {
++        "id": 1,
++        "name": "first",
++        "email": "first@example.com",
++    }
++    mocked_responses.add(
++        responses.POST,
++        api_url + "/contacts/1/remove_duplicates",
++        content_type='application/json',
++        status=status,
++        body=json.dumps(contact_data),
++    )
++
++    contact = api_client._call_resource_method(
++        Contact, 1, "remove_duplicates", {}
++    )
++    assert isinstance(contact, Contact)
++    assert len(mocked_responses.calls) == 1
++
++
++def test_error_status_still_raises(mocked_responses, api_client, api_url):
++    mocked_responses.add(
++        responses.POST,
++        api_url + "/contacts/1/remove_duplicates",
++        content_type='application/json',
++        status=404,
++        body=json.dumps({"message": "not found", "type": "api_error"}),
++    )
++    with pytest.raises(NotFoundError):
++        api_client._call_resource_method(
++            Contact, 1, "remove_duplicates", {}
++        )
+```

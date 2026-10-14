@@ -1,0 +1,20 @@
+--- a/tests/test_parser.py
++++ b/tests/test_parser.py
+@@ -529,3 +529,17 @@
+         msg = parser.Capturs._preprocess_message(msg_original)
+ 
+         assert msg == msg_original[:-1]
++
++    def test_registered_as_ogcapt(self):
++        assert 'OGCAPT' in parser.ParserBase.parsers
++        assert parser.ParserBase.parsers['OGCAPT'] is parser.Capturs
++
++    def test_destto_contains_ogcapt(self):
++        destto = parser.Capturs.__destto__
++        if isinstance(destto, str):
++            destto = [destto]
++        assert 'OGCAPT' in destto
++        assert 'OGLT24' not in destto
++
++    def test_does_not_override_livetrack24(self):
++        assert parser.ParserBase.parsers['OGLT24'] is parser.LiveTrack24

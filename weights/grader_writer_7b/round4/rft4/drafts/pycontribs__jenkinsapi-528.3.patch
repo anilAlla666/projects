@@ -1,0 +1,73 @@
+--- /dev/null
++++ b/jenkinsapi_tests/unittests/test_build_grader.py
+@@ -0,0 +1,38 @@
++import pytest
++import pytz
++from . import configs
++import datetime
++from jenkinsapi.build import Build
++from jenkinsapi.job import Job
++
++
++@pytest.fixture(scope='function')
++def jenkins(mocker):
++    return mocker.MagicMock()
++
++
++@pytest.fixture(scope='function')
++def job(monkeypatch, jenkins):
++    def fake_poll(cls, tree=None):   # pylint: disable=unused-argument
++        return configs.JOB_DATA
++
++    monkeypatch.setattr(Job, '_poll', fake_poll)
++
++    fake_job = Job('http://', 'Fake_Job', jenkins)
++    return fake_job
++
++
++@pytest.fixture(scope='function')
++def build(job, monkeypatch):
++    def fake_poll(cls, tree=None):   # pylint: disable=unused-argument
++        return configs.BUILD_DATA
++
++    monkeypatch.setattr(Build, '_poll', fake_poll)
++
++    return Build('http://', 97, job)
++
++
++def test_get_env_vars(build):
++    assert build.get_env_vars() == {"env_var": "env_value"}
+--- /dev/null
++++ b/jenkinsapi_tests/unittests/test_build_scm_git_grader.py
+@@ -0,0 +1,32 @@
++import six
++import pytest
++from . import configs
++from jenkinsapi.build import Build
++from jenkinsapi.job import Job
++
++
++@pytest.fixture(scope='function')
++def jenkins(mocker):
++    return mocker.MagicMock()
++
++
++@pytest.fixture(scope='function')
++def job(monkeypatch, jenkins):
++    def fake_poll(cls, tree=None):   # pylint: disable=unused-argument
++        return configs.JOB_DATA
++
++    monkeypatch.setattr(Job, '_poll', fake_poll)
++
++    fake_job = Job('http://', 'Fake_Job', jenkins)
++    return fake_job
++
++
++@pytest.fixture(scope='function')
++def build(job, monkeypatch):
++    def fake_poll(cls, tree=None):   # pylint: disable=unused-argument
++        return configs.BUILD_SCM_DATA
++
++    monkeypatch.setattr(Build, '_poll', fake_poll)
++
++    return Build('http://', 97, job)

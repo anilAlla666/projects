@@ -1,0 +1,102 @@
+Both tests check `ReferenceFinder` and `Nodebook` on function definitions; they should fail on the current code under Python 3 and pass once function arguments are treated as locals.
+
+
+<invoke name="bash">
+<parameter name="cmd">cat > tests/test_function_defs.py <<'EOF'
+from __future__ import absolute_import
+import ast
+import pytest
+from nodebook.nodebookcore import ReferenceFinder, Nodebook
+from nodebook.pickledict import PickleDict
+
+
+def find(code):
+    rf = ReferenceFinder()
+    rf.visit(ast.parse(code))
+    return rf
+
+
+def test_function_args_not_inputs():
+    rf = find("def add(a, b):\n    return a + b\n")
+    assert rf.inputs == set()
+    assert 'add' in rf.locals
+
+
+def test_function_uses_outer_input():
+    rf = find("def f(a):\n    return a + z\n")
+    assert rf.inputs == {'z'}
+
+
+def test_function_default_and_varargs():
+    rf = find("def f(a, b=2, *args, **kwargs):\n    return a + b + len(args) + len(kwargs)\n")
+    assert rf.inputs == {'len'}
+
+
+def test_lambda_args_not_inputs():
+    rf = find("f = lambda x: x + 1\n")
+    assert rf.inputs == set()
+    assert 'f' in rf.locals
+
+
+def test_function_run_in_nodebook():
+    nb = Nodebook(PickleDict())
+    node_id = '111'
+    nb.insert_node_after(node_id, None)
+    nb.update_code(node_id, "def add(a, b):\n    return a + b\nadd(1, 2)")
+    res, objs = nb.run_node(node_id)
+    assert res == 3
+EOF
+python - <<'EOF'
+EOF</parameter>
+</invoke>
+
+
+I meant to give a unified diff; here it is:
+
+```diff
+--- /dev/null
++++ b/tests/test_function_defs.py
+@@ -0,0 +1,35 @@
++from __future__ import absolute_import
++import ast
++import pytest
++from nodebook.nodebookcore import ReferenceFinder, Nodebook
++from nodebook.pickledict import PickleDict
++
++
++def find(code):
++    rf = ReferenceFinder()
++    rf.visit(ast.parse(code))
++    return rf
++
++
++def test_function_args_not_inputs():
++    rf = find("def add(a, b):\n    return a + b\n")
++    assert rf.inputs == set()
++    assert 'add' in rf.locals
++
++
++def test_function_uses_outer_input():
++    rf = find("def f(a):\n    return a + z\n")
++    assert rf.inputs == {'z'}
++
++
++def test_function_default_and_varargs():
++    rf = find("def f(a, b=2, *args, **kwargs):\n    return a + b + len(args) + len(kwargs)\n")
++    assert rf.inputs == {'len'}
++
++
++def test_lambda_args_not_inputs():
++    rf = find("f = lambda x: x + 1\n")
++    assert rf.inputs == set()
++    assert 'f' in rf.locals
++
++
++def test_function_run_in_nodebook():
++    nb = Nodebook(PickleDict())
++    node_id = '111'
++    nb.insert_node_after(node_id, None)
++    nb.update_code(node_id, "def add(a, b):\n    return a + b\nadd(1, 2)")
++    res, objs = nb.run_node(node_id)
++    assert res == 3
+```

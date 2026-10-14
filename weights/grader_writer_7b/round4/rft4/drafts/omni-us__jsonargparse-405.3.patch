@@ -1,0 +1,221 @@
+--- /dev/null
++++ b/jsonargparse_tests/test_core_grader.py
+@@ -0,0 +1,214 @@
++from __future__ import annotations
++import json
++import os
++import pickle
++from calendar import Calendar
++from contextlib import redirect_stderr
++from io import StringIO
++from pathlib import Path
++from random import randint, shuffle
++from unittest.mock import patch
++import pytest
++import yaml
++from jsonargparse import (
++    SUPPRESS,
++    ActionConfigFile,
++    ActionJsonnet,
++    ActionJsonSchema,
++    ActionParser,
++    ArgumentError,
++    ArgumentParser,
++    Namespace,
++    set_config_read_mode,
++    strip_meta,
++)
++from jsonargparse._formatters import get_env_var
++from jsonargparse._optionals import jsonnet_support, jsonschema_support, ruyaml_support
++from jsonargparse.typing import Path_fc, Path_fr, path_type
++from jsonargparse_tests.conftest import (
++    capture_logs,
++    get_parse_args_stderr,
++    get_parse_args_stdout,
++    get_parser_help,
++    is_cpython,
++    responses_activate,
++    skip_if_docstring_parser_unavailable,
++    skip_if_fsspec_unavailable,
++    skip_if_not_posix,
++    skip_if_pyright_unavailable,
++    skip_if_windows,
++)
++
++
++@pytest.fixture(scope="module")
++def parser_with_default_meta():
++    parser = ArgumentParser(default_meta=True)
++    parser.add_subparsers(dest="subcommand")
++    return parser
++
++
++@pytest.fixture(scope="module")
++def parser_with_choice():
++    parser = ArgumentParser()
++    parser.add_argument("--mode", type=str, choices=("train", "test"))
++    return parser
++
++
++@pytest.fixture(scope="module")
++def parser_with_jsonnet():
++    parser = ArgumentParser()
++    parser.add_argument("--x", type=int)
++    parser.add_argument("--y", type=int)
++    parser.set_defaults(x=0, y=1)
++    parser.add_action(ActionJsonnet())
++    return parser
++
++
++@pytest.fixture(scope="module")
++def parser_with_schema():
++    parser = ArgumentParser()
++    parser.add_argument("--x", type=int)
++    parser.add_argument("--y", type=int)
++    parser.set_defaults(x=0, y=1)
++    schema_file = Path(__file__).parent / "schemas" / "example.json"
++    parser.add_action(ActionJsonSchema(schema_file=schema_file))
++    return parser
++
++
++@pytest.fixture(scope="module")
++def parser_with_jsonnet_and_choice():
++    parser = ArgumentParser()
++    parser.add_argument("--mode", type=str, choices=("train", "test"))
++    parser.add_action(ActionJsonnet())
++    return parser
++
++
++@pytest.fixture(scope="module")
++def parser_with_choice_and_jsonnet():
++    parser = ArgumentParser()
++    parser.add_argument("--mode", type=str, choices=("train", "test"))
++    parser.add_action(ActionJsonnet())
++    return parser
++
++
++@pytest.fixture(scope="module")
++def parser_with_choice_and_schema():
++    parser = ArgumentParser()
++    parser.add_argument("--mode", type=str, choices=("train", "test"))
++    schema_file = Path(__file__).parent / "schemas" / "example.json"
++    parser.add_action(ActionJsonSchema(schema_file=schema_file))
++    return parser
++
++
++@pytest.fixture(scope="module")
++def parser_with_choice_and_jsonnet_and_schema():
++    parser = ArgumentParser()
++    parser.add_argument("--mode", type=str, choices=("train", "test"))
++    parser.add_action(ActionJsonnet())
++    schema_file = Path(__file__).parent / "schemas" / "example.json"
++    parser.add_action(ActionJsonSchema(schema_file=schema_file))
++    return parser
++
++
++@pytest.fixture(scope="module")
++def parser_with_choice_and_choice_validation():
++    parser = ArgumentParser()
++    parser.add_argument("--mode", type=str, choices=("train", "test"), required=True)
++    parser.add_argument("--other-mode", type=str, choices=("a", "b"), required=True)
++    return parser
++
++
++@pytest.fixture(scope="module")
++def parser_with_choice_and_choice_validation_and_jsonnet():
++    parser = ArgumentParser()
++    parser.add_argument("--mode", type=str, choices=("train", "test"), required=True)
++    parser.add_argument("--other-mode", type=str, choices=("a", "b"), required=True)
++    parser.add_action(ActionJsonnet())
++    return parser
++
++
++@pytest.fixture(scope="module")
++def parser_with_choice_and_choice_validation_and_jsonnet_and_schema():
++    parser = ArgumentParser()
++    parser.add_argument("--mode", type=str, choices=("train", "test"), required=True)
++    parser.add_argument("--other-mode", type=str, choices=("a", "b"), required=True)
++    parser.add_action(ActionJsonnet())
++    schema_file = Path(__file__).parent / "schemas" / "example.json"
++    parser.add_action(ActionJsonSchema(schema_file=schema_file))
++    return parser
++
++
++@pytest.fixture(scope="module")
++def parser_with_choice_and_choice_validation_and_jsonnet_and_schema_and_choice_validation():
++    parser = ArgumentParser()
++    parser.add_argument("--mode", type=str, choices=("train", "test"), required=True)
++    parser.add_argument("--other-mode", type=str, choices=("a", "b"), required=True)
++    parser.add_action(ActionJsonnet())
++    schema_file = Path(__file__).parent / "schemas" / "example.json"
++    parser.add_action(ActionJsonSchema(schema_file=schema_file))
++    parser.add_argument("--final-mode", type=str, choices=("train", "test"), required=True)
++    return parser
++
++
++@pytest.fixture(scope="module")
++def parser_with_choice_and_choice_validation_and_jsonnet_and_schema_and_choice_validation_and_choice_validation():
++    parser = ArgumentParser()
++    parser.add_argument("--mode", type=str, choices=("train", "test"), required=True)
++    parser.add_argument("--other-mode", type=str, choices=("a", "b"), required=True)
++    parser.add_action(ActionJsonnet())
++    schema_file = Path(__file__).parent / "schemas" / "example.json"
++    parser.add_action(ActionJsonSchema(schema_file=schema_file))
++    parser.add_argument("--final-mode", type=str, choices=("train", "test"), required=True)
++    parser.add_argument("--last-mode", type=str, choices=("a", "b"), required=True)
++    return parser
++
++
++@pytest.mark.parametrize(
++    ("config", "expected"),
++    [
++        ({"mode": "train"}, "{'mode': 'train'}"),
++        ({"mode": "test"}, "{'mode': 'test'}"),
++        ({"mode": "test"}, "{'mode': 'test'}"),
++        ({"mode": "foo"}, "{'mode': 'foo'}"),
++        ({"mode": "test", "other-mode": "a"}, "{'mode': 'test', 'other-mode': 'a'}"),
++        ({"mode": "test", "other-mode": "b"}, "{'mode': 'test', 'other-mode': 'b'}"),
++        ({"mode": "test", "other-mode": "foo"}, "{'mode': 'test', 'other-mode': 'foo'}"),
++    ],
++)
++def test_choice_with_config(config, expected, parser_with_choice_and_choice_validation):
++    args = parser_with_choice_and_choice_validation.parse_args([f"--config={config}"])
++    assert args.mode == config["mode"]
++    assert args.other_mode == config["other-mode"]
++    assert parser_with_choice_and_choice_validation.dump(args) == expected
++
++
++@pytest.mark.parametrize(("config", "expected"), [("mode": "test"), ("mode": "foo"), ("mode": "test", "other-mode": "a"),])
++def test_choice_with_config_invalid_choice(config, expected, parser_with_choice_and_choice_validation):
++    config_str = json.dumps(config)
++    if expected == "mode":
++        err_msg = f"Parser key \"mode\": {expected}"
++    elif expected == "other-mode":
++        err_msg = f"Parser key \"other-mode\": {expected}"
++    elif expected == "mode":
++        err_msg = f"Parser key \"mode\": {expected}"
++    else:
++        err_msg = f"Parser key \"mode\": {expected}"
++    with pytest.raises(ArgumentError, match=err_msg):
++        parser_with_choice_and_choice_validation.parse_args([f"--config={config_str}"])
++
++
++def test_choice_with_config_missing_choice_arg(parser_with_choice_and_choice_validation):
++    err_msg = "Parser key \"mode\": {'mode': 'foo'}"
++    with pytest.raises(ArgumentError, match=err_msg):
++        parser_with_choice_and_choice_validation.parse_args([])
++
++
++def test_choice_with_config_missing_choice_arg_no_required(parser_with_choice_and_choice_validation):
++    parser = parser_with_choice_and_choice_validation.copy()
++    parser.required = False
++    err_msg = "Parser key \"mode\": {'mode': 'foo'}"
++    with pytest.raises(ArgumentError, match=err_msg):
++        parser.parse_args([])
++
++
++def test_choice_with_config_missing_choice_arg_no_required_ignored(parser_with_choice_and_choice_validation):
++    parser = parser_with_choice_and_choice_validation.copy()
++    parser.required = False
++    result = parser.parse_args([], allow_unknown_args=True)
++    assert result == Namespace(mode=SUPPRESS, other_mode=SUPPRESS)

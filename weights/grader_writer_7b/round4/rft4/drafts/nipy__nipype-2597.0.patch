@@ -1,0 +1,208 @@
+--- /dev/null
++++ b/nipype/testing/tests/test_utils_grader.py
+@@ -0,0 +1,37 @@
++"""Test testing utilities
++"""
++
++
++import os
++import warnings
++import subprocess
++from mock import patch, MagicMock
++from nipype.testing.utils import TempFATFS
++from nipype.utils.filemanip import split_filename
++
++
++@patch('subprocess.check_call', MagicMock())
++@patch('subprocess.Popen', MagicMock(side_effect=OSError()))
++def test_tempfatfs_oserror():
++    try:
++        TempFATFS()
++    except IOError as e:
++        assert isinstance(e, IOError)
++        assert isinstance(e.__cause__, OSError)
++    else:
++        assert False
++
++
++@patch('subprocess.check_call', MagicMock())
++@patch('subprocess.Popen', MagicMock(return_value=MagicMock()))
++def test_tempfatfs_cleanup_on_error():
++    try:
++        fatfs = TempFATFS()
++    except (IOError, OSError):
++        warnings.warn("Cannot mount FAT filesystems with FUSE")
++    else:
++        with fatfs as tmp_dir:
++            assert os.path.exists(tmp_dir)
++            raise Exception('Something bad happened!')
++        assert not os.path.exists(fatfs._mountpoint)
+--- /dev/null
++++ b/nipype/interfaces/fsl/tests/test_utils_grader.py
+@@ -0,0 +1,165 @@
++import os
++import numpy as np
++import nibabel as nb
++import pytest
++import nipype.interfaces.fsl.utils as fsl
++from nipype.interfaces.fsl import no_fsl, Info
++from nipype.testing.fixtures import create_files_in_directory_plus_output_type
++
++
++@pytest.mark.skipif(no_fsl(), reason="fsl is not installed")
++def test_convertxfm(create_files_in_directory_plus_output_type):
++    filelist, outdir, _ = create_files_in_directory_plus_output_type
++    cvt = fsl.ConvertXFM()
++
++    # make sure command gets called
++    assert cvt.cmd == "convert_xfm"
++
++    # test raising error with mandatory args absent
++    with pytest.raises(ValueError):
++        cvt.run()
++
++    # .inputs based parameters setting
++    cvt.inputs.in_file = filelist[0]
++    cvt.inputs.invert_xfm = True
++    cvt.inputs.out_file = "foo.mat"
++    assert cvt.cmdline == 'convert_xfm -omat foo.mat -inverse %s' % filelist[0]
++
++    # constructor based parameter setting
++    cvt2 = fsl.ConvertXFM(
++        in_file=filelist[0],
++        in_file2=filelist[1],
++        concat_xfm=True,
++        out_file="bar.mat")
++    assert cvt2.cmdline == \
++        "convert_xfm -omat bar.mat -concat %s %s" % (filelist[1], filelist[0])
++
++
++@pytest.mark.parametrize("output_type",
++                         ["NIFTI_GZ", "NIFTI_1_GZ"])
++@pytest.mark.parametrize("src,dst", [
++    ("a.nii.gz", "b.nii"),
++    ("a.nii.gz", "b.nii.gz")
++])
++@pytest.mark.parametrize("cmdline_args", [
++    [],
++    ["--apply_xform"],
++    ["--apply_xform", "--apply_xform"]
++])
++@pytest.mark.parametrize("invert_xfm", [True, False])
++@pytest.mark.parametrize("reference_image", [None, "c.nii.gz"])
++def test_applyxfm(
++    create_files_in_directory_plus_output_type, output_type, src, dst,
++    cmdline_args, invert_xfm, reference_image):
++    files, testdir, ext = create_files_in_directory_plus_output_type
++    applyxfm = fsl.ApplyXFM(output_type=output_type)
++
++    # make sure command gets called
++    assert applyxfm.cmd == "flirt"
++
++    # test raising error with mandatory args absent
++    with pytest.raises(ValueError):
++        applyxfm.run()
++
++    applyxfm.inputs.in_file = src
++    applyxfm.inputs.apply_xfm = True
++    applyxfm.inputs.reference = reference_image
++    applyxfm.inputs.in_matrix_file = files[1]
++    applyxfm.inputs.out_file = dst
++    applyxfm.inputs.interp = "nearestneighbour"
++    applyxfm.inputs.apply_xfm = True
++    applyxfm.inputs.postmat = files[2]
++    applyxfm.inputs.presrc = files[3]
++    applyxfm.inputs.premat = files[4]
++    applyxfm.inputs.invert_xfm = invert_xfm
++
++    if reference_image is not None:
++        assert applyxfm.cmdline == (
++            f"flirt -ref {reference_image} "
++            f"-in {src} -applyxfm "
++            f"-init {files[1]} -postmat {files[2]} -presrc {files[3]} "
++            f"-premat {files[4]} -interp nearestneighbour "
++            f"-inv{int(invert_xfm)} -out {testdir}/{dst}{ext}")
++    else:
++        assert applyxfm.cmdline == (
++            f"flirt -in {src} -applyxfm "
++            f"-init {files[1]} -postmat {files[2]} -presrc {files[3]} "
++            f"-premat {files[4]} -interp nearestneighbour "
++            f"-inv{int(invert_xfm)} -out {testdir}/{dst}{ext}")
++
++
++@pytest.mark.parametrize("src,ref", [("a.nii.gz", "b.nii.gz")])
++@pytest.mark.parametrize("method", ["LEASTS_SQUARES", "LEAST_SQUARES"])
++@pytest.mark.parametrize("cost", ["mutualinfo", "corratio"])
++@pytest.mark.parametrize("float", [False, True])
++@pytest.mark.parametrize("searchr_x, searchr_y, searchr_z",
++                        [((-10, 10), (-10, 10), (-10, 10)),
++                         ((-10, 10), (0, 0), (-10, 10))])
++@pytest.mark.parametrize("dof, interp, resample, no_resamp",
++                        [(6, "nearestneighbour", True, False),
++                         (12, "trilinear", False, True)])
++@pytest.mark.parametrize("seeds", [None, "c.nii.gz"])
++def test_flirt(
++    create_files_in_directory_plus_output_type, src, ref, method, cost, float,
++    searchr_x, searchr_y, searchr_z, dof, interp, resample, no_resamp,
++    seeds):
++    files, testdir, ext = create_files_in_directory_plus_output_type
++    flirt = fsl.FLIRT(cost=cost, float=float, dof=dof, interp=interp,
++                     method=method, no_resamp=no_resamp, resample=resample,
++                     searchr_x=searchr_x, searchr_y=searchr_y,
++                     searchr_z=searchr_z, seeds=seeds)
++
++    assert flirt.cmd == "flirt"
++
++    flirt.inputs.in_file = src
++    flirt.inputs.reference = ref
++    flirt.inputs.out_file = "a_to_b.mat"
++    flirt.inputs.cost = cost
++    flirt.inputs.method = method
++    flirt.inputs.float = float
++    flirt.inputs.dof = dof
++    flirt.inputs.interp = interp
++    flirt.inputs.resample = resample
++    flirt.inputs.no_resamp = no_resamp
++    flirt.inputs.searchr_x = searchr_x
++    flirt.inputs.searchr_y = searchr_y
++    flirt.inputs.searchr_z = searchr_z
++    flirt.inputs.seeds = seeds
++
++    assert flirt.cmdline == (
++        f"flirt -in {src} -ref {ref} -out {testdir}/a_to_b.mat -cost {cost} "
++        f"-method {method} -float {int(float)} -dof {dof} -interp {interp} "
++        f"-resample {int(resample)} -no_resamp {int(no_resamp)} "
++        f"-searchrx {searchr_x[0]} {searchr_x[1]} "
++        f"-searchry {searchr_y[0]} {searchr_y[1]} "
++        f"-searchrz {searchr_z[0]} {searchr_z[1]} ")
++    if seeds is not None:
++        assert flirt.cmdline.endswith(seeds)
++    elif no_resamp:
++        assert flirt.cmdline.endswith("-nosearch")
++    else:
++        assert flirt.cmdline.endswith("-search")
++
++
++@pytest.mark.parametrize("src,ref,dest", [
++    ("a.nii.gz", "b.nii.gz", "c.nii.gz"),
++    ("a.nii.gz", "b.nii.gz", "c.nii"),
++    ("a.nii", "b.nii", "c.nii"),
++    ("a.nii", "b.nii", "c.nii.gz")
++])
++@pytest.mark.parametrize("interpolation", ["linear", "nearestneighbour"])
++def test_fnirt_interpolation(
++    create_files_in_directory_plus_output_type, src, ref, dest,
++    interpolation):
++    files, testdir, ext = create_files_in_directory_plus_output_type
++    fnirt = fsl.FNIRTWarp(interpolation=interpolation)
++
++    assert fnirt.cmd == "fnirt"
++
++    fnirt.inputs.in_file = src
++    fnirt.inputs.ref_file = ref
++    fnirt.inputs.fieldcoeff_file = "coef.nii"
++    fnirt.inputs.out_file = dest
++
++    assert fnirt.cmdline == (
++        f"fnirt --in={src} --ref={ref} --warp={testdir}/coef.nii "
++        f"--iout={testdir}/{dest}{ext} --{interpolation}")

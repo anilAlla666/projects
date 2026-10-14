@@ -1,0 +1,170 @@
+--- /dev/null
++++ b/tests/test_parser_grader.py
+@@ -0,0 +1,37 @@
++import m3u8
++import playlists
++import pytest
++from m3u8.parser import cast_date_time, ParseError
++
++
++def test_closed_captioning_is_parsed_without_quotation_marks():
++    data = m3u8.parse(playlists.VARIANT_STREAM_INF_WITH_CLOSED_CAPTIONS)
++    assert data['playlists'][0]['stream_info']['closed_captions'] == 'cc'
++
++
++def test_closed_captioning_is_parsed_without_quotation_marks():
++    data = m3u8.parse(playlists.VARIANT_STREAM_INF_WITH_CLOSED_CAPTIONS_AND_QUOTES)
++    assert data['playlists'][0]['stream_info']['closed_captions'] == 'cc'
++
++
++def test_should_parse_segment_map_uri_with_byterange():
++    data = m3u8.parse(playlists.MAP_URI_PLAYLIST_WITH_BYTERANGE)
++    assert data['segment_map']['uri'] == "main.mp4"
++    assert data['segment_map']['byterange'] == "236-11245"
++
++
++def test_should_not_fail_on_bad_utf8_segments():
++    data = m3u8.parse(playlists.BAD_UTF8_SEGMENTS)
++    assert data.segments[0].title == u'Segmente mit ÄÖÜ ü ß'
++
++
++def test_should_not_fail_on_bad_utf8_tags():
++    data = m3u8.parse(playlists.BAD_UTF8_TAGS)
++    assert data.tags[0].name == u'DISCONTINUITY'
++    assert data.tags[1].name == u'KEY'
++    assert data.tags[2].name == u'MEDIA'
++    assert data.tags[3].name == u'PLAYLIST-TYPE'
++    assert data.tags[4].name == u'TARGETDURATION'
++    assert data.tags[5].name == u'TIME-OFFSET'
++    assert data.tags[6].name == u'X-ALLOW-CACHE'
++    assert data.tags[7].name == u'X-ENDLIST'
++    assert data.tags[8].name == u'X-MEDIA-SEQUENCE'
+--- /dev/null
++++ b/tests/test_variant_m3u8_grader.py
+@@ -0,0 +1,137 @@
++import m3u8, playlists
++
++
++def test_create_a_variant_m3u8_with_two_playlists():
++    variant_m3u8 = m3u8.M3U8()
++
++    subtitles = m3u8.Media('english_sub.m3u8', 'SUBTITLES', 'subs', 'en',
++                           'English', 'YES', 'YES', 'NO', None)
++    variant_m3u8.add_media(subtitles)
++
++    low_playlist = m3u8.Playlist('http://example.com/low.m3u8', stream_info={'bandwidth': 1280000, 'program_id': 1, 'closed_captions': 'NONE', 'subtitles': 'subs'}, media=[subtitles], base_uri=None)
++    high_playlist = m3u8.Playlist('http://example.com/high.m3u8', stream_info={'bandwidth': 3000000, 'program_id': 1, 'subtitles': 'subs'}, media=[subtitles], base_uri=None)
++
++    variant_m3u8.add_playlist(low_playlist)
++    variant_m3u8.add_playlist(high_playlist)
++
++    expected_content = """\
++#EXTM3U
++#EXT-X-MEDIA:URI="english_sub.m3u8",TYPE=SUBTITLES,GROUP-ID="subs",LANGUAGE="en",NAME="English",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO
++#EXT-X-STREAM-INF:PROGRAM-ID=1,CLOSED-CAPTIONS=NONE,BANDWIDTH=1280000,SUBTITLES="subs"
++http://example.com/low.m3u8
++#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=3000000,SUBTITLES="subs"
++http://example.com/high.m3u8
++"""
++    assert expected_content == variant_m3u8.dumps()
++
++
++def test_create_a_variant_m3u8_with_two_playlists_and_two_iframe_playlists():
++    variant_m3u8 = m3u8.M3U8()
++
++    subtitles = m3u8.Media('english_sub.m3u8', 'SUBTITLES', 'subs', 'en',
++                           'English', 'YES', 'YES', 'NO', None)
++    variant_m3u8.add_media(subtitles)
++
++    low_playlist = m3u8.Playlist(
++        uri='video-800k.m3u8',
++        stream_info={'bandwidth': 800000,
++                     'program_id': 1,
++                     'res': '624x352',
++                     'codecs': 'avc1.4d001f, mp4a.40.5',
++                     'closed_captions': 'NONE',
++                     'subtitles': 'subs'},
++        media=[subtitles],
++        base_uri=None
++    )
++    high_playlist = m3u8.Playlist(
++        uri='video-1200k.m3u8',
++        stream_info={'bandwidth': 1200000,
++                     'program_id': 1,
++                     'res': '624x352',
++                     'codecs': 'avc1.4d001f, mp4a.40.5',
++                     'subtitles': 'subs'},
++        media=[subtitles],
++        base_uri=None
++    )
++
++    low_iframe_playlist = m3u8.IFramePlaylist(
++        uri='video-800k-iframes.m3u8',
++        stream_info={'bandwidth': 151288,
++                     'program_id': 1,
++                     'res': '624x352',
++                     'codecs': 'avc1.4d001f'}
++    )
++    high_iframe_playlist = m3u8.IFramePlaylist(
++        uri='video-1200k-iframes.m3u8',
++        stream_info={'bandwidth': 193350,
++                     'program_id': 1,
++                     'codecs': 'avc1.4d001f'}
++    )
++
++    variant_m3u8.add_playlist(low_playlist)
++    variant_m3u8.add_playlist(high_playlist)
++    variant_m3u8.add_iframe_playlist(low_iframe_playlist)
++    variant_m3u8.add_iframe_playlist(high_iframe_playlist)
++
++    expected_content = """\
++#EXTM3U
++#EXT-X-MEDIA:URI="english_sub.m3u8",TYPE=SUBTITLES,GROUP-ID="subs",\
++LANGUAGE="en",NAME="English",DEFAULT=YES,AUTOSELECT=YES,FORCED=NO
++#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=800000,RESOLUTION=624x352,\
++CODECS="avc1.4d001f, mp4a.40.5",CLOSED-CAPTIONS="NONE",SUBTITLES="subs"
++video-800k.m3u8
++#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1200000,\
++CODECS="avc1.4d001f, mp4a.40.5",SUBTITLES="subs"
++video-1200k.m3u8
++#EXT-X-I-FRAME-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=151288,RESOLUTION=624x352,\
++CODECS="avc1.4d001f",URI="video-800k-iframes.m3u8"
++#EXT-X-I-FRAME-STREAM-INF:BANDWIDTH=193350,\
++CODECS="avc1.4d001f",URI="video-1200k-iframes.m3u8"
++"""
++    assert expected_content == variant_m3u8.dumps()
++
++
++def test_variant_playlist_with_average_bandwidth():
++    variant_m3u8 = m3u8.M3U8()
++
++    low_playlist = m3u8.Playlist(
++        'http://example.com/low.m3u8',
++        stream_info={'bandwidth': 1280000,
++                     'average_bandwidth': 1257891,
++                     'program_id': 1,
++                     'subtitles': 'subs'},
++        media=[],
++        base_uri=None
++    )
++    high_playlist = m3u8.Playlist(
++        'http://example.com/high.m3u8',
++        stream_info={'bandwidth': 3000000,
++                     'average_bandwidth': 2857123,
++                     'program_id': 1,
++                     'subtitles': 'subs'},
++         media=[],
++         base_uri=None
++    )
++
++    variant_m3u8.add_playlist(low_playlist)
++    variant_m3u8.add_playlist(high_playlist)
++
++    expected_content = """\
++#EXTM3U
++#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=1280000,AVERAGE-BANDWIDTH=1257891
++http://example.com/low.m3u8
++#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=3000000,AVERAGE-BANDWIDTH=2857123
++http://example.com/high.m3u8
++"""
++    assert expected_content == variant_m3u8.dumps()

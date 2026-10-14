@@ -1,0 +1,50 @@
+--- /dev/null
++++ b/tests/test_jsonschema/test_jsonschema_builder_grader.py
+@@ -0,0 +1,26 @@
++import json
++from dataclasses import dataclass
++from typing_extensions import Literal, TypeVarTuple
++from mashumaro.jsonschema import DRAFT_2020_12, OPEN_API_3_1
++from mashumaro.jsonschema.builder import JSONSchemaBuilder, build_json_schema
++from mashumaro.jsonschema.schema import Instance
++
++
++Ts = TypeVarTuple("Ts")
++
++
++def test_jsonschema_builder_open_api_3_1_without_refs():
++    builder = JSONSchemaBuilder(dialect=OPEN_API_3_1, all_refs=False)
++    assert builder.build(A).to_dict() == {
++        "type": "object",
++        "title": "A",
++        "properties": {"a": {"type": "integer"}},
++        "additionalProperties": False,
++        "required": ["a"],
++    }
++    assert builder.build(B).to_dict() == {
++        "type": "object",
++        "title": "B",
++        "properties": {"b": {"type": "number"}},
++        "additionalProperties": False,
++        "required": ["b"],
++    }
++    assert builder.get_definitions().to_dict() == {}
+--- /dev/null
++++ b/tests/test_jsonschema/test_jsonschema_generation_grader.py
+@@ -0,0 +1,12 @@
++import collections
++import datetime
++import ipaddress
++import os
++from base64 import encodebytes
++from dataclasses import dataclass, field
++from decimal import Decimal
++from fractions import Fraction
++from pathlib import (
++    Path,
++    PosixPath,
++    PurePath,
++    PurePosixPath,
++    PureWindowsPath,
++    WindowsPath,
++)

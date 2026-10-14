@@ -1,0 +1,25 @@
+--- /dev/null
++++ b/tests/test_zerializer_grader.py
+@@ -0,0 +1,24 @@
++import pytest
++from zerial._core import Ztructurer
++from zerial._data import Zerializer
++
++
++@pytest.fixture
++def m_ztructurer(mocker):
++    return mocker.Mock(Ztructurer)
++
++
++def test_zerializer_works_with_numpy_arrays(m_ztructurer):
++    """
++    Regression test for https://github.com/jriddy/zerial/issues/15
++    """
++    np = pytest.importorskip("numpy")
++    zer = Zerializer(np.array, np.asarray)
++    arr = np.arange(10)
++    outer = zer.destruct(arr, m_ztructurer)
++    inner = zer.restruct(outer, m_ztructurer)
++    assert (outer, inner) == (arr, arr)
++    assert inner.flags['OWNDATA']
++    assert not m_ztructurer.mock_calls

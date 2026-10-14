@@ -1,0 +1,18 @@
+--- /dev/null
++++ b/test/integration/test_cli_grader.py
+@@ -0,0 +1,14 @@
++import io
++import os
++import pytest
++import flynt
++from flynt.cli import run_flynt_cli
++from flynt.cli_messages import farewell_message
++
++
++valid_snippets = [
++    ("'{}'.format(x) + '{}'.format(y)", "f'{x}' + f'{y}'"),
++]
++
++
++def test_cli_stdin_with_space(capsys):
++    run_flynt_cli(['-', '-s', 'print("a")'])

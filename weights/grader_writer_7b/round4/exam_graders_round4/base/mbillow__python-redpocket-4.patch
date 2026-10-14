@@ -1,0 +1,36 @@
+diff --git a/tests/test_get_details_speed.py b/tests/test_get_details_speed.py
+new file mode 100644
+index 0000000..e2b8c3d
+--- /dev/null
++++ b/tests/test_get_details_speed.py
+@@ -0,0 +1,60 @@
++import pytest
++import time
++from redpocket import RedPocket
++
++
++def test_get_details_with_type_api_is_faster(redpocket_instance):
++    """
++    Test that including 'type=api' in the GET request reduces response time.
++    """
++    start_time = time.time()
++    redpocket_instance.get_line_details('AAA1BBB2')
++    end_time = time.time()
++    base_time = end_time - start_time
++
++    start_time = time.time()
++    redpocket_instance.get_line_details('AAA1BBB2?type=api')
++    end_time = time.time()
++    api_time = end_time - start_time
++
++    assert api_time < base_time, f"Expected API time ({api_time}) to be less than base time ({base_time})"
++
++
++@pytest.fixture(scope='module')
++def redpocket_instance():
++    """
++    Fixture to create a RedPocket instance for testing.
++    """
++    rp = RedPocket(username="fake", password="password")
++    yield rp
++    rp.logout()

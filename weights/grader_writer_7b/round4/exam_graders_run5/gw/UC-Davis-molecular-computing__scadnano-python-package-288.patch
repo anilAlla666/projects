@@ -1,0 +1,37 @@
+--- /dev/null
++++ b/tests/test_scadnano_tests_grader.py
+@@ -0,0 +1,26 @@
++import dataclasses
++import os
++import sys
++import tempfile
++import unittest
++import re
++import json
++import math
++from typing import Iterable, Union, Dict, Any
++import openpyxl  # type: ignore
++import scadnano as sc
++import scadnano.origami_rectangle as rect
++import scadnano.modifications as mod
++from scadnano.scadnano import _convert_design_to_oxdna_system
++
++
++def strand_matching(strands: Iterable[sc.Strand], helix: int, forward: bool, start: int,
++                    end: int) -> sc.Strand:
++    """
++    Finds strand whose first bound domain matches the given parameters.
++    """
++    return next(s for s in strands if
++                s.first_bound_domain().helix == helix and
++                s.first_bound_domain().forward == forward and
++                s.first_bound_domain().start == start and
++                s.first_bound_domain().end == end)
++
++
++class TestAverageAngle(unittest.TestCase):
++    def test_average_angle_0_10_50(self) -> None:
++        angles = [0, 10, 50]
++        act_ave_angle = sc.average_angle(angles)
++        exp_ave_angle = 20.0
++        self.assertAlmostEqual(exp_ave_angle, act_ave_angle)

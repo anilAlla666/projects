@@ -1,0 +1,45 @@
+```diff
+diff --git a/src/test_com2ann_multiple_files.py b/src/test_com2ann_multiple_files.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/src/test_com2ann_multiple_files.py
+@@ -0,0 +1,45 @@
++"""Tests for handling multiple input files in com2ann.py script."""
++
++import unittest
++from com2ann import com2ann, TYPE_COM
++import re
++from textwrap import dedent
++from typing import Optional, List
++
++
++class MultipleFilesTestCase(unittest.TestCase):
++
++    def test_multiple_files_output(self) -> None:
++        input_files = [
++            "f1.py",
++            "f2.py"
++        ]
++        expected_outputs = {
++            "f1.py": "expected_output_f1.py",
++            "f2.py": "expected_output_f2.py"
++        }
++
++        for infile, expected in expected_outputs.items():
++            with open(infile, 'w') as f:
++                f.write(dedent(expected))
++
++        com2ann(input_files, outfile=None)
++
++        for infile, expected in expected_outputs.items():
++            with open(infile, 'r') as f:
++                actual = f.read()
++                self.assertEqual(actual, dedent(expected))
++
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This new test file `test_com2ann_multiple_files.py` introduces a new test case `MultipleFilesTestCase` with a method `test_multiple_files_output`. This test checks if the script correctly handles multiple input files and outputs them individually. The test creates temporary input files with expected content, runs the script, and then verifies that each file has been processed and saved correctly. If the script is fixed, this test should pass without errors.

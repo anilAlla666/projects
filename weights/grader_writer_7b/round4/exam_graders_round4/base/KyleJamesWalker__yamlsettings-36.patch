@@ -1,0 +1,31 @@
+diff --git a/yamlsettings/helpers.py b/yamlsettings/helpers.py
+index 1a2b3c4..5d6e7f8 100644
+--- a/yamlsettings/helpers.py
++++ b/yamlsettings/helpers.py
+@@ -50,7 +50,7 @@ def update_from_env(yaml_dict, prefix=None):
+     '''
+     Override YAML settings with values from the environment variables.
+ 
+-        - The letter '_' is delimit the hierarchy of the YAML settings such
++        - Non-alphanumeric characters in the environment variable names are replaced with underscores.
+             that the value of 'config.databases.local' will be overridden
+             by CONFIG_DATABASES_LOCAL.
+     '''
+@@ -58,7 +58,7 @@ def update_from_env(yaml_dict, prefix=None):
+         prefix = prefix or ""
+ 
+     def _set_env_var(path, node):
+-        env_path = "{0}{1}{2}".format(
++        env_path = "_".join(prefix.upper(), *[str(key).replace('-', '_').upper() for key in path])
+             prefix.upper(),
+             '_' if prefix else '',
+             '_'.join([str(key).upper() for key in path])
+@@ -65,7 +65,7 @@ def update_from_env(yaml_dict, prefix=None):
+             env_val = os.environ.get(env_path, None)
+             if env_val is not None:
+                 # convert the value to a YAML-defined type
+-                env_dict = yamldict.load('val: {0}'.format(env_val))
++                env_dict = yamldict.load(f"val: {env_val}")
+                 return env_dict.val
+             else:
+                 return None

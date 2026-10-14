@@ -1,0 +1,245 @@
+--- /dev/null
++++ b/tests/test_parser_pipenv_grader.py
+@@ -0,0 +1,36 @@
++import os
++from unittest import TestCase
++from cyclonedx_py.parser.pipenv import PipEnvFileParser
++
++
++class TestPipEnvParser(TestCase):
++    def test_simple(self) -> None:
++        tests_pipfile_lock = os.path.join(os.path.dirname(__file__), 'fixtures/pipfile-lock-simple.txt')
++
++        parser = PipEnvFileParser(pipenv_lock_filename=tests_pipfile_lock)
++        self.assertEqual(1, parser.component_count())
++        c_toml = next(filter(lambda c: c.name == 'toml', parser.get_components()), None)
++        self.assertIsNotNone(c_toml)
++        self.assertEqual('toml', c_toml.name)
++        self.assertEqual('0.10.2', c_toml.version)
++        self.assertEqual(2, len(c_toml.external_references), f'{c_toml.external_references}')
++        self.assertEqual(1, len(c_toml.external_references.pop().hashes))
++
++    def test_with_multiple_and_no_index(self) -> None:
++        tests_pipfile_lock = os.path.join(os.path.dirname(__file__), 'fixtures/pipfile-lock-no-index-example.txt')
++
++        parser = PipEnvFileParser(pipenv_lock_filename=tests_pipfile_lock)
++        self.assertEqual(2, parser.component_count())
++
++        c_anyio = next(filter(lambda c: c.name == 'anyio', parser.get_components()), None)
++        self.assertIsNotNone(c_anyio)
++        c_toml = next(filter(lambda c: c.name == 'toml', parser.get_components()), None)
++        self.assertIsNotNone(c_toml)
++
++        self.assertEqual('anyio', c_anyio.name)
++        self.assertEqual('3.3.3', c_anyio.version)
++        self.assertEqual(0, len(c_anyio.external_references), f'{c_anyio.external_references}')
++
++        self.assertEqual('toml', c_toml.name)
++        self.assertEqual('0.10.2', c_toml.version)
++        self.assertEqual(2, len(c_toml.external_references), f'{c_toml.external_references}')
++        self.assertEqual(1, len(c_toml.external_references.pop().hashes))
+--- /dev/null
++++ b/tests/test_parser_conda_grader.py
+@@ -0,0 +1,59 @@
++import os
++import re
++from unittest import TestCase
++from cyclonedx_py.parser.conda import CondaListExplicitParser, CondaListJsonParser
++
++
++class TestCondaParser(TestCase):
++    def test_conda_list_json(self) -> None:
++        conda_list_ouptut_file = os.path.join(os.path.dirname(__file__),
++                                              'fixtures/conda-list-output.json')
++
++        with (open(conda_list_ouptut_file, 'r')) as conda_list_output_fh:
++            parser = CondaListJsonParser(conda_data=conda_list_output_fh.read())
++
++        self.assertEqual(34, parser.component_count())
++        components = parser.get_components()
++
++        c_idna = next(filter(lambda c: c.name == 'idna', components), None)
++        self.assertIsNotNone(c_idna)
++        self.assertEqual('idna', c_idna.name)
++        self.assertEqual('2.10', c_idna.version)
++        self.assertEqual(1, len(c_idna.external_references), f'{c_idna.external_references}')
++        self.assertEqual(0, len(c_idna.external_references.pop().hashes))
++
++    def test_conda_list_explicit_md5(self) -> None:
++        conda_list_ouptut_file = os.path.join(os.path.dirname(__file__),
++                                              'fixtures/conda-list-explicit-md5.txt')
++
++        with (open(conda_list_ouptut_file, 'r')) as conda_list_output_fh:
++            parser = CondaListExplicitParser(conda_data=conda_list_output_fh.read())
++
++        self.assertEqual(34, parser.component_count())
++        components = parser.get_components()
++
++        c_idna = next(filter(lambda c: c.name == 'idna', components), None)
++        self.assertIsNotNone(c_idna)
++        self.assertEqual('idna', c_idna.name)
++        self.assertEqual('2.10', c_idna.version)
++        self.assertEqual(1, len(c_idna.external_references), f'{c_idna.external_references}')
++        self.assertEqual(0, len(c_idna.external_references.pop().hashes))
++
++    def test_conda_list_build_number_text(self) -> None:
++        conda_list_output_file = os.path.join(os.path.dirname(__file__), 'fixtures/conda-list-build-number-text.txt')
++
++        with (open(conda_list_output_file, 'r')) as conda_list_ouptut_fh:
++            parser = CondaListExplicitParser(conda_data=conda_list_ouptut_fh.read())
++
++        self.assertEqual(39, parser.component_count())
++        components = parser.get_components()
++
++        c_libgcc_mutex = next(filter(lambda c: c.name == '_libgcc_mutex', components), None)
++        self.assertIsNotNone(c_libgcc_mutex)
++        self.assertEqual('_libgcc_mutex', c_libgcc_mutex.name)
++        self.assertEqual('0.1', c_libgcc_mutex.version)
++        c_pycparser = next(filter(lambda c: c.name == 'pycparser', components), None)
++        self.assertIsNotNone(c_pycparser)
++        self.assertEqual('pycparser', c_pycparser.name)
++        self.assertEqual('2.21', c_pycparser.version)
++        c_openmp_mutex = next(filter(lambda c: c.name == '_openmp_mutex', components), None)
++        self.assertIsNotNone(c_openmp_mutex)
++        self.assertEqual('_openmp_mutex', c_openmp_mutex.name)
++        self.assertEqual('4.5', c_openmp_mutex.version)
+--- /dev/null
++++ b/tests/test_parser_pip_grader.py
+@@ -0,0 +1,138 @@
++import io
++import re
++from unittest import TestCase
++from cyclonedx_py.parser.pip import PipListParser
++
++
++class TestPipParser(TestCase):
++    def test_pip_list_simple(self) -> None:
++        pip_list_output = '''\
++Package           Version
++----------------- -------
++certifi           2020.12.5
++chardet           4.0.0
++click             7.1.2
++colorama          0.4.3
++idna              2.10
++jmespath          0.10.0
++lxml              4.6.3
++markdown          3.3.4
++requests          2.25.1
++urllib3           1.26.4
++'''
++
++        parser = PipListParser(pip_data=pip_list_output)
++
++        self.assertEqual(12, parser.component_count())
++        components = parser.get_components()
++
++        c_certifi = next(filter(lambda c: c.name == 'certifi', components), None)
++        self.assertIsNotNone(c_certifi)
++        self.assertEqual('certifi', c_certifi.name)
++        self.assertEqual('2020.12.5', c_certifi.version)
++        self.assertEqual(1, len(c_certifi.external_references), f'{c_certifi.external_references}')
++        self.assertEqual(0, len(c_certifi.external_references.pop().hashes))
++
++        c_chardet = next(filter(lambda c: c.name == 'chardet', components), None)
++        self.assertIsNotNone(c_chardet)
++        self.assertEqual('chardet', c_chardet.name)
++        self.assertEqual('4.0.0', c_chardet.version)
++        self.assertEqual(1, len(c_chardet.external_references), f'{c_chardet.external_references}')
++        self.assertEqual(0, len(c_chardet.external_references.pop().hashes))
++
++        c_click = next(filter(lambda c: c.name == 'click', components), None)
++        self.assertIsNotNone(c_click)
++        self.assertEqual('click', c_click.name)
++        self.assertEqual('7.1.2', c_click.version)
++        self.assertEqual(1, len(c_click.external_references), f'{c_click.external_references}')
++        self.assertEqual(0, len(c_click.external_references.pop().hashes))
++
++        c_colorama = next(filter(lambda c: c.name == 'colorama', components), None)
++        self.assertIsNotNone(c_colorama)
++        self.assertEqual('colorama', c_colorama.name)
++        self.assertEqual('0.4.3', c_colorama.version)
++        self.assertEqual(1, len(c_colorama.external_references), f'{c_colorama.external_references}')
++        self.assertEqual(0, len(c_colorama.external_references.pop().hashes))
++
++        c_idna = next(filter(lambda c: c.name == 'idna', components), None)
++        self.assertIsNotNone(c_idna)
++        self.assertEqual('idna', c_idna.name)
++        self.assertEqual('2.10', c_idna.version)
++        self.assertEqual(1, len(c_idna.external_references), f'{c_idna.external_references}')
++        self.assertEqual(0, len(c_idna.external_references.pop().hashes))
++
++        c_jmespath = next(filter(lambda c: c.name == 'jmespath', components), None)
++        self.assertIsNotNone(c_jmespath)
++        self.assertEqual('jmespath', c_jmespath.name)
++        self.assertEqual('0.10.0', c_jmespath.version)
++        self.assertEqual(1, len(c_jmespath.external_references), f'{c_jmespath.external_references}')
++        self.assertEqual(0, len(c_jmespath.external_references.pop().hashes))
++
++        c_lxml = next(filter(lambda c: c.name == 'lxml', components), None)
++        self.assertIsNotNone(c_lxml)
++        self.assertEqual('lxml', c_lxml.name)
++        self.assertEqual('4.6.3', c_lxml.version)
++        self.assertEqual(1, len(c_lxml.external_references), f'{c_lxml.external_references}')
++        self.assertEqual(0, len(c_lxml.external_references.pop().hashes))
++
++        c_markdown = next(filter(lambda c: c.name == 'markdown', components), None)
++        self.assertIsNotNone(c_markdown)
++        self.assertEqual('markdown', c_markdown.name)
++        self.assertEqual('3.3.4', c_markdown.version)
++        self.assertEqual(1, len(c_markdown.external_references), f'{c_markdown.external_references}')
++        self.assertEqual(0, len(c_markdown.external_references.pop().hashes))
++
++        c_requests = next(filter(lambda c: c.name == 'requests', components), None)
++        self.assertIsNotNone(c_requests)
++        self.assertEqual('requests', c_requests.name)
++        self.assertEqual('2.25.1', c_requests.version)
++        self.assertEqual(1, len(c_requests.external_references), f'{c_requests.external_references}')
++        self.assertEqual(0, len(c_requests.external_references.pop().hashes))
++
++        c_urllib3 = next(filter(lambda c: c.name == 'urllib3', components), None)
++        self.assertIsNotNone(c_urllib3)
++        self.assertEqual('urllib3', c_urllib3.name)
++        self.assertEqual('1.26.4', c_urllib3.version)
++        self.assertEqual(1, len(c_urllib3.external_references), f'{c_urllib3.external_references}')
++        self.assertEqual(0, len(c_urllib3.external_references.pop().hashes))
++
++    def test_pip_list_complex(self) -> None:
++        pip_list_output = '''\
++Package                 Version                   Build  Channel
++----------------------- ------------------------- ------ -----------------------------------------
++certifi                 2020.12.5                 py38   conda-forge
++chardet                 4.0.0                     py38   conda-forge
++click                   7.1.2                     py38   conda-forge
++colorama                0.4.3                     py38   conda-forge
++idna                    2.10                      py38   conda-forge
++jmespath                0.10.0                    py38   conda-forge
++lxml                    4.6.3                     py38   conda-forge
++markdown                3.3.4                     py38   conda-forge
++numpy                   1.19.2                    py38   conda-forge
++openssl                 1.1.1h                    py38   conda-forge
++python                  3.8.8                     py38   conda-forge
++python-dateutil         2.8.1                     py38   conda-forge
++python-multipart        0.0.5                     py38   conda-forge
++pytz                    2020.1                    py38   conda-forge
++readme-renderer         28.0                      py38   conda-forge
++requests                2.25.1                    py38   conda-forge
++setuptools              49.6.0                    py38   conda-forge
++six                     1.15.0                    py38   conda-forge
++toml                    0.10.2                    py38   conda-forge
++urllib3                 1.26.4                    py38   conda-forge
++wheel                   0.36.2                    py38   conda-forge
++yaml                    5.3.1                     py38   conda-forge
++'''
++
++        parser = PipListParser(pip_data=pip_list_output)
++
++        self.assertEqual(21, parser.component_count())
++        components = parser.get_components()
++
++        c_certifi = next(filter(lambda c: c.name == 'certifi', components), None)
++        self.assertIsNotNone(c_certifi)
++        self.assertEqual('certifi', c_certifi.name)
++        self.assertEqual('2020.12.5', c_certifi.version)
++        self.assertEqual(1, len(c_certifi.external_references), f'{c_certifi.external_references}')
++        self.assertEqual(0, len(c_certifi.external_references.pop().hashes))

@@ -1,0 +1,31 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,25 @@
++import pytest
++from dataclasses import dataclass
++from dataclasses_json import config, LetterCase, dataclass_json, DataClassJsonMixin
++from dataclasses_json.core import _decode_dataclass, _encode_overrides
++
++
++def test_encode_overrides_with_list_of_enum() -> None:
++    @dataclass
++    class A(DataClassJsonMixin):
++        wheel_specs: list
++
++    @dataclass
++    class B(DataClassJsonMixin):
++        specs: list[A]
++
++    wheel_spec_a = A(wheel_specs=['fast'])
++    wheel_spec_b = A(wheel_specs=['slow'])
++    spec_a = B(specs=[wheel_spec_a])
++    spec_b = B(specs=[wheel_spec_b])
++    spec_c = B(specs=[spec_a, spec_b])
++
++    assert (
++        _encode_overrides(
++            {'specs': [{'specs': [{'wheel_specs': ['fast']}]}]},
++            _user_overrides_or_exts(B),
++            True,
++        ) == {'specs': [[{'specs': [['fast']]}]]}
++    )

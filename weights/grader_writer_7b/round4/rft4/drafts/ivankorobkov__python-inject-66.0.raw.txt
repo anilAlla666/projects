@@ -1,0 +1,42 @@
+--- /dev/null
++++ b/test/test_injector_grader.py
+@@ -0,0 +1,24 @@
++from asyncio import coroutine
++from concurrent.futures import ThreadPoolExecutor
++import inspect
++import pytest
++from inject import Injector, InjectorException
++
++
++def test_async_function():
++    async def foo():
++        return "foo"
++
++    executor = ThreadPoolExecutor(max_workers=1)
++    with Injector([lambda binder: binder.async_bind(foo)]) as injector:
++        result = injector.run_async(foo)
++        assert result.result() == "foo"
++
++        # Check that we can call it multiple times without raising errors
++        for i in range(10):
++            assert result.result() == "foo"
++
++    # Check that it still works even after clearing
++    injector.clear()
++    assert injector.run_async(foo).result() == "foo"
+--- /dev/null
++++ b/test/test_inject_configuration_grader.py
+@@ -0,0 +1,14 @@
++import pytest
++import inspect
++from inject import Injector, InjectorException
++from test import BaseTestInject
++
++
++class TestInjectConfiguration(BaseTestInject):
++    def test_async_function(self):
++        async def foo():
++            return "foo"
++
++        assert inspect.iscoroutinefunction(foo)
++        assert not inspect.isgeneratorfunction(foo)

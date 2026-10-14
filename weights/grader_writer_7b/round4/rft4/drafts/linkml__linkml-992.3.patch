@@ -1,0 +1,72 @@
+--- /dev/null
++++ b/tests/test_linter/test_cli_grader.py
+@@ -0,0 +1,67 @@
++import unittest
++from pathlib import Path
++from click.testing import CliRunner
++from linkml.linter.cli import main
++
++
++SCHEMA_FILE = "schema.yaml"
++
++
++def write_schema_file() -> None:
++    with open(SCHEMA_FILE, "w") as f:
++        f.write(
++            """
++id: http://example.org/test
++name: test
++
++slots:
++  age_in_years:
++    range: integer
++    minimum_value: 0
++    maximum_value: 999
++
++classes:
++  person:
++    description: a person
++    slots:
++      - age_in_years
++    
++  Adult:
++    is_a: person
++    slot_usage:
++      age_in_yeas:
++        minimum_value: 18
++"""
++        )
++
++
++def write_config_file(
++    name: str, extends_recommended: bool = False, tree_root_level: str = "error"
++) -> None:
++    with open(name, "w") as f:
++        f.write(
++            """
++extends: recommended
++rules:
++  tree_root_class:
++    level: %s
++""" % (
++                tree_root_level
++            )
++        )
++        if not extends_recommended:
++            f.write(
++                """
++  prefix_required:
++    level: off
++"""
++            )
++
++
++class TestCLI(unittest.TestCase):
++    runner = CliRunner()
++
++    def test_verbose_output(self):
++        with self.runner.isolated_filesystem():
++            write_schema_file()
++            result = self.runner.invoke(main, [SCHEMA_FILE, "--verbose"])
++            self.assertEqual(result.exit_code, 1)
++            self.assertIn("Schema does not have class with `tree_root: true`", result.stdout)

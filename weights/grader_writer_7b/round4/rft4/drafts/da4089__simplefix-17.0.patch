@@ -1,0 +1,158 @@
+--- /dev/null
++++ b/test/test_parser_grader.py
+@@ -0,0 +1,140 @@
++import sys
++import unittest
++from simplefix import FixMessage, FixParser, SOH_STR
++
++
++def make_str(s):
++    if sys.version_info.major == 2:
++        return bytes(s)
++    else:
++        return bytes(s, 'ASCII')
++
++
++def test_none(other):
++    """Python 2.6's unittest.TestCase doesn't have assertIsNone()."""
++    return other is None
++
++
++def test_not_none(other):
++    """Python 2.6's unittest.TestCase doesn't have assertIsNotNone()."""
++    return other is not None
++
++
++class TestParser(unittest.TestCase):
++    def setUp(self):
++        self.parser = FixParser()
++        return
++
++    def tearDown(self):
++        del self.parser
++        return
++
++    def test_multiple_messages_with_raw_data_fields(self):
++        """Check that we handle a sequence of messages with raw data fields.
++
++        See https://github.com/da4089/simplefix/issues/34
++        """
++
++        raw = b"1"
++        raw_len_tag = 5001
++        raw_data_tag = 5002
++        pkt = FixMessage()
++        pkt.append_pair(8, "FIX.4.2")
++        pkt.append_pair(35, "D")
++        pkt.append_data(raw_len_tag, raw_data_tag, raw)
++        pkt.append_pair(20000, "private tag")
++        buf = pkt.encode()
++
++        parser = FixParser()
++        parser.add_raw(raw_len_tag, raw_data_tag)
++        parser.append_buffer(buf)
++        msg = parser.get_message()
++
++        self.assertIsNotNone(msg)
++        self.assertEqual(b"FIX.4.2", msg.get(8))
++        self.assertEqual(b"D", msg.get(35))
++        self.assertEqual(len(raw), int(msg.get(raw_len_tag)))
++        self.assertEqual(raw, msg.get(raw_data_tag))
++        self.assertEqual(b"private tag", msg.get(20000))
++
++        # Append another message
++        pkt = FixMessage()
++        pkt.append_pair(8, "FIX.4.2")
++        pkt.append_pair(35, "D")
++        pkt.append_data(raw_len_tag, raw_data_tag, raw)
++        pkt.append_pair(20000, "another private tag")
++        buf = pkt.encode()
++
++        parser.append_buffer(buf)
++        msg = parser.get_message()
++
++        self.assertIsNotNone(msg)
++        self.assertEqual(b"FIX.4.2", msg.get(8))
++        self.assertEqual(b"D", msg.get(35))
++        self.assertEqual(len(raw), int(msg.get(raw_len_tag)))
++        self.assertEqual(raw, msg.get(raw_data_tag))
++        self.assertEqual(b"another private tag", msg.get(20000))
++
++        # Append another message
++        pkt = FixMessage()
++        pkt.append_pair(8, "FIX.4.2")
++        pkt.append_pair(35, "D")
++        pkt.append_data(raw_len_tag, raw_data_tag, raw)
++        pkt.append_pair(20000, "yet another private tag")
++        buf = pkt.encode()
++
++        parser.append_buffer(buf)
++        msg = parser.get_message()
++
++        self.assertIsNotNone(msg)
++        self.assertEqual(b"FIX.4.2", msg.get(8))
++        self.assertEqual(b"D", msg.get(35))
++        self.assertEqual(len(raw), int(msg.get(raw_len_tag)))
++        self.assertEqual(raw, msg.get(raw_data_tag))
++        self.assertEqual(b"yet another private tag", msg.get(20000))
++
++        parser.reset()
++        parser.remove_raw(raw_len_tag, raw_data_tag)
++        parser.append_buffer(buf)
++        msg = parser.get_message()
++
++        self.assertIsNotNone(msg)
++        self.assertEqual(b"FIX.4.2", msg.get(8))
++        self.assertEqual(b"D", msg.get(35))
++        self.assertEqual(len(raw), int(msg.get(raw_len_tag)))
++        self.assertEqual(b"raw", msg.get(raw_data_tag))
++        self.assertEqual(b"1", msg.get(5000))
++        self.assertEqual(b"private tag", msg.get(20000))
++        return
++
++    def test_multiple_messages_split_across_buffers(self):
++        """Check that we handle a sequence of messages with raw data fields.
++
++        See https://github.com/da4089/simplefix/issues/34
++        """
++
++        raw = b"1"
++        raw_len_tag = 5001
++        raw_data_tag = 5002
++        pkt = FixMessage()
++        pkt.append_pair(8, "FIX.4.2")
++        pkt.append_pair(35, "D")
++        pkt.append_data(raw_len_tag, raw_data_tag, raw)
++        pkt.append_pair(20000, "private tag")
++        buf = pkt.encode()
++
++        parser = FixParser()
++        parser.add_raw(raw_len_tag, raw_data_tag)
++        parser.append_buffer(buf[:len(buf)//2])
++        msg = parser.get_message()
++
++        self.assertIsNone(msg)
++
++        parser.append_buffer(buf[len(buf)//2:])
++        msg = parser.get_message()
++
++        self.assertIsNotNone(msg)
++        self.assertEqual(b"FIX.4.2", msg.get(8))
++        self.assertEqual(b"D", msg.get(35))
++        self.assertEqual(len(raw), int(msg.get(raw_len_tag)))
++        self.assertEqual(raw, msg.get(raw_data_tag))
++        self.assertEqual(b"private tag", msg.get(20000))
++
++        parser.reset()
++        parser.remove_raw(raw_len_tag, raw_data_tag)
++        parser.append_buffer(buf)
++        msg = parser.get_message()
++
++        self.assertIsNotNone(msg)
++        self.assertEqual(b"FIX.4.2", msg.get(8))
++        self.assertEqual(b"D", msg.get(35))
++        self.assertEqual(len(raw), int(msg.get(raw_len_tag)))
++        self.assertEqual(b"raw", msg.get(raw_data_tag))
++        self.assertEqual(b"1", msg.get(5000))
++        self.assertEqual(b"private tag", msg.get(20000))
++        return

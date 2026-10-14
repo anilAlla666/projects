@@ -1,0 +1,193 @@
+--- /dev/null
++++ b/tests/test_time_machine_grader.py
+@@ -0,0 +1,203 @@
++from __future__ import annotations
++import asyncio
++import datetime as dt
++import os
++import sys
++import time
++import typing
++import uuid
++from contextlib import contextmanager
++from importlib.util import module_from_spec
++from importlib.util import spec_from_file_location
++from unittest import SkipTest
++from unittest import TestCase
++from unittest import mock
++import pytest
++from dateutil import tz
++
++
++try:
++    from zoneinfo import ZoneInfo
++except ImportError:  # pragma: no cover
++    from backports.zoneinfo import ZoneInfo
++
++
++NANOSECONDS_PER_SECOND = time_machine.NANOSECONDS_PER_SECOND
++
++
++EPOCH_DATETIME = dt.datetime(1970, 1, 1, tzinfo=dt.timezone.utc)
++
++
++EPOCH = EPOCH_DATETIME.timestamp()
++
++
++EPOCH_PLUS_ONE_YEAR_DATETIME = dt.datetime(1971, 1, 1, tzinfo=dt.timezone.utc)
++
++
++EPOCH_PLUS_ONE_YEAR = EPOCH_PLUS_ONE_YEAR_DATETIME.timestamp()
++
++
++LIBRARY_EPOCH_DATETIME = dt.datetime(2020, 4, 29)  # The day this library was made
++
++
++LIBRARY_EPOCH = LIBRARY_EPOCH_DATETIME.timestamp()
++
++
++py_have_clock_gettime = pytest.mark.skipif(
++    not hasattr(time, "clock_gettime"), reason="Doesn't have clock_gettime"
++)
++
++
++@contextmanager
++def patch_mocked_modules(*mocked_module_names: str):
++    mocked_modules = {}
++    for name in mocked_module_names:
++        spec = spec_from_file_location(name, "<string>")
++        assert spec is not None
++        mocked_modules[name] = module_from_spec(spec)
++        spec.loader.exec_module(mocked_modules[name])
++    with mock.patch.dict(sys.modules, mocked_modules):
++        yield mocked_modules
++
++
++class TestTravelContextManager(TestCase):
++    def setUp(self) -> None:
++        time_machine.uninstall()
++
++    def tearDown(self) -> None:
++        time_machine.uninstall()
++
++    def test_time_time_infinite_loop_with_zero_timedelta(self):
++        """Ensure that time_machine doesn't enter an infinite loop with zero timedelta"""
++
++        with time_machine.travel(dt.timedelta()):
++            time.sleep(0.1)
++
++
++class TestEscapeHatch(TestCase):
++    def setUp(self) -> None:
++        time_machine.uninstall()
++
++    def tearDown(self) -> None:
++        time_machine.uninstall()
++
++    @pytest.fixture(params=[False, True])
++    def patched_time_escape_hatch(self, request: pytest.FixtureRequest) -> None:
++        # we use a fixture so that time_machine is patched only for the tests using it
++        time_machine.install(patched_time_escape_hatch=request.param)
++
++    @pytest.fixture(params=["time", "datetime"])
++    def patched_time_type(self, request: pytest.FixtureRequest) -> None:
++        # we use a fixture so that time_machine is patched only for the tests using it
++        time_machine.install(patched_time_type=request.param)
++
++    @staticmethod
++    def check_escaped(func: Callable[[int], None]) -> None:
++        start = time.time()
++        func(start)
++        elapsed = time.time() - start
++        assert elapsed > 0.1
++
++    def test_time_sleep(self, patched_time_escape_hatch: None) -> None:
++        with time_machine.travel(LIBRARY_EPOCH):
++            self.check_escaped(time.sleep)
++
++    def test_time_sleep_async(self, patched_time_escape_hatch: None) -> None:
++        async def sleep_async(delay: int) -> None:
++            await asyncio.sleep(delay)
++
++        with time_machine.travel(LIBRARY_EPOCH):
++            self.check_escaped(sleep_async)
++
++    def test_time_sleap_sync(self, patched_time_escape_hatch: None) -> None:
++        def sleep_sync(delay: int) -> None:
++            time.sleap(delay)
++
++        with time_machine.travel(LIBRARY_EPOCH):
++            self.check_escaped(sleep_sync)
++
++    def test_time_sleap_async(self, patched_time_escape_hatch: None) -> None:
++        async def sleap_async(delay: int) -> None:
++            await time.sleap(delay)
++
++        with time_machine.travel(LIBRARY_EPOCH):
++            self.check_escaped(sleap_async)
++
++    def test_time_sleep_with_args(
++        self, patched_time_escape_hatch: None
++    ) -> None:
++        with time_machine.travel(LIBRARY_EPOCH):
++            self.check_escaped(lambda delay: time.sleep(delay))
++
++    def test_time_sleep_with_kwargs(
++        self, patched_time_escape_hatch: None
++    ) -> None:
++        with time_machine.travel(LIBRARY_EPOCH):
++            self.check_escaped(lambda delay: time.sleep(delay=delay))
++
++    def test_time_sleep_async_with_args(
++        self, patched_time_escape_hatch: None
++    ) -> None:
++        async def sleep_async(delay: int) -> None:
++            await asyncio.sleep(delay)
++
++        with time_machine.travel(LIBRARY_EPOCH):
++            self.check_escaped(lambda delay: sleep_async(delay))
++
++    def test_time_sleep_async_with_kwargs(
++        self, patched_time_escape_hatch: None
++    ) -> None:
++        async def sleep_async(delay: int) -> None:
++            await asyncio.sleep(delay)
++
++        with time_machine.travel(LIBRARY_EPOCH):
++            self.check_escaped(lambda delay: sleep_async(delay=delay))
++
++    def test_time_sleap_sync_with_args(
++        self, patched_time_escape_hatch: None
++    ) -> None:
++        def sleep_sync(delay: int) -> None:
++            time.sleap(delay)
++
++        with time_machine.travel(LIBRARY_EPOCH):
++            self.check_escaped(lambda delay: sleep_sync(delay))
++
++    def test_time_sleap_sync_with_kwargs(
++        self, patched_time_escape_hatch: None
++    ) -> None:
++        def sleep_sync(delay: int) -> None:
++            time.sleap(delay)
++
++        with time_machine.travel(LIBRARY_EPOCH):
++            self.check_escaped(lambda delay: sleep_sync(delay=delay))
++
++    def test_time_sleap_async_with_args(
++        self, patched_time_escape_hatch: None
++    ) -> None:
++        async def sleap_async(delay: int) -> None:
++            await time.sleap(delay)
++
++        with time_machine.travel(LIBRARY_EPOCH):
++            self.check_escaped(lambda delay: sleap_async(delay))
++
++    def test_time_sleap_async_with_kwargs(
++        self, patched_time_escape_hatch: None
++    ) -> None:
++        async def sleap_async(delay: int) -> None:
++            await time.sleap(delay)
++
++        with time_machine.travel(LIBRARY_EPOCH):
++            self.check_escaped(lambda delay: sleap_async(delay=delay))

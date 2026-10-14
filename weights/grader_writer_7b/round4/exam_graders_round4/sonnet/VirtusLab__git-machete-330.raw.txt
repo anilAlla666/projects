@@ -1,0 +1,93 @@
+The diff below adds a regression test that runs `git machete add foo/bar --yes` on a real temporary repository. I have not run it. I also could not see the existing tests, so the file location and the use of `git_machete.cli.launch` are guesses.
+
+- **Guessed location:** the test goes in `tests/test_add_existing_branch.py`. If your tests live elsewhere (for example under `git_machete/tests/`), the file needs moving.
+- **Guessed entry point:** it calls `git_machete.cli.launch(args)`, taken from the `launch` frame in the traceback. If that name or signature differs in your tree, the test will fail on import or call rather than on the bug.
+- **Setup:** it builds a repo with `master` and an unmanaged `foo/bar` branch that has its own commit, and writes `.git/machete` containing only `master`.
+- **Assertions:** `test_add_existing_unmanaged_branch_with_slash` expects `foo/bar` to be added to `.git/machete` without an `AttributeError`. A second test, `test_add_existing_unmanaged_branch_with_explicit_onto`, covers the same case with `--onto=master`.
+
+On the current code the first test should fail with the `'str' object has no attribute 'full_name'` error from the issue, because `add` infers the upstream and hits the mistyped `opt_branch`.
+
+
+<invoke name="bash">
+<parameter name="command">cat > /dev/null <<'EOF'
+placeholder
+EOF</parameter>
+</invoke>
+
+```diff
+diff --git a/tests/test_add_existing_branch.py b/tests/test_add_existing_branch.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_add_existing_branch.py
+@@ -0,0 +1,88 @@
++import contextlib
++import io
++import os
++import shutil
++import subprocess
++import tempfile
++import unittest
++
++from git_machete import cli
++
++
++def _git(*args):
++    env = dict(os.environ)
++    env.update({
++        "GIT_AUTHOR_NAME": "Test", "GIT_AUTHOR_EMAIL": "test@example.com",
++        "GIT_COMMITTER_NAME": "Test", "GIT_COMMITTER_EMAIL": "test@example.com",
++    })
++    subprocess.check_output(["git"] + list(args), env=env, stderr=subprocess.STDOUT)
++
++
++def _commit(name):
++    with open(name, "w") as f:
++        f.write(name)
++    _git("add", name)
++    _git("commit", "-m", name)
++
++
++class AddExistingBranchTest(unittest.TestCase):
++    def setUp(self):
++        self.old_cwd = os.getcwd()
++        self.dir = tempfile.mkdtemp()
++        os.chdir(self.dir)
++        _git("init")
++        _git("symbolic-ref", "HEAD", "refs/heads/master")
++        _commit("a.txt")
++        _commit("b.txt")
++        _git("checkout", "-b", "foo/bar")
++        _commit("c.txt")
++        _git("checkout", "master")
++        with open(os.path.join(".git", "machete"), "w") as f:
++            f.write("master\n")
++
++    def tearDown(self):
++        os.chdir(self.old_cwd)
++        shutil.rmtree(self.dir, ignore_errors=True)
++
++    def _launch(self, *args):
++        out = io.StringIO()
++        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
++            try:
++                cli.launch(list(args))
++            except SystemExit:
++                pass
++        return out.getvalue()
++
++    def _machete(self):
++        with open(os.path.join(".git", "machete")) as f:
++            return f.read()
++
++    def test_add_existing_unmanaged_branch_with_slash(self):
++        self._launch("add", "foo/bar", "--yes")
++        self.assertIn("foo/bar", self._machete())
++
++    def test_add_existing_unmanaged_branch_with_explicit_onto(self):
++        self._launch("add", "foo/bar", "--onto=master")
++        self.assertIn("foo/bar", self._machete())
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

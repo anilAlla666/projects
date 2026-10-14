@@ -1,0 +1,26 @@
+--- /dev/null
++++ b/pyirf/benchmarks/tests/test_angular_resolution_grader.py
+@@ -0,0 +1,19 @@
++from astropy.table import QTable
++import astropy.units as u
++import numpy as np
++
++
++def test_angular_resolution_with_units_in_degrees():
++    from pyirf.benchmarks import angular_resolution
++
++    np.random.seed(1337)
++
++    TRUE_RES_1 = 0.2
++    TRUE_RES_2 = 0.05
++    true_resolution = np.append(np.full(1000, TRUE_RES_1), np.full(1000, TRUE_RES_2))
++
++    events = QTable({
++        'true_energy': np.concatenate([
++            [0.5], # below bin 1 to test with underflow
++            np.full(999, 5.0),
++            np.full(999, 50.0),
++            [500], # above bin 2 to test with overflow
++        ]) * u.TeV,
++        'theta': np.abs(np.random.normal(0, true_resolution)) * u.deg
++    })

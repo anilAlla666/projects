@@ -1,0 +1,116 @@
+--- /dev/null
++++ b/test_typing_inspect_grader.py
+@@ -0,0 +1,111 @@
++import sys
++import pytest
++from typing_inspect import (
++    is_generic_type, is_callable_type, is_new_type, is_tuple_type, is_union_type,
++    is_optional_type, is_final_type, is_literal_type, is_typevar, is_classvar,
++    is_forward_ref, get_origin, get_parameters, get_last_args, get_args, get_bound,
++    get_constraints, get_generic_type, get_generic_bases, get_last_origin,
++    typed_dict_keys, get_forward_arg, WITH_FINAL, WITH_LITERAL, LEGACY_TYPING, WITH_NEWTYPE,
++)
++from unittest import TestCase, main, skipIf, skipUnless
++from typing import (
++    Union, Callable, Optional, TypeVar, Sequence, AnyStr, Mapping,
++    MutableMapping, Iterable, Generic, List, Any, Dict, Tuple, NamedTuple,
++)
++from mypy_extensions import TypedDict as METypedDict
++from typing_extensions import TypedDict as TETypedDict
++from typing_extensions import Final
++from typing_extensions import Literal
++from typing_extensions import NewType as NewType_
++
++
++if sys.version_info < (3, 5, 3):
++    WITH_CLASSVAR = False
++    CLASSVAR_GENERIC = []
++    CLASSVAR_TYPEVAR = []
++else:
++    from typing import ClassVar
++    WITH_CLASSVAR = True
++    CLASSVAR_GENERIC = [ClassVar[List[int]], ClassVar]
++    CLASSVAR_TYPEVAR = [ClassVar[int]]
++
++
++if sys.version_info < (3, 5, 3):
++    WITH_CALLABLE_TYPE = False
++else:
++    FROM_CALLABLE_TYPE = callable
++    WITH_CALLABLE_TYPE = True
++
++
++if sys.version_info < (3, 5, 2):
++    PY351 = True
++elif sys.version_info < (3, 5, 3):
++    PY352 = True
++else:
++    PY352 = False
++    PY351 = False
++
++
++if sys.version_info < (3, 6):
++    PY36 = False
++else:
++    PY36 = True
++
++
++class TestTypingInspect(TestCase):
++    def test_get_parameters_non_indexed(self):
++        T = TypeVar('T')
++        class A(Generic[T]): pass
++        class B(A): pass
++        self.assertEqual(get_parameters(A), (T,))
++        self.assertEqual(get_parameters(B), ())
++        self.assertEqual(get_parameters(List), ())
++
++    def test_get_parameters_multiple_non_indexed(self):
++        T = TypeVar('T')
++        class A(Generic[T]): pass
++        class B(A): pass
++        class C(B): pass
++        self.assertEqual(get_parameters(C), ())
++        self.assertEqual(get_parameters(List), ())
++
++    def test_get_parameters_inherited_non_indexed(self):
++        T = TypeVar('T')
++        class A(Generic[T]): pass
++        class B(A): pass
++        class C(A, B): pass
++        self.assertEqual(get_parameters(C), (T,))
++
++    def test_get_parameters_nested_non_indexed(self):
++        T = TypeVar('T')
++        class A(Generic[T]): pass
++        class B(Generic[T]): pass
++        class C(A[T], B[T]): pass
++        self.assertEqual(get_parameters(C), (T,))
++
++    def test_get_parameters_nested_multiple_non_indexed(self):
++        T = TypeVar('T')
++        class A(Generic[T]): pass
++        class B(Generic[T]): pass
++        class C(Generic[T]): pass
++        class D(A[T], B[T], C[T]): pass
++        self.assertEqual(get_parameters(D), (T,))
++
++    def test_get_parameters_nested_inherited_non_indexed(self):
++        T = TypeVar('T')
++        class A(Generic[T]): pass
++        class B(A): pass
++        class C(Generic[T]): pass
++        class D(C[T], B): pass
++        self.assertEqual(get_parameters(D), (T,))
++
++    def test_get_parameters_nested_inherited_multiple_non_indexed(self):
++        T = TypeVar('T')
++        class A(Generic[T]): pass
++        class B(A): pass
++        class C(Generic[T]): pass
++        class D(Generic[T]): pass
++        class E(C[T], D[T], B): pass
++        self.assertEqual(get_parameters(E), (T,))
++
++
++if __name__ == '__main__':
++    main()

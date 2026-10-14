@@ -1,0 +1,320 @@
+--- /dev/null
++++ b/joblib/test/test_memory_grader.py
+@@ -0,0 +1,158 @@
++"""
++Test the memory module.
++"""
++
++
++import gc
++import shutil
++import os
++import os.path
++import pathlib
++import pickle
++import sys
++import time
++import datetime
++import textwrap
++import pytest
++from joblib.memory import Memory
++from joblib.memory import MemorizedFunc, NotMemorizedFunc
++from joblib.memory import MemorizedResult, NotMemorizedResult
++from joblib.memory import _FUNCTION_HASHES
++from joblib.memory import register_store_backend, _STORE_BACKENDS
++from joblib.memory import _build_func_identifier, _store_backend_factory
++from joblib.memory import JobLibCollisionWarning
++from joblib.parallel import Parallel, delayed
++from joblib._store_backends import StoreBackendBase, FileSystemStoreBackend
++from joblib.test.common import with_numpy, np
++from joblib.test.common import with_multiprocessing
++from joblib.testing import parametrize, raises, warns
++from joblib.hashing import hash
++
++
++def f(x, y=1):
++    """ Dummy function. """
++    return x+y
++
++
++def g(x):
++    """ Dummy function. """
++    return x
++
++
++def h(x, y=0, *args, **kwargs):
++    """ Dummy function. """
++    return x+y
++
++
++def i(x=1):
++    """ Dummy function. """
++    return x
++
++
++def j(x, y, **kwargs):
++    """ Dummy function. """
++    return x+y
++
++
++def k(*args, **kwargs):
++    """ Dummy function. """
++    return args, kwargs
++
++
++def l(a, b=(1, 2)):
++    """ Dummy function. """
++    return a+b
++
++
++class A(object):
++    def __init__(self, a):
++        self.a = a
++
++    def method(self, b):
++        return self.a + b
++
++    def method_with_default(self, b=1):
++        return self.a + b
++
++    def method_with_varargs(self, *b):
++        return self.a + sum(b)
++
++    def method_with_keywords(self, **b):
++        return self.a + sum(b.values())
++
++
++class B(A):
++    def method(self, b):
++        return super(B, self).method(b) * 2
++
++
++@parametrize('f', [f, g, h, i, j, k, l, A().method, A().method_with_default,
++                   A().method_with_varargs, A().method_with_keywords])
++def test_get_function_name(f):
++    """ Check that we correctly identify functions """
++    if isinstance(f, type(A().method_with_varargs)):
++        assert get_func_name(f) == f.__qualname__
++    else:
++        assert get_func_name(f) == f.__name__
++
++
++@parametrize('f', [f, g, h, i, j, k, l, A().method, A().method_with_default,
++                   A().method_with_varargs, A().method_with_keywords])
++def test_get_function_code(f):
++    """ Check that we correctly identify functions """
++    _, code, first_line = get_func_code(f)
++    if isinstance(f, type(A().method_with_varargs)):
++        expected_code = f.__qualname__
++    else:
++        expected_code = f.__name__
++    assert code == expected_code
++    assert first_line > 0
++
++
++def _get_code():
++    from joblib.test.test_func_inspect_special_encoding import big5_f
++    return get_func_code(big5_f)[0]
++
++
++@with_numpy
++def test_format_signature_numpy():
++    """ Test the format signature formatting with numpy.
++    """
++
++
++@pytest.mark.parametrize('memory_kwargs',
++                         [{'compress': 3, 'verbose': 2},
++                          {'mmap_mode': 'r', 'verbose': 5, 'bytes_limit': 1e6,
++                           'backend_options': {'parameter': 'unused'}}])
++def test_memory_pickle_dump_load(tmpdir, memory_kwargs):
++    memory = Memory(location=tmpdir.strpath, **memory_kwargs)
++
++    memory_reloaded = pickle.loads(pickle.dumps(memory))
++
++    # Compare Memory instance before and after pickle roundtrip
++    compare(memory.store_backend, memory_reloaded.store_backend)
++    compare(memory, memory_reloaded,
++            ignored_attrs=set(['store_backend', 'timestamp',
++                               '_func_code_id']))
++    assert hash(memory) == hash(memory_reloaded)
++
++    func_cached = memory.cache(f)
++
++    func_cached_reloaded = pickle.loads(pickle.dumps(func_cached))
++
++    # Compare MemorizedFunc instance before/after pickle roundtrip
++    compare(func_cached.store_backend, func_cached_reloaded.store_backend)
++    compare(func_cached, func_cached_reloaded,
++            ignored_attrs=set(['store_backend', 'timestamp',
++                               '_func_code_id']))
++    assert hash(func_cached) == hash(func_cached_reloaded)
++
++    # Compare MemorizedResult instance before/after pickle roundtrip
++    memorized_result = func_cached.call_and_shelve(1)
++    memorized_result_reloaded = pickle.loads(pickle.dumps(memorized_result))
++
++    compare(memorized_result.store_backend,
++            memorized_result_reloaded.store_backend)
++    compare(memorized_result, memorized_result_reloaded,
++            ignored_attrs=set(['store_backend', 'timestamp',
++                               '_func_code_id']))
++    assert hash(memorized_result) == hash(memorized_result_reloaded)
++
++
++def compare(left, right, ignored_attrs=None):
++    if ignored_attrs is None:
++        ignored_attrs = []
++
++    left_vars = vars(left)
++    right_vars = vars(right)
++    assert set(left_vars.keys()) == set(right_vars.keys())
++    for attr in left_vars.keys():
++        if attr in ignored_attrs:
++            continue
++        assert left_vars[attr] == right_vars[attr]
+--- /dev/null
++++ b/joblib/test/test_func_inspect_grader.py
+@@ -0,0 +1,145 @@
++"""
++Test the func_inspect module.
++"""
++
++
++import functools
++from joblib.func_inspect import filter_args, get_func_name, get_func_code
++from joblib.func_inspect import _clean_win_chars, format_signature
++from joblib.memory import Memory
++from joblib.test.common import with_numpy
++from joblib.testing import fixture, parametrize, raises
++
++
++def f(x, y=0):
++    pass
++
++
++def g(x):
++    pass
++
++
++def h(x, y=0, *args, **kwargs):
++    pass
++
++
++def i(x=1):
++    pass
++
++
++def j(x, y, **kwargs):
++    pass
++
++
++def k(*args, **kwargs):
++    pass
++
++
++def l(a, b=(1, 2)):
++    pass
++
++
++class A(object):
++    def __init__(self, a):
++        self.a = a
++
++    def method(self, b):
++        return self.a + b
++
++    def method_with_default(self, b=1):
++        return self.a + b
++
++    def method_with_varargs(self, *b):
++        return self.a + sum(b)
++
++    def method_with_keywords(self, **b):
++        return self.a + sum(b.values())
++
++
++class B(A):
++    def method(self, b):
++        return super(B, self).method(b) * 2
++
++
++@parametrize('f', [f, g, h, i, j, k, l, A().method, A().method_with_default,
++                   A().method_with_varargs, A().method_with_keywords])
++def test_get_function_name(f):
++    """ Check that we correctly identify functions """
++    if isinstance(f, type(A().method_with_varargs)):
++        assert get_func_name(f) == f.__qualname__
++    else:
++        assert get_func_name(f) == f.__name__
++
++
++@parametrize('f', [f, g, h, i, j, k, l, A().method, A().method_with_default,
++                   A().method_with_varargs, A().method_with_keywords])
++def test_get_function_code(f):
++    """ Check that we correctly identify functions """
++    _, code, first_line = get_func_code(f)
++    if isinstance(f, type(A().method_with_varargs)):
++        expected_code = f.__qualname__
++    else:
++        expected_code = f.__name__
++    assert code == expected_code
++    assert first_line > 0
++
++
++def _get_code():
++    from joblib.test.test_func_inspect_special_encoding import big5_f
++    return get_func_code(big5_f)[0]
++
++
++@fixture(scope='module')
++def memoized_func(request):
++    def my_func(x):
++        pass
++    return Memory('/tmp', verbose=0).cache(my_func)
++
++
++@fixture(scope='module')
++def memoized_func_no_location(request):
++    def my_func(x):
++        pass
++    return Memory(None, verbose=0).cache(my_func)
++
++
++def test_ignore_decorator():
++    def decorator(f):
++        @functools.wraps(f)
++        def wrapper(*args, **kwargs):
++            return f(*args, **kwargs)
++        return wrapper
++
++    @memoized_func
++    @decorator
++    def func(a, b):
++        return a + b
++
++    assert func.ignore_list == ['a', 'b']
++
++
++def test_ignore_keyword_only_arg():
++    @memoized_func
++    def func(a, *, b):
++        return a + b
++
++    assert func.ignore_list == ['a', 'b']
++
++
++def test_ignore_positional_only_arg():
++    @memoized_func
++    def func(a, /, b):
++        return a + b
++
++    assert func.ignore_list == ['a', 'b']
++
++
++def test_ignore_mixed_arg():
++    @memoized_func
++    def func(a, b, c, *, d, e, /, f):
++        return a + b + c + d + e + f
++
++    assert func.ignore_list == ['a', 'b', 'c', 'd', 'e', 'f']

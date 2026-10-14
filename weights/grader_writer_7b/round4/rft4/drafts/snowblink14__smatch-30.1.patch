@@ -1,0 +1,148 @@
+--- /dev/null
++++ b/test_amr_grader.py
+@@ -0,0 +1,134 @@
++import sys
++import unittest
++from collections import defaultdict
++
++
++class TestAMR(unittest.TestCase):
++    def setUp(self):
++        """
++        Set up some example AMRs
++        """
++        self.amrs_1 = {
++            "amr_1": """(
++                        :graph (
++                            :node :root (ROOT ROOT)
++                            :relation (:rel :root :arg0 :child0)
++                            :node :child0 (ARG0 ARG0)
++                        )
++                    )""",
++            "amr_2": """(
++                        :graph (
++                            :node :root (ROOT ROOT)
++                            :relation (:rel :root :arg0 :child0)
++                            :node :child0 (ARG0 ARG0)
++                        )
++                    )""",
++            "amr_3": """(
++                        :graph (
++                            :node :root (ROOT ROOT)
++                            :relation (:rel :root :arg0 :child0)
++                            :node :child0 (ARG0 ARG0)
++                        )
++                    )""",
++            "amr_4": """(
++                        :graph (
++                            :node :root (ROOT ROOT)
++                            :relation (:rel :root :arg0 :child0)
++                            :node :child0 (ARG0 ARG0)
++                        )
++                    )"""
++        }
++
++        self.amrs_2 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_3 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_4 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_5 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_6 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_7 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_8 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_9 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_10 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_11 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_12 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_13 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_14 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_15 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }
++
++        self.amrs_16 = {
++            "amr_1": "(ROOT ROOT)",
++            "amr_2": "(ARG0 ARG0)",
++            "amr_3": "(ARG0 ARG0)",
++            "amr_4": "(ARG0 ARG0)"
++        }

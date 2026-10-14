@@ -1,0 +1,65 @@
+--- /dev/null
++++ b/tests/test_frontmatter_grader.py
+@@ -0,0 +1,66 @@
++from __future__ import print_function
++import pytest
++from frontmatter import load, loads, dump, dumps
++
++
++def test_load():
++    assert load(u("---\ntitle: My Title\n---\nHello!")) == (
++        {"title": "My Title"}, "Hello!")
++    assert load(u('{ "title": "My Title" }\nHello!')) == (
++        {"title": "My Title"}, "Hello!")
++    assert load(u("+++title=My Title\nHello!\n+++\n")) == (
++        {"title": "My Title"}, "Hello!\n")
++
++
++def test_loads():
++    assert loads(u("---\ntitle: My Title\n---\nHello!")) == (
++        {"title": "My Title"}, "Hello!")
++    assert loads(u('{ "title": "My Title" }\nHello!')) == (
++        {"title": "My Title"}, "Hello!")
++    assert loads(u("+++title=My Title\nHello!\n+++\n")) == (
++        {"title": "My Title"}, "Hello!\n")
++
++
++def test_dump():
++    assert dump(
++        {"title": "My Title"}, u("\nHello!"),
++        start_delimiter=u"+++", end_delimiter=u"+++") == (
++            u"\n+++\ntitle=My Title\n+++\n\nHello!")
++
++
++def test_dumps():
++    assert dumps(
++        {"title": "My Title"}, u("\nHello!"),
++        start_delimiter=u"+++", end_delimiter=u"+++") == (
++            u"\n+++\ntitle=My Title\n+++\n\nHello!")
++
++
++@pytest.mark.parametrize('encoding', ('ascii', 'utf-8'))
++def test_unicode(encoding):
++    title = u'\u00e9'
++    assert loads(title.encode(encoding), encoding=encoding)[0] == {'title': title}
++
++
++def test_utf8_default():
++    title = u'\u00e9'
++    assert loads(title)[0] == {'title': title}
++
++
++def test_utf8_default_bytes():
++    title = u'\u00e9'
++    assert loads(title.encode('utf-8'))[0] == {'title': title}
++
++
++def test_strict_mode_raises_error_on_invalid_utf8_input():
++    invalid_utf8 = u'\x80'.encode('latin1').decode('utf-8')
++    with pytest.raises(ValueError):
++        loads(invalid_utf8, strict=True)
++
++
++def test_nonstrict_mode_returns_none_for_invalid_utf8_input():
++    invalid_utf8 = u'\x80'.encode('latin1').decode('utf-8')
++    assert loads(invalid_utf8, strict=False)[0] is None

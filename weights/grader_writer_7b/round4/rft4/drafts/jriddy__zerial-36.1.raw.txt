@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/test_zerializer_grader.py
+@@ -0,0 +1,32 @@
++import pytest
++from zerial._core import Ztructurer
++from zerial._data import Zerializer
++
++
++@pytest.fixture
++def m_ztructurer(mocker):
++    return mocker.Mock(Ztructurer)
++
++
++def test_zerializer_rolls_back_when_destructuring_fails(m_ztructurer):
++    zer = Zerializer(list, tuple)
++    m_ztructurer.fail_with.side_effect = Exception("oops")
++    with pytest.raises(Exception) as excinfo:
++        zer.destruct((1, 2, 3), m_ztructurer)
++    assert "oops" in str(excinfo.value)
++    assert m_ztructurer.fail_with.call_args_list == [
++        mocker.call(list),
++        mocker.call(tuple),
++    ]
++
++
++def test_zerializer_rolls_back_when_restructuring_fails(m_ztructurer):
++    zer = Zerializer(list, tuple)
++    m_ztructurer.fail_with.side_effect = Exception("oops")
++    with pytest.raises(Exception) as excinfo:
++        zer.restruct([1, 2, 3], m_ztructurer)
++    assert "oops" in str(excinfo.value)
++    assert m_ztructurer.fail_with.call_args_list == [
++        mocker.call(tuple),
++        mocker.call(list),
++    ]

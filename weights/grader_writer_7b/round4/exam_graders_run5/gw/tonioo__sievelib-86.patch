@@ -1,0 +1,15 @@
+--- /dev/null
++++ b/tests/test_commands_grader.py
+@@ -0,0 +1,11 @@
++from unittest import TestCase
++import sievelib.commands
++
++
++class TestExists(TestCase):
++    def test_export_exists_command_with_string_header_names(self):
++        cmd = sievelib.commands.ExistsCommand()
++        cmd.arguments['header-names'] = '"X-Test"'
++        self.assertEqual(cmd.export(), 'exists "X-Test"')
++
++        cmd.arguments['header-names'] = '"X-Test1","X-Test2"'
++        self.assertEqual(cmd.export(), 'exists "X-Test1","X-Test2"')

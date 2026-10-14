@@ -1,0 +1,37 @@
+--- /dev/null
++++ b/tests/test_backends_grader.py
+@@ -0,0 +1,33 @@
++import pytest
++from anyio import (
++    CancelScope,
++    Event,
++    Lock,
++    Semaphore,
++    TaskGroup,
++    create_backend_asyncio,
++    create_backend_trio,
++    create_task_group,
++    get_cancel_scope,
++    run,
++)
++
++
++@pytest.mark.parametrize("backend", ["asyncio", "trio"])
++def test_options_passed_to_create_event_loop(backend):
++    async def worker(event: Event):
++        await event.wait()
++
++    async def main():
++        async with TaskGroup(create_event_loop=True) as tg:
++            tg.start_soon(worker, Event())
++            tg.cancel_scope.cancel()
++
++    options = {
++        "asyncio": {"debug": True},
++        "trio": {"finalizer_timeout": 1.0},
++    }
++    backend = {
++        "asyncio": create_backend_asyncio(options["asyncio"]),
++        "trio": create_backend_trio(options["trio"]),
++    }[backend]
++    run(main, backend=backend)

@@ -1,0 +1,15 @@
+diff --git a/zarr/tests/test_util.py b/zarr/tests/test_util.py
+index 0e0c0d0..012100c 100644
+--- a/zarr/tests/test_util.py
++++ b/zarr/tests/test_util.py
+@@ -233,6 +233,10 @@ def test_all_equal():
+ 
+     assert all_equal({'a': -1}, np.array([{'a': -1}, {'a': -1}], dtype='object'))
+     assert not all_equal({'a': -1}, np.array([{'a': -1}, {'a': 2}], dtype='object'))
++    assert all_equal({'a': -1}, np.array([{'a': -1}, {'a': -1}], dtype=[('a', int)]))
++    assert not all_equal({'a': -1}, np.array([{'a': -1}, {'a': 2}], dtype=[('a', int)]))
++    assert all_equal(('a', -1), np.array([('a', -1), ('a', -1)], dtype=[('a', int)]))
++    assert not all_equal(('a', -1), np.array([('a', -1), ('a', 2)], dtype=[('a', int)]))
+ 
+     assert all_equal(np.timedelta64(999, 'D'), np.array([999, 999], dtype='timedelta64[D]'))
+     assert not all_equal(np.timedelta64(999, 'D'), np.array([999, 998], dtype='timedelta64[D]'))

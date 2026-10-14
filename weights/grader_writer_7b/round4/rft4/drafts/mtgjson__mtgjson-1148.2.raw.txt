@@ -1,0 +1,66 @@
+--- /dev/null
++++ b/tests/test_classes_grader.py
+@@ -0,0 +1,59 @@
++from typing import Dict, List, Union
++import pytest
++from mtgjson5.classes.mtgjson_card import (
++    MtgjsonCardObject,
++    MtgjsonPurchaseUrlsObject,
++    MtgjsonIdentifiersObject,
++)
++
++
++class TestMtgJsonCardObject:
++    @pytest.mark.parametrize(
++        "input_data",
++        [
++            {"number": "0"},
++            {"number": "0", "side": "b"},
++            {"number": "00", "side": "b"},
++            {"number": "00", "side": "a"},
++            {"number": "1"},
++            {"number": "1", "side": "b"},
++            {"number": "1", "side": "a"},
++            {"number": "1a"},
++            {"number": "1a", "side": "b"},
++            {"number": "1a", "side": "a"},
++            {"number": "1a", "side": ""},
++            {"number": "1b"},
++            {"number": "1b", "side": "b"},
++            {"number": "1b", "side": "a"},
++            {"number": "1b", "side": ""},
++            {"number": "1c"},
++            {"number": "1c", "side": "b"},
++            {"number": "1c", "side": "a"},
++            {"number": "1c", "side": ""},
++            {"number": "1d"},
++            {"number": "1d", "side": "b"},
++            {"number": "1d", "side": "a"},
++            {"number": "1d", "side": ""},
++            {"number": "1e"},
++            {"number": "1e", "side": "b"},
++            {"number": "1e", "side": "a"},
++            {"number": "1e", "side": ""},
++            {"number": "1f"},
++            {"number": "1f", "side": "b"},
++            {"number": "1f", "side": "a"},
++            {"number": "1f", "side": ""},
++            {"number": "1g"},
++            {"number": "1g", "side": "b"},
++            {"number": "1g", "side": "a"},
++            {"number": "1g", "side": ""},
++        ],
++    )
++    def test_comparison(self, input_data: Dict[str, Union[str, None]]) -> None:
++        """
++        Test the card comparison function
++        :param input_data: Input data to use
++        """
++        card = MtgjsonCardObject(is_token=True)
++        card.side = input_data["side"]
++        card.number = input_data["number"]
++
++        assert card > MtgjsonCardObject() != MtgjsonCardObject(number="1")
++        assert card >= MtgjsonCardObject(number="0") != MtgjsonCardObject(number="1")
++        assert card <= MtgjsonCardObject(number="1") != MtgjsonCardObject(number="0")
++        assert card < MtgjsonCardObject(number="1")

@@ -1,0 +1,165 @@
+--- /dev/null
++++ b/mkdocsmerge/tests/test_merge_test_grader.py
+@@ -0,0 +1,44 @@
++"""
++Tests for the MkDocs Merge package
++"""
++
++
++import unittest
++import mkdocsmerge.merge
++
++
++class TestSiteMerges(unittest.TestCase):
++    """
++    Test class for MkDocs Merge. Will be separated when necessary.
++    """
++
++    def setUp(self):
++        print('Test: ' + self._testMethodName)
++
++    def test_section_index_page(self):
++        """
++        Verifies the handling of a section with an index page
++        """
++        # Create original and expected data structures
++        global_nav = [{
++            'Section': {
++                'index.md': None,
++                'Page': 'section/page.md'
++            },
++        }]
++
++        site_nav = []
++
++        expected = [{
++            'Section': {
++                'index.md': None,
++                'Page': 'section/page.md'
++            },
++        }]
++
++        mkdocsmerge.merge.update_navs(
++            global_nav, '', print_func=lambda x: None)
++        self.assertEqual(global_nav, expected)
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/mkdocsmerge/tests/test_run_merge_test_grader.py
+@@ -0,0 +1,131 @@
++import os
++import shutil
++import tempfile
++import unittest
++import mkdocsmerge.merge
++from .utils import generate_website, make_simple_yaml
++
++
++class TestRunMerge(unittest.TestCase):
++    def setUp(self):
++        self.tmpdir = tempfile.mkdtemp()
++        self.owd = os.getcwd()
++        os.chdir(self.tmpdir)
++
++    def test_run_merge(self):
++
++        docs_dir_map = {
++            '__master__': 'master_docs',
++            'Test': 'test_docs'
++        }
++
++        site_names = ['__master__', 'Foo', 'Bar', 'Test']
++        for site_name in site_names:
++            docs_dir = docs_dir_map.get(site_name, None)
++            yml = make_simple_yaml(site_name, docs_dir)
++            generate_website(self.tmpdir, site_name, yml)
++
++        merged_pages = mkdocsmerge.merge.run_merge(
++            site_names[0], site_names[1:], True, lambda x: None)
++
++        for site_name in site_names[1:]:
++            index_path = os.path.join(
++                site_name, docs_dir_map.get(site_name, 'docs'), 'index.md')
++            self.assertTrue(os.path.exists(index_path))
++
++            docs_dir_path = os.path.join(
++                site_names[0], docs_dir_map.get(site_names[0], 'docs'),
++                '%s_website' % site_name.lower())
++            self.assertTrue(os.path.exists(docs_dir_path))
++
++        self.assertEqual(merged_pages, {
++            'site_name': '__master__ Website',
++            'nav': [
++                {'Home': "index.md"},
++                {'Foo Website': [
++                    {'Home': 'foo_website/index.md'}
++                ]},
++                {'Bar Website': [
++                    {'Home': 'bar_website/index.md'}
++                ]},
++                {'Test Website': [
++                    {'Home': 'test_website/index.md'}
++                ]}
++            ],
++            'docs_dir': 'master_docs'
++        })
++
++    def test_run_merge_with_section_index_page(self):
++
++        docs_dir_map = {
++            '__master__': 'master_docs',
++            'Test': 'test_docs'
++        }
++
++        site_names = ['__master__', 'Foo', 'Bar', 'Test']
++        for site_name in site_names:
++            docs_dir = docs_dir_map.get(site_name, None)
++            yml = make_simple_yaml(site_name, docs_dir)
++            if site_name != 'Test':
++                yml['nav'][0][1].append({
++                    'index.md': None,
++                    'Page': 'section/page.md'
++                })
++            generate_website(self.tmpdir, site_name, yml)
++
++        merged_pages = mkdocsmerge.merge.run_merge(
++            site_names[0], site_names[1:], True, lambda x: None)
++
++        for site_name in site_names[1:]:
++            index_path = os.path.join(
++                site_name, docs_dir_map.get(site_name, 'docs'), 'index.md')
++            self.assertTrue(os.path.exists(index_path))
++
++            docs_dir_path = os.path.join(
++                site_names[0], docs_dir_map.get(site_names[0], 'docs'),
++                '%s_website' % site_name.lower())
++            self.assertTrue(os.path.exists(docs_dir_path))
++
++        self.assertEqual(merged_pages, {
++            'site_name': '__master__ Website',
++            'nav': [
++                {'Home': "index.md"},
++                {'Foo Website': [
++                    {'index.md': None},
++                    {'Page': 'section/page.md'},
++                    {'Home': 'foo_website/index.md'}
++                ]},
++                {'Bar Website': [
++                    {'index.md': None},
++                    {'Page': 'section/page.md'},
++                    {'Home': 'bar_website/index.md'}
++                ]},
++                {'Test Website': [
++                    {'index.md': None},
++                    {'Page': 'section/page.md'},
++                    {'Home': 'test_website/index.md'}
++                ]}
++            ],
++            'docs_dir': 'master_docs'
++        })
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,20 @@
+diff --git a/microdf/tests/test_generic.py b/microdf/tests/test_generic.py
+index 0b0f0e4..c000000 100644
+--- a/microdf/tests/test_generic.py
++++ b/microdf/tests/test_generic.py
+@@ -172,6 +172,14 @@ def test_quintile_rank():
+ def test_decile_rank_rank():
+     s = mdf.MicroSeries(
+         [5, 4, 3, 2, 1, 6, 7, 8, 9],
++        weights=[10, 20, 10, 10, 10, 10, 10, 10, 10, 10],
++    )
++    assert np.array_equal(s.decile_rank().values, [6, 5, 3, 2, 1, 7, 8, 9, 10])
++
++    s = mdf.MicroSeries([5, 4, 3, 2, 1, 6, 7, 8, 9], weights=[10, 20, 10, 10, 10, 10, 10, 10, 10])
++    assert np.array_equal(s.decile_rank().values, [6, 5, 3, 2, 1, 7, 8, 9, 10])
++
++    s = mdf.MicroSeries([5, 4, 3, 2, 1, 6, 7, 8, 9], weights=[10, 20, 10, 10, 10, 10, 10, 10, 10])
++    assert np.array_equal(s.decile_rank().values, [6, 5, 3, 2, 1, 7, 8, 9, 10])
+ 
+     s = mdf.MicroSeries(
+         [5, 4, 3, 2, 1, 6, 7, 8, 9],

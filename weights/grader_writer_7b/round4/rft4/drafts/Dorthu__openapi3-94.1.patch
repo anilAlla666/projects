@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/tests/test_schemas_grader.py
+@@ -0,0 +1,15 @@
++import pytest
++from openapi3.schemas import Parameter
++
++
++@pytest.mark.parametrize(
++    "spec, expected_type",
++    [
++        ("type: integer", int),
++        ("type: boolean", bool),
++        ("type: string", str),
++        ("type: number", float),
++    ],
++)
++def test_parameter_default_type(spec, expected_type):
++    p = Parameter.from_spec({"name": "someparam", "in": "query", "schema": {"default": "1", **spec}})
++    assert isinstance(p.schema.default, expected_type)

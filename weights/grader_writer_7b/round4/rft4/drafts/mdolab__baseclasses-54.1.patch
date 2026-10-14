@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,29 @@
++import pytest
++from pprint import pprint
++from baseclasses.utils import CaseInsensitiveDict, CaseInsensitiveSet
++
++
++@pytest.mark.parametrize(
++    "dict_type",
++    [
++        CaseInsensitiveDict,
++        CaseInsensitiveSet,
++    ],
++)
++def test_pprint(dict_type):
++    sensitive = {
++        "b-longstring": 2,
++        "a-longstring": 1,
++        "c-longstring": 3,
++        "e-longstring": 5,
++        "d-longstring": 4,
++    }
++    insensitive = dict_type(sensitive)
++
++    print("\n")
++    print(f"Testing {type(insensitive).__name__}...")
++    pprint(sensitive)
++    pprint(insensitive)
++    print("\n")

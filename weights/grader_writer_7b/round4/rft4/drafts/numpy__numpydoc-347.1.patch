@@ -1,0 +1,71 @@
+--- /dev/null
++++ b/numpydoc/tests/test_numpydoc_grader.py
+@@ -0,0 +1,36 @@
++import pytest
++from io import StringIO
++from copy import deepcopy
++from numpydoc.numpydoc import (
++    mangle_docstrings, _clean_text_signature, update_config
++)
++from numpydoc.xref import DEFAULT_LINKS
++from sphinx.ext.autodoc import ALL
++from sphinx.util import logging
++
++
++class MockConfig():
++    numpydoc_use_plots = False
++    numpydoc_use_blockquotes = True
++    numpydoc_show_class_members = True
++    numpydoc_show_inherited_class_members = True
++    numpydoc_class_members_toctree = True
++    numpydoc_xref_param_type = False
++    numpydoc_xref_aliases = {}
++    numpydoc_xref_aliases_complete = deepcopy(DEFAULT_LINKS)
++    numpydoc_xref_ignore = set()
++    templates_path = []
++    numpydoc_edit_link = False
++    numpydoc_citation_re = '[a-z0-9_.-]+'
++    numpydoc_attributes_as_param_list = True
++    numpydoc_validation_checks = set()
++    numpydoc_validation_exclude = set()
++
++
++def test_update_config_invalid_validation_set():
++    app = MockApp()
++    # Results in {'a', 'l'} instead of {"all"}
++    app.config.numpydoc_validation_checks = set("all")
++    with pytest.raises(ValueError, match=r"Unrecognized validation code.*"):
++        update_config(app)
++
++
++if __name__ == "__main__":
++    import pytest
++    pytest.main()
+--- /dev/null
++++ b/numpydoc/tests/test_validate_grader.py
+@@ -0,0 +1,22 @@
++import pytest
++import numpydoc.validate
++import numpydoc.tests
++
++
++validate_one = numpydoc.validate.validate
++
++
++class TestGoodDocStrings:
++    def test_integer_type(self):
++        """
++        Tests that integer types are correctly recognized
++
++        Parameters
++        ----------
++        int_val : int
++            A test integer
++        """
++        assert validate_one(numpydoc.tests.GoodDocStrings().test_integer_type)[
++            "errors"] == []
++
++
++if __name__ == "__main__":
++    import pytest
++    pytest.main()

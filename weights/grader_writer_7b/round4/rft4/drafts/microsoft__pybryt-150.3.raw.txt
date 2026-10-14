@@ -1,0 +1,153 @@
+--- /dev/null
++++ b/tests/test_reference_grader.py
+@@ -0,0 +1,113 @@
++""""""
++
++
++import dill
++import json
++import nbformat
++import numpy as np
++import os
++import pkg_resources
++import pytest
++import tempfile
++from copy import deepcopy
++from textwrap import dedent
++from pybryt import generate_report, MemoryFootprint, ReferenceImplementation, Value
++from pybryt.execution import execute_notebook
++
++
++def generate_footprint(nb) -> MemoryFootprint:
++    return execute_notebook(nb, "")
++
++
++def generate_reference_notebook():
++    """
++    """
++    nb = nbformat.v4.new_notebook()
++    nb.cells.append(nbformat.v4.new_code_cell(dedent("""\
++        import pybryt
++    """)))
++    nb.cells.append(nbformat.v4.new_code_cell(dedent("""\
++        def median(S):
++            sorted_S = sorted(S) 
++            pybryt.Value(sorted_S, name="sorted", group="median", limit=5, success_message="SUCCESS: Sorted the sample correctly", 
++                        failure_message="ERROR: The sample was not sorted")
++            
++            size_of_set = len(S) 
++            pybryt.Value(size_of_set, name="size", group="median", success_message = "SUCCESS: Computed the size of the sample", 
++                        failure_message="ERROR: Did not capture the size of the set to determine if it is odd or even")
++            
++            middle = size_of_set // 2
++            pybryt.Value(middle, name="middle", group="median", success_message = "SUCCESS: Computed the middle of the set", 
++                        failure_message="ERROR: Did not compute the middle of the set")
++            pybryt.Value(middle % 2, name="is_even", group="median", success_message = "SUCCESS: Computed whether the set is even", 
++                        failure_message="ERROR: Did not compute whether the set is even")
++            pybryt.Value(middle * 2, name="index_of_right_middle", group="median", success_message = "SUCCESS: Computed the index of the right middle", 
++                        failure_message="ERROR: Did not compute the index of the right middle")
++            
++            if size_of_set % 2 != 0:
++                pybryt.Value(sorted_S[middle], name="computed_median", group="median", success_message = "SUCCESS: Computed the median", 
++                            failure_message="ERROR: Did not compute the median")
++            else:
++                left = sorted_S[middle - 1]
++                right = sorted_S[middle]
++                pybryt.Value((left + right) / 2, name="computed_median", group="median", success_message = "SUCCESS: Computed the median", 
++                            failure_message="ERROR: Did not compute the median")
++    """)))
++    
++    return nb
++
++
++def test_limiting():
++    """
++    """
++    nb = generate_reference_notebook()
++    footprint = generate_footprint(nb)
++    res = Value(footprint.get_value(0)).run(footprint)
++
++    assert len(Value.get_tracked_annotations()) == 11
++
++    refs = [
++        Value(footprint.get_value(i)) for i in range(11)
++    ]
++    ref = ReferenceImplementation("foo", refs)
++
++    assert len(ref.annotations) == 11
++    assert len(ref.annotations) == len(ref.get_all_annotations())
++
++    res = ref.run(footprint)
++    report = generate_report(res)
++    assert report == dedent("""\
++        REFERENCE: foo
++        SATISFIED: True
++        MESSAGES:
++          - SUCCESS: Sorted the sample correctly
++          - SUCCESS: Computed the size of the sample
++          - SUCCESS: Computed the middle of the set
++          - SUCCESS: Computed whether the set is even
++          - SUCCESS: Computed the index of the right middle
++          - SUCCESS: Computed the median
++          - SUCCESS: Sorted the sample correctly
++          - SUCCESS: Computed the size of the sample
++          - SUCCESS: Computed the middle of the set
++          - SUCCESS: Computed whether the set is even
++          - SUCCESS: Computed the index of the right middle
++          - SUCCESS: Computed the median
++    """).strip()
++
++    ref2 = ReferenceImplementation("foo", refs[:-1])
++
++    res = ref2.run(footprint)
++    report = generate_report(res)
++    assert report == dedent("""\
++        REFERENCE: foo
++        SATISFIED: True
++        MESSAGES:
++          - SUCCESS: Sorted the sample correctly
++          - SUCCESS: Computed the size of the sample
++          - SUCCESS: Computed the middle of the set
++          - SUCCESS: Computed whether the set is even
++          - SUCCESS: Computed the index of the right middle
++          - SUCCESS: Computed the median
++          - SUCCESS: Sorted the sample correctly
++          - SUCCESS: Computed the size of the sample
++          - SUCCESS: Computed the middle of the set
++          - SUCCESS: Computed whether the set is even
++          - SUCCESS: Computed the index of the right middle
++          - SUCCESS: Computed the median
++    """).strip()
+--- /dev/null
++++ b/tests/annotations/test_annotation_grader.py
+@@ -0,0 +1,31 @@
++"""Tests for abstract annotations and annotation results"""
++
++
++import pybryt
++from pybryt.execution.memory_footprint import MemoryFootprint
++from .utils import assert_object_attrs, generate_memory_footprint
++
++
++def test_get_tracked_annotations():
++    """
++    """
++    pybryt.Annotation.reset_tracked_annotations()
++    footprints = [
++        generate_memory_footprint(),
++        generate_memory_footprint(),
++    ]
++
++    vals = [footprints[i].get_value(i) for i in range(len(footprints))]
++    names = ["foo", "bar", "baz"]
++    limits = [1, 2, 3]
++    groups = ["one", "two", "three"]
++    success_msgs = ["msg1", "msg2", "msg3"]
++    failure_msgs = ["fail1", "fail2", "fail3"]
++
++    for i in range(len(vals)):
++        pybryt.Value(vals[i], name=names[i], limit=limits[i], group=groups[i],
++                     success_message=success_msgs[i], failure_message=failure_msgs[i])
++
++    tracked = pybryt.Annotation.get_tracked_annotations()
++    assert len(tracked) == sum(limits)

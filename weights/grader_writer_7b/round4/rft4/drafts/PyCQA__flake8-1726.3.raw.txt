@@ -1,0 +1,180 @@
+--- /dev/null
++++ b/tests/unit/test_file_checker_grader.py
+@@ -0,0 +1,21 @@
++"""Unit tests for the FileChecker class."""
++
++
++from __future__ import annotations
++import argparse
++from unittest import mock
++import pytest
++import flake8
++from flake8 import checker
++from flake8._compat import importlib_metadata
++from flake8.plugins import finder
++
++
++def test_report_sorts_alphabetically(default_options):
++    """Verify that the results are sorted by file name."""
++    file_checker = checker.FileChecker(
++        filename="/a/b/c.py",
++        plugins=finder.Checkers([], [], []),
++        options=default_options,
++    )
++    assert file_checker.filename == "/a/b/c.py"
+--- /dev/null
++++ b/tests/integration/test_checker_grader.py
+@@ -0,0 +1,152 @@
++"""Integration tests for the checker submodule."""
++
++
++from __future__ import annotations
++import sys
++from unittest import mock
++import pytest
++from flake8 import checker
++from flake8._compat import importlib_metadata
++from flake8.plugins import finder
++from flake8.processor import FileProcessor
++
++
++PHYSICAL_LINE = "# Physical line content"
++
++
++EXPECTED_REPORT = (1, 1, "T000 Expected Message")
++
++
++EXPECTED_REPORT_PHYSICAL_LINE = (1, "T000 Expected Message")
++
++
++EXPECTED_RESULT_PHYSICAL_LINE = ("T000", 0, 1, "Expected Message", None)
++
++
++class PluginClass:
++    """Simple file plugin class yielding the expected report."""
++
++    def __init__(self, tree):
++        """Construct a dummy object to provide mandatory parameter."""
++        pass
++
++    def run(self):
++        """Run class yielding one element containing the expected report."""
++        yield EXPECTED_REPORT + (type(self),)
++
++
++def plugin_func_gen(tree):
++    """Yield the expected report."""
++    yield EXPECTED_REPORT + (type(plugin_func_gen),)
++
++
++def plugin_func_list(tree):
++    """Return a list of expected reports."""
++    return [EXPECTED_REPORT + (type(plugin_func_list),)]
++
++
++def plugin_func_tuple(tree):
++    """Return a tuple of expected reports."""
++    return (EXPECTED_REPORT + (type(plugin_func_tuple),,))
++
++
++def plugin_func_dict(tree):
++    """Return a dict of expected reports."""
++    return {1: EXPECTED_REPORT + (type(plugin_func_dict),)}
++
++
++def plugin_func_set(tree):
++    """Return a set of expected reports."""
++    return {EXPECTED_REPORT + (type(plugin_func_set),)}
++
++
++def plugin_class_method(tree):
++    """Method yielding the expected report."""
++    yield EXPECTED_REPORT + (type(plugin_class_method),)
++
++
++def plugin_func_method(tree):
++    """Method returning the expected report."""
++    return [EXPECTED_REPORT + (type(plugin_func_method),)]
++
++
++@pytest.fixture
++def default_options():
++    """Provide a default options object for testing."""
++    return mock.MagicMock(
++        exclude=tuple(), extensions=("py",), select=tuple(), show_source=True
++    )
++
++
++@pytest.fixture
++def plugin_dir(tmp_path):
++    """Create a directory containing several test plugins."""
++    plugin_dir = tmp_path.joinpath("plugins")
++    plugin_dir.mkdir()
++
++    plugin_dir.joinpath("__init__.py").touch()
++    plugin_dir.joinpath("func_gen.py").write_text(
++        "from flake8.plugin import get_plugin_manager\n"
++        "from .test_checker import plugin_func_gen\n"
++        'get_plugin_manager().register_plugin_function(plugin_func_gen)\n'
++    )
++    plugin_dir.joinpath("func_list.py").write_text(
++        "from flake8.plugin import get_plugin_manager\n"
++        "from .test_checker import plugin_func_list\n"
++        'get_plugin_manager().register_plugin_function(plugin_func_list)\n'
++    )
++    plugin_dir.joinpath("func_tuple.py").write_text(
++        "from flake8.plugin import get_plugin_manager\n"
++        "from .test_checker import plugin_func_tuple\n"
++        'get_plugin_manager().register_plugin_function(plugin_func_tuple)\n'
++    )
++    plugin_dir.joinpath("func_dict.py").write_text(
++        "from flake8.plugin import get_plugin_manager\n"
++        "from .test_checker import plugin_func_dict\n"
++        'get_plugin_manager().register_plugin_function(plugin_func_dict)\n'
++    )
++    plugin_dir.joinpath("func_set.py").write_text(
++        "from flake8.plugin import get_plugin_manager\n"
++        "from .test_checker import plugin_func_set\n"
++        'get_plugin_manager().register_plugin_function(plugin_func_set)\n'
++    )
++    plugin_dir.joinpath("class_method.py").write_text(
++        "from flake8.plugin import get_plugin_manager\n"
++        "from .test_checker import PluginClass\n"
++        'get_plugin_manager().register_plugin_class(PluginClass)\n'
++    )
++    plugin_dir.joinpath("func_method.py").write_text(
++        "from flake8.plugin import get_plugin_manager\n"
++        "from .test_checker import plugin_func_method\n"
++        'get_plugin_manager().register_plugin_function(plugin_func_method)\n'
++    )
++    return plugin_dir
++
++
++@pytest.mark.parametrize(
++    "options,expected_reports",
++    (
++        (({"select": ["F"]}), ()),
++        (({"select": ["F"], "show_source": False}), ()),
++        (({"select": ["T"]}), (EXPECTED_REPORT_PHYSICAL_LINE,)),
++        (({"select": ["T"], "show_source": False}), (EXPECTED_REPORT,)),
++    ),
++)
++def test_checker_default_behavior(options, expected_reports):
++    """Test default behavior of FileChecker."""
++    c = checker.FileChecker(
++        filename=__file__,
++        plugins=finders(options=options),
++        options=options["default_options"],
++    )
++    with mock.patch.object(FileProcessor, "process_tokens"):
++        c.run_checks()
++    assert c.results == expected_reports
++
++
++def finders(options=None):
++    """Helper function to create finder instances."""
++    options = options or {}
++    default_options = {"default_options": mock.MagicMock()}
++    default_options.update(options)
++    options = finder.get_parser().parse_args([])
++    return finder.Checkers([], [], [], **default_options)

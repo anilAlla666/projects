@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/tests/test_pyquery_grader.py
+@@ -0,0 +1,44 @@
++import os
++import sys
++import time
++from lxml import etree
++from pyquery.pyquery import PyQuery as pq, no_default
++from pyquery.openers import HAS_REQUEST
++from webtest import http
++from webtest.debugapp import debug_app
++from unittest import TestCase
++
++
++sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
++
++
++dirname = os.path.dirname(os.path.abspath(__file__))
++
++
++docs = os.path.join(os.path.dirname(dirname), 'docs')
++
++
++path_to_html_file = os.path.join(dirname, 'test.html')
++
++
++path_to_invalid_file = os.path.join(dirname, 'invalid.xml')
++
++
++class TestHtmlEscaping(TestCase):
++
++    def test_inner_html_with_initial_entity(self):
++        doc = pq("<foo>&lt;script&gt;// uh oh&lt;/script&gt;bar<boo/></foo>")
++        self.assertEqual(doc('foo').html(),
++                         '&lt;script&gt;// uh oh&lt;/script&gt;bar')
++        self.assertEqual(doc('foo').html().startswith('&lt;'), True)
++
++    def test_outer_html_with_initial_entity(self):
++        doc = pq("<foo>&lt;script&gt;// uh oh&lt;/script&gt;bar<boo/></foo>")
++        self.assertEqual(doc('foo').outer_html(),
++                         '<foo>&lt;script&gt;// uh oh&lt;/script&gt;bar</foo>')
++        self.assertEqual(doc('foo').outer_html().startswith('&lt;'), True)
++
++
++if __name__ == "__main__":
++    suite = []
++    suite.append(unittest.makeSuite(TestHtmlEscaping))
++    suite.append(unittest.makeSuite(TestWebScrappingTimeouts))
++    suite.append(unittest.makeSuite(TestWebScrappingEncoding))
++    suite.append(unittest.makeSuite(TestOpeners))
++    suite.append(unittest.makeSuite(TestUnicode))
++    unittest.TextTestRunner(verbosity=2).run(unittest.TestSuite(suite))

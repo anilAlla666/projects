@@ -1,0 +1,48 @@
+To address the issue where the `@inject` decorator should override the value if it is `None`, we need to add tests that ensure the behavior changes as expected. Below is a unified diff that includes two new test files: `test_inject_override_none.py` and `test_inject_no_override.py`.
+
+```diff
+diff --git a/tests/test_inject_override_none.py b/tests/test_inject_override_none.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_inject_override_none.py
+@@ -0,0 +1,30 @@
++import unittest
++from ioccontainer import Container, inject
++
++class TestInjectOverrideNone(unittest.TestCase):
++    def setUp(self):
++        self.container = Container()
++        self.service = "Injected Service"
++        self.container.register("Service", self.service)
++
++    @inject(Service=None)
++    def test_inject_service(self, Service):
++        self.assertEqual(Service, self.service)
++
++if __name__ == '__main__':
++    unittest.main()
++
+diff --git a/tests/test_inject_no_override.py b/tests/test_inject_no_override.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_inject_no_override.py
+@@ -0,0 +1,30 @@
++import unittest
++from ioccontainer import Container, inject
++
++class TestInjectNoOverride(unittest.TestCase):
++    def setUp(self):
++        self.container = Container()
++        self.service = "Injected Service"
++        self.container.register("Service", self.service)
++
++    @inject(Service="Provided Value")
++    def test_inject_service(self, Service):
++        self.assertEqual(Service, "Provided Value")
++
++if __name__ == '__main__':
++    unittest.main()
++
+```
+
+These tests will fail when run against the current implementation because the `@inject` decorator does not override the value if it is `None`. Once the fix is applied, these tests should pass, ensuring that the `@inject` decorator correctly overrides the value if it is `None`.

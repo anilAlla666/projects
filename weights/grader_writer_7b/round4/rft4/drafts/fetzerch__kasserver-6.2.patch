@@ -1,0 +1,188 @@
+--- /dev/null
++++ b/tests/test_kasserver_grader.py
+@@ -0,0 +1,126 @@
++"""Tests for KasServer"""
++
++
++import json
++import logging
++from unittest import mock
++import pytest
++import zeep
++from kasserver import KasServer
++
++
++LOGGER = logging.getLogger(__name__)
++
++
++USERNAME = "username"
++
++
++PASSWORD = "password"
++
++
++PASSWORD_PLAIN = "password"
++
++
++PASSWORD_SHA1 = "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8"
++
++
++class TestKasServer:
++    """Integration tests for KasServer"""
++
++    REQUEST_TYPE = "add_dns_settings"
++
++    REQUEST_PARAMS = {
++        "zone_host": "example.com.",
++        "record_name": "www",
++        "record_type": "CNAME",
++        "record_ttl": "3600",
++        "record_data": "www.example2.com.",
++    }
++
++    RESPONSE_RAW = json.loads(open("tests/data/kasserver_response.json").read())
++
++    RESPONSE_PARSED = [
++        {
++            "id": "23468",
++            "record_name": "www",
++            "record_type": "CNAME",
++            "record_ttl": "3600",
++            "record_data": "www.example2.com.",
++            "record_mx_priority": "",
++            "record_mx_preference": "",
++            "record_spf_txt": "",
++            "record_ns_nameserver": "",
++            "record_caa_tag": "",
++            "record_caa_flag": "",
++            "record_caa_value": "",
++            "record_soa_mname": "",
++            "record_soa_rname": "",
++            "record_soa_serial": "",
++            "record_soa_refresh": "",
++            "record_soa_retry": "",
++            "record_soa_expire": "",
++            "record_soa_minimum": "",
++            "record_a_ip_address": "",
++            "record_aaaa_ip_address": "",
++            "record_sshfp_algorithm": "",
++            "record_sshfp_hash_type": "",
++            "record_sshfp_finger_print": "",
++            "record_cert_tos": "",
++            "record_cert_purpose": "",
++            "record_cert_key_usage": "",
++            "record_cert_extended_key_usage": "",
++            "record_cert_authority_info_access": "",
++            "record_cert_subject_alternative_name": "",
++            "record_cert_basic_constraints": "",
++            "record_cert_ext_key_usage": "",
++            "record_cert_private_key": "",
++            "record_cert_ca_certificate": "",
++            "record_cert_chain_certificate": "",
++        }
++    ]
++
++    @pytest.fixture
++    def kasserver(self, kasapi):
++        """Create an instance of KasServer"""
++        kasserver = KasServer()
++        kasserver._username = USERNAME
++        kasserver._auth_plain = PASSWORD_PLAIN
++        return kasserver
++
++    @staticmethod
++    def test_getcredentials_netrc():
++        """Test loading credentials from .netrc"""
++        with mock.patch("os.environ", {}), mock.patch(
++            "netrc.netrc.authenticators", lambda x: ("u", "p")
++        ):
++            kasserver = KasServer()
++            assert kasserver._username == "u"
++            assert kasserver._auth_sha1 is None
++            assert kasserver._auth_plain is None
++
++    @staticmethod
++    def test_getcredentials_env():
++        """Test loading credentials from environment variables"""
++        with mock.patch.dict(
++            os.environ, {"KASSERVER_USER": "u", "KASSERVER_PASSWORD": "p"}
++        ):
++            kasserver = KasServer()
++            assert kasserver._username == "u"
++            assert kasserver._auth_sha1 is None
++            assert kasserver._auth_plain is None
++
++    @staticmethod
++    def test_getcredentials_allinone():
++        """Test loading credentials from environment variables"""
++        with mock.patch.dict(
++            os.environ, {"KASSERVER_USER": "u", "KASSERVER_PASSWORD": "p"}
++        ), mock.patch("netrc.netrc.authenticators", lambda x: ("u", "p")):
++            kasserver = KasServer()
++            assert kasserver._username == "u"
++            assert kasserver._auth_sha1 is None
++            assert kasserver._auth_plain is None
+--- /dev/null
++++ b/tests/test_kasserver_dns_grader.py
+@@ -0,0 +1,57 @@
++"""Tests for kasserver_dns cli"""
++
++
++from unittest import mock
++import click
++import click.testing
++import pytest
++from kasserver.kasserver_dns import cli
++from .test_kasserver import TestKasServer
++
++
++RECORD_FQDN = "new.example.com"
++
++
++RECORD_VALUE = "123456"
++
++
++RECORD_TYPE = "CNAME"
++
++
++RECORD_TTL = "10"
++
++
++@mock.patch("kasserver.KasServer", autospec=True)
++def test_list(kasserver):
++    """Test the list command"""
++    kasserver.return_value.get_dns_records.return_value = TestKasServer.RESPONSE_PARSED
++    result = click.testing.CliRunner().invoke(cli, ["list", "example.com"])
++    assert result.exit_code == 0
++    assert "example.com" in result.output
++
++
++@mock.patch("kasserver.KasServer", autospec=True)
++@pytest.mark.parametrize(
++    "command,expected",
++    [
++        (
++            "add",
++            {
++                "method": "add_dns_record",
++                "params": ["--ttl", RECORD_TTL, RECORD_FQDN, RECORD_TYPE, RECORD_VALUE],
++                "args": [RECORD_FQDN, RECORD_TYPE, RECORD_VALUE, RECORD_TTL],
++            },
++        ),
++        (
++            "remove",
++            {
++                "method": "delete_dns_record",
++                "params": [RECORD_FQDN, RECORD_TYPE],
++                "args": [RECORD_FQDN, RECORD_TYPE],
++            },
++        ),
++    ],
++)
++def test_add_remove(kasserver, command, expected):
++    """Test the add and remove command"""
++    result = click.testing.CliRunner().invoke(cli, [command, *expected["params"]])
++    assert result.exit_code == 0
++    getattr(kasserver.return_value, expected["method"]).assert_called_once_with(
++        *expected["args"]
++    )

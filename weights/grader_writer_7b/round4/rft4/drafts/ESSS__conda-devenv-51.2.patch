@@ -1,0 +1,48 @@
+--- /dev/null
++++ b/tests/test_devenv_grader.py
+@@ -0,0 +1,44 @@
++import tempfile
++import unittest
++from pathlib import Path
++
++
++class TestDevenv(unittest.TestCase):
++    def setUp(self):
++        # create temporary directory
++        self.tmpdir = tempfile.TemporaryDirectory()
++        # change working directory to it
++        self.cwd = Path(self.tmpdir.name)
++
++    def tearDown(self):
++        # cleanup after each test
++        self.tmpdir.cleanup()
++
++    def test_activate_deactivate_script_generation(self):
++        """
++        Check that the script generation works properly
++        """
++        from conda_devenv.devenv import main
++
++        # make sure there's an environment.yaml file
++        self.cwd.joinpath("environment.yaml").touch()
++
++        # make sure there's a devenv input file
++        devenv_input_path = self.cwd.joinpath("environment.devenv.yml")
++        devenv_input_path.write_text("""
++        name: myenv
++        dependencies:
++          - python=3.7
++        """)
++
++        # run the command
++        main(["--name=myenv"])
++
++        # check that activate/deactivate scripts were generated
++        self.assertTrue(
++            self.cwd.joinpath("myenv/bin/activate").exists(),
++            msg="Activate script should exist"
++        )
++        self.assertTrue(
++            self.cwd.joinpath("myenv/bin/deactivate").exists(),
++            msg="Deactivate script should exist"
++        )

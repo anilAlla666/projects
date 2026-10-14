@@ -1,0 +1,67 @@
+--- /dev/null
++++ b/tests/test_attaches_grader.py
+@@ -0,0 +1,57 @@
++import pytest
++from concurrent.futures import Future
++
++
++class FakeChannel(object):
++    def __init__(self):
++        self.is_open = True
++        self.opened = []
++
++    def add_open(self, func):
++        self.opened.append(func)
++
++    def close(self):
++        self.is_open = False
++
++
++def test_set_qos():
++    class FakeConsumer(object):
++        def __init__(self):
++            self.state = 'ST_IDLE'
++
++        def set_qos(self, *args, **kwargs):
++            assert args == (0, 1)
++            assert kwargs == {}
++
++    c = FakeConsumer()
++    c.set_qos((None, 1))
++
++
++def test_init_qos_as_int():
++    class FakeQueue(object):
++        pass
++
++    f = Future()
++    f.set_running_or_notify_cancel()
++
++    c = FakeConsumer(FakeQueue(), lambda x: None, qos=1, future_to_notify=f)
++
++    assert c.qos == (0, 1)
++
++
++class FakeConsumer(object):
++    def __init__(self, queue, on_message, no_ack=True, qos=None, cancel_on_failure=False,
++                 future_to_notify=None,
++                 fail_on_first_time_resource_locked=False,
++                 body_receive_mode=BodyReceiveMode.BYTES
++                 ):
++        """
++        Note that if you specify QoS, it is applied before basic.consume is sent. This will prevent
++        the broker from hammering you into oblivion with a mountain of messages.
++
++        :param queue: Queue object, being consumed from right now.
++            Note that name of anonymous queue might change at any time!
++        :param on_message: callable that will process incoming messages
++        :type on_message: callable(ReceivedMessage instance)
++        :param no_ack: Will this consumer require acknowledges from messages?
++        :param qos: a tuple of (prefetch size, prefetch window) for this consumer
++        :type qos: tuple(int, int) or tuple(None, int)
++        :param cancel_on_failure: Consumer will cancel itself when link goes down
++        :type cancel_on_failure: bool
++        :param future_to_notify: Future to succeed when this consumer goes online for the first time.
++                                 This future can also raise with AMQPError if it fails to.
++        """
++        self.qos = qos

@@ -1,0 +1,120 @@
+--- /dev/null
++++ b/tests/test_osfs_grader.py
+@@ -0,0 +1,41 @@
++from __future__ import unicode_literals
++import errno
++import io
++import os
++import shutil
++import tempfile
++import sys
++import unittest
++import pytest
++from fs import osfs, open_fs
++from fs.path import relpath, dirname
++from fs import errors
++from fs.test import FSTestCases
++from six import text_type
++
++
++try:
++    from unittest import mock
++except ImportError:
++    import mock
++
++
++class TestOSFS(FSTestCases, unittest.TestCase):
++    """Test OSFS implementation."""
++
++    def make_fs(self):
++        temp_dir = tempfile.mkdtemp("fstestosfs")
++        return osfs.OSFS(temp_dir)
++
++    def destroy_fs(self, fs):
++        self.fs.close()
++        try:
++            shutil.rmtree(fs.getsyspath("/"))
++        except OSError:
++            # Already deleted
++            pass
++
++    def test_validatepath(self):
++        """Check validatepath detects bad encodings."""
++
++        with mock.patch("fs.osfs.fsencode") as fsencode:
++            fsencode.side_effect = lambda error: "–".encode("ascii")
++            with self.assertRaises(errors.InvalidCharsInPath):
++                with self.fs.open("13 – Marked Register.pdf", "wb") as fh:
++                    fh.write(b"foo")
+--- /dev/null
++++ b/tests/test_ftpfs_grader.py
+@@ -0,0 +1,65 @@
++from __future__ import unicode_literals
++import os
++import pytest
++from fs import ftpfs
++from fs import open_fs
++from fs import errors
++from six.moves.urllib.error import URLError
++
++
++@pytest.fixture
++def fs():
++    with open_fs("ftp://localhost:9901/", "a", user="admin", passwd="admin") as root_fs:
++        yield ftpfs.FTPFS(root_fs.getsyspath("/"))
++
++
++def test_issue_113(fs):
++    """https://github.com/PyFilesystem/pyfilesystem2/issues/113"""
++    # This should raise NoMatch rather than crashing
++    with pytest.raises(errors.NoMatch):
++        fs.getinfo("Clock at AM or PM/")
++
++
++def test_issue_113_with_utf8_encoding(fs):
++    """https://github.com/PyFilesystem/pyfilesystem2/issues/113"""
++    # This should raise NoMatch rather than crashing
++    with pytest.raises(errors.NoMatch):
++        fs.getinfo("Clock at AM or PM/")
++
++
++def test_issue_113_with_non_ascii_filename(fs):
++    """https://github.com/PyFilesystem/pyfilesystem2/issues/113"""
++    # This should raise NoMatch rather than crashing
++    with pytest.raises(errors.NoMatch):
++        fs.getinfo("Clock at Å or Ö/")
++
++
++def test_issue_113_with_invalid_directory_listing(fs):
++    """https://github.com/PyFilesystem/pyfilesystem2/issues/113"""
++    # This should raise NoMatch rather than crashing
++    with pytest.raises(errors.NoMatch):
++        fs.getinfo("<bad>directory listing/")
++
++
++def test_issue_113_with_empty_size_column(fs):
++    """https://github.com/PyFilesystem/pyfilesystem2/issues/113"""
++    # This should raise NoMatch rather than crashing
++    with pytest.raises(errors.NoMatch):
++        fs.getinfo("empty size col/")
++
++
++def test_issue_113_with_invalid_date_format(fs):
++    """https://github.com/PyFilesystem/pyfilesystem2/issues/113"""
++    # This should raise NoMatch rather than crashing
++    with pytest.raises(errors.NoMatch):
++        fs.getinfo("invalid date format/")
++
++
++def test_issue_113_with_multiple_space_in_filename(fs):
++    """https://github.com/PyFilesystem/pyfilesystem2/issues/113"""
++    # This should raise NoMatch rather than crashing
++    with pytest.raises(errors.NoMatch):
++        fs.getinfo("multiple space in filename/")
++
++
++def test_issue_113_with_unsupported_command(fs):
++    """https://github.com/PyFilesystem/pyfilesystem2/issues/113"""
++    # This should raise URLError rather than crashing
++    with pytest.raises(URLError):
++        fs.listdir("unsupported command/")

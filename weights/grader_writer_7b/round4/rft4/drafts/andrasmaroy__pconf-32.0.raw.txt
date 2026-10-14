@@ -1,0 +1,39 @@
+--- /dev/null
++++ b/tests/test_pconf_grader.py
+@@ -0,0 +1,34 @@
++from unittest import TestCase
++from mock import patch, MagicMock
++import pconf
++from pconf import Pconf
++from pconf.store.file import File
++from pconf.store.env import Env
++from pconf.store.memory import Memory
++from pconf.store.argv import Argv
++
++
++TEST_FILE_PATH = "test"
++
++
++TEST_FILE_RESULT = {"file": "result"}
++
++
++TEST_ENV_RESULT = {"env": "result"}
++
++
++TEST_DEFAULTS = {"defaults": "result"}
++
++
++TEST_OVERRIDES = {"overrides": "result"}
++
++
++TEST_ARGV = {"name": "test", "short_name": "t", "type": str, "help": "help text"}
++
++
++TEST_ARGV_RESULT = {"test": True, "argv": "result"}
++
++
++class TestPconf(TestCase):
++    def test_order_reversed_after_get(self):
++        Pconf.defaults(TEST_DEFAULTS)
++        self.assertEqual(Pconf.get(), TEST_DEFAULTS)
++        self.assertNotEqual(Pconf.get(), TEST_DEFAULTS)

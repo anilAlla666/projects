@@ -1,0 +1,104 @@
+--- /dev/null
++++ b/dequindre/tests/test_Dequindre_grader.py
+@@ -0,0 +1,114 @@
++"""Unit tests for the Dequindre class."""
++
++
++from collections import defaultdict
++import pytest
++from dequindre import Task, DAG, Dequindre
++
++
++@pytest.fixture(scope='module')
++def dq():
++    A = Task('A.py', 'test-env')
++    B = Task('B.py', 'test-env')
++    C = Task('C.py', 'test-env')
++    Z = Task('Z.py', 'test-env')
++    dag = DAG()
++    dag.add_tasks({A, B, C, Z})
++    dag.add_edges({A:B, B:C})
++    yield Dequindre(dag)
++
++
++def test__Dequindre_get_task_schedules(dq):
++    task_schedules = dq.get_task_schedules()
++    
++    assert len(task_schedules) == 3
++    assert task_schedules[0][0] == 'A.py'
++    assert task_schedules[0][1]['env'] == 'test-env'
++    assert task_schedules[1][0] == 'B.py'
++    assert task_schedules[1][1]['env'] == 'test-env'
++    assert task_schedules[2][0] == 'C.py'
++    assert task_schedules[2][1]['env'] == 'test-env'
++
++
++def test__Dequindre_get_schedules(dq):
++    schedules = dq.get_schedules()
++    
++    assert len(schedules) == 3
++    assert schedules[0] == ['A.py']
++    assert schedules[1] == ['B.py']
++    assert schedules[2] == ['C.py']
++
++
++def test__Dequindre_get_schedules_empty(dq):
++    """Test what happens when there are no tasks.
++    """
++    dq.dag.clear()
++    schedules = dq.get_schedules()
++    assert schedules == []
++
++    return None
++
++
++def test__Dequindre_get_schedules_one_task(dq):
++    """Test what happens when there is one task.
++    """
++    dq.dag.tasks = {'A': Task('A.py')}
++    schedules = dq.get_schedules()
++    assert schedules == [['A.py']]
++
++    return None
++
++
++def test__Dequindre_get_schedules_two_tasks(dq):
++    """Test what happens when there are two tasks.
++    """
++    dq.dag.tasks = {'A': Task('A.py'), 'B': Task('B.py')}
++    schedules = dq.get_schedules()
++    assert schedules == [['A.py'], ['B.py']]
++
++    return None
++
++
++def test__Dequindre_get_schedules_three_tasks(dq):
++    """Test what happens when there are three tasks.
++    """
++    dq.dag.tasks = {'A': Task('A.py'), 'B': Task('B.py'), 'C': Task('C.py')}
++    schedules = dq.get_schedules()
++    assert schedules == [['A.py'], ['B.py'], ['C.py']]
++
++    return None
++
++
++def test__Dequindre_get_schedules_cycle(dq):
++    """Test what happens when there is a cycle.
++    """
++    dq.dag.tasks = {'A': Task('A.py'), 'B': Task('B.py'), 'C': Task('C.py')}
++    dq.dag.edges = [('A', 'B'), ('B', 'C'), ('C', 'A')]
++    schedules = dq.get_schedules()
++    assert schedules == [['A.py'], ['B.py'], ['C.py']]
++
++    return None
++
++
++def test__Dequindre_get_schedules_single_source_multiple_dest(dq):
++    """Test what happens when there is a single source and multiple dest.
++    """
++    dq.dag.tasks = {'A': Task('A.py'), 'B': Task('B.py'), 'C': Task('C.py')}
++    dq.dag.edges = [('A', 'B'), ('A', 'C')]
++    schedules = dq.get_schedules()
++    assert schedules == [['A.py'], ['B.py'], ['C.py']]
++
++    return None

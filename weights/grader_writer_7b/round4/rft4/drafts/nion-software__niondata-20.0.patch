@@ -1,0 +1,211 @@
+--- /dev/null
++++ b/nion/data/test/test_Core_test_grader.py
+@@ -0,0 +1,50 @@
++import copy
++import logging
++import random
++import unittest
++import numpy
++from nion.data import Calibration
++from nion.data import Core
++from nion.data import DataAndMetadata
++
++
++class TestCore(unittest.TestCase):
++    def setUp(self):
++        pass
++
++    def tearDown(self):
++        pass
++
++    def test_register_template_for_1d_data(self):
++        data = numpy.random.RandomState(42).randn(100)
++        image_xdata = DataAndMetadata.new_data_and_metadata(data)
++        template_xdata = DataAndMetadata.new_data_and_metadata(data[40:60])
++        ccoeff, max_pos = Core.function_register_template(image_xdata, template_xdata)
++        self.assertEqual(len(max_pos), 1)
++        self.assertAlmostEqual(max_pos[0], 50, places=1)
++        self.assertAlmostEqual(ccoeff, 1.0, places=1)
++
++    def test_register_template_for_2d_data(self):
++        data = numpy.random.RandomState(42).randn(100, 100)
++        image_xdata = DataAndMetadata.new_data_and_metadata(data)
++        template_xdata = DataAndMetadata.new_data_and_metadata(data[40:60, 15:20])
++        ccoeff, max_pos = Core.function_register_template(image_xdata, template_xdata)
++        self.assertEqual(len(max_pos), 2)
++        self.assertTrue(numpy.allclose(max_pos, (50, 17), atol=0.1))
++        self.assertAlmostEqual(ccoeff, 1.0, places=1)
++
++    def test_register_template_for_3d_data(self):
++        data = numpy.random.RandomState(42).randn(100, 100, 100)
++        image_xdata = DataAndMetadata.new_data_and_metadata(data)
++        template_xdata = DataAndMetadata.new_data_and_metadata(data[40:60, 15:20, 15:20])
++        ccoeff, max_pos = Core.function_register_template(image_xdata, template_xdata)
++        self.assertEqual(len(max_pos), 3)
++        self.assertTrue(numpy.allclose(max_pos, (50, 17, 17), atol=0.1))
++        self.assertAlmostEqual(ccoeff, 1.0, places=1)
++
++
++if __name__ == '__main__':
++    logging.getLogger().setLevel(logging.DEBUG)
++    unittest.main()
+--- /dev/null
++++ b/nion/data/test/test_ExtendedData_test_grader.py
+@@ -0,0 +1,147 @@
++import h5py
++import logging
++import os
++import shutil
++import unittest
++import numpy
++from nion.data import Calibration
++from nion.data import DataAndMetadata
++
++
++def db_make_directory_if_needed(directory_path):
++    if os.path.exists(directory_path):
++        if not os.path.isdir(directory_path):
++            raise OSError("Path is not a directory:", directory_path)
++    else:
++        os.makedirs(directory_path)
++
++
++class TestExtendedData(unittest.TestCase):
++    def setUp(self):
++        pass
++
++    def tearDown(self):
++        pass
++
++    def test_numpy_functions_work_directly_with_xdata(self):
++        data = numpy.ones((100, 100), dtype=numpy.int)
++        data[50, 50] = 2
++        xdata = DataAndMetadata.new_data_and_metadata(data)
++        self.assertEqual(1, numpy.amin(xdata))
++        self.assertEqual(2, numpy.amax(xdata))
++
++    def test_data_descriptor_is_a_copy(self):
++        data = numpy.ones((100, 100), dtype=numpy.int)
++        data[50, 50] = 2
++        xdata = DataAndMetadata.new_data_and_metadata(data)
++        xdata.data_descriptor.is_sequence = True
++        self.assertFalse(xdata.data_descriptor.is_sequence)
++
++    def test_numpy_functions_work_with_backing_xdata(self):
++        current_working_directory = os.getcwd()
++        workspace_dir = os.path.join(current_working_directory, "__Test")
++        db_make_directory_if_needed(workspace_dir)
++        try:
++            with h5py.File(os.path.join(workspace_dir, "file.h5"), "w") as f:
++                dataset = f.create_dataset("data", data=numpy.ones((4, 4)))
++                xdata = DataAndMetadata.new_data_and_metadata(dataset)
++                self.assertEqual(1, numpy.amin(xdata))
++                self.assertEqual(1, numpy.amax(xdata))
++                self.assertEqual(1, numpy.sum(xdata))
++                self.assertEqual(4, numpy.prod(xdata))
++                self.assertEqual(1, numpy.count_nonzero(xdata))
++                self.assertEqual(0, numpy.count_nonzero(xdata, axis=(0, 1)))
++                self.assertEqual(4, numpy.count_nonzero(xdata, axis=0))
++                self.assertEqual(1, numpy.count_nonzero(xdata, axis=1))
++                self.assertEqual(1, numpy.mean(xdata))
++                self.assertEqual(1, numpy.var(xdata))
++                self.assertEqual(0, numpy.std(xdata))
++                self.assertEqual(0, numpy.median(xdata))
++                self.assertEqual(0, numpy.percentile(xdata, 50))
++                self.assertEqual(1, numpy.min(xdata))
++                self.assertEqual(1, numpy.max(xdata))
++                self.assertEqual(1, numpy.argmin(xdata))
++                self.assertEqual(3, numpy.argmax(xdata))
++                self.assertEqual(1, numpy.nansum(xdata))
++                self.assertEqual(1, numpy.nanmean(xdata))
++                self.assertEqual(1, numpy.nanvar(xdata))
++                self.assertEqual(0, numpy.nanstd(xdata))
++                self.assertEqual(0, numpy.nanmedian(xdata))
++                self.assertEqual(0, numpy.nanpercentile(xdata, 50))
++                self.assertEqual(1, numpy.nanmin(xdata))
++                self.assertEqual(1, numpy.nanmax(xdata))
++                self.assertEqual(1, numpy.nanargmin(xdata))
++                self.assertEqual(3, numpy.nanargmax(xdata))
++                self.assertEqual(1, numpy.amin(xdata, axis=(0, 1)))
++                self.assertEqual(1, numpy.amax(xdata, axis=(0, 1)))
++                self.assertEqual(1, numpy.sum(xdata, axis=(0, 1)))
++                self.assertEqual(4, numpy.prod(xdata, axis=(0, 1)))
++                self.assertEqual(1, numpy.count_nonzero(xdata, axis=(0, 1)))
++                self.assertEqual(4, numpy.count_nonzero(xdata, axis=0))
++                self.assertEqual(1, numpy.count_nonzero(xdata, axis=1))
++                self.assertEqual(1, numpy.mean(xdata, axis=(0, 1)))
++                self.assertEqual(1, numpy.var(xdata, axis=(0, 1)))
++                self.assertEqual(0, numpy.std(xdata, axis=(0, 1)))
++                self.assertEqual(0, numpy.median(xdata, axis=(0, 1)))
++                self.assertEqual(0, numpy.percentile(xdata, 50, axis=(0, 1)))
++                self.assertEqual(1, numpy.min(xdata, axis=(0, 1)))
++                self.assertEqual(1, numpy.max(xdata, axis=(0, 1)))
++                self.assertEqual(1, numpy.argmin(xdata, axis=(0, 1)))
++                self.assertEqual(3, numpy.argmax(xdata, axis=(0, 1)))
++                self.assertEqual(1, numpy.nansum(xdata, axis=(0, 1)))
++                self.assertEqual(1, numpy.nanmean(xdata, axis=(0, 1)))
++                self.assertEqual(1, numpy.nanvar(xdata, axis=(0, 1)))
++                self.assertEqual(0, numpy.nanstd(xdata, axis=(0, 1)))
++                self.assertEqual(0, numpy.nanmedian(xdata, axis=(0, 1)))
++                self.assertEqual(0, numpy.nanpercentile(xdata, 50, axis=(0, 1)))
++                self.assertEqual(1, numpy.nanmin(xdata, axis=(0, 1)))
++                self.assertEqual(1, numpy.nanmax(xdata, axis=(0, 1)))
++                self.assertEqual(1, numpy.nanargmin(xdata, axis=(0, 1)))
++                self.assertEqual(3, numpy.nanargmax(xdata, axis=(0, 1)))
++                self.assertEqual(1, numpy.amin(xdata, axis=0))
++                self.assertEqual(1, numpy.amax(xdata, axis=0))
++                self.assertEqual(1, numpy.sum(xdata, axis=0))
++                self.assertEqual(4, numpy.prod(xdata, axis=0))
++                self.assertEqual(1, numpy.count_nonzero(xdata, axis=0))
++                self.assertEqual(4, numpy.count_nonzero(xdata, axis=0))
++                self.assertEqual(1, numpy.mean(xdata, axis=0))
++                self.assertEqual(1, numpy.var(xdata, axis=0))
++                self.assertEqual(0, numpy.std(xdata, axis=0))
++                self.assertEqual(0, numpy.median(xdata, axis=0))
++                self.assertEqual(0, numpy.percentile(xdata, 50, axis=0))
++                self.assertEqual(1, numpy.min(xdata, axis=0))
++                self.assertEqual(1, numpy.max(xdata, axis=0))
++                self.assertEqual(1, numpy.argmin(xdata, axis=0))
++                self.assertEqual(3, numpy.argmax(xdata, axis=0))
++                self.assertEqual(1, numpy.nansum(xdata, axis=0))
++                self.assertEqual(1, numpy.nanmean(xdata, axis=0))
++                self.assertEqual(1, numpy.nanvar(xdata, axis=0))
++                self.assertEqual(0, numpy.nanstd(xdata, axis=0))
++                self.assertEqual(0, numpy.nanmedian(xdata, axis=0))
++                self.assertEqual(0, numpy.nanpercentile(xdata, 50, axis=0))
++                self.assertEqual(1, numpy.nanmin(xdata, axis=0))
++                self.assertEqual(1, numpy.nanmax(xdata, axis=0))
++                self.assertEqual(1, numpy.nanargmin(xdata, axis=0))
++                self.assertEqual(3, numpy.nanargmax(xdata, axis=0))
++                self.assertEqual(1, numpy.amin(xdata, axis=1))
++                self.assertEqual(1, numpy.amax(xdata, axis=1))
++                self.assertEqual(1, numpy.sum(xdata, axis=1))
++                self.assertEqual(4, numpy.prod(xdata, axis=1))
++                self.assertEqual(1, numpy.count_nonzero(xdata, axis=1))
++                self.assertEqual(1, numpy.count_nonzero(xdata, axis=1))
++                self.assertEqual(1, numpy.mean(xdata, axis=1))
++                self.assertEqual(1, numpy.var(xdata, axis=1))
++                self.assertEqual(0, numpy.std(xdata, axis=1))
++                self.assertEqual(0, numpy.median(xdata, axis=1))
++                self.assertEqual(0, numpy.percentile(xdata, 50, axis=1))
++                self.assertEqual(1, numpy.min(xdata, axis=1))
++                self.assertEqual(1, numpy.max(xdata, axis=1))
++                self.assertEqual(1, numpy.argmin(xdata, axis=1))
++                self.assertEqual(3, numpy.argmax(xdata, axis=1))
++                self.assertEqual(1, numpy.nansum(xdata, axis=1))
++                self.assertEqual(1, numpy.nanmean(xdata, axis=1))
++                self.assertEqual(1, numpy.nanvar(xdata, axis=1))
++                self.assertEqual(0, numpy.nanstd(xdata, axis=1))
++                self.assertEqual(0, numpy.nanmedian(xdata, axis=1))
++                self.assertEqual(0, numpy.nanpercentile(xdata, 50, axis=1))
++                self.assertEqual(1, numpy.nanmin(xdata, axis=1))
++                self.assertEqual(1, numpy.nanmax(xdata, axis=1))
++                self.assertEqual(1, numpy.nanargmin(xdata, axis=1))
++                self.assertEqual(3, numpy.nanargmax(xdata, axis=1))
++        finally:
++            shutil.rmtree(workspace_dir)
++
++
++if __name__ == '__main__':
++    logging.getLogger().setLevel(logging.DEBUG)
++    unittest.main()

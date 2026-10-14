@@ -1,0 +1,122 @@
+--- /dev/null
++++ b/tests/test_adapter_grader.py
+@@ -0,0 +1,124 @@
++from casbin_sqlalchemy_adapter import Adapter
++from casbin_sqlalchemy_adapter import Base
++from casbin_sqlalchemy_adapter import CasbinRule
++from casbin_sqlalchemy_adapter.adapter import Filter
++from sqlalchemy import create_engine
++from sqlalchemy.orm import sessionmaker
++from unittest import TestCase
++import casbin
++import os
++
++
++def get_fixture(path):
++    dir_path = os.path.split(os.path.realpath(__file__))[0] + "/"
++    return os.path.abspath(dir_path + path)
++
++
++def get_enforcer():
++    engine = create_engine("sqlite://")
++    # engine = create_engine('sqlite:///' + os.path.split(os.path.realpath(__file__))[0] + '/test.db', echo=True)
++    adapter = Adapter(engine)
++
++    session = sessionmaker(bind=engine)
++    Base.metadata.create_all(engine)
++    s = session()
++    s.query(CasbinRule).delete()
++    s.add(CasbinRule(ptype='p', v0='alice', v1='data1', v2='read'))
++    s.add(CasbinRule(ptype='p', v0='bob', v1='data2', v2='write'))
++    s.add(CasbinRule(ptype='p', v0='data2_admin', v1='data2', v2='read'))
++    s.add(CasbinRule(ptype='p', v0='data2_admin', v1='data2', v2='write'))
++    s.add(CasbinRule(ptype='g', v0='alice', v1='data2_admin'))
++    s.commit()
++    s.close()
++
++    return casbin.Enforcer(get_fixture('rbac_model.conf'), adapter)
++
++
++class TestAdapter(TestCase):
++    def setUp(self):
++        self.e = get_enforcer()
++        
++    def tearDown(self):
++        engine = create_engine("sqlite://")
++        session = sessionmaker(bind=engine)
++        Base.metadata.drop_all(engine)
++        s = session()
++        s.query(CasbinRule).delete()
++        s.commit()
++        s.close()
++
++    def test_save_policy(self):
++        self.e.save_policy()
++        self.assertEqual(5, self.e.get_policy_len())
++
++    def test_add_policy(self):
++        self.e.add_policy("p", "p", ["alice", "data1", "write"])
++        self.assertEqual(6, self.e.get_policy_len())
++
++    def test_add_policies(self):
++        policies = [["alice", "data1", "write"],["alice", "data2", "write"]]
++        self.e.add_policies("p", "p", policies)
++        self.assertEqual(7, self.e.get_policy_len())
++
++    def test_remove_policy(self):
++        self.e.remove_policy("p", "p", ["alice", "data1", "read"])
++        self.assertEqual(4, self.e.get_policy_len())
++
++    def test_remove_policies(self):
++        policies = [["alice", "data1", "write"],["alice", "data2", "write"]]
++        self.e.remove_policies("p", "p", policies)
++        self.assertEqual(3, self.e.get_policy_len())
++
++    def test_remove_filtered_policy(self):
++        self.e.remove_filtered_policy("p", "p", 0, "alice")
++        self.assertEqual(2, self.e.get_policy_len())
++
++    def test_load_filtered_policy(self):
++        filter = Filter()
++        filter.v0 = ['alice']
++        self.e.load_filtered_policy(filter)
++        self.assertEqual(2, self.e.get_policy_len())
++
++        filter.v0 = []
++        filter.v1 = ['data1']
++        self.e.load_filtered_policy(filter)
++        self.assertEqual(1, self.e.get_policy_len())
++
++        filter.v1 = []
++        filter.v2 = ['read']
++        self.e.load_filtered_policy(filter)
++        self.assertEqual(1, self.e.get_policy_len())
++
++    def test_get_policy_len(self):
++        self.assertEqual(5, self.e.get_policy_len())
++
++    def test_batch_operations(self):
++        self.e.save_policy()
++        self.assertEqual(5, self.e.get_policy_len())
++        self.e.add_policy("p", "p", ["alice", "data1", "write"])
++        self.assertEqual(6, self.e.get_policy_len())
++        policies = [["alice", "data1", "write"],["alice", "data2", "write"]]
++        self.e.add_policies("p", "p", policies)
++        self.assertEqual(8, self.e.get_policy_len())
++        self.e.remove_policy("p", "p", ["alice", "data1", "write"])
++        self.assertEqual(7, self.e.get_policy_len())
++        policies = [["alice", "data1", "write"],["alice", "data2", "write"]]
++        self.e.remove_policies("p", "p", policies)
++        self.assertEqual(5, self.e.get_policy_len())
++        self.e.remove_filtered_policy("p", "p", 0, "alice")
++        self.assertEqual(3, self.e.get_policy_len())
++        self.e.remove_filtered_policy("p", "p", 1, "data2")
++        self.assertEqual(2, self.e.get_policy_len())
++        self.e.remove_filtered_policy("p", "p", 2, "read")
++        self.assertEqual(1, self.e.get_policy_len())
++
++    def test_get_grouping_policy_len(self):
++        self.assertEqual(1, self.e.get_grouping_policy_len())
++
++    def test_get_named_policy_len(self):
++        self.assertEqual(5, self.e.get_named_policy_len("p"))

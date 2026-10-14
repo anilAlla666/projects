@@ -1,0 +1,110 @@
+--- /dev/null
++++ b/t/unit/test_transport_grader.py
+@@ -0,0 +1,110 @@
++import errno
++import os
++import re
++import ssl
++import socket
++import struct
++from struct import pack
++from unittest.mock import ANY, MagicMock, Mock, call, patch, sentinel
++import pytest
++from amqp import transport
++from amqp.exceptions import UnexpectedFrame
++from amqp.transport import _AbstractTransport
++
++
++SIGNED_INT_MAX = 0x7FFFFFFF
++
++
++class DummyException(Exception):
++    pass
++
++
++class MockSocket:
++    options = {}
++
++    def __init__(self, *args, **kwargs):
++        super().__init__(*args, **kwargs)
++        self.connected = False
++        self.sa = None
++
++    def setsockopt(self, family, key, value):
++        is_sol_socket = family == socket.SOL_SOCKET
++        is_receive_or_send_timeout = key in (socket.SO_RCVTIMEO,
++                                             socket.SO_SNDTIMEO)
++        if is_sol_socket and is_receive_or_send_timeout:
++            self.options[key] = value
++        elif not isinstance(value, int):
++            raise OSError()
++        self.options[key] = value
++
++    def bind(self, sa):
++        self.sa = sa
++
++    def connect(self, sa):
++        self.connected = True
++        self.sa = sa
++
++    def close(self):
++        self.connected = False
++
++    def sendall(self, data):
++        return data
++
++    def recv(self, size):
++        return b''
++
++    def unwrap(self):
++        return None
++
++
++class TestSSLTransport:
++    Transport = transport.SSLTransport
++
++    @pytest.fixture(autouse=True)
++    def setup_transport(self):
++        self.t = self.Transport('host', 3)
++
++    def test_wrap_socket_sni__verify_none(self):
++        mock_context = Mock()
++        mock_sock = Mock()
++        mock_sock.getpeername.return_value = ('1.2.3.4', 5671)
++        mock_sock.getsockname.return_value = ('127.0.0.1', 1234)
++
++        with patch.object(ssl, 'create_default_context') as create_context:
++            create_context.return_value = mock_context
++            transport.SSLTransport._wrap_socket_sni(mock_sock, True, None,
++                                                   'localhost')
++
++        assert mock_context.verify_mode == ssl.CERT_NONE
++        assert mock_context.check_hostname is False
++
++    def test_wrap_socket_sni__verify_required(self):
++        mock_context = Mock()
++        mock_sock = Mock()
++        mock_sock.getpeername.return_value = ('1.2.3.4', 5671)
++        mock_sock.getsockname.return_value = ('127.0.0.1', 1234)
++
++        with patch.object(ssl, 'create_default_context') as create_context:
++            create_context.return_value = mock_context
++            transport.SSLTransport._wrap_socket_sni(mock_sock, True, None,
++                                                   'localhost')
++
++        assert mock_context.verify_mode == ssl.CERT_REQUIRED
++        assert mock_context.check_hostname is True
++
++    def test_wrap_socket_sni__verify_optional(self):
++        mock_context = Mock()
++        mock_sock = Mock()
++        mock_sock.getpeername.return_value = ('1.2.3.4', 5671)
++        mock_sock.getsockname.return_value = ('127.0.0.1', 1234)
++
++        with patch.object(ssl, 'create_default_context') as create_context:
++            create_context.return_value = mock_context
++            transport.SSLTransport._wrap_socket_sni(mock_sock, True, None,
++                                                   'localhost')
++
++        assert mock_context.verify_mode == ssl.CERT_OPTIONAL
++        assert mock_context.check_hostname is True

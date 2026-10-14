@@ -1,0 +1,37 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,33 @@
++import pytest
++from baseclasses.utils import CaseInsensitiveDict, CaseInsensitiveSet
++
++
++@pytest.mark.parametrize(
++    "input",
++    [
++        {"a": 1},
++        {"A": 1},
++        {"a": 1, "B": 2},
++        {"a": 1, "b": 2, "C": 3},
++    ],
++)
++def test_pprint(input):
++    from pprint import pformat
++
++    casedict = CaseInsensitiveDict(input)
++    assert pformat(casedict) == pformat(CaseInsensitiveDict({i.lower(): v for i, v in input.items()}))
++
++
++@pytest.mark.parametrize(
++    "input",
++    [
++        ["a", "b"],
++        ["A", "B"],
++        ["a", "B", "C"],
++        ["a", "b", "c"],
++    ],
++)
++def test_pprint_set(input):
++    from pprint import pformat
++
++    caseset = CaseInsensitiveSet(input)
++    assert pformat(caseset) == pformat(set([i.lower() for i in input]))

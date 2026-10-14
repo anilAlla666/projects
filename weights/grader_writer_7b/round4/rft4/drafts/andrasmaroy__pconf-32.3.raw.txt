@@ -1,0 +1,73 @@
+--- /dev/null
++++ b/tests/test_pconf_grader.py
+@@ -0,0 +1,70 @@
++from unittest import TestCase
++from mock import patch, MagicMock
++import pconf
++from pconf import Pconf
++from pconf.store.file import File
++from pconf.store.env import Env
++from pconf.store.memory import Memory
++from pconf.store.argv import Argv
++
++
++TEST_FILE_PATH = "test"
++
++
++TEST_FILE_RESULT = {"file": "result"}
++
++
++TEST_ENV_RESULT = {"env": "result"}
++
++
++TEST_DEFAULTS = {"defaults": "result"}
++
++
++TEST_OVERRIDES = {"overrides": "result"}
++
++
++TEST_ARGV = {"name": "test", "short_name": "t", "type": str, "help": "help text"}
++
++
++TEST_ARGV_RESULT = {"test": True, "argv": "result"}
++
++
++class TestPconf(TestCase):
++    def setUp(self):
++        Pconf.clear()
++
++    def test_get_multiple_calls(self):
++        Pconf.defaults(TEST_DEFAULTS)
++        Pconf.env()
++        Pconf.argv(**TEST_ARGV)
++
++        self.assertEqual(Pconf.get(), {**TEST_DEFAULTS})
++        self.assertEqual(Pconf.get(), {**TEST_DEFAULTS})
++        self.assertEqual(Pconf.get(), {**TEST_DEFAULTS})
++
++    def test_get_env_first(self):
++        Pconf.env()
++        Pconf.defaults(TEST_DEFAULTS)
++        Pconf.argv(**TEST_ARGV)
++
++        self.assertEqual(Pconf.get(), {**TEST_DEFAULTS})
++        self.assertEqual(Pconf.get(), {**TEST_DEFAULTS})
++        self.assertEqual(Pconf.get(), {**TEST_DEFAULTS})
++
++    def test_get_argv_first(self):
++        Pconf.argv(**TEST_ARGV)
++        Pconf.defaults(TEST_DEFAULTS)
++        Pconf.env()
++
++        self.assertEqual(Pconf.get(), {**TEST_ARGV_RESULT})
++        self.assertEqual(Pconf.get(), {**TEST_ARGV_RESULT})
++        self.assertEqual(Pconf.get(), {**TEST_ARGV_RESULT})
++
++    def test_get_env_last(self):
++        Pconf.defaults(TEST_DEFAULTS)
++        Pconf.argv(**TEST_ARGV)
++        Pconf.env()
++
++        self.assertEqual(Pconf.get(), {**TEST_ARGV_RESULT})
++        self.assertEqual(Pconf.get(), {**TEST_ARGV_RESULT})
++        self.assertEqual(Pconf.get(), {**TEST_ARGV_RESULT})

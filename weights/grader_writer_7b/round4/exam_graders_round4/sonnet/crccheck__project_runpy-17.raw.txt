@@ -1,0 +1,42 @@
+I'm adding a new test file, `test_readable_sql_none.py`, that checks the filter no longer raises when the SQL argument is `None`. I haven't run it against the current code or a fix.
+
+The issue gives only the traceback, so the tests assert only what it implies. `filter` must not raise a `TypeError` when `sql` is `None`, and it must return a truthy value so the record is still logged. They don't pin down what the filter does to the record's contents, since the issue leaves that open.
+
+Django passes `None` as the SQL argument in some cases, such as `executemany` with an empty parameter list. One test uses a mock record with args `(0.1, None, ())`. A second goes through a real logger and handler with the same arguments, using `%s` for each slot so formatting works. A third covers `(0.1, None)` with no params.
+
+All three fail on the current code with the `TypeError` and should pass once `None` is handled.
+
+```diff
+--- /dev/null
++++ b/test_readable_sql_none.py
+@@ -0,0 +1,36 @@
++import logging
++from unittest import TestCase, mock
++
++from project_runpy import ReadableSqlFilter
++
++
++class ReadableSqlFilterNoneSql(TestCase):
++    def test_filter_handles_none_sql(self):
++        logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=(0.1, None, ()))
++        self.assertTrue(logging_filter.filter(record))
++
++    def test_filter_handles_none_sql_without_params(self):
++        logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=(0.1, None))
++        self.assertTrue(logging_filter.filter(record))
++
++    def test_logger_with_none_sql(self):
++        logger = logging.getLogger('foo.sqlnone')
++        logger.propagate = False
++        handler = logging.NullHandler()
++        logger.addHandler(handler)
++        flt = ReadableSqlFilter()
++        logger.addFilter(flt)
++        try:
++            logger.warning('(%.3f) %s; args=%s', 0.1, None, ())
++        finally:
++            logger.removeFilter(flt)
++            logger.removeHandler(handler)
+```

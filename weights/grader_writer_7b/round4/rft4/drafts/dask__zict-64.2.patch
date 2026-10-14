@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/tests/test_func_grader.py
+@@ -0,0 +1,23 @@
++import pickle
++from typing import List, Tuple
++
++
++try:
++    import pickle5 as pickle
++except ImportError:
++    import pickle
++
++
++import pytest
++from zict.common import Memory
++from zict.func import Func
++
++
++def func(x: int) -> Tuple[int, bytes]:
++    return x, pickle.dumps(x)
++
++
++@pytest.mark.parametrize("n", range(100))
++def test_func_buffered(n: int) -> None:
++    buf = Func(func, pickle.loads, Memory())
++    buf.update(range(n), buffered=True)
++    assert list(buf.keys()) == list(range(n))

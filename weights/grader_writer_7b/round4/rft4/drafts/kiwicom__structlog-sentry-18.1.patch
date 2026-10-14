@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_structlog_sentry_grader.py
+@@ -0,0 +1,12 @@
++import pytest
++from structlog.processors import format_exc_info
++
++
++@pytest.mark.parametrize(
++    "processors",
++    [
++        [format_exc_info],
++        [format_exc_info, SentryProcessor()],
++    ],
++)
++def test_processors(processors):  # noqa
++    assert processors[-1](None, None, {}) == {}

@@ -1,0 +1,102 @@
+I've added one test file for multi-mode distributions. I haven't run it against the current code or a fix.
+
+The tests use only the interfaces visible in the existing code: `Particle(**kwargs)`, `particle_radius`, `cut_rad` and `discretize`. I could not see the rest of the `Particle` class, so I left out the distribution method names and any check on total particle number, since those would depend on details the issue doesn't specify.
+
+- **Particle construction:** `Particle(**multi_mode)` is built with the issue's kwargs, with both `logspace` and `linspace` spacing. `particle_radius` must have shape `(1000,)`, be finite and positive, and span the smallest to the largest mode (50 nm to 5000 nm).
+- **Radius cutoff:** `cut_rad` with list-valued `mode` and `gsigma` must return a range that covers all modes.
+- **Discretization:** `discretize` with list-valued `mode` and `gsigma` must return one value per interval point, finite and non-negative. It must have more than one local peak when the modes are far apart (e.g. 50 nm and 5000 nm). A single mode must still work.
+
+```diff
+--- /dev/null
++++ b/particula/tests/multimode_test.py
+@@ -0,0 +1,84 @@
++"""Tests for multi-mode particle distributions.
++"""
++
++import numpy as np
++import pytest
++from particula import particle
++from particula.util.distribution_discretization import discretize
++from particula.util.radius_cutoff import cut_rad
++
++MULTI_MODE = {
++    "mode": [5000e-9, 50e-9, 300e-9],  # coarse, nano, fine
++    "nbins": 1000,
++    "nparticles": [1e6, 1e9, 1e7],
++    "volume": 1e-6,
++    "gsigma": [1.5, 1.2, 1.5],
++    "spacing": "logspace",
++}
++
++
++def test_particle_multimode_construct():
++    """ a Particle can be built from multi-mode kwargs and spans all modes
++    """
++    multi = particle.Particle(**MULTI_MODE)
++    rad = np.asarray(multi.particle_radius.m)
++
++    assert rad.shape == (1000,)
++    assert np.all(np.isfinite(rad))
++    assert np.all(rad > 0)
++    assert rad.min() <= 50e-9
++    assert rad.max() >= 5000e-9
++
++
++def test_particle_multimode_linspace():
++    """ multi-mode also works with linspace spacing
++    """
++    kwargs = dict(MULTI_MODE)
++    kwargs["spacing"] = "linspace"
++    multi = particle.Particle(**kwargs)
++    rad = np.asarray(multi.particle_radius.m)
++
++    assert rad.shape == (1000,)
++    assert rad.min() <= 50e-9
++    assert rad.max() >= 5000e-9
++
++
++def test_cut_rad_multimode():
++    """ radius cutoff covers all modes
++    """
++    start, end = cut_rad(
++        gsigma=[1.5, 1.2, 1.5],
++        mode=[5000e-9, 50e-9, 300e-9],
++    )
++    assert np.min(start) <= 50e-9
++    assert np.max(end) >= 5000e-9
++
++
++def test_discretize_multimode():
++    """ discretize handles multiple modes
++    """
++    interval = np.logspace(-9, -5, 500)
++    dist = discretize(
++        interval=interval,
++        gsigma=[1.5, 1.2, 1.5],
++        mode=[5000e-9, 50e-9, 300e-9],
++    )
++    vals = np.asarray(dist.m if hasattr(dist, "m") else dist)
++    assert vals.shape == (500,)
++    assert np.all(np.isfinite(vals))
++    assert np.all(vals >= 0)
++
++    # more than one peak: two well separated modes
++    dist2 = discretize(
++        interval=interval,
++        gsigma=[1.2, 1.2],
++        mode=[5000e-9, 50e-9],
++    )
++    v2 = np.asarray(dist2.m if hasattr(dist2, "m") else dist2)
++    peaks = np.sum((v2[1:-1] > v2[:-2]) & (v2[1:-1] > v2[2:]))
++    assert peaks >= 2
++
++
++def test_discretize_single_mode_still_works():
++    """ single mode behaviour is kept
++    """
++    interval = np.linspace(1e-9, 1e-6, 100)
++    dist = discretize(interval=interval, gsigma=1.25, mode=100e-9)
++    vals = np.asarray(dist.m if hasattr(dist, "m") else dist)
++    assert vals.shape == (100,)
++    assert vals.max() > 0
+```

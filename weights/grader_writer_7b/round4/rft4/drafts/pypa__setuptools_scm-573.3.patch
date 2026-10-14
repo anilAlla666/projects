@@ -1,0 +1,103 @@
+--- /dev/null
++++ b/testing/test_version_grader.py
+@@ -0,0 +1,105 @@
++from datetime import date, timedelta
++import pytest
++from setuptools_scm.config import Configuration
++from setuptools_scm.version import (
++    meta,
++    simplified_semver_version,
++    release_branch_semver_version,
++    tags_to_versions,
++    no_guess_dev_version,
++    guess_next_version,
++    format_version,
++    calver_by_date,
++    ReleaseBranchSemver,
++)
++
++
++c = Configuration()
++
++
++@pytest.fixture
++def version():
++    return meta("1.0.0", config=c)
++
++
++@pytest.mark.parametrize(
++    "version, expected_next",
++    [
++        pytest.param(meta("1.0.0", config=c), "1.0.0", id="SemVer exact"),
++        pytest.param(
++            meta("1.0.0", config=c, dirty=True),
++            "1.0.0",
++            id="SemVer dirty",
++            marks=pytest.mark.xfail,
++        ),
++        pytest.param(
++            ReleaseBranchSemver("v1.2.0", config=c),
++            "1.2.0",
++            id="Release Branch SemVer exact",
++        ),
++        pytest.param(
++            ReleaseBranchSemver("v1.2.0", config=c, dirty=True),
++            "1.2.0",
++            id="Release Branch SemVer dirty",
++            marks=pytest.mark.xfail,
++        ),
++    ],
++)
++def test_calver_by_date_semver(version, expected_next):
++    computed = calver_by_date(version)
++    assert computed == expected_next
++
++
++def date_to_str(days_offset=0, fmt="{dt:%y}.{dt.month}.{dt.day}"):
++    dt = date.today() + timedelta(days=days_offset)
++    return fmt.format(dt=dt)
++
++
++def test_release_branch_semver_is_deprecated():
++    version = meta("1.0.0", config=c)
++    with pytest.deprecated_call(match=r"deprecated and will be removed"):
++        release_branch_semver(version)
++
++
++@pytest.mark.parametrize(
++    "version, expected_next",
++    [
++        pytest.param(meta("1.0.0", config=c), "1.0.0", id="SemVer exact"),
++        pytest.param(
++            meta("1.0.0", config=c, dirty=True),
++            "1.0.0",
++            id="SemVer dirty",
++            marks=pytest.mark.xfail,
++        ),
++        pytest.param(
++            ReleaseBranchSemver("v1.2.0", config=c),
++            "1.2.0",
++            id="Release Branch SemVer exact",
++        ),
++        pytest.param(
++            ReleaseBranchSemver("v1.2.0", config=c, dirty=True),
++            "1.2.0",
++            id="Release Branch SemVer dirty",
++            marks=pytest.mark.xfail,
++        ),
++        pytest.param(
++            ReleaseBranchSemver("1.2.0", config=c),
++            "1.2.0",
++            id="Release Branch SemVer exact",
++        ),
++        pytest.param(
++            ReleaseBranchSemver("1.2.0", config=c, dirty=True),
++            "1.2.0",
++            id="Release Branch SemVer dirty",
++            marks=pytest.mark.xfail,
++        ),
++    ],
++)
++def test_release_branch_semver(version, expected_next):
++    computed = release_branch_semver(version)
++    assert computed == expected_next

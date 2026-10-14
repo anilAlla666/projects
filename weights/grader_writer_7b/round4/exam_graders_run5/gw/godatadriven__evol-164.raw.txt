@@ -1,0 +1,43 @@
+--- /dev/null
++++ b/tests/test_evolution_grader.py
+@@ -0,0 +1,17 @@
++from pytest import mark
++from evol import Evolution, Population
++from evol.helpers.groups import group_random, group_duplicate, group_stratified
++from evol.helpers.pickers import pick_random
++
++
++class TestPopulationEvolve:
++    @mark.parametrize('elitist', [True, False])
++    def test_mutate_elitist(self, elitist):
++        pop = Population([0 for i in range(100)], lambda x: x)
++        pop.evaluate()
++        pop.mutate(lambda x: x + 1, elitist=elitist)
++        if elitist:
++            assert pop.current_best.fitness == 0
++        else:
++            assert pop.current_best.fitness == 1
+--- /dev/null
++++ b/tests/test_population_grader.py
+@@ -0,0 +1,17 @@
++from time import sleep, time
++import os
++from copy import copy
++from pytest import raises, mark
++from random import random, choices, seed
++from evol import Population, ContestPopulation
++from evol.helpers.groups import group_duplicate, group_stratified
++from evol.helpers.pickers import pick_random
++from evol.population import Contest
++
++
++class TestPopulationSimple:
++    @mark.parametrize('elitist', [True, False])
++    def test_mutate_elitist(self, elitist):
++        pop = Population([0 for i in range(100)], lambda x: x)
++        pop.evaluate()
++        pop.mutate(lambda x: x + 1, elitist=elitist)
++        if elitist:
++            assert pop.current_best.fitness == 0
++        else:
++            assert pop.current_best.fitness == 1

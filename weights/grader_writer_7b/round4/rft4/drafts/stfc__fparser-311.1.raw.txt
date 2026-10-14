@@ -1,0 +1,65 @@
+--- /dev/null
++++ b/src/fparser/two/tests/test_fortran2003_grader.py
+@@ -0,0 +1,66 @@
++import pytest
++from fparser.two.utils import FortranSyntaxError
++from fparser.api import get_reader
++from fparser.two.Fortran2003 import Symbol_Name, Type_Declaration_Stmt
++
++
++def test_type_declaration_stmt_without_scoping_region(f2003_create_session):  # noqa: E501
++    """
++    Check that we can parse a type declaration statement without a
++    scoping region.
++    """
++    reader = get_reader("f2003")
++    reader.set_source_string("INTEGER :: a\n")
++    stmt = Type_Declaration_Stmt(reader)
++    assert stmt.name.string == 'a'
++    assert stmt.type_spec.string == 'INTEGER'
++
++
++def test_type_declaration_stmt_with_scoping_region(f2003_create_session):  # noqa: E501
++    """
++    Check that we can parse a type declaration statement within a
++    scoping region.
++    """
++    reader = get_reader("f2003")
++    reader.set_source_string("""
++    PROGRAM foo
++       INTEGER :: a
++    END PROGRAM foo""")
++    stmt = Type_Declaration_Stmt(reader)
++    assert stmt.name.string == 'a'
++    assert stmt.type_spec.string == 'INTEGER'
++
++
++def test_type_declaration_stmt_multiple_declarations(f2003_create_session):  # noqa: E501
++    """
++    Check that we can parse multiple declarations in a type
++    declaration statement.
++    """
++    reader = get_reader("f2003")
++    reader.set_source_string("REAL :: a, b, c\n")
++    stmt = Type_Declaration_Stmt(reader)
++    assert stmt.name.string == 'a'
++    assert stmt.type_spec.string == 'REAL'
++    assert stmt.decl_list[1].name.string == 'b'
++    assert stmt.decl_list[2].name.string == 'c'
++
++
++def test_type_declaration_stmt_attribute_spec_list(f2003_create_session):  # noqa: E501
++    """
++    Check that we can parse attribute specifications in a type
++    declaration statement.
++    """
++    reader = get_reader("f2003")
++    reader.set_source_string("REAL, PUBLIC :: a\n")
++    stmt = Type_Declaration_Stmt(reader)
++    assert stmt.attr_spec_list[0].attr_name.string == 'PUBLIC'
++    assert stmt.name.string == 'a'
++    assert stmt.type_spec.string == 'REAL'
++
++
++if __name__ == '__main__':
++    pytest.main([__file__))

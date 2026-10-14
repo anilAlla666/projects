@@ -1,0 +1,33 @@
+To address the issue of retrieving quicker updating data without caching, we can add a test that checks if including `type=api` in the URL results in faster data retrieval compared to the default behavior.
+
+Here's how you can write the test:
+
+1. **Add a new test function in `tests/test_api.py`** to measure the response time for both URLs.
+
+```python
+import time
+from redpocket import RedPocket
+
+def test_get_details_with_type_api_faster_than_default(test_client):
+    # Create a RedPocket instance
+    rp = RedPocket(username="fake", password="password")
+
+    # Measure the response time for the default URL
+    start_time = time.time()
+    rp.get_line_details(account_hash="AAA1BBB2")
+    default_url_response_time = time.time() - start_time
+
+    # Measure the response time for the URL with type=api
+    start_time = time.time()
+    rp.get_line_details(account_hash="AAA1BBB2", params={"type": "api"})
+    api_url_response_time = time.time() - start_time
+
+    # Assert that the API URL response time is less than the default URL response time
+    assert api_url_response_time < default_url_response_time
+```
+
+2. **Ensure that the `test_client` fixture is available** in your test environment. This fixture should provide a way to make HTTP requests to the application under test. If it's not already available, you may need to set it up.
+
+3. **Run the test** to ensure it fails on the current code and passes once the issue is fixed.
+
+This test will help verify that including `type=api` in the URL indeed results in faster data retrieval compared to the default behavior. The test measures the response times for both URLs and asserts that the API URL response time is less than the default URL response time.

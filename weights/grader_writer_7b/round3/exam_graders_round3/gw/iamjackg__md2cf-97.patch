@@ -1,0 +1,419 @@
+diff --git a/tests/test_confluence_renderer.py b/tests/test_confluence_renderer.py
+index 0e1b0a5..d0c3001 100644
+--- a/tests/test_confluence_renderer.py
++++ b/tests/test_confluence_renderer.py
+@@ -1,4 +1,5 @@
+ import unittest
++from pathlib import Path
+ 
+ from markdown import markdown
+ from lxml import etree
+@@ -10,6 +11,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "https://example.com"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original, "&lt;https://example.com&gt;"
+         )
+@@ -20,6 +22,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "file:///path/to/file.txt"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;file:///path/to/file.txt&gt;",
+@@ -30,6 +33,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "/path/to/file.txt"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;/path/to/file.txt&gt;",
+@@ -40,6 +44,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "file.txt"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;file.txt&gt;",
+@@ -50,6 +55,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;#section&gt;",
+@@ -60,6 +66,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md&gt;",
+@@ -70,6 +77,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -80,6 +88,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -90,6 +99,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -100,6 +110,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -110,6 +121,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -120,6 +132,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -130,6 +143,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -140,6 +154,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -150,6 +165,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -160,6 +176,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -170,6 +187,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -180,6 +198,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -190,6 +209,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -200,6 +220,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -210,6 +231,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -220,6 +242,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -230,6 +253,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -240,6 +264,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -250,6 +275,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -260,6 +286,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -270,6 +297,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -280,6 +308,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -290,6 +319,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -300,6 +330,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -310,6 +341,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -320,6 +352,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -330,6 +363,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -340,6 +374,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -350,6 +385,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -360,6 +396,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -370,6 +407,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -380,6 +418,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -390,6 +429,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -400,6 +440,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -410,6 +451,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -420,6 +462,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -430,6 +473,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -440,6 +484,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -450,6 +495,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -460,6 +506,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -470,6 +517,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -480,6 +528,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -490,6 +539,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -500,6 +550,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -510,6 +561,7 @@ class TestConfluenceRenderer(unittest.TestCase):
+         self.assertEqual(len(renderer.relative_links), 1)
+         self.assertEqual(
+             renderer.relative_links[0].original, "test.md#section"
++        )
+         self.assertEqual(
+             renderer.relative_links[0].escaped_original,
+             "&lt;test.md#section&gt;",
+@@ -5

@@ -1,0 +1,67 @@
+--- /dev/null
++++ b/tests/test_steamid_grader.py
+@@ -0,0 +1,51 @@
++import unittest
++import mock
++import vcr
++import requests
++from steam import steamid
++from steam.steamid import SteamID, ETypeChar
++from steam.enums import EType, EUniverse, EInstanceFlag
++
++
++def create_steam64(accountid, etype, euniverse, instance):
++    return (euniverse << 56) | (etype << 52) | (instance << 32) | accountid
++
++
++class SteamID_initialization(unittest.TestCase):
++    def compare(self, obj, test_list):
++        self.assertEqual(obj.id, test_list[0])
++        self.assertEqual(obj.type, test_list[1])
++        self.assertEqual(obj.universe, test_list[2])
++        self.assertEqual(obj.instance, test_list[3])
++
++    def test_from_invite_code(self):
++        self.assertIsNone(steamid.from_invite_code('invalid_format'))
++        self.assertIsNone(steamid.from_invite_code('https://steamcommunity.com/p/cv-dgb'))
++        self.assertIsNone(steamid.from_invite_code('b'))
++        self.assertIsNone(steamid.from_invite_code('aaaaaaaaaaaaaaaaaaaaaaaaa'))
++
++        self.assertEqual(steamid.from_invite_code('c', EUniverse.Beta),
++                         SteamID(1, EType.Individual, EUniverse.Beta, 1))
++        self.assertEqual(steamid.from_invite_code('c'),
++                         SteamID(1, EType.Individual, EUniverse.Public, 1))
++        self.assertEqual(steamid.from_invite_code('http://s.team/p/c', EUniverse.Beta),
++                         SteamID(1, EType.Individual, EUniverse.Beta, 1))
++        self.assertEqual(steamid.from_invite_code('http://s.team/p/c'),
++                         SteamID(1, EType.Individual, EUniverse.Public, 1))
++        self.assertEqual(steamid.from_invite_code('https://s.team/p/cv-dgb'),
++                         SteamID(123456, EType.Individual, EUniverse.Public, 1))
++        self.assertEqual(steamid.from_invite_code('https://s.team/p/cv-dgb/ABCDE12354'),
++                         SteamID(123456, EType.Individual, EUniverse.Public, 12354))
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/tests/test_steam_webapi_grader.py
+@@ -0,0 +1,21 @@
++import json
++import vcr
++import requests
++from steam import WebAPI
++from six import iteritems
++
++
++@vcr.use_cassette('tests/vcr_cassettes/test_webapi_user_profile.yaml')
++def test_webapi_user_profile():
++    client = WebAPI("STEAM_KEY")
++    resp = client.user.GetPlayerSummaries([76561197960287930])
++
++    assert resp['response']['players'][0]['personaname'] == "Rossen"
++    assert resp['response']['players'][0]['profileurl'] == "http://steamcommunity.com/id/Rossen/"
++
++
++if __name__ == "__main__":
++    import pytest
++    pytest.main(['-v', '-s', '--tb=native', __file__])

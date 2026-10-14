@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/tests/test_tabular_grader.py
+@@ -0,0 +1,16 @@
++from influx_prompt.tabular import json_to_tabular_result
++
++
++def test_empty_values():
++    j = {
++        'results': [{
++            'statement_id': 0,
++            'series': [{
++                'name': 'mymeas',
++                'columns': ['time', 'myfield', 'mytag'],
++                'values': []
++            }]
++        }]
++    }
++    result = json_to_tabular_result(j)
++    assert result == []

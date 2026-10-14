@@ -1,0 +1,269 @@
+--- /dev/null
++++ b/tests/backends/test_object_grader.py
+@@ -0,0 +1,22 @@
++from __future__ import annotations
++import numpy
++import pytest
++import vector
++
++
++def test_pow():
++    obj = vector.obj(x=1, y=1)
++    assert obj**2 == 2
++
++    obj = vector.obj(x=1, y=-1)
++    assert obj**2 == 2
++
++    obj = vector.obj(x=-1, y=-1)
++    assert obj**2 == 2
++
++    obj = vector.obj(x=-1, y=1)
++    assert obj**2 == 2
++
++    obj = vector.obj(x=0, y=1)
++    assert obj**2 == 1
+--- /dev/null
++++ b/tests/backends/test_numpy_object_grader.py
+@@ -0,0 +1,47 @@
++from __future__ import annotations
++import numpy
++import pytest
++import vector
++
++
++def test_pow():
++    arr = vector.array({"x": [1, 1, -1, -1, -1, 0]})
++    assert numpy.all(arr**2 == [2, 2, 2, 2, 1, 1])
++
++    arr = vector.array({"y": [1, -1, -1, 1, 0]})
++    assert numpy.all(arr**2 == [2, 2, 2, 2, 0])
++
++    arr = vector.array({"x": [1, 1, -1, -1, -1], "y": [-1, 1, -1, 1, 0]})
++    assert numpy.all(arr**2 == [2, 2, 2, 2, 1])
++
++    arr = vector.array({"x": [1, 1, -1, -1, -1], "y": [-1, 1, -1, 1, 0]})
++    assert numpy.all(arr**2 == [2, 2, 2, 2, 1])
++
++    arr = vector.array({"x": [1, 1, -1, -1, -1], "y": [-1, 1, -1, 1, 0]})
++    assert numpy.all(arr**2 == [2, 2, 2, 2, 1])
++
++    arr = vector.array({"x": [1, 1, -1, -1, -1], "y": [-1, 1, -1, 1, 0]})
++    assert numpy.all(arr**2 == [2, 2, 2, 2, 1])
++
++    arr = vector.array({"x": [1, 1, -1, -1, -1], "y": [-1, 1, -1, 1, 0]})
++    assert numpy.all(arr**2 == [2, 2, 2, 2, 1])
++
++    arr = vector.array({"x": [1, 1, -1, -1, -1], "y": [-1, 1, -1, 1, 0]})
++    assert numpy.all(arr**2 == [2, 2, 2, 2, 1])
++
++    arr = vector.array({"x": [1, 1, -1, -1, -1], "y": [-1, 1, -1, 1, 0]})
++    assert numpy.all(arr**2 == [2, 2, 2, 2, 1])
++
++    arr = vector.array({"x": [1, 1, -1, -1, -1], "y": [-1, 1, -1, 1, 0]})
++    assert numpy.all(arr**2 == [2, 2, 2, 2, 1])
++
++    arr = vector.array({"x": [1, 1, -1, -1, -1], "y": [-1, 1, -1, 1, 0]})
++    assert numpy.all(arr**2 == [2, 2, 2, 2, 1])
++
++    arr = vector.array({"x": [1, 1, -1, -1, -1], "y": [-1, 1, -1, 1, 0]})
++    assert numpy.all(arr**2 == [2, 2, 2, 2, 1])
+--- /dev/null
++++ b/tests/backends/test_numba_object_grader.py
+@@ -0,0 +1,125 @@
++from __future__ import annotations
++import sys
++import numpy
++import pytest
++import vector
++import vector.backends.object
++
++
++numba = pytest.importorskip("numba")
++
++
++import vector.backends._numba_object  # noqa: E402
++
++
++pytestmark = pytest.mark.numba
++
++
++@numba.njit
++def get_magnitude2_2D(obj):
++    return obj.magnitude2
++
++
++@numba.njit
++def get_magnitude2_3D(obj):
++    return obj.magnitude2
++
++
++@numba.njit
++def get_magnitude2_4D(obj):
++    return obj.magnitude2
++
++
++@numba.njit
++def get_magnitude2_momentum2D(obj):
++    return obj.magnitude2
++
++
++@numba.njit
++def get_magnitude2_momentum3D(obj):
++    return obj.magnitude2
++
++
++@numba.njit
++def get_magnitude2_momentum4D(obj):
++    return obj.magnitude2
++
++
++@numba.njit
++def get_magnitude2_vector2D(obj):
++    return obj.magnitude2
++
++
++@numba.njit
++def get_magnitude2_vector3D(obj):
++    return obj.magnitude2
++
++
++@numba.njit
++def get_magnitude2_vector4D(obj):
++    return obj.magnitude2
++
++
++@numba.njit
++def get_scale2D(obj, factor):
++    return obj.scale(factor)
++
++
++@numba.njit
++def get_scale3D(obj, factor):
++    return obj.scale(factor)
++
++
++@numba.njit
++def get_scale4D(obj, factor):
++    return obj.scale(factor)
++
++
++@numba.njit
++def get_scale_momentum2D(obj, factor):
++    return obj.scale(factor)
++
++
++@numba.njit
++def get_scale_momentum3D(obj, factor):
++    return obj.scale(factor)
++
++
++@numba.njit
++def get_scale_momentum4D(obj, factor):
++    return obj.scale(factor)
++
++
++@numba.njit
++def get_scale_vector2D(obj, factor):
++    return obj.scale(factor)
++
++
++@numba.njit
++def get_scale_vector3D(obj, factor):
++    return obj.scale(factor)
++
++
++@numba.njit
++def get_scale_vector4D(obj, factor):
++    return obj.scale(factor)
++
++
++@numba.njit
++def get_neg2D(obj):
++    return obj.neg
++
++
++@numba.njit
++def get_neg3D(obj):
++    return obj.neg
++
++
++@numba.njit
++def get_neg4D(obj):
++    return obj.neg
++
++
++@numba.njit
++def get_neg_momentum2D(obj):
++    return obj.neg
++
++
++@numba.njit
++def get_neg_momentum3D(obj):
++    return obj.neg
++
++
++@numba.njit
++def get_neg_momentum4D(obj):
++    return obj.neg
++
++
++@numba.njit
++def get_neg_vector2D(obj):
++    return obj.neg
++
++
++@numba.njit
++def get_neg_vector3D(obj):
++    return obj.neg
++
++
++@numba.njit
++def get_neg_vector4D(obj):
++    return obj.neg
+--- /dev/null
++++ b/tests/backends/test_object_grader.py
+@@ -0,0 +1,47 @@
++from __future__ import annotations
++import numpy
++import pytest
++import vector
++
++
++def test_pow():
++    obj = vector.obj(x=1, y=1)
++    assert obj**2 == 2
++
++    obj = vector.obj(x=1, y=-1)
++    assert obj**2 == 2
++
++    obj = vector.obj(x=-1, y=-1)
++    assert obj**2 == 2
++
++    obj = vector.obj(x=-1, y=1)
++    assert obj**2 == 2
++
++    obj = vector.obj(x=0, y=1)
++    assert obj**2 == 1
++
++
++def test_pow_backwards_compatibility():
++    obj = vector.obj(E=1, px=1, py=1, pz=1)
++    assert obj**2 == -2
++
++    obj = vector.obj(mass=1, px=1, py=1, pz=1)
++    assert obj**2 == -2
++
++    obj = vector.obj(m=1, px=1, py=1, pz=1)
++    assert obj**2 == -2
++
++    obj = vector.obj(E=1, px=1, py=1, pz=1)
++    assert obj.mass**2 == -2
++
++    obj = vector.obj(E=1, px=1, py=1, pz=1)
++    assert obj.m**2 == -2
++
++    obj = vector.obj(E=1, px=1, py=1, pz=1)
++    assert obj.mass2 == -2
++
++    obj = vector.obj(E=1, px=1, py=1, pz=1)
++    assert obj.m2 == -2

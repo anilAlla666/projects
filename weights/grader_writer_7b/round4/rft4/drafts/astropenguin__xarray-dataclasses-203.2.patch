@@ -1,0 +1,66 @@
+--- /dev/null
++++ b/tests/test_typing_grader.py
+@@ -0,0 +1,62 @@
++from typing import Any, Tuple, Union
++
++
++import numpy as np
++from pytest import mark
++from typing_extensions import Annotated as Ann
++from typing_extensions import Literal as L
++
++
++from xarray_dataclasses.typing import (
++    Attr,
++    Coord,
++    Data,
++    Name,
++    Role,
++    get_dims,
++    get_dtype,
++    get_name,
++    get_role,
++)
++
++
++testdata_dims = [
++    (Coord[Tuple[()], Any], ()),
++    (Coord[L["x"], Any], ("x",)),
++    (Coord[Tuple[L["x"]], Any], ("x",)),
++    (Coord[Tuple[L["x"], L["y"]], Any], ("x", "y")),
++    (Data[Tuple[()], Any], ()),
++    (Data[L["x"], Any], ("x",)),
++    (Data[Tuple[L["x"]], Any], ("x",)),
++    (Data[Tuple[L["x"], L["y"]], Any], ("x", "y")),
++    (Ann[Coord[L["x"], Any], "coord"], ("x",)),
++    (Ann[Data[L["x"], Any], "data"], ("x",)),
++    (Union[Ann[Coord[L["x"], Any], "coord"], Ann[Any, "any"]], ("x",)),
++    (Union[Ann[Data[L["x"], Any], "data"], Ann[Any, "any"]], ("x",)),
++]
++
++
++testdata_dtype = [
++    (Ann[Coord[Any, float], "coord"], np.dtype("f8")),
++    (Ann[Data[Any, float], "data"], np.dtype("f8")),
++    (Union[Ann[Coord[Any, float], "coord"], Ann[Any, "any"]], np.dtype("f8")),
++    (Union[Ann[Data[Any, float], "data"], Ann[Any, "any"]], np.dtype("f8")),
++]
++
++
++testdata_name = [
++    (Attr[Any], None),
++    (Data[Any, Any], None),
++    (Coord[Any, Any], None),
++    (Name[Any], None),
++    (Any, None),
++    (Ann[Attr[Any], "attr"], "attr"),
++    (Ann[Data[Any, Any], "data"], "data"),
++    (Ann[Coord[Any, Any], "coord"], "coord"),
++    (Ann[Name[Any], "name"], "name"),
++    (Ann[Any, "other"], None),
++    (Union[Ann[Attr[Any], "attr"], Ann[Any, "any"]], "attr"),
++    (Union[Ann[Data[Any, Any], "data"], Ann[Any, "any"]], "data"),
++    (Union[Ann[Coord[Any, Any], "coord"], Ann[Any, "any"]], "coord"),
++    (Union[Ann[Name[Any], "name"], Ann[Any, "any"]], "name"),
++    (Union[Ann[Any, "other"], Ann[Any, "any"]], None),
++]

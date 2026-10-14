@@ -1,0 +1,95 @@
+--- /dev/null
++++ b/src/fparser/two/tests/test_fortran2003_grader.py
+@@ -0,0 +1,105 @@
++import pytest
++from fparser import api
++
++
++@pytest.mark.parametrize("source", [
++    "type real :: x",
++    "INTEGER :: y",
++    "real :: z",
++])
++def test_type_declaration(source):
++    ast = api.get_ast(source)
++    assert ast.content[0].__class__.__name__ == 'Type_Declaration_Stmt'
++
++
++@pytest.mark.parametrize("source", [
++    "character(len=10) :: a,b,c,d",
++    "CHARACTER(len=10) :: e,f,g,h",
++    "real(kind=2) :: i,j,k,l",
++])
++def test_multiple_entities_in_single_type_declaration(source):
++    ast = api.get_ast(source)
++    assert len(ast.content) == 1
++    decl_stmt = ast.content[0]
++    assert decl_stmt.__class__.__name__ == 'Type_Declaration_Stmt'
++    assert decl_stmt.entity_decl_list.__class__.__name__ == 'Entity_Decl_List'
++    assert len(decl_stmt.entity_decl_list.content) == 4
++
++
++@pytest.mark.parametrize("source", [
++    "type real :: x,y,z,w",
++    "INTEGER :: a,b,c,d,e",
++    "real :: f,g,h,i,j,k,l,m,n",
++])
++def test_multiple_type_declarations(source):
++    ast = api.get_ast(source)
++    assert len(ast.content) == 4
++    for decl_stmt in ast.content:
++        assert decl_stmt.__class__.__name__ == 'Type_Declaration_Stmt'
++
++
++@pytest.mark.parametrize("source", [
++    "type integer :: a",
++    "REAL :: b",
++    "complex(kind=2) :: c",
++])
++def test_no_entity_name_specified(source):
++    with pytest.raises(TypeError):
++        api.get_ast(source)
++
++
++@pytest.mark.parametrize("source", [
++    "type real :: x :: a",
++    "INTEGER :: y :: b",
++    "real :: z :: c",
++])
++def test_double_colon_in_type_declaration(source):
++    with pytest.raises(TypeError):
++        api.get_ast(source)
++
++
++@pytest.mark.parametrize("source", [
++    "type real :: x :: a :: a",
++    "INTEGER :: y :: b :: b",
++    "real :: z :: c :: c",
++])
++def test_triple_colon_in_type_declaration(source):
++    with pytest.raises(TypeError):
++        api.get_ast(source)
++
++
++@pytest.mark.parametrize("source", [
++    "type real :: x, y, z",
++    "INTEGER :: a, b, c",
++    "real :: d, e, f",
++])
++def test_comma_separated_entities_in_single_type_declaration(source):
++    ast = api.get_ast(source)
++    assert len(ast.content) == 1
++    decl_stmt = ast.content[0]
++    assert decl_stmt.__class__.__name__ == 'Type_Declaration_Stmt'
++    assert decl_stmt.entity_decl_list.__class__.__name__ == 'Entity_Decl_List'
++    assert len(decl_stmt.entity_decl_list.content) == 3
++
++
++@pytest.mark.parametrize("source", [
++    "type real :: a :: b :: c :: d",
++    "INTEGER :: a :: b :: c :: d",
++    "real :: a :: b :: c :: d",
++])
++def test_multiple_scoped_type_declarations(source):
++    with pytest.raises(TypeError):
++        api.get_ast(source)

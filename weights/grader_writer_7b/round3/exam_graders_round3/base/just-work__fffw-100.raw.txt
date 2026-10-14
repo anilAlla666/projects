@@ -1,0 +1,35 @@
+To address the issue where the `Trim` filter sets an incorrect duration if the `end` time is after the End Of File (EOF), we need to ensure that the duration calculation correctly handles such cases. We can achieve this by modifying the `transform` method in the `Trim` class.
+
+Here's the updated `tests/test_encoding.py` file with additional tests to verify the fix:
+
+```diff
+@@ -140,6 +140,24 @@ class OutputsTestCase(TestCase):
+         self.source.audio > self.output.audio
+ 
+     def test_codec_validates_hardware_device(self):
++        """
++        Test that Trim filter sets correct duration even if end time is after EOF.
++        """
++        from fffw.encoding.filters import Trim
++        from fffw.meta import Meta, Scene, TS
++
++        # Create a mock metadata object with a known duration
++        meta = Meta(duration=10.0, scenes=[Scene(start=0.0, duration=10.0)])
++
++        # Create a Trim filter with an end time after EOF
++        trim_filter = Trim(start=0.0, end=15.0)
++
++        # Transform the metadata
++        transformed_meta = trim_filter.transform(meta)
++
++        # Check if the duration is set correctly
++        self.assertEqual(transformed_meta.duration, 10.0)
++
+         """
+         When using hardware-accelerated codec, it accepts only streams uploaded
+         to a corresponding hardware.
+```
+
+This test creates a `Trim` filter with an `end` time that is after the EOF (in this case, 15.0 seconds when the actual duration is 10.0 seconds). It then checks if the `duration` field in the transformed metadata is still set to the original duration (10.0 seconds).
+
+By adding this test, we ensure that the fix resolves the issue and does not introduce any regressions. The test should fail before the fix and pass after the fix is applied.

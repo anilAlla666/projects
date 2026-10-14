@@ -1,0 +1,67 @@
+--- /dev/null
++++ b/tests/test_zict_grader.py
+@@ -0,0 +1,63 @@
++import gc
++import os
++import tempfile
++from collections import OrderedDict
++from pathlib import Path
++from typing import Any, cast, List, Optional, Tuple
++from unittest.mock import MagicMock, patch
++
++import pytest
++from hypothesis import HealthCheck, given, settings
++from hypothesis.strategies import binary, integers
++from zict import Buffer, Cache, Func, File, LRU, Memory, Null, Sieve
++
++
++@pytest.fixture
++def tempdir():
++    with tempfile.TemporaryDirectory() as td:
++        yield td
++
++
++class TestFunc:
++    def test_no_buffering_on_file(self):
++        dir_ = Path(tempfile.mkdtemp())
++        f = Func(cast(Any, lambda x: x), cast(Any, lambda x: x), File(dir_))
++        assert f["a"] == "a"
++        assert list(f) == ["a"]
++
++    @pytest.mark.parametrize("func", [lambda x: x, lambda x: x])
++    def test_no_buffering_on_memory(self, func):
++        m = Func(func, func, Memory())
++        assert m["a"] == "a"
++        assert list(m) == ["a"]
++
++    def test_pickle_buffers(self):
++        # https://github.com/dask/zict/issues/211
++        dir_ = Path(tempfile.mkdtemp())
++        f = Func(
++            lambda x: (x, b"bytes"),
++            lambda x, y: x,
++            File(str(dir_)),
++        )
++
++        f.update({"a": "b"})
++        gc.collect()
++        assert set(Path(dir_).iterdir()) == {Path(dir_) / "a"}
++
++
++@given(
++    size=integers(min_value=1),
++    maxsize=integers(min_value=1),
++    n_keys=integers(min_value=1),
++)
++@settings(suppress_health_check=[HealthCheck.too_slow])
++def test_sieve_gc(size, maxsize, n_keys):
++    dir_ = Path(tempfile.mkdtemp())
++    f = Func(lambda x: x, lambda x: x, File(dir_))
++    s = Sieve(f, maxsize=maxsize)
++    keys = [f"f{i}" for i in range(n_keys)]
++    values = [os.urandom(size) for _ in range(n_keys)]
++
++    s.update(zip(keys, values))
++    del f
++    gc.collect()
++    assert len(list(dir_.iterdir())) == min(maxsize, n_keys)

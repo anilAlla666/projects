@@ -1,0 +1,74 @@
+--- /dev/null
++++ b/test_apig_wsgi_grader.py
+@@ -0,0 +1,66 @@
++import sys
++from base64 import b64encode
++from io import BytesIO
++import pytest
++from apig_wsgi import make_lambda_handler
++
++
++@pytest.fixture()
++def simple_app():
++    def app(environ, start_response):
++        app.environ = environ
++        start_response("200 OK", app.headers, app.exc_info)
++        return BytesIO(app.response)
++
++    app.headers = [("Content-Type", "text/plain")]
++    app.response = b"Hello World\n"
++    app.handler = make_lambda_handler(app)
++    app.exc_info = None
++    yield app
++
++
++def make_event(
++    method="GET",
++    qs_params=None,
++    headers=None,
++    body="",
++    binary=False,
++    request_context=None,
++):
++    if headers is None:
++        headers = {"Host": "example.com"}
++
++    event = {
++        "httpMethod": method,
++        "path": "/",
++        "queryStringParameters": qs_params,
++        "headers": headers,
++    }
++    if binary:
++        event["multiValueHeaders"] = {}
++        event["bodyEncoding"] = "base64"
++        event["body"] = b64encode(body.encode("utf-8")).decode("utf-8")
++    else:
++        event["body"] = body
++
++    if request_context is not None:
++        event["requestContext"] = request_context
++
++    return event
++
++
++def test_gzip_json(simple_app):
++    event = make_event(headers={"Accept-Encoding": "gzip"})
++    simple_app.handler(event, None)
++
++    resp = simple_app.body.getvalue()
++
++    assert "Content-Encoding" in [h[0] for h in simple_app.headers]
++    assert resp != b"Hello World\n"
++
++
++def test_gzip_plain_text(simple_app):
++    event = make_event(
++        headers={"Accept-Encoding": "gzip"}, content_type="text/plain"
++    )
++    simple_app.handler(event, None)
++
++    resp = simple_app.body.getvalue()
++
++    assert "Content-Encoding" in [h[0] for h in simple_app.headers]
++    assert resp != b"Hello World\n"

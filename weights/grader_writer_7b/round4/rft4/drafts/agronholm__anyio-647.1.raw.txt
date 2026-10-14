@@ -1,0 +1,13 @@
+--- /dev/null
++++ b/tests/test_backends_grader.py
+@@ -0,0 +1,10 @@
++import pytest
++
++
++@pytest.mark.anyio
++def test_backend_options(anyio_backend_name):
++    backend_options = {"foo": "bar"}
++    assert anyio_backend_name == anyio_backend_name(backend_options)
++    assert backend_options == anyio_backend_name.backend_options
++    assert not anyio_backend_name.supports_debug_mode
++    assert not anyio_backend_name.supports_uvloop

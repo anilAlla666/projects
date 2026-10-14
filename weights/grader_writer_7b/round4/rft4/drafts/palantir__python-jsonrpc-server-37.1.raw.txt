@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/test/test_endpoint_grader.py
+@@ -0,0 +1,48 @@
++from concurrent import futures
++import time
++import mock
++import pytest
++from pyls_jsonrpc import exceptions
++from pyls_jsonrpc.endpoint import Endpoint
++
++
++MSG_ID = 'id'
++
++
++@pytest.fixture()
++def dispatcher():
++    return {}
++
++
++@pytest.fixture()
++def consumer():
++    return mock.MagicMock()
++
++
++@pytest.fixture()
++def endpoint(dispatcher, consumer):
++    return Endpoint(dispatcher, consumer, id_generator=lambda: MSG_ID)
++
++
++def test_request_cancel(endpoint, consumer):
++    future = endpoint.request('methodName', {'key': 'value'})
++    assert not future.done()
++
++    consumer.assert_called_once_with({
++        'jsonrpc': '2.0',
++        'id': MSG_ID,
++        'method': 'methodName',
++        'params': {'key': 'value'}
++    })
++
++    # Cancel the request
++    future.cancel()
++    consumer.assert_any_call({
++        'jsonrpc': '2.0',
++        'method': '$/cancelRequest',
++        'params': {'id': MSG_ID}
++    })
++
++    with pytest.raises(exceptions.JsonRpcException) as exc_info:
++        assert future.result(timeout=2)
++
++    assert isinstance(exc_info.value, exceptions.JsonRpcException)
++    assert isinstance(exc_info.value, futures.CancelledError)

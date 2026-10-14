@@ -1,0 +1,116 @@
+--- /dev/null
++++ b/aws_okta_keyman/test/test_awstest_grader.py
+@@ -0,0 +1,66 @@
++from __future__ import unicode_literals
++import datetime
++import sys
++import unittest
++import botocore
++from aws_okta_keyman import aws
++
++
++if sys.version_info[0] < 3:  # Python 2
++    import mock
++else:
++    from unittest import mock
++
++
++AWS_HTML_MULTIACCOUNT_LOGIN = (
++    '<!DOCTYPE html><html><head><title>Amazon Web Services Sign-In</title>'
++    '</head><body><div id="container"><h1 class="background">'
++    'Amazon Web Services Login</h1><div id="content"><form id="saml_form" '
++    'name="saml_form" action="/saml" method="post"><input type="hidden" '
++    'name="RelayState" value="" /><input type="hidden" name="name" value="" />'
++    '<input type="hidden" name="portal" value="" /><fieldset><div class'
++    '="saml-account"><div onClick="expandCollapse(0);"><img id="image0" src='
++    '"/static/image/down.png" valign="middle"></img><div class="'
++    'saml-account-name">Account: my-dev (123456)</div></div></div><hr style="'
++    'border: 1px solid #ddd;"><div id="0" class="saml-account" ><div class="'
++    'saml-role" onClick="checkRadio(this);"><input type="radio" name="'
++    'roleIndex" value="arn:aws:iam::123456:role/admin" class="saml-radio" id="'
++    'arn:aws:iam::123456:role/admin" /><label for="arn:aws:iam::123456:role/'
++    'admin" class="saml-role-description">admin</label><span style="clear: '
++    'both;"></span></div></div><div class="saml-account"><div onClick="'
++    'expandCollapse(1);"><img id="image1" src="/static/image/down.png" '
++    'valign="middle"></img><div class="saml-account-name">Account: my-prod '
++    '(123457)</div></div></div><hr style="border: 1px solid #ddd;"><div id="1"'
++    ' class="saml-account" ><div class="saml-role" onClick="checkRadio(this);"'
++    '><input type="radio" name="roleIndex" value="arn:aws:iam::123457:role/'
++    'admin" class="saml-radio" id="arn:aws:iam::123457:role/admin" /><label '
++    'for="arn:aws:iam::123457:role/admin" class="saml-role-description">admin'
++    '</label><span style="clear: both;"></span></div></div></fieldset></form>'
++    '</div></div></body></html>')
++
++
++class MockResponse(object):
++    def __init__(self, content='', error=False):
++        self.content = content
++        self.error = error
++
++    def text(self):
++        return self.content
++
++    def json(self):
++        return {'error': self.error}
++
++
++class TestAws(unittest.TestCase):
++    def setUp(self):
++        super(TestAws, self).setUp()
++        self.session = aws.Session('BogusAssertion')
++        self.session.sts = mock.Mock()
++
++    def test_assume_role(self):
++        self.session.sts.assume_role_with_saml.return_value = \
++            {'Credentials': {'AccessKeyId': 'ACCESSKEY',
++                             'SecretAccessKey': 'SECRETKEY',
++                             'SessionToken': 'SESSIONTOKEN',
++                             'Expiration': datetime.datetime.now()}}
++        self.session.assume_role()
++        self.assertTrue(self.session.is_valid())
+--- /dev/null
++++ b/aws_okta_keyman/test/test_samltest_grader.py
+@@ -0,0 +1,28 @@
++import sys
++from aws_okta_keyman.aws_saml import SamlAssertion
++
++
++if sys.version_info < (2, 7):
++    import unittest2 as unittest
++else:
++    import unittest
++
++
++idp_arn = 'arn:aws:iam::1111:saml-provider/IDP'
++
++
++dev_arn = 'arn:aws:iam::1111:role/DevRole'
++
++
++qa_arn = 'arn:aws:iam::2222:role/QARole'
++
++
++idp2_arn = 'arn:aws:iam::2222:saml-provider/IDP'
++
++
++def saml_assertion(roles):
++    attribute_value = ('<saml2:AttributeValue xmlns:xs="http://www.w3.org/2001'
++                       '/XMLSchema" xmlns:xsi="http://www.w3.org/2001/'
++                       'XMLSchema-instance" xsi:type="xs:string">{0}'
++                       '</saml2:AttributeValue>')
++
++    roles_values = [(attribute_value.format(x)) for x in roles]
++
++    return ('<?xml version="1.0" encoding="UTF-8"?><saml2p:Response '
++            'xmlns:saml2p="urn:oasis:names:tc:SAML:2.0:protocol" Version="2.0"'
++            ' xmlns:xs="http://www.w3.org/2001/XMLSchema"><saml2:Assertion '
++            'xmlns:saml2="urn:oasis:names:tc:SAML:2.0:assertion" '
++            'ID="id17773561036281221470153530" '
++            'IssueInstant="2015-11-06T10:48:25.399Z" Version="2.0" '
++            'xmlns:xs="http://www.w3.org/2001/XMLSchema"><saml2:'
++            'AttributeStatement xmlns:saml2="urn:oasis:names:tc:SAML:2.0:'
++            'assertion"><saml2:Attribute Name="https://aws.amazon.com/SAML/'
++            'Attributes/Role" NameFormat="urn:oasis:names:tc:'
++            'SAML:2.0:attrname-format:uri">{0}</saml2:Attribute></'
++            'saml2:AttributeStatement></saml2:Assertion>'
++            '</saml2p:Response>').format("".join(roles_values))

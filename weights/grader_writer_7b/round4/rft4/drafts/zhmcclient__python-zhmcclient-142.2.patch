@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/test_manager_grader.py
+@@ -0,0 +1,35 @@
++import pytest
++from zhmcclient import BaseClient, BaseManager
++
++
++@pytest.fixture
++def client():
++    return BaseClient(None)
++
++
++@pytest.fixture
++def manager(client):
++    return BaseManager(client, '/api/cpcs')
++
++
++def test_findall_not_found(manager):
++    # The manager will not have a cache entry for the name, but it does not
++    # exist either, so we expect an empty list to be returned.
++    assert manager._uris_by_name_cache == {}
++    assert manager.findall(name='dummy') == []
++
++
++def test_findall_cached(manager):
++    # The manager will not have a cache entry for the name, but it does not
++    # exist either, so we expect an empty list to be returned.
++    assert manager._uris_by_name_cache == {}
++    assert manager.findall(name='dummy') == []
++    assert manager._uris_by_name_cache == {'dummy': None}
++
++    # Now the manager has a cache entry for the name, so we expect an empty
++    # list to be returned as well.
++    assert manager.findall(name='dummy') == []
++    assert manager._uris_by_name_cache == {'dummy': None}

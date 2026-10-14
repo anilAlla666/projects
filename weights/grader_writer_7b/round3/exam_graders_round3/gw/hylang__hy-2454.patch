@@ -1,0 +1,19 @@
+diff --git a/tests/test_reader.py b/tests/test_reader.py
+index 0b0f3a5..c0e1008 100644
+--- a/tests/test_reader.py
++++ b/tests/test_reader.py
+@@ -664,6 +664,14 @@ def test_lex_exception_filtering(capsys):
+             "        ^",
+             "hy.reader.exceptions.LexException: The parts of a dotted identifier must be symbols",
+         ],
++    )
++
++    # Now, for a generic LexException
++    with lexe() as execinfo:
++        tokenize("#foo")
++    check_trace_output(
++        capsys,
++        execinfo,
+     )
+ 
+ 

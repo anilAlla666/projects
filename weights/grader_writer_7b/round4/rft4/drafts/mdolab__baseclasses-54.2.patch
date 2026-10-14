@@ -1,0 +1,55 @@
+--- /dev/null
++++ b/tests/test_case_insensitive_dict_grader.py
+@@ -0,0 +1,29 @@
++import pytest
++from pprint import pformat
++
++
++@pytest.fixture
++def sensitive():
++    return {"b-longstring": 2, "a-longstring": 1, "c-longstring": 3, "e-longstring": 5, "d-longstring": 4}
++
++
++@pytest.fixture
++def insensitive(sensitive):
++    return CaseInsensitiveDict(sensitive)
++
++
++def test_pprint(insensitive, sensitive):
++    assert pformat(insensitive) == pformat(sensitive)
++
++
++def test_pprint_empty():
++    assert pformat(CaseInsensitiveDict()) == "{}"
++
++
++def test_pprint_empty_string_keys():
++    assert pformat(CaseInsensitiveDict({"A": "", "B": ""})) == "{'A': '', 'B': ''}"
++
++
++def test_pprint_empty_nonstring_keys():
++    with pytest.raises(TypeError):
++        CaseInsensitiveDict({1: "", 2: ""})
+--- /dev/null
++++ b/tests/test_case_insensitive_set_grader.py
+@@ -0,0 +1,17 @@
++import pytest
++from pprint import pformat
++
++
++@pytest.fixture
++def sensitive():
++    return ["b-string", "a-string", "c-string", "e-string", "d-string"]
++
++
++@pytest.fixture
++def insensitive(sensitive):
++    return CaseInsensitiveSet(sensitive)
++
++
++def test_pprint(insensitive, sensitive):
++    assert pformat(insensitive) == pformat(sensitive)
++
++
++def test_pprint_empty():
++    assert pformat(CaseInsensitiveSet()) == "[]"

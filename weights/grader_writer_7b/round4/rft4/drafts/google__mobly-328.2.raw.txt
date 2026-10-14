@@ -1,0 +1,84 @@
+--- /dev/null
++++ b/tests/mobly/controllers/test_android_device_test_grader.py
+@@ -0,0 +1,83 @@
++import logging
++import mock
++import os
++import shutil
++import tempfile
++from future.tests.base import unittest
++from mobly.controllers import android_device
++from tests.lib import mock_android_device
++
++
++MOCK_LOG_PATH = "/tmp/logs/MockTest/xx-xx-xx_xx-xx-xx/"
++
++
++MOCK_ADB_LOGCAT_CAT_RESULT = [
++    "02-29 14:02:21.456  4454  Something\n",
++    "02-29 14:02:21.789  4454  Something again\n"
++]
++
++
++MOCK_ADB_LOGCAT = ("02-29 14:02:19.123  4454  Nothing\n"
++                   "%s"
++                   "02-29 14:02:22.123  4454  Something again and again\n"
++                   ) % ''.join(MOCK_ADB_LOGCAT_CAT_RESULT)
++
++
++MOCK_ADB_LOGCAT_BEGIN_TIME = "02-29 14:02:20.123"
++
++
++MOCK_ADB_LOGCAT_END_TIME = "02-29 14:02:22.000"
++
++
++MOCK_ADB_LOGCAT_FILE = os.path.join(tempfile.mkdtemp(),
++                                    'MockAdbLogCatFile.txt')
++
++
++MOCK_BUGREPORT = 'BugReport'
++
++
++MOCK_BUGREPORT_TIMESTAMP = '02-29 14:02:21.000'
++
++
++MOCK_BUGREPORT_ZIPFILE = os.path.join(tempfile.mkdtemp(), 'BugReport.zip')
++
++
++MOCK_SNIPPET_PACKAGE_NAME = 'com.mock.snippet'
++
++
++class TestAndroidDevice(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.ad = android_device.AndroidDevice(serial=1)
++        cls.ad.log_path = MOCK_LOG_PATH
++
++    @classmethod
++    def tearDownClass(cls):
++        shutil.rmtree(MOCK_LOG_PATH)
++        shutil.rmtree(os.path.dirname(MOCK_BUGREPORT_ZIPFILE))
++        cls.ad = None
++
++    @mock.patch('mobly.controllers.android_device_lib.adb.AdbProxy')
++    def test_start_adb_logcat(self, MockAdbProxy):
++        """Tests that the adb logcat command uses the right format for the
++        filename.
++        """
++        MockAdbProxy.return_value.serial = 'serial'
++        MockAdbProxy.return_value.model = 'model'
++        MockAdbProxy.return_value.device_class = 'device_class'
++        MockAdbProxy.return_value.is_rootable = False
++        MockAdbProxy.return_value.version = 'version'
++        self.ad.start_adb_logcat(clear_log=False)
++        expected_filename = (
++            'adblog,model,serial,device_class,version.txt')
++        expected_filepath = os.path.join(self.ad.log_path, expected_filename)
++        MockAdbProxy.assert_called_with('serial')
++        self.ad.stop_adb_logcat()
++        MockAdbProxy.return_value.clear_logcat.assert_not_called()
++        self.assertEqual(expected_filepath, self.ad.adb_logcat_file_path)
++
++
++if __name__ == "__main__":
++    unittest.main()

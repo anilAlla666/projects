@@ -1,0 +1,44 @@
+--- /dev/null
++++ b/tests/test_expr_grader.py
+@@ -0,0 +1,45 @@
++from construct import *
++import pytest
++
++
++def test_path():
++    assert repr(this["foo"]) == 'this["foo"]'
++    assert repr(this["bar"][0]) == 'this["bar"][0]'
++    assert repr(this[1]) == 'this[1]'
++
++    assert this["foo"]._eval({"foo": 2}) == 2
++    assert this["bar"][0]._eval({"bar": [1, 2]}) == 1
++    assert this[1]._eval([2, 3]) == 3
++
++    assert this._eval({"foo": 2}) == {"foo": 2}
++    assert this["bar"][0]._eval({"bar": [1, 2]}) == {"bar": [1, 2]}
++    assert this[1]._eval([2, 3]) == [2, 3]
++
++    with pytest.raises(KeyError):
++        this._eval({})
++    with pytest.raises(IndexError):
++        this._eval([])
++    with pytest.raises(TypeError):
++        this._eval("")
++
++    assert this["bar"]["baz"][1]["qux"] == this["bar"]["baz"][1].this["qux"]
++
++    assert this["bar"][0][1][2][3][4] == this["bar"][0][1][2][3][4].this
++    assert this["bar"][0][1][2][3][4] == this["bar"][0][1][2][3][4].this
++
++    assert this["bar"][0][1][2][3][4].build(None) == {0: {1: {2: {3: {4: this}}}}}
++    assert this["bar"][0][1][2][3][4].parse({0: {1: {2: {3: {4: 1}}}}}) == 1
++
++    assert (
++        this["bar"][0][1][2][3][4].parse_build_test({0: {1: {2: {3: {4: 1}}}}})
++        == (None, {0: {1: {2: {3: {4: 1}}}}}, 1)
++    )
++
++    assert this["bar"][0][1][2][3][4].sizeof(None) == 0
++
++    assert this.parse({}) == {}
++    assert this.build({}) == {}

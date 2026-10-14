@@ -1,0 +1,71 @@
+--- /dev/null
++++ b/test/test_model_grader.py
+@@ -0,0 +1,100 @@
++import datetime
++import ipaddress
++import json
++import os
++import pathlib
++import sys
++import tempfile
++import unittest
++from collections import OrderedDict
++from test.test_helpers import fake_script, fake_script_calls
++from textwrap import dedent
++import pytest
++import ops.charm
++import ops.model
++import ops.testing
++from ops import model
++from ops._private import yaml
++from ops.charm import RelationMeta, RelationRole
++from ops.pebble import APIError, FileInfo, FileType, ServiceInfo
++
++
++class TestNetwork(unittest.TestCase):
++    def setUp(self):
++        self.backend = ops.testing.Backend()
++        self.meta = ops.charm.CharmMeta({
++            'name': 'test',
++            'requires': {
++                'endpoint': {
++                    'interface': 'dummy',
++                    'limit': 1,
++                },
++            },
++        })
++        self.model = ops.model.Model(self.meta, self.backend)
++
++    def test_ingress_addresses_with_dns_name(self):
++        self.backend.set_relations_data(
++            'endpoint',
++            {
++                'ingress-addresses': ['acb396cf5563d429f9ebc8aa23ae47ed-1516332866.us-east-1.elb.amazonaws.com']
++            }
++        )
++        binding = self.model.get_binding('endpoint')
++        assert len(binding.network.ingress_addresses) == 1
++        assert isinstance(binding.network.ingress_addresses[0], str)
++
++
++class TestLazyMapping(unittest.TestCase):
++    def test_invalidate(self):
++        loaded = []
++
++        class MyLazyMap(ops.model.LazyMapping):
++            def _load(self):
++                loaded.append(1)
++                return {'foo': 'bar'}
++
++        map = MyLazyMap()
++        self.assertEqual(map['foo'], 'bar')
++        self.assertEqual(loaded, [1])
++        self.assertEqual(map['foo'], 'bar')
++        self.assertEqual(loaded, [1])
++        map._invalidate()
++        self.assertEqual(map['foo'], 'bar')
++        self.assertEqual(loaded, [1, 1])
++
++
++if __name__ == "__main__":
++    unittest.main()

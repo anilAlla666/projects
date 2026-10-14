@@ -1,0 +1,40 @@
+To ensure that the fix correctly handles HTTP success status codes beyond 200, we need to add tests that verify the behavior before and after the fix. These tests should focus on ensuring that the client does not raise exceptions for status codes like 201 and 204, and instead processes the responses appropriately.
+
+Here is a unified diff against the existing test files:
+
+```diff
+diff --git a/tests/test_client.py b/tests/test_client.py
+index 1a2b3c4..5d6e7f8 100644
+--- a/tests/test_client.py
++++ b/tests/test_client.py
+@@ -126,6 +126,24 @@ def test_revoke_token(mocked_responses, api_client, api_url):
+     assert api_client.auth_token is None
+     assert api_client.access_token is None
+     assert len(mocked_responses.calls) == 1
+ 
++def test_success_status_codes(mocked_responses, api_client, api_url):
++    # Test 201 Created
++    mocked_responses.add(
++        responses.POST,
++        api_url + "/contacts/",
++        content_type='application/json',
++        status=201,
++        body=json.dumps({"id": 1}),
++    )
++    response = api_client._make_request("POST", api_url + "/contacts/", {})
++    assert response.status_code == 201
++
++    # Test 204 No Content
++    mocked_responses.add(
++        responses.DELETE,
++        api_url + "/contacts/1",
++        content_type='application/json',
++        status=204,
++    )
++    response = api_client._make_request("DELETE", api_url + "/contacts/1", {})
++    assert response.status_code == 204
+```
+
+These tests add a new function `test_success_status_codes` to the `tests/test_client.py` file. They simulate requests with status codes 201 and 204 and verify that the client does not raise exceptions and processes the responses correctly.
+
+Before applying the fix, these tests should fail because the client is hardcoded to only accept the 200 status code as success. After applying the fix, these tests should pass, indicating that the client now correctly handles other success status codes.

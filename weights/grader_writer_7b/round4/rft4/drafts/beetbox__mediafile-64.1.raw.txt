@@ -1,0 +1,214 @@
+--- /dev/null
++++ b/test/test_mediafile_grader.py
+@@ -0,0 +1,125 @@
++"""Automatically-generated blanket testing for the MediaFile metadata
++layer.
++"""
++
++
++from __future__ import division, absolute_import, print_function
++import os
++import shutil
++import datetime
++import time
++import unittest
++from six import assertCountEqual
++from test import _common
++from mediafile import MediaFile, Image, \
++    ImageType, CoverArtField, UnreadableFileError
++import mutagen
++
++
++class ArtTestMixin(object):
++    """Test reads and writes of the ``art`` property.
++    """
++
++    @property
++    def png_data(self):
++        if not self._png_data:
++            self._png_data = _common.image_png()
++        return self._png_data
++
++    @property
++    def jpg_data(self):
++        if not self._jpg_data:
++            self._jpg_data = _common.image_jpg()
++        return self._jpg_data
++
++    @property
++    def tif_data(self):
++        if not self._tif_data:
++            self._tif_data = _common.image_tiff()
++        return self._tif_data
++
++    @property
++    def art_path(self):
++        return os.path.join(self.temp_dir, b'image.png')
++
++    def setUp(self):
++        self.create_temp_dir()
++        self._png_data = None
++        self._jpg_data = None
++        self._tif_data = None
++
++    def tearDown(self):
++        self.remove_temp_dir()
++
++    def create_art(self, filename=b'image.png'):
++        """Create a dummy image file.
++        """
++        path = os.path.join(self.art_path)
++        with open(path, 'wb') as f:
++            f.write(self.png_data)
++        return Image(filename, b'PNG', self.png_data, ImageType.front_cover)
++
++    def assertArtEqual(self, mf, expected_images):
++        images = sorted(mf.images, key=lambda x: x.type)
++        expected = sorted(expected_images, key=lambda x: x.type)
++        self.assertEqual(len(images), len(expected))
++        for img1, img2 in zip(images, expected):
++            self.assertEqual(img1.filename, img2.filename)
++            self.assertEqual(img1.format, img2.format)
++            self.assertEqual(img1.data, img2.data)
++            self.assertEqual(img1.type, img2.type)
++
++
++class ReadOnlyTagTest(unittest.TestCase, _common.TempDirMixin):
++    def setUp(self):
++        self.create_temp_dir()
++        self.key = "READ_ONLY_TEST"
++        self.field = mediafile.MediaField(
++            mediafile.MP3StorageStyle(self.key, read_only=True),
++            mediafile.MP4StorageStyle(
++                "----:com.apple.iTunes:" + self.key, read_only=True),
++            mediafile.StorageStyle(self.key, read_only=True),
++            mediafile.ASFStorageStyle(self.key, read_only=True),
++        )
++
++        if "read_only_test" not in mediafile.MediaFile.fields():
++            mediafile.MediaFile.add_field("read_only_test", self.field)
++
++    def test_none(self):
++        path = os.path.join(_common.RSRC, b'empty.flac')
++        mf = mediafile.MediaFile(path)
++        self.assertIsNone(mf.read_only_test)
++
++    def test_read(self):
++        path = os.path.join(_common.RSRC, b'empty.flac')
++        mf = mediafile.MediaFile(path)
++        mf.mgfile.tags[self.key] = "don't"
++        self.assertEqual("don't", mf.read_only_test)
++
++    def test_write(self):
++        src = os.path.join(_common.RSRC, b'empty.flac')
++        path = os.path.join(self.temp_dir, b'test.flac')
++        shutil.copy(src, path)
++        mf = mediafile.MediaFile(path)
++        mf.read_only_test = "something terrible"
++        mf.save()
++        self.assertNotIn(self.key, mf.mgfile.tags)
++
++    def tearDown(self):
++        self.remove_temp_dir()
++        try:
++            del mediafile.MediaFile.read_only_test
++        except AttributeError:
++            pass
++
++
++def suite():
++    return unittest.TestLoader().loadTestsFromName(__name__)
++
++
++if __name__ == '__main__':
++    unittest.main(defaultTest='suite')
+--- /dev/null
++++ b/test/test_mediafile_edge_grader.py
+@@ -0,0 +1,81 @@
++"""Specific, edge-case tests for the MediaFile metadata layer.
++"""
++
++
++from __future__ import division, absolute_import, print_function
++import os
++import shutil
++import unittest
++import mutagen.id3
++from test import _common
++import mediafile
++import six
++
++
++_sc = mediafile._safe_cast
++
++
++class ReadOnlyTagTest(unittest.TestCase, _common.TempDirMixin):
++    def setUp(self):
++        self.create_temp_dir()
++        self.key = "READ_ONLY_TEST"
++        self.field = mediafile.MediaField(
++            mediafile.MP3StorageStyle(self.key, read_only=True),
++            mediafile.MP4StorageStyle(
++                "----:com.apple.iTunes:" + self.key, read_only=True),
++            mediafile.StorageStyle(self.key, read_only=True),
++            mediafile.ASFStorageStyle(self.key, read_only=True),
++        )
++
++        if "read_only_test" not in mediafile.MediaFile.fields():
++            mediafile.MediaFile.add_field("read_only_test", self.field)
++
++    def test_none(self):
++        path = os.path.join(_common.RSRC, b'empty.flac')
++        mf = mediafile.MediaFile(path)
++        self.assertIsNone(mf.read_only_test)
++
++    def test_read(self):
++        path = os.path.join(_common.RSRC, b'empty.flac')
++        mf = mediafile.MediaFile(path)
++        mf.mgfile.tags[self.key] = "don't"
++        self.assertEqual("don't", mf.read_only_test)
++
++    def test_write(self):
++        src = os.path.join(_common.RSRC, b'empty.flac')
++        path = os.path.join(self.temp_dir, b'test.flac')
++        shutil.copy(src, path)
++        mf = mediafile.MediaFile(path)
++        mf.read_only_test = "something terrible"
++        mf.save()
++        self.assertNotIn(self.key, mf.mgfile.tags)
++
++    def tearDown(self):
++        self.remove_temp_dir()
++        try:
++            del mediafile.MediaFile.read_only_test
++        except AttributeError:
++            pass
++
++
++class TaggedWithNoDataTest(unittest.TestCase):
++    def test_tagged_with_no_data(self):
++        path = os.path.join(_common.RSRC, b'empty.flac')
++        mf = mediafile.MediaFile(path)
++        self.assertEqual(mf.album, None)
++        self.assertEqual(mf.title, None)
++        self.assertEqual(mf.artist, None)
++        self.assertEqual(mf.genre, None)
++        self.assertEqual(mf.year, None)
++        self.assertEqual(mf.date, None)
++        self.assertEqual(mf.length, 0.0)
++        self.assertEqual(mf.bitrate, 0)
++        self.assertEqual(mf.channels, 0)
++        self.assertEqual(mf.samplerate, 0)
++        self.assertEqual(mf.track, 0)
++        self.assertEqual(mf.tracktotal, 0)
++        self.assertEqual(mf.disc, 0)
++        self.assertEqual(mf.disctotal, 0)
++        self.assertEqual(mf.rating, 0)
++
++
++def suite():
++    return unittest.TestLoader().loadTestsFromName(__name__)
++
++
++if __name__ == '__main__':
++    unittest.main(defaultTest='suite')

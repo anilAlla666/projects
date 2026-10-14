@@ -1,0 +1,118 @@
+--- /dev/null
++++ b/tests/test_launch/test_implementations_grader.py
+@@ -0,0 +1,104 @@
++from pathlib import Path
++from typing import Optional
++import pytest
++from hydra.core.config_store import ConfigStore
++from hydra.core.override_parser.overrides_parser import OverridesParser
++from hydra.errors import ConfigCompositionException
++from hydra.plugins.sweeper import Sweeper
++from omegaconf.omegaconf import OmegaConf
++from hydra_zen import builds, instantiate, launch, make_config
++from hydra_zen._compatibility import SUPPORTS_VERSION_BASE
++from hydra_zen._launch import _store_config
++
++
++try:
++    import dataclasses
++
++    import cloudpickle
++
++    CLOUDPICKLE_AVAIL = True
++except ImportError:
++    CLOUDPICKLE_AVAIL = False
++
++
++CONFIG_TYPE_EXAMPLES = [
++    make_config(),
++    builds(dict, a=1, b=1),
++    dict(a=1),
++    dict(f=builds(dict, a=1, b=1)),
++    OmegaConf.create(dict(a=1)),
++    OmegaConf.create(dict(f=builds(dict, a=1, b=1))),
++]
++
++
++DATACLASS_CONFIG_TYPE_EXAMPLES = [
++    make_config(),
++    builds(dict, a=1, b=1),
++]
++
++
++@dataclasses.dataclass
++class BasicDataClassConfig:
++    a: int = 1
++    b: int = 1
++
++
++def basic_task(cfg):
++    return cfg.a + cfg.b
++
++
++def local_basic_sweeper():
++    class LocalBasicSweeper(Sweeper):
++        def __init__(self, launcher):
++            self.launcher = launcher
++
++        def setup(self, config_name: str, job_results: list):
++            pass
++
++        def finalize(self, config_name: str, job_results: list):
++            pass
++
++        def run_jobs(
++            self,
++            job_batch: list,
++            arguments: list,
++            initial_job_idx: int,
++            num_total_jobs: int,
++        ):
++            parser = OverridesParser.create(config_loader=self.launcher.hydra_context.config_loader)
++            override = parser.parse_overrides(arguments)[0]
++            key = override.get_key_element()
++            sweep = [f"{key}={val}" for val in override.sweep_string_iterator()]
++            overrides = [[x] for x in sweep]
++
++            returns = []
++            for i, batch in enumerate(overrides):
++                result = self.launcher.launch([batch], initial_job_idx=i)[0]
++                returns.append(result)
++
++            return [returns]
++
++    return LocalBasicSweeper
++
++
++cs = ConfigStore.instance()
++
++
++cs.store(group="hydra/sweeper", name="local_test", node=builds(local_basic_sweeper))
++
++
++@pytest.mark.filterwarnings(
++    "ignore:Future Hydra versions will no longer change working directory"
++)
++@pytest.mark.skipif(not SUPPORTS_VERSION_BASE, reason="version_base not supported")
++@pytest.mark.parametrize("version_base", ["1.1", "1.2", None])
++@pytest.mark.usefixtures("cleandir")
++def test_version_base(version_base: Optional[str]):
++    def task(cfg):
++        (Path().cwd() / "foo.txt").touch()
++
++    expected_dir = Path().cwd() if version_base != "1.1" else (Path().cwd() / "outputs")
++
++    glob_pattern = "foo.txt" if version_base != "1.1" else "./**/foo.txt"
++
++    assert len(list(expected_dir.glob(glob_pattern))) == 0
++
++    launch(make_config(), task, version_base=version_base)
++    assert len(list(expected_dir.glob(glob_pattern))) == 1, list(expected_dir.glob("*"))
++
++    # ensure the file isn't found in the opposite location
++    not_found = (
++        Path().cwd().glob("foo.txt")
++        if version_base == "1.1"
++        else (Path().cwd() / "outputs").glob("**/foo.txt")
++    )
++    assert len(list(not_found)) == 0

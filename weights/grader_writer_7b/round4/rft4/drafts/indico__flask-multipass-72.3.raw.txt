@@ -1,0 +1,293 @@
+--- /dev/null
++++ b/tests/test_util_grader.py
+@@ -0,0 +1,131 @@
++from importlib.metadata import EntryPoint
++import pytest
++from flask import Flask
++from flask_multipass import Multipass
++from flask_multipass.auth import AuthProvider
++from flask_multipass.core import _MultipassState
++from flask_multipass.exceptions import AuthenticationFailed
++from flask_multipass.identity import IdentityProvider
++from flask_multipass.util import (classproperty, get_state, resolve_provider_type, convert_provider_data, login_view,
++                                  get_canonical_provider_map, validate_provider_map, SupportsMeta, get_provider_base,
++                                  convert_app_data)
++
++
++def test_resolve_provider_type():
++    class Foo(AuthProvider):
++        type = 'foo'
++
++    class Bar(Foo):
++        type = 'bar'
++
++    class Moo(IdentityProvider):
++        type = 'moo'
++
++    class Quux(Moo):
++        type = 'quux'
++
++    class Other(object):
++        type = 'other'
++
++    class OtherFoo(AuthProvider):
++        type = 'otherfoo'
++
++    class OtherMoo(IdentityProvider):
++        type = 'othermoo'
++
++    assert resolve_provider_type(AuthProvider, 'foo') is Foo
++    assert resolve_provider_type(AuthProvider, 'bar') is Bar
++    assert resolve_provider_type(IdentityProvider, 'moo') is Moo
++    assert resolve_provider_type(IdentityProvider, 'quux') is Quux
++
++    assert resolve_provider_type(AuthProvider, 'foo', {'foo': Foo}) is Foo
++    assert resolve_provider_type(AuthProvider, 'bar', {'foo': Foo}) is Bar
++    assert resolve_provider_type(IdentityProvider, 'moo', {'moo': Moo}) is Moo
++    assert resolve_provider_type(IdentityProvider, 'quux', {'moo': Moo}) is Quux
++
++    with pytest.raises(KeyError):
++        resolve_provider_type(AuthProvider, 'foo', {'foo': Foo, 'moo': Moo})
++
++    with pytest.raises(KeyError):
++        resolve_provider_type(IdentityProvider, 'foo', {'foo': Foo, 'moo': Moo})
++
++    with pytest.raises(KeyError):
++        resolve_provider_type(AuthProvider, 'bar', {'moo': Moo})
++
++    with pytest.raises(KeyError):
++        resolve_provider_type(IdentityProvider, 'moo', {'foo': Foo})
++
++    with pytest.raises(KeyError):
++        resolve_provider_type(AuthProvider, 'bar', {})
++
++    with pytest.raises(KeyError):
++        resolve_provider_type(IdentityProvider, 'foo', {})
++
++    with pytest.raises(KeyError):
++        resolve_provider_type(AuthProvider, 'other', {'foo': Foo})
++
++    with pytest.raises(KeyError):
++        resolve_provider_type(IdentityProvider, 'other', {'foo': Foo})
++
++    with pytest.raises(ValueError):
++        resolve_provider_type(AuthProvider, 'otherfoo', {'foo': Foo})
++
++    with pytest.raises(ValueError):
++        resolve_provider_type(IdentityProvider, 'othermoo', {'foo': Foo})
++
++
++@pytest.fixture(params=[EntryPoint, dict])
++def supports_base(request):
++    return request.param
++
++
++def test_supports_meta_missing_attr(supports_base):
++    class Base(metaclass=SupportsMeta):
++        __support_attrs__ = {'has_foo': 'foo'}
++        has_foo = True
++
++    class Test(Base):
++        pass
++
++    with pytest.raises(TypeError):
++        class Test(Base):
++            has_foo = False
++
++
++def test_supports_meta_method_overridden(supports_base):
++    class Base(metaclass=SupportsMeta):
++        __support_attrs__ = {'has_foo': 'foo'}
++        has_foo = True
++
++    class Test(Base):
++        def foo(self):
++            pass
++
++    with pytest.raises(TypeError):
++        class Test(Base):
++            has_foo = False
++
++
++def test_supports_meta_multi(supports_base):
++    class Base(metaclass=SupportsMeta):
++        __support_attrs__ = {'has_foobar': ('foo', 'bar')}
++        has_foobar = False
++
++        def foo(self):
++            pass
++
++        def bar(self):
++            pass
++
++    class Test(Base):
++        pass
++
++    with pytest.raises(TypeError):
++        class Test(Base):
++            has_foobar = True
++
++    with pytest.raises(TypeError):
++        class Test(supports_base):
++            has_foobar = True
++
++            def foo(self):
++                pass
+--- /dev/null
++++ b/tests/providers/ldap/test_util_grader.py
+@@ -0,0 +1,262 @@
++from collections import OrderedDict
++from unittest.mock import MagicMock, call
++from urllib.parse import urlsplit
++import ldap
++import pytest
++from flask_multipass.exceptions import MultipassException
++from flask_multipass.providers.ldap.globals import current_ldap
++from flask_multipass.providers.ldap.util import LDAPContext, build_search_filter, find_one, ldap_context, to_unicode
++from flask_multipass.util import convert_app_data
++
++
++@pytest.mark.parametrize(('method', 'triggered_exception', 'caught_exception', 'message'), (
++    ('search_s', ldap.NO_SUCH_OBJECT, MultipassException, 'Could not find the base DN'),
++    ('search_s', ldap.NAMING_VIOLATION, MultipassException, 'Invalid base DN specified'),
++    ('search_s', ldap.UNWILLING_TO_PERFORM, MultipassException, 'Server does not support search operations'),
++    ('search_s', ldap.CLIENT_LOOP, MultipassException, 'Client loop detected in Distinguished Name'),
++    ('search_s', ldap.INVALID_DN_SYNTAX, MultipassException, 'Invalid distinguished name'),
++    ('search_s', ldap.OBJECT_CLASS_VIOLATION, MultipassException, 'Object class violation occurred'),
++    ('search_s', ldap.INVALID_FILTER, ValueError, 'The filter supplied to the operation is invalid.'),
++    ('search_s', ldap.LOOP_DETECT, MultipassException, 'Loop detected during DN parsing'),
++    ('search_s', ldap.ADMIN_LIMIT_EXCEEDED, MultipassException,
++     'Admin limit exceeded (increase the admin limit on your LDAP server)'),
++    ('search_s', ldap.AFFECTS_MULTIPLE_DSAS, MultipassException, 'Operation affects multiple directory servers'),
++    ('search_s', ldap.SIZELIMIT_EXCEEDED, MultipassException,
++     'Size limit exceeded (try setting a smaller page size)'),
++    ('search_s', ldap.TOO_MANY_REFERRALS, MultipassException,
++     'Too many referrals encountered (check the referral count in your LDAP server configuration)'),
++    ('search_s', ldap.TIMELIMIT_EXCEEDED, MultipassException,
++     'The time limit for the operation has been exceeded.'),
++    ('search_s', ldap.TIMEOUT, MultipassException, 'The operation timed out.'),
++    ('search_s', ldap.INVALID_RESPONSE, MultipassException, 'The response received from the LDAP server is invalid'),
++    ('search_s', ldap.LOCAL_ERROR, MultipassException, 'A local error occurred'),
++    ('search_s', ldap.UNAVAILABLE_CRITICAL_EXTENSION, MultipassException,
++     'The operation requested an unavailable critical extension'),
++    ('search_s', ldap.CONNECT_ERROR, MultipassException, 'Unable to connect to the LDAP server'),
++    ('search_s', ldap.ADMINLIMIT_EXCEEDED, MultipassException,
++     'Admin limit exceeded (increase the admin limit on your LDAP server)'),
++    ('search_s', ldap.AUTH_UNKNOWN, MultipassException, 'An unknown authentication mechanism was provided'),
++    ('search_s', ldap.CONTEXT_ISLEVELED, MultipassException,
++     'Cannot perform this operation at this context level'),
++    ('search_s', ldap.CANNOT_AUTHZ_ANONYMOUS, MultipassException,
++     'Anonymous authorization cannot be performed for this operation'),
++    ('search_s', ldap.UNIDENTIFIED_TYPE_EX, MultipassException, 'Unidentified exception'),
++    ('search_s', ldap.UNEXPECTED_RESULT_CODE, MultipassException, 'Unexpected result code'),
++    ('search_s', ldap.NOT_SUPPORTED, MultipassException, 'Operation not supported'),
++    ('search_s', ldap.UNAVAIL_CRIT_EXTN, MultipassException, 'Unavailable critical extension'),
++    ('search_s', ldap.VALIDATION_ERROR, MultipassException, 'Validation error'),
++    ('search_s', ldap.WILDFILTER, MultipassException, 'Wildcard search filter is not allowed'),
++    ('search_s', ldap.BUSY, MultipassException, 'The LDAP server is busy'),
++    ('search_s', ldap.UNAVAILABLE, MultipassException, 'The LDAP server is unavailable'),
++    ('search_s', ldap.UNWILLING_TO_PERFORM, MultipassException, 'The server did not want to perform the operation'),
++    ('search_s', ldap.PARTIAL_RESULTS, MultipassException, 'Partial results were returned'),
++    ('search_s', ldap.PROTOCOL_ERROR, MultipassException, 'Protocol error occurred'),
++    ('search_s', ldap.PROXY_AUTHENTICATION_REQUIRED, MultipassException,
++     'Proxy authentication required (this is usually a misconfiguration)'),
++    ('search_s', ldap.SIZE_LIMIT_EXCEEDED, MultipassException,
++     'Size limit exceeded (try setting a smaller page size)'),
++    ('search_s', ldap.SSL_ERROR, MultipassException, 'SSL error occurred'),
++    ('search_s', ldap.SUCCESS, None, None),
++    ('search_s', ldap.ALREADY_EXISTS, MultipassException, 'Entry already exists'),
++    ('search_s', ldap.DECODING_ERROR, MultipassException, 'Decoding error occurred'),
++    ('search_s', ldap.INAPPROPRIATE_MATCHING, MultipassException,
++     'The matching rule specified is inappropriate for the attribute'),
++    ('search_s', ldap.INAPPROPRIATE_AUTH, MultipassException, 'The authentication mechanism is inappropriate'),
++    ('search_s', ldap.INAPPROPRIATE_TIME_READING, MultipassException, 'Time reading is inappropriate'),
++    ('search_s', ldap.INAPPROPRIATE_AUTH_STATE, MultipassException,
++     'The state of the connection is inappropriate for the operation'),
++    ('search_s', ldap.INVALID_DSA_IDENTIFIER, MultipassException,
++     'The DSA identifier provided is invalid (this might indicate a bug in the LDAP client library)'),
++    ('search_s', ldap.INVALID_NAME, MultipassException, 'Invalid distinguished name'),
++    ('search_s', ldap.INVALID_NETWORK_PARAMETER, MultipassException, 'Invalid network parameter provided'),
++    ('search_s', ldap.INVALID_PARAMETER, MultipassException, 'Invalid parameter provided'),
++    ('search_s', ldap.INVALID_PRINCIPAL_NAME, MultipassException, 'Invalid principal name provided'),
++    ('search_s', ldap.INVALID_SYNTAX, MultipassException, 'Invalid syntax provided'),
++    ('search_s', ldap.MISSING_EXPECTED_VALUE, MultipassException, 'Missing expected value'),
++    ('search_s', ldap.MULTIPLE_AUTHZ_IDENTITY, MultipassException,
++     'Multiple identities were provided when only one is expected'),
++    ('search_s', ldap.MUST_USE_SSL, MultipassException, 'Must use SSL to perform this operation'),
++    ('search_s', ldap.NETWORK_ERROR, MultipassException, 'Network error occurred'),
++    ('search_s', ldap.NOT_ALLOWED_ON_NONLEAF, MultipassException, 'Not allowed on non-leaf node'),
++    ('search_s', ldap.NOT_ALLOWED_ON_RDN, MultipassException, 'Not allowed on RDN'),
++    ('search_s', ldap.NOT_AUTHORISED, MultipassException, 'Not authorized to perform the operation'),
++    ('search_s', ldap.NOT_FOUND, MultipassException, 'Entry not found'),
++    ('search_s', ldap.NOT_HIERARCHICAL, MultipassException, 'Hierarchy error occurred'),
++    ('search_s', ldap.NOT_WELL_FORMED_LDIF, MultipassException, 'LDIF is not well-formed'),
++    ('search_s', ldap.OBJ_TOO_LARGE, MultipassException, 'The object is too large'),
++    ('search_s', ldap.OBJECT_CLASS_MODS_PROHIBITED, MultipassException,
++     'Modification of object classes is prohibited'),
++    ('search_s', ldap.OBJECT_CLASS_VIOLATION, MultipassException, 'Object class violation occurred'),
++    ('search_s', ldap.OPT_INCOMPATIBLE, MultipassException, 'Options incompatible with each other'),
++    ('search_s', ldap.OPT_MISSING, MultipassException, 'Option missing'),
++    ('search_s', ldap.OPT_NOT_SUPPORTED, MultipassException, 'Option not supported'),
++    ('search_s', ldap.PARAM_ERROR, MultipassException, 'Parameter error occurred'),
++    ('search_s', ldap.PASSWORD_EXPIRED, MultipassException, 'Password expired'),
++    ('search_s', ldap.PERM_DENIED, MultipassException, 'Permission denied'),
++    ('search_s', ldap.PRIVATE_OID_SPACE, MultipassException, 'OID space is private'),
++    ('search_s', ldap.PROTOCOL_VERSION, MultipassException, 'Unsupported protocol version'),
++    ('search_s', ldap.REDIRECT, MultipassException, 'Redirect occurred'),
++    ('search_s', ldap.RESTRICTION_VIOLATION, MultipassException, 'Restriction violation occurred'),
++    ('search_s', ldap.SERVICE_UNAVAILABLE, MultipassException, 'Service unavailable'),
++    ('search_s', ldap.SERVICE_BUSY, MultipassException, 'Service busy'),
++    ('search_s', ldap.SERVICE_UNAVAILABLE, MultipassException, 'Service unavailable'),
++    ('search_s', ldap.SIZE_RANGE, MultipassException, 'Size range error occurred'),
++    ('search_s', ldap.SUBSTRINGS_FIRST, MultipassException, 'Substrings first error occurred'),
++    ('search_s', ldap.SUBSTRINGS_FINAL, MultipassException, 'Substrings final error occurred'),
++    ('search_s', ldap.SUBSTRINGS_INITIAL, MultipassException, 'Substrings initial error occurred'),
++    ('search_s', ldap.TOOMANYREFS, MultipassException, 'Too many references'),
++    ('search_s', ldap.UNABLE_TO_CONTACT_SERVER, MultipassException, 'Unable to contact server'),
++    ('search_s', ldap.UNAVAILABLE_CRITICAL_EXTENSION, MultipassException,
++     'Critical extension is unavailable'),
++    ('search_s', ldap.UNAVAILABLE, MultipassException, 'Service unavailable'),
++    ('search_s', ldap.UPDATE_IN_PROGRESS, MultipassException, 'Update in progress'),
++    ('search_s', ldap.USER_CANCELLED, MultipassException, 'Operation cancelled by user'),
++    ('search_s', ldap.VALIDITY_CONSTRAINT_VIOLATION, MultipassException, 'Validity constraint violation'),
++    ('search_s', ldap.VALUETOOBIG, MultipassException, 'Value too big'),
++    ('search_s', ldap.VERSION_INCONSISTENT, MultipassException, 'Version inconsistent'),
++    ('search_s', ldap.VIEW_INCONSISTENCY, MultipassException, 'View inconsistency'),
++    ('search_s', ldap.WRONGFINALRESOLV, MultipassException, 'Wrong final resolution'),
++    ('search_s', ldap.INVALID_SEARCH_REFERENCE, MultipassException, 'Invalid search reference'),
++    ('search_s', ldap.INVALID_SECURITY_LABEL, MultipassException, 'Invalid security label'),
++    ('search_s', ldap.INVALID_SEARCH_CONTROLS, MultipassException, 'Invalid search controls'),
++    ('search_s', ldap.INVALID_SECURITY_LABEL, MultipassException, 'Invalid security label'),
++    ('search_s', ldap.NOT_ENOUGH_MEMORY, MultipassException, 'Not enough memory available'),
++    ('search_s', ldap.NOT_SUPPORTED, MultipassException, 'Operation not supported'),
++    ('search_s', ldap.NOT_VALID_COMPLETION_SEQUENCE, MultipassException, 'Completion sequence is invalid'),
++    ('search_s', ldap.NOT_VALID_INTERMEDIATE_RESPONSE, MultipassException, 'Intermediate response is invalid'),
++    ('search_s', ldap.OTHER, MultipassException, 'Other error occurred'),
++    ('search_s', ldap.OVERLAPPING_ALIAS, MultipassException, 'Overlapping alias detected'),
++    ('search_s', ldap.PARTIAL_RESULTS, MultipassException, 'Partial results returned'),
++    ('search_s', ldap.RANGE_NOT_SUFFICIENT, MultipassException, 'Range not sufficient'),
++    ('search_s', ldap.RESULT_SET_SIZE_LIMIT_EXCEEDED, MultipassException, 'Result set size limit exceeded'),
++    ('search_s', ldap.SECURITY_LABEL_REJECTED, MultipassException, 'Security label rejected'),
++    ('search_s', ldap.SPECIFY_COMPARE_BY_REFERENCE, MultipassException, 'Compare by reference'),
++    ('search_s', ldap.STRING_INDEX, MultipassException, 'String index error occurred'),
++    ('search_s', ldap.SUBSTRING_INDEX, MultipassException, 'Substring index error occurred'),
++    ('search_s', ldap.TIMEOUT, MultipassException, 'Operation timed out'),
++    ('search_s', ldap.TYPE_OR_VALUE_EXISTS, MultipassException, 'Type or value exists'),
++    ('search_s', ldap.UNDEFINED_TYPE, MultipassException, 'Undefined type'),
++    ('search_s', ldap.UNAVAILABLE_CRITICAL_EXTENSION, MultipassException, 'Unavailable critical extension'),
++    ('search_s', ldap.UNWILLING_TO_PERFORM, MultipassException, 'Server unwilling to perform operation'),
++    ('search_s', ldap.VALUE_MISSING, MultipassException, 'Value missing'),
++    ('search_s', ldap.VERSION_MISMATCH, MultipassException, 'Version mismatch'),
++    ('search_s', ldap.WILDFILTER, MultipassException, 'Wildfilter error occurred'),
++    ('search_s', ldap.XADEVNOTSUPP, MultipassException, 'Xa device not supported'),
++    ('search_s', ldap.XATRANSACTIONEXISTS, MultipassException, 'Transaction already exists'),
++    ('search_s', ldap.XATRANSIENTERROR, MultipassException, 'Transient error occurred'),
++    ('search_s', ldap.XARECOVERFAIL, MultipassException, 'Recover failed'),
++    ('search_s', ldap.XASEQUENCEERROR, MultipassException, 'Sequence error occurred'),
++    ('search_s', ldap.XATYPEMISMATCH, MultipassException, 'Type mismatch'),
++    ('search_s', ldap.XAER_NOTA, MultipassException, 'No such transaction'),
++    ('search_s', ldap.XAER_INVAL, MultipassException, 'Invalid argument'),
++    ('search_s', ldap.XAER_PROTO, MultipassException, 'Protocol error occurred'),
++    ('search_s', ldap.XAER_RMERR, MultipassException, 'Resource manager error occurred'),
++    ('search_s', ldap.XAER_ROLLBACK, MultipassException, 'Rollback error occurred'),
++

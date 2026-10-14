@@ -1,0 +1,244 @@
+--- /dev/null
++++ b/tests/utils/test_core_grader.py
+@@ -0,0 +1,162 @@
++import types
++import numpy as np
++import pandas as pd
++import pytest
++import altair as alt
++from altair.utils.core import parse_shorthand, update_nested, infer_encoding_types
++from altair.utils.core import infer_dtype
++
++
++FAKE_CHANNELS_MODULE = '''
++"""Fake channels module for utility tests."""
++
++from altair.utils import schemapi
++
++
++class FieldChannel:
++    def __init__(self, shorthand, **kwargs):
++        kwargs['shorthand'] = shorthand
++        return super(FieldChannel, self).__init__(**kwargs)
++
++
++class ValueChannel:
++    def __init__(self, value, **kwargs):
++        kwargs['value'] = value
++        return super(ValueChannel, self).__init__(**kwargs)
++
++
++class X(FieldChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "x"
++
++
++class XValue(ValueChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "x"
++
++
++class Y(FieldChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "y"
++
++
++class YValue(ValueChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "y"
++
++
++class Color(FieldChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "color"
++
++
++class ColorValue(ValueChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "color"
++
++
++class Size(FieldChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "size"
++
++
++class SizeValue(ValueChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "size"
++
++
++class StrokeWidth(FieldChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "strokeWidth"
++
++
++class StrokeWidthValue(ValueChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "strokeWidth"
++
++
++channels = types.ModuleType('fake_channels_module', FAKE_CHANNELS_MODULE)
++globals().update(channels.__dict__)
++'''
++
++
++def _getargs(*args, **kwds):
++    """Return all positional arguments followed by all keyword arguments"""
++    return args, kwds
++
++
++@pytest.fixture(scope="module")
++def fake_channels(request):
++    exec(FAKE_CHANNELS_MODULE, request.module.__dict__)
++
++
++def test_infer_encoding_types_with_pyarrow():
++    channels = alt.channels
++
++    args, kwds = _getargs(
++        size=alt.condition("pred1", alt.value(1), alt.value(2)),
++        color=alt.condition("pred2", alt.value("red"), "cfield:N"),
++        opacity=alt.condition("pred3", "ofield:N", alt.value(0.2)),
++        tooltip=alt.Tooltip("tooltip:T"),
++    )
++
++    expected = {
++        "size": channels.SizeValue(
++            2,
++            condition=alt.ConditionalPredicateValueDefnumberExprRef(
++                value=1, test=alt.Predicate("pred1")
++            ),
++        ),
++        "color": channels.Color(
++            "cfield:N",
++            condition=alt.ConditionalPredicateValueDefGradientstringnullExprRef(
++                value="red", test=alt.Predicate("pred2")
++            ),
++        ),
++        "opacity": channels.OpacityValue(
++            0.2,
++            condition=alt.ConditionalPredicateMarkPropFieldOrDatumDef(
++                field=alt.FieldName("ofield"),
++                test=alt.Predicate("pred3"),
++                type=alt.StandardType("nominal"),
++            ),
++        ),
++        "tooltip": channels.Tooltip(
++            "tooltip:T",
++        ),
++    }
++    assert infer_encoding_types(args, kwds, channels) == expected
++
++
++@pytest.mark.skipif(
++    not hasattr(pd, "StringDtype"),
++    reason="dedicated String dtype not supported in pandas v{}".format(pd.__version__),
++)
++def test_sanitize_string_dtype():
++    df = pd.DataFrame(
++        {
++            "string_object": ["a", "b", "c", "d"],
++            "string_string": pd.array(["a", "b", "c", "d"], dtype="string"),
++            "string_object_null": ["a", "b", None, "d"],
++            "string_string_null": pd.array(["a", "b", None, "d"], dtype="string"),
++            "string_arrow": pd.array(
++                ["a", "b", None, "d"], dtype="string[pyarrow]"
++            ),
++        }
++    )
++
++    df_clean = sanitize_dataframe(df)
++    assert {col.dtype.name for _, col in df_clean.items()} == {"object"}
++
++    result_python = {col_name: list(col) for col_name, col in df_clean.items()}
++    assert result_python == {
++        "string_object": ["a", "b", "c", "d"],
++        "string_string": ["a", "b", "c", "d"],
++        "string_object_null": ["a", "b", None, "d"],
++        "string_string_null": ["a", "b", None, "d"],
++        "string_arrow": ["a", "b", None, "d"],
++    }
++
++
++@pytest.mark.skipif(
++    not hasattr(pd, "BooleanDtype"),
++    reason="Nullable boolean dtype not supported in pandas v{}".format(pd.__version__),
++)
++def test_sanitize_boolean_dtype():
++    df = pd.DataFrame(
++        {
++            "bool_none": pd.array([True, False, None], dtype="boolean"),
++            "none": pd.array([None, None, None], dtype="boolean"),
++            "bool": pd.array([True, False, True], dtype="boolean"),
++            "bool_arrow": pd.array([True, False, None], dtype="boolean[pyarrow]"),
++        }
++    )
++
++    df_clean = sanitize_dataframe(df)
++    assert {col.dtype.name for _, col in df_clean.items()} == {"object"}
++
++    result_python = {col_name: list(col) for col_name, col in df_clean.items()}
++    assert result_python == {
++        "bool_none": [True, False, None],
++        "none": [None, None, None],
++        "bool": [True, False, True],
++        "bool_arrow": [True, False, None],
++    }
+--- /dev/null
++++ b/tests/utils/test_utils_grader.py
+@@ -0,0 +1,49 @@
++import pytest
++import warnings
++import json
++import numpy as np
++import pandas as pd
++from altair.utils import infer_vegalite_type, sanitize_dataframe
++
++
++@pytest.mark.skipif(
++    not hasattr(pd, "StringDtype"),
++    reason="dedicated String dtype not supported in pandas v{}".format(pd.__version__),
++)
++def test_sanitize_string_dtype():
++    df = pd.DataFrame(
++        {
++            "string_object": ["a", "b", "c", "d"],
++            "string_string": pd.array(["a", "b", "c", "d"], dtype="string"),
++            "string_object_null": ["a", "b", None, "d"],
++            "string_string_null": pd.array(["a", "b", None, "d"], dtype="string"),
++            "string_arrow": pd.array(
++                ["a", "b", None, "d"], dtype="string[pyarrow]"
++            ),
++        }
++    )
++
++    df_clean = sanitize_dataframe(df)
++    assert {col.dtype.name for _, col in df_clean.items()} == {"object"}
++
++    result_python = {col_name: list(col) for col_name, col in df_clean.items()}
++    assert result_python == {
++        "string_object": ["a", "b", "c", "d"],
++        "string_string": ["a", "b", "c", "d"],
++        "string_object_null": ["a", "b", None, "d"],
++        "string_string_null": ["a", "b", None, "d"],
++        "string_arrow": ["a", "b", None, "d"],
++    }
++
++
++@pytest.mark.skipif(
++    not hasattr(pd, "BooleanDtype"),
++    reason="Nullable boolean dtype not supported in pandas v{}".format(pd.__version__),
++)
++def test_sanitize_boolean_dtype():
++    df = pd.DataFrame(
++        {
++            "bool_none": pd.array([True, False, None], dtype="boolean"),
++            "none": pd.array([None, None, None], dtype="boolean"),
++            "bool": pd.array([True, False, True], dtype="boolean"),
++            "bool_arrow": pd.array([True, False, None], dtype="boolean[pyarrow]"),
++        }
++    )
++
++    df_clean = sanitize_dataframe(df)
++    assert {col.dtype.name for _, col in df_clean.items()} == {"object"}

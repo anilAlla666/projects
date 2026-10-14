@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/tests/test_ast3_grader.py
+@@ -0,0 +1,25 @@
++from __future__ import print_function
++import gast
++
++
++def test_assign_expr():
++    code = "(x := 1)"
++    parsed = gast.parse(code)
++    assert isinstance(parsed.body[0].value, gast.NamedExpr)
++    assert isinstance(parsed.body[0].value.target, gast.Name)
++    assert isinstance(parsed.body[0].value.value, gast.Constant)
++    assert parsed.body[0].value.target.id == 'x'
++    assert parsed.body[0].value.value.value == 1
++
++
++def test_namedexpr_in_comprehension():
++    code = "[x for x in range(10) if (y := x % 2) == 0]"
++    parsed = gast.parse(code)
++    assert isinstance(parsed.body[0].value, gast.ListComp)
++    assert isinstance(parsed.body[0].value.generators[0].iter, gast.Call)
++    assert isinstance(parsed.body[0].value.generators[0].ifs[0], gast.NamedExpr)
++    assert isinstance(parsed.body[0].value.generators[0].ifs[0].target, gast.Name)
++    assert isinstance(parsed.body[0].value.generators[0].ifs[0].value, gast.BinOp)
++    assert parsed.body[0].value.generators[0].ifs[0].target.id == 'y'
++    assert parsed.body[0].value.generators[0].ifs[0].value.left.id == 'x'
++    assert parsed.body[0].value.generators[0].ifs[0].value.op.__class__.__name__ == 'Mod'
++    assert parsed.body[0].value.generators[0].ifs[0].value.right.attr == 'range'

@@ -1,0 +1,44 @@
+--- /dev/null
++++ b/tests/test_codicefiscale_grader.py
+@@ -0,0 +1,37 @@
++import pytest
++from datetime import datetime
++from unittest.mock import patch
++
++
++def get_test_municipalities():
++    municipalities = []
++    municipalities.append(
++        {
++            "code": "AAI",
++            "province": "RM",
++            "name": "AIA",
++            "name_slugs": [
++                "aia",
++                "aia-roma",
++            ],
++            "active": False,
++            "date_created": "2021-01-01",
++            "date_deleted": "",
++        },
++    )
++    municipalities.append(
++        {
++            "code": "AAI",
++            "province": "RM",
++            "name": "AIA",
++            "name_slugs": [
++                "aia",
++                "aia-roma",
++            ],
++            "active": False,
++            "date_created": "2020-01-01",
++            "date_deleted": "2021-01-01",
++        },
++    )
++    return municipalities
++
++
++@patch("codicefiscale._DATA", get_test_municipalities())
++def test_get_omocodes_inactive_municipalities():
++    assert codicefiscale.encode("AIA", "RM", "M", "1995-01-01") == "AAIAAI95A01B012W"

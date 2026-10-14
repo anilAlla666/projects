@@ -1,0 +1,80 @@
+--- /dev/null
++++ b/tests/test_components_grader.py
+@@ -0,0 +1,20 @@
++import unittest
++from universe import components
++
++
++class SpeciesComponentTestCase(unittest.TestCase):
++    def test_simple(self):
++        data = {'singular_name': 'thing', 'plural_name': 'things', 'growth_rate': 10}
++        component = components.SpeciesComponent()
++        self.assertEqual(component.serialize(data), data)
++
++    def test_missing_required_field(self):
++        data = {}
++        component = components.SpeciesComponent()
++        with self.assertRaises(components.ValidationError):
++            component.serialize(data)
++
++    def test_incomplete_required_field(self):
++        data = {'singular_name': 'thing', 'plural_name': 'things'}
++        component = components.SpeciesComponent()
++        with self.assertRaises(components.ValidationError):
++            component.serialize(data)
+--- /dev/null
++++ b/tests/test_engine_grader.py
+@@ -0,0 +1,52 @@
++import unittest
++from universe import engine
++
++
++class RegisterEntityTestCase(unittest.TestCase):
++    def setUp(self):
++        self.state = {
++            'turn': 2500,
++            'width': 1000,
++            'entities': {},
++            'registry': {
++                'player': {
++                    'name': 'player',
++                    'owner_id': engine.components.OwnerIdComponent(),
++                    'species': engine.components.SpeciesComponent(),
++                },
++                'planet': {
++                    'name': 'planet',
++                    'size': engine.components.SizeComponent(),
++                    'populations': engine.components.PopulationComponent(),
++                    'resources': engine.components.ResourcesComponent(),
++                }
++            }
++        }
++        self.updates = {}
++
++    def test_register_player_entity(self):
++        self.state['entities'][0] = {'type': 'player', 'owner_id': 1, 'singular_name': 'Human', 'plural_name': 'Humans', 'growth_rate': 10}
++
++        S = engine.GameState(self.state, self.updates)
++        results = S.generate()
++
++        self.assertEqual(results['entities'], {0: {'type': 'player', 'owner_id': 1, 'singular_name': 'Human', 'plural_name': 'Humans', 'growth_rate': 10, 'x': 0, 'x_prev': 0, 'y': 0, 'y_prev': 0, 'queue': [], 'turn': 2501}})
++
++    def test_register_planet_entity(self):
++        self.state['entities'][0] = {'type': 'planet', 'size': 1, 'population': 200, 'food': 10, 'metal': 5, 'energy': 15}
++
++        S = engine.GameState(self.state, self.updates)
++        results = S.generate()
++
++        self.assertEqual(results['entities'], {0: {'type': 'planet', 'size': 1, 'population': 200, 'food': 10, 'metal': 5, 'energy': 15, 'x': 0, 'x_prev': 0, 'y': 0, 'y_prev': 0, 'queue': [], 'turn': 2501}})
++
++    def test_invalid_entity_type(self):
++        self.state['entities'][0] = {'type': 'not_a_real_entity'}
++
++        S = engine.GameState(self.state, self.updates)
++        results = S.generate()
++
++        self.assertEqual(results['entities'], {})
++
++
++if __name__ == '__main__':
++    unittest.main()

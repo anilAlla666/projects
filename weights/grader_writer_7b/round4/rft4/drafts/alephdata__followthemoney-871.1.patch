@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/tests/types/test_emails_grader.py
+@@ -0,0 +1,14 @@
++import unittest
++from followthemoney.types import registry
++
++
++emails = registry.email
++
++
++class EmailsTest(unittest.TestCase):
++    def test_clean_idna_errors(self):
++        self.assertIsNone(emails.clean("\u2060\u2060\u2060"))
++        self.assertIsNone(emails.clean("x@xn--\u2060\u2060\u2060"))
++        self.assertIsNone(emails.clean("x@xn--\u2060\u2060\u2060\u2060"))
++        self.assertIsNone(emails.clean("x@xn--\u2060\u2060\u2060\u2060\u2060"))
++        self.assertIsNone(emails.clean("x@xn--\u2060\u2060\u2060\u2060\u2060\u2060"))
+--- /dev/null
++++ b/tests/types/test_mimetypes_grader.py
+@@ -0,0 +1,10 @@
++import unittest
++from followthemoney.types import registry
++
++
++mimetypes = registry.mimetype
++
++
++class MimetypesTest(unittest.TestCase):
++    def test_clean_idna_errors(self):
++        self.assertIsNone(mimetypes.clean("\u2060"))

@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_functions_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++import numpy as np
++import rowan
++
++
++def test_to_axis_angle():
++    """Test conversion from unit quaternions to axis-angle"""
++    q = np.random.rand(5, 4)
++    q = rowan.normalize(q)
++    axes, angles = rowan.to_axis_angle(q)
++    assert axes.shape == (5, 3)
++    assert angles.shape == (5,)
++    assert np.allclose(q, rowan.from_axis_angle(axes, angles))

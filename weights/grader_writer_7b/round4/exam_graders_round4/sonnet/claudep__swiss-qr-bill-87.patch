@@ -1,0 +1,55 @@
+--- /dev/null
++++ b/tests/test_additional_information_linebreak.py
+@@ -0,0 +1,52 @@
++import unittest
++
++from qrbill import QRBill
++
++
++def make_bill(info):
++    return QRBill(
++        account='CH 53 8000 5000 0102 83664',
++        creditor={'name': 'Jane', 'pcode': '1000', 'city': 'Lausanne'},
++        additional_information=info,
++    )
++
++
++class AdditionalInformationLineBreakTests(unittest.TestCase):
++    def _check(self, info):
++        bill = make_bill(info)
++        data = bill.qr_data()
++        fields = data.split("\r\n")
++        # Standard layout: no alt procs, so 'EPD' is last and the
++        # additional information is the field right before it.
++        self.assertEqual(fields[-1], 'EPD')
++        self.assertEqual(len(fields), 32)
++        add_info = fields[-2]
++        self.assertNotIn('\n', add_info)
++        self.assertNotIn('\r', add_info)
++        self.assertIn('Hello', add_info)
++        self.assertIn('Line break', add_info)
++        # No stray line breaks anywhere else in the payload
++        for field in fields:
++            self.assertNotIn('\n', field)
++            self.assertNotIn('\r', field)
++        # Attribute itself is sanitized too
++        self.assertNotIn('\n', bill.additional_information)
++        self.assertNotIn('\r', bill.additional_information)
++
++    def test_newline(self):
++        self._check("Hello \n Line break")
++
++    def test_crlf(self):
++        self._check("Hello\r\nLine break")
++
++    def test_cr(self):
++        self._check("Hello\rLine break")
++
++    def test_no_linebreak_unchanged(self):
++        data = make_bill("Hello Line break").qr_data()
++        fields = data.split("\r\n")
++        self.assertEqual(fields[-2], "Hello Line break")
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,23 @@
+diff --git a/tests/unittests/arguments/test_parser.py b/tests/unittests/arguments/test_parser.py
+index 0b0e000..021000c 100644
+--- a/tests/unittests/arguments/test_parser.py
++++ b/tests/unittests/arguments/test_parser.py
+@@ -273,6 +273,18 @@ class ReferenceTest(ParserTestCase):
+     """ Unit tests for the --reference option. """
+ 
+     @patch.object(sys, "argv", ["next-action"])
++    def test_no_reference(self):
++        """ Test that the default value for reference is None. """
++        self.assertIsNone(parse_arguments()[1].reference)
++
++    @patch.object(sys, "argv", ["next-action", "--reference"])
++    def test_empty_reference(self):
++        """ Test that the default value for reference is None. """
++        self.assertIsNone(parse_arguments()[1].reference)
++
++    @patch.object(sys, "argv", ["next-action", "--reference", ""])
++    def test_blank_reference(self):
++        """ Test that the default value for reference is None. """
+         self.assertIsNone(parse_arguments()[1].reference)
+ 
+     @patch.object(sys, "argv", ["next-action", "--reference", "multiple"])

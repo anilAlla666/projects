@@ -1,0 +1,99 @@
+--- /dev/null
++++ b/tests/test_mbed_greentea_cli_grader.py
+@@ -0,0 +1,100 @@
++"""
++mbed SDK
++Copyright (c) 2011-2016 ARM Limited
++
++Licensed under the Apache License, Version 2.0 (the "License");
++you may not use this file except in compliance with the License.
++You may obtain a copy of the License at
++
++    http://www.apache.org/licenses/LICENSE-2.0
++
++Unless required by applicable law or agreed to in writing, software
++distributed under the License is distributed on an "AS IS" BASIS,
++WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++See the License for the specific language governing permissions and
++limitations under the License.
++
++Author: Przemyslaw Wirkus <Przemyslaw.wirkus@arm.com>
++"""
++
++
++import unittest
++from mbed_greentea.mbed_greentea_cli import create_filtered_test_list
++
++
++class TestCreateFilteredTestList(unittest.TestCase):
++    def setUp(self):
++        self.ctest_test_list = {
++            'TESTS-mbed_drivers': ['TESTS-mbed_drivers-rtc', 'TESTS-mbed_drivers-ticker'],
++            'TESTS-mbed_hal': ['TESTS-mbed_hal-lp_ticker', 'TESTS-mbed_hal-lp_ticker2'],
++            'TESTS-mbed_overrides': ['TESTS-mbed_overrides-rtc', 'TESTS-mbed_overrides-ticker']
++        }
++
++    def test_filter_names_by_prefix(self):
++        expected_result = [
++            'TESTS-mbed_drivers-rtc',
++            'TESTS-mbed_drivers-ticker',
++            'TESTS-mbed_hal-lp_ticker',
++            'TESTS-mbed_hal-lp_ticker2',
++            'TESTS-mbed_overrides-rtc',
++            'TESTS-mbed_overrides-ticker'
++        ]
++        result = create_filtered_test_list(
++            self.ctest_test_list,
++            'TESTS-*',
++            ''
++        )
++        self.assertEqual(expected_result, result.keys())
++
++    def test_filter_names_by_prefix_star_suffix(self):
++        expected_result = [
++            'TESTS-mbed_drivers-rtc',
++            'TESTS-mbed_drivers-ticker',
++            'TESTS-mbed_hal-lp_ticker',
++            'TESTS-mbed_hal-lp_ticker2',
++            'TESTS-mbed_overrides-rtc',
++            'TESTS-mbed_overrides-ticker'
++        ]
++        result = create_filtered_test_list(
++            self.ctest_test_list,
++            '*-ticker',
++            ''
++        )
++        self.assertEqual(expected_result, result.keys())
++
++    def test_filter_names_by_prefix_star_suffix_2(self):
++        expected_result = [
++            'TESTS-mbed_drivers-rtc',
++            'TESTS-mbed_drivers-ticker',
++            'TESTS-mbed_hal-lp_ticker',
++            'TESTS-mbed_hal-lp_ticker2',
++            'TESTS-mbed_overrides-rtc',
++            'TESTS-mbed_overrides-ticker'
++        ]
++        result = create_filtered_test_list(
++            self.ctest_test_list,
++            'TESTS-*-ticker',
++            ''
++        )
++        self.assertEqual(expected_result, result.keys())
++
++    def test_filter_names_by_prefix_star_suffix_3(self):
++        expected_result = [
++            'TESTS-mbed_drivers-rtc',
++            'TESTS-mbed_drivers-ticker',
++            'TESTS-mbed_hal-lp_ticker',
++            'TESTS-mbed_hal-lp_ticker2',
++            'TESTS-mbed_overrides-rtc',
++            'TESTS-mbed_overrides-ticker'
++        ]
++        result = create_filtered_test_list(
++            self.ctest_test_list,
++            'TESTS-*',
++            '',
++            True
++        )
++        self.assertEqual(expected_result, result.keys())

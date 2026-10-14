@@ -1,0 +1,47 @@
+--- /dev/null
++++ b/test_project_runpy_grader.py
+@@ -0,0 +1,41 @@
++import logging
++import os
++import unittest
++from unittest import TestCase, mock
++from project_runpy import (
++    ColorizingStreamHandler,
++    env,
++    ImproperlyConfigured,
++    ReadableSqlFilter,
++)
++
++
++VERY_LONG_STRING = '*' * 512
++
++
++class HeidiReadableSqlFilter(TestCase):
++    def test_filter_formats_select_from(self):
++        logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=(1.0, '(yolo) SELECT foo FROM moo'))
++        self.assertTrue(logging_filter.filter(record))
++        self.assertIn('SELECT...FROM moo', record.args[1])
++
++    def test_filter_formats_select_from_long(self):
++        logging_filter = ReadableSqlFilter()
++        original_sql = '(yolo) SELECT {0} FROM moo'.format(VERY_LONG_STRING)
++        record = mock.MagicMock(args=(1.0, original_sql))
++        self.assertTrue(logging_filter.filter(record))
++        self.assertIn('SELECT...FROM moo', record.args[1])
++
++    def test_filter_formats_ignores_select_without_from(self):
++        logging_filter = ReadableSqlFilter()
++        original_sql = '(yolo) SELECT {0} moo'.format(VERY_LONG_STRING)
++        record = mock.MagicMock(args=(1.0, original_sql))
++        self.assertTrue(logging_filter.filter(record))
++        self.assertEqual(original_sql, record.args[1])
++
++    def test_filter_handles_none_args(self):
++        logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=None)
++        self.assertFalse(logging_filter.filter(record))
++
++
++if __name__ == '__main__':
++    unittest.main()

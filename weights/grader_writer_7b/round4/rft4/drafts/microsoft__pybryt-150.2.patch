@@ -1,0 +1,151 @@
+--- /dev/null
++++ b/tests/test_reference_grader.py
+@@ -0,0 +1,78 @@
++""""""
++
++
++import dill
++import json
++import nbformat
++import numpy as np
++import os
++import pkg_resources
++import pytest
++import tempfile
++from copy import deepcopy
++from textwrap import dedent
++from pybryt import generate_report, MemoryFootprint, ReferenceImplementation, Value
++from pybryt.execution import execute_notebook
++
++
++def generate_footprint(nb) -> MemoryFootprint:
++    return execute_notebook(nb, "")
++
++
++def generate_reference_notebook():
++    """
++    """
++    nb = nbformat.v4.new_notebook()
++    nb.cells.append(nbformat.v4.new_code_cell(dedent("""\
++        import pybryt
++    """)))
++    nb.cells.append(nbformat.v4.new_code_cell(dedent("""\
++        def median(S):
++            sorted_S = sorted(S) 
++            pybryt.Value(sorted_S, name="sorted", group="median", limit=5, success_message="SUCCESS: Sorted the sample correctly", 
++                        failure_message="ERROR: The sample was not sorted")
++            
++            size_of_set = len(S) 
++            pybryt.Value(size_of_set, name="size", group="median", success_message = "SUCCESS: Computed the size of the sample", 
++                        failure_message="ERROR: Did not capture the size of the set to determine if it is odd or even")
++            
++            middle = size_of_set // 2
++            pybryt.Value(middle, name="middle", group="median", success_message = "SUCCESS: Found the middle index of the sample", 
++                        failure_message="ERROR: Did not compute the middle index of the sample")
++            
++            if size_of_set % 2 == 0:
++                pybryt.Value((sorted_S[middle-1] + sorted_S[middle]) / 2, name="med", group="median", success_message="SUCCESS: computed the correct median", 
++                            failure_message="ERROR: did not compute the median")
++            else:
++                pybryt.Value(sorted_S[middle], name="med", group="median", success_message="SUCCESS: computed the correct median", 
++                            failure_message="ERROR: did not compute the median")
++    """)))
++    
++    return nb
++
++
++@pytest.fixture
++def reference_notebook():
++    return generate_reference_notebook()
++
++
++@pytest.fixture
++def reference_result(reference_notebook, footprint):
++    execute_notebook(reference_notebook, "", footprint)
++    return ReferenceImplementation("median", [
++        Value(footprint.get_value(0)),
++        Value(footprint.get_value(1)),
++        Value(footprint.get_value(2)),
++        Value(footprint.get_value(3)),
++    ]).run(footprint)
++
++
++def test_limits():
++    """
++    """
++    footprints = [MemoryFootprint.from_values(), MemoryFootprint.from_values()]
++    ref = ReferenceImplementation("foo", [Value(footprint.get_value(0)) for footprint in footprints])
++    res = ref.run(footprints[0])
++    assert len(ref.annotations) == 1
++    res = ref.run(footprints[1])
++    assert len(ref.annotations) == 2
+--- /dev/null
++++ b/tests/annotations/test_annotation_grader.py
+@@ -0,0 +1,66 @@
++"""Tests for abstract annotations and annotation results"""
++
++
++import pybryt
++from pybryt.execution.memory_footprint import MemoryFootprint
++from .utils import assert_object_attrs, generate_memory_footprint
++
++
++def test_limits():
++    """
++    """
++    footprint = generate_memory_footprint()
++    pybryt.Annotation.reset_tracked_annotations()
++
++    val1 = footprint.get_value(0)
++    val2 = footprint.get_value(1)
++
++    v1 = pybryt.Value(val1, name="foo", limit=2)
++    v2 = pybryt.Value(val2, name="foo", limit=2)
++    v3 = pybryt.Value(val1, name="foo", limit=2)
++    v4 = pybryt.Value(val2, name="foo", limit=2)
++
++    assert len(pybryt.Annotation.get_tracked_annotations()) == 4
++
++    v1.check(footprint)
++    v2.check(footprint)
++    v3.check(footprint)
++    v4.check(footprint)
++
++    assert len(pybryt.Annotation.get_tracked_annotations()) == 4
++
++    pybryt.Annotation.reset_tracked_annotations()
++    assert len(pybryt.Annotation.get_tracked_annotations()) == 0
++
++    pybryt.Annotation.reset_tracked_annotations(True)
++    assert len(pybryt.Annotation.get_tracked_annotations()) == 0
++
++    v1.check(footprint)
++    v2.check(footprint)
++    v3.check(footprint)
++    v4.check(footprint)
++
++    assert len(pybryt.Annotation.get_tracked_annotations()) == 2
++
++
++def test_group_limits():
++    """
++    """
++    footprint = generate_memory_footprint()
++    pybryt.Annotation.reset_tracked_annotations()
++
++    val1 = footprint.get_value(0)
++    val2 = footprint.get_value(1)
++
++    v1 = pybryt.Value(val1, name="foo", limit=1, group="bar")
++    v2 = pybryt.Value(val2, name="foo", limit=1, group="bar")
++    v3 = pybryt.Value(val1, name="foo", limit=1, group="bar")
++    v4 = pybryt.Value(val2, name="foo", limit=1, group="bar")
++
++    assert len(pybryt.Annotation.get_tracked_annotations()) == 4
++
++    v1.check(footprint)
++    v2.check(footprint)
++    v3.check(footprint)
++    v4.check(footprint)
++
++    assert len(pybryt.Annotation.get_tracked_annotations()) == 2

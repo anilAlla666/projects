@@ -1,0 +1,113 @@
+--- /dev/null
++++ b/ccdproc/tests/test_combiner_grader.py
+@@ -0,0 +1,100 @@
++import numpy as np
++import astropy.units as u
++from astropy.stats import median_absolute_deviation as mad
++import pytest
++from astropy.utils.data import get_pkg_data_filename
++from astropy.nddata import CCDData
++from ccdproc.combiner import Combiner, combine, _calculate_step_sizes
++from ccdproc.tests.pytest_fixtures import ccd_data as ccd_data_func
++
++
++def test_combiner_generator_input():
++    ccd_data = ccd_data_func()
++    ccd_list = [ccd_data, ccd_data, ccd_data]
++    ccd_gen = (ccd for ccd in ccd_list)
++    c = Combiner(ccd_gen)
++    assert len(c.ccd_list) == 3
++
++
++def test_combine_generator_input():
++    ccd_data = ccd_data_func()
++    ccd_list = [ccd_data, ccd_data, ccd_data]
++    ccd_gen = (ccd for ccd in ccd_list)
++    result = combine(ccd_gen, method='average')
++    expected = np.mean([ccd.data for ccd in ccd_list], axis=0)
++    np.testing.assert_array_equal(result, expected)
++
++
++def test_combine_generator_input_error():
++    ccd_data = ccd_data_func()
++    ccd_list = [ccd_data, ccd_data, ccd_data]
++    ccd_gen = (ccd for ccd in ccd_list)
++    with pytest.raises(ValueError):
++        combine(ccd_gen, method='foobar')
++
++
++@pytest.fixture(scope='function')
++def ccd_data():
++    return CCDData(data=np.arange(100).reshape((10, 10)), unit='adu')
++
++
++@pytest.fixture(scope='function')
++def ccd_data_nan():
++    return CCDData(data=np.arange(100).reshape((10, 10)), unit='adu',
++                   uncertainty=StdDevUncertainty(np.ones((10, 10))))
++
++
++@pytest.fixture(scope='function')
++def ccd_data_nan_inf():
++    data = np.arange(100).reshape((10, 10))
++    data[data % 10 == 0] = np.nan
++    data[data % 10 == 1] = np.inf
++    return CCDData(data=data, unit='adu',
++                   uncertainty=StdDevUncertainty(np.ones((10, 10))))
++
++
++@pytest.fixture(scope='function')
++def ccd_data_nan_inf_uncertainty():
++    data = np.arange(100).reshape((10, 10))
++    data[data % 10 == 0] = np.nan
++    data[data % 10 == 1] = np.inf
++    unc = np.ones((10, 10))
++    unc[unc % 10 == 0] = np.nan
++    unc[unc % 10 == 1] = np.inf
++    return CCDData(data=data, unit='adu',
++                   uncertainty=StdDevUncertainty(unc))
++
++
++@pytest.fixture(scope='function')
++def ccd_data_nan_inf_mask():
++    data = np.arange(100).reshape((10, 10))
++    data[data % 10 == 0] = np.nan
++    data[data % 10 == 1] = np.inf
++    mask = np.zeros((10, 10), dtype=bool)
++    mask[mask % 10 == 0] = True
++    mask[mask % 10 == 1] = True
++    return CCDData(data=data, unit='adu',
++                   uncertainty=StdDevUncertainty(np.ones((10, 10))),
++                   mask=mask)
++
++
++@pytest.fixture(scope='function')
++def ccd_data_nan_inf_mask_uncertainty():
++    data = np.arange(100).reshape((10, 10))
++    data[data % 10 == 0] = np.nan
++    data[data % 10 == 1] = np.inf
++    mask = np.zeros((10, 10), dtype=bool)
++    mask[mask % 10 == 0] = True
++    mask[mask % 10 == 1] = True
++    unc = np.ones((10, 10))
++    unc[unc % 10 == 0] = np.nan
++    unc[unc % 10 == 1] = np.inf
++    return CCDData(data=data, unit='adu',
++                   uncertainty=StdDevUncertainty(unc),
++                   mask=mask)
++
++
++@pytest.fixture(scope='function')
++def ccd_data_nan_inf_mask_uncertainty_nan():
++    data = np.arange(100).reshape((10, 10))
++    data[data % 10 == 0] = np.nan
++    data[data % 10 == 1] = np.inf
++    mask = np.zeros((10, 10), dtype=bool)
++    mask[mask % 10 == 0] = True
++    mask[mask % 10 == 1] = True
++    unc = np.ones((10, 10))
++    unc[unc % 10 == 0] = np.nan
++    unc[unc % 10 == 1] = np.inf
++    return CCDData(data=data, unit='adu',
++                   uncertainty=StdDevUncertainty(unc),
++                   mask=mask)

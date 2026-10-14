@@ -1,0 +1,94 @@
+--- /dev/null
++++ b/tests/ext/test_ext_configparser_grader.py
+@@ -0,0 +1,42 @@
++import os
++from cement.core.foundation import TestApp
++from cement.ext.ext_configparser import ConfigParserConfigHandler
++
++
++def test_get_boolean():
++    with TestApp() as app:
++        app.config.set('testapp', 'foo', 'True')
++        assert app.config.getboolean('testapp', 'foo')
++
++        app.config.set('testapp', 'bar', 'False')
++        assert not app.config.getboolean('testapp', 'bar')
++
++        app.config.set('testapp', 'baz', 'On')
++        assert app.config.getboolean('testapp', 'baz')
++
++        app.config.set('testapp', 'qux', 'Off')
++        assert not app.config.getboolean('testapp', 'qux')
++
++        app.config.set('testapp', 'wiz', 'Yes')
++        assert app.config.getboolean('testapp', 'wiz')
++
++        app.config.set('testapp', 'pop', 'No')
++        assert not app.config.getboolean('testapp', 'pop')
++
++        app.config.set('testapp', 'flibbertigibbet', '1')
++        assert app.config.getboolean('testapp', 'flibbertigibbet')
++
++        app.config.set('testapp', 'floop', '0')
++        assert not app.config.getboolean('testapp', 'floop')
++
++        app.config.set('testapp', 'plugh', 'tRue')
++        assert app.config.getboolean('testapp', 'plugh')
++
++        app.config.set('testapp', 'xyzzy', 'fAlSe')
++        assert not app.config.getboolean('testapp', 'xyzzy')
++
++        app.config.set('testapp', 'thud', 'oN')
++        assert app.config.getboolean('testapp', 'thud')
++
++        app.config.set('testapp', 'splat', 'oFF')
++        assert not app.config.getboolean('testapp', 'splat')
+--- /dev/null
++++ b/tests/ext/test_ext_json_grader.py
+@@ -0,0 +1,47 @@
++import os
++import json
++from unittest.mock import patch
++from cement.utils.test import TestApp
++from cement.utils import fs
++
++
++CONFIG_PARSED = dict(
++    section=dict(
++        subsection=dict(
++            list=['item1', 'item2', 'item3', 'item4'],
++            key='value'),
++        key1='ok1',
++        key2='ok2',
++    ),
++)
++
++
++CONFIG = fs.join(os.path.dirname(__file__), '..',
++                 'data', 'config', 'config.json')
++
++
++class JsonApp(TestApp):
++    class Meta:
++        extensions = ['json']
++        output_handler = 'json'
++        config_handler = 'json'
++        config_files = [CONFIG]
++        argv = ['-o', 'json']
++        meta_defaults = {'output.json': {'overridable': True}}
++
++
++def test_parse_file():
++    with JsonApp() as app:
++        assert app.config.get('section', 'key1') == 'ok1'
++        assert app.config.getboolean('section', 'key1')
++        assert app.config.getboolean('section', 'key2')
++        assert app.config.get_section_dict('section') == \
++            CONFIG_PARSED['section']
++
++
++def test_get_dict():
++    with JsonApp() as app:
++        _config = app.config.get_dict()
++        assert _config['log.logging']['level'] == 'INFO'
++        assert _config['log.logging']['level'] == 'INFO'

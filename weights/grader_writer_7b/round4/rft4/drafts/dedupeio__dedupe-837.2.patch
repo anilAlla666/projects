@@ -1,0 +1,21 @@
+--- /dev/null
++++ b/tests/test_predicates_grader.py
+@@ -0,0 +1,23 @@
++import unittest
++from dedupe import predicates
++from future.builtins import str
++
++
++class TestEscaping(unittest.TestCase):
++    def test_escape_colon(self):
++        s1 = predicates.SimplePredicate(predicates.wholeFieldPredicate,
++                                        'foo:')
++        assert s1({'foo:': 'foo'}) == ('foo:\\:',)
++
++        s2 = predicates.SimplePredicate(predicates.wholeFieldPredicate,
++                                        'foo')
++        assert s2({'foo:': 'foo'}) == ('foo:',)
++
++
++if __name__ == '__main__':
++    unittest.main()

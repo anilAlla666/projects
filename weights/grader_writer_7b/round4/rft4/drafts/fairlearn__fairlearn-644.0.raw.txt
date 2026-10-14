@@ -1,0 +1,96 @@
+--- /dev/null
++++ b/test/unit/metrics/test_extra_metrics_grader.py
+@@ -0,0 +1,60 @@
++import numpy as np
++import pytest
++import sklearn.metrics as skm
++import fairlearn.metrics as metrics
++from fairlearn.metrics._extra_metrics import _get_labels_for_confusion_matrix
++
++
++class TestGroupMetricSetSmokeTest:
++    def test_regression_smoke(self):
++        y_true = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
++        y_pred = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
++        sf = np.array([1, 1, 1, 1, 2, 2, 2, 2, 3, 3])
++        dash_dict = metrics._group_metric_set._create_group_metric_set(y_true=y_true,
++                                                                     predictions=y_pred,
++                                                                     sensitive_features=sf,
++                                                                     prediction_type='regression')
++        assert dash_dict is not None
++        assert dash_dict['schema'] == 'https://raw.githubusercontent.com/fairlearn/dashboard/master/schemas/groupmetrics.json'
++        assert dash_dict['version'] == 0
++        assert dash_dict['modelNames'][0] == 'y_pred'
++        assert dash_dict['precomputedMetrics'][0][0]['meanAbsoluteError']['global'] == 0
++        assert dash_dict['precomputedMetrics'][0][0]['meanSquaredError']['global'] == 0
++        assert dash_dict['precomputedMetrics'][0][0]['maxAbsDifference']['global'] == 0
++        assert dash_dict['precomputedMetrics'][0][0]['maxAbsDifference']['bins'][0] == 0
++        assert dash_dict['precomputedMetrics'][0][0]['r2Score']['global'] == 1
++        assert dash_dict['precomputedMetrics'][0][0]['r2Score']['bins'][0] == 1
++        assert dash_dict['precomputedMetrics'][0][0]['maxR2Score']['global'] == 1
++        assert dash_dict['precomputedMetrics'][0][0]['maxR2Score']['bins'][0] == 1
++
++    def test_binary_classification_smoke(self):
++        y_true = np.array([0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
++        y_pred = np.array([1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
++        sf = np.array([0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1])
++        dash_dict = metrics._group_metric_set._create_group_metric_set(y_true=y_true,
++                                                                     predictions=y_pred,
++                                                                     sensitive_features=sf,
++                                                                     prediction_type='binary')
++        assert dash_dict is not None
++        assert dash_dict['schema'] == 'https://raw.githubusercontent.com/fairlearn/dashboard/master/schemas/groupmetrics.json'
++        assert dash_dict['version'] == 0
++        assert dash_dict['modelNames'][0] == 'y_pred'
++        assert dash_dict['precomputedMetrics'][0][0]['truePositiveRate']['global'] == 0.4
++        assert dash_dict['precomputedMetrics'][0][0]['falseNegativeRate']['global'] == 0.4
++        assert dash_dict['precomputedMetrics'][0][0]['trueNegativeRate']['global'] == 0.88888889
++        assert dash_dict['precomputedMetrics'][0][0]['falsePositiveRate']['global'] == 0.11111111
++        assert dash_dict['precomputedMetrics'][0][0]['selectionRate']['global'] == 0.8
++        assert dash_dict['precomputedMetrics'][0][0]['accuracyScore']['global'] == 0.85714286
++        assert dash_dict['precomputedMetrics'][0][0]['balancedAccuracyScore']['global'] == 0.675
++        assert dash_dict['precomputedMetrics'][0][0]['precisionScore']['global'] == 0.6
++        assert dash_dict['precomputedMetrics'][0][0]['recallScore']['global'] == 0.6
++        assert dash_dict['precomputedMetrics'][0][0]['rocAucScore']['global'] == 0.675
++        assert dash_dict['precomputedMetrics'][0][0]['zeroOneLoss']['global'] == 0.11111111
++        assert dash_dict['precomputedMetrics'][0][0]['truePositiveRate']['bins'][0] == 0.66666667
++        assert dash_dict['precomputedMetrics'][0][0]['falseNegativeRate']['bins'][0] == 0
++        assert dash_dict['precomputedMetrics'][0][0]['trueNegativeRate']['bins'][0] == 1
++        assert dash_dict['precomputedMetrics'][0][0]['falsePositiveRate']['bins'][0] == 0
++        assert dash_dict['precomputedMetrics'][0][0]['selectionRate']['bins'][0] == 0.8
++        assert dash_dict['precomputedMetrics'][0][0]['accuracyScore']['bins'][0] == 0.85714286
++        assert dash_dict['precomputedMetrics'][0][0]['balancedAccuracyScore']['bins'][0] == 0.675
++        assert dash_dict['precomputedMetrics'][0][0]['precisionScore']['bins'][0] == 0.6
++        assert dash_dict['precomputedMetrics'][0][0]['recallScore']['bins'][0] == 0.6
++        assert dash_dict['precomputedMetrics'][0][0]['rocAucScore']['bins'][0] == 0.675
++        assert dash_dict['precomputedMetrics'][0][0]['zeroOneLoss']['bins'][0] == 0.11111111
+--- /dev/null
++++ b/test/unit/metrics/test_metrics_engine_dicts_grader.py
+@@ -0,0 +1,27 @@
++import pytest
++import fairlearn.metrics as metrics
++
++
++y_true = [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
++
++
++y_pred = [1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
++
++
++sf_binary = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
++
++
++derived_metric_results = {
++    metrics.true_positive_rate_difference: 0.4,
++    metrics.true_positive_rate_ratio: 0.6,
++    metrics.true_negative_rate_difference: 0.083333333,
++    metrics.true_negative_rate_ratio: 0.88888889,
++    metrics.false_positive_rate_difference: 0.083333333,
++    metrics.false_positive_rate_ratio: 0.75,
++    metrics.false_negative_rate_difference: 0.4,
++    metrics.false_negative_rate_ratio: 0,
++    metrics.selection_rate_difference: 0.11111111,
++    metrics.selection_rate_ratio: 0.8,
++    metrics.accuracy_score_difference: 0.11111111,
++    metrics.accuracy_score_ratio: 0.85714286,
++}

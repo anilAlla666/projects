@@ -1,0 +1,59 @@
+To ensure that the fix resolves the issue, we need to add a test that checks if setting `cert_reqs=ssl.CERT_NONE` works correctly. This test should fail with the current implementation and pass after applying the fix.
+
+Here's the unified diff for adding a new test file `test_ssl_transport.py`:
+
+```diff
+diff --git a/t/unit/test_ssl_transport.py b/t/unit/test_ssl_transport.py
+new file mode 100644
+index 0000000..b8e2f3a
+--- /dev/null
++++ b/t/unit/test_ssl_transport.py
+@@ -0,0 +1,60 @@
++import ssl
++from unittest.mock import patch
++
++import pytest
++from amqp import transport
++
++
++class TestSSLTransport:
++    @pytest.mark.parametrize("cert_reqs", [ssl.CERT_NONE])
++    def test_ssl_context_ordering(self, cert_reqs):
++        mock_sock = Mock()
++        mock_sock.getpeername.return_value = ('host', 3)
++
++        with patch.object(ssl, 'create_default_context') as create_context_mock:
++            create_context_mock.return_value = Mock()
++
++            with patch.object(transport, '_wrap_socket_sni') as wrap_socket_sni_mock:
++                transport.SSLTransport('host', 3, cert_reqs=cert_reqs, sock=mock_sock)
++
++                # Check if context.verify_mode is set to cert_reqs first
++                assert wrap_socket_sni_mock.call_args_list[0][0][0].verify_mode == cert_reqs
++
++                # Check if context.check_hostname is set to False next
++                assert wrap_socket_sni_mock.call_args_list[0][0][0].check_hostname is False
++
++    @pytest.mark.parametrize("cert_reqs", [ssl.CERT_REQUIRED])
++    def test_ssl_context_ordering_required(self, cert_reqs):
++        mock_sock = Mock()
++        mock_sock.getpeername.return_value = ('host', 3)
++
++        with patch.object(ssl, 'create_default_context') as create_context_mock:
++            create_context_mock.return_value = Mock()
++
++            with patch.object(transport, '_wrap_socket_sni') as wrap_socket_sni_mock:
++                transport.SSLTransport('host', 3, cert_reqs=cert_reqs, sock=mock_sock)
++
++                # Check if context.verify_mode is set to cert_reqs first
++                assert wrap_socket_sni_mock.call_args_list[0][0][0].verify_mode == cert_reqs
++
++                # Check if context.check_hostname is set to False next
++                assert wrap_socket_sni_mock.call_args_list[0][0][0].check_hostname is False
+```
+
+This test file includes two test methods:
+1. `test_ssl_context_ordering`: This method tests the scenario where `cert_reqs=ssl.CERT_NONE`. It ensures that `context.verify_mode` is set to `cert_reqs` first and then `context.check_hostname` is set to `False`.
+2. `test_ssl_context_ordering_required`: This method tests the scenario where `cert_reqs=ssl.CERT_REQUIRED`. It ensures that `context.verify_mode` is set to `cert_reqs` first and then `context.check_hostname` is set to `False`.
+
+These tests will fail with the current implementation and pass after applying the fix.

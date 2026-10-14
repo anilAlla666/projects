@@ -1,0 +1,28 @@
+--- /dev/null
++++ b/tests/test_anonymizer_grader.py
+@@ -0,0 +1,25 @@
++import pytest
++from pydicom import dcmread
++
++
++def test_private_creator_data_element():
++    """Regression test for DICOM #0031,0020"""
++    ds = dcmread("tests/data_files/MONOCHROME2.dcm")
++    assert "Private Creator Data Element" in ds["(0031, 0020)"].description()
++
++    with pytest.warns(UserWarning):
++        ds.walk(lambda _, elem: elem.value)
++
++
++def test_private_creator_data_element_with_anon():
++    """Regression test for DICOM #0031,0020"""
++    ds = dcmread("tests/data_files/MONOCHROME2.dcm")
++    assert "Private Creator Data Element" in ds["(0031, 0020)"].description()
++
++    ds.walk(lambda _, elem: elem.value)
++
++    anon = Anonymizer(["PatientName"])
++    anon.anonymize(ds)
++
++    assert "Private Creator Data Element" in ds["(0031, 0020)"].description()
++    ds.walk(lambda _, elem: elem.value)

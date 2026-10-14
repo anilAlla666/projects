@@ -1,0 +1,48 @@
+diff --git a/tests/test_respect_sampling.py b/tests/test_respect_sampling.py
+new file mode 100644
+index 0000000..b8c9d1f
+--- /dev/null
++++ b/tests/test_respect_sampling.py
+@@ -0,0 +1,60 @@
++import unittest
++from lightstep import Tracer, constants
++
++class RespectSamplingTest(unittest.TestCase):
++    def test_respect_sampling(self):
++        tracer = Tracer(
++            periodic_flush_seconds=0,
++            collector_host='localhost'
++        )
++
++        # Start a span and set its sampled state
++        span = tracer.start_span(operation_name='test_span')
++        span.context.sampled = True
++        span.finish()
++
++        # Extract the span context using binary format
++        carrier = bytearray()
++        tracer.inject(span.context, constants.LightStepFormat.LIGHTSTEP_BINARY, carrier)
++
++        # Extract the span context again using binary format
++        extracted_context = tracer.extract(constants.LightStepFormat.LIGHTSTEP_BINARY, carrier)
++
++        # Verify that the sampled state is preserved
++        self.assertTrue(extracted_context.sampled)
++
++        # Start another span and set its sampled state to False
++        span = tracer.start_span(operation_name='test_span_not_sampled')
++        span.context.sampled = False
++        span.finish()
++
++        # Extract the span context using binary format
++        carrier = bytearray()
++        tracer.inject(span.context, constants.LightStepFormat.LIGHTSTEP_BINARY, carrier)
++
++        # Extract the span context again using binary format
++        extracted_context = tracer.extract(constants.LightStepFormat.LIGHTSTEP_BINARY, carrier)
++
++        # Verify that the sampled state is preserved
++        self.assertFalse(extracted_context.sampled)
++
++if __name__ == '__main__':
++    unittest.main()

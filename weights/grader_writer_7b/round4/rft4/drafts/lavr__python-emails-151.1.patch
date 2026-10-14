@@ -1,0 +1,74 @@
+--- /dev/null
++++ b/emails/testsuite/smtp/test_smtp_backend_grader.py
+@@ -0,0 +1,31 @@
++from __future__ import unicode_literals
++import socket
++import pytest
++import emails
++from emails.backend.smtp import SMTPBackend
++from emails.testsuite.smtp_servers import get_servers
++
++
++SAMPLE_MESSAGE = {'html': '<p>Test from python-emails',
++                  'text': 'Test from python-emails',
++                  'mail_from': 's@lavr.me',
++                  'mail_to': 'sergei-nko@yandex.ru'}
++
++
++def test_send_with_utf8_local_part():
++    server = SMTPBackend(host='localhost', port=1025, tls=True)
++    response = server.sendmail(
++        to_addrs='annaïs@example.com', 
++        from_addr='annaïs@example.com',
++        msg=emails.html(subject='test', **SAMPLE_MESSAGE)
++    )
++    server.close()
++    assert response.status_code == 250
++    assert response.message.startswith(b'250 OK')
++
++
++def test_send_with_invalid_domain():
++    server = SMTPBackend(host='localhost', port=1025, tls=True)
++    response = server.sendmail(
++        to_addrs='annaïs@invalid.com', 
++        from_addr='annaïs@invalid.com',
++        msg=emails.html(subject='test', **SAMPLE_MESSAGE)
++    )
++    server.close()
++    assert response.status_code == 554
+--- /dev/null
++++ b/emails/testsuite/test_utils_grader.py
+@@ -0,0 +1,34 @@
++from __future__ import unicode_literals
++import pytest
++import datetime
++import time
++from emails.utils import (
++    parse_name_and_email,
++    encode_header,
++    decode_header,
++    sanitize_address,
++    fetch_url,
++    MessageID,
++    format_date_header,
++    parse_name_and_email_list,
++    sanitize_email
++)
++from emails.exc import HTTPLoaderError
++
++
++def test_sanitize_address():
++    assert sanitize_address('a <b>') == 'a <b>'
++    assert sanitize_address('a@b.d') == 'a@b.d'
++    assert sanitize_address('x y <a@b.d>') == 'x y <a@b.d>'
++    assert sanitize_address('♤ <a@b.d>') == '=?utf-8?q?=E2=9C=A4?= <a@b.d>'
++    assert sanitize_address('a@♤.d') == 'a@xn--f6h.d'
++
++
++def test_sanitize_email():
++    assert sanitize_email('a@♤.d') == 'a@xn--f6h.d'
++
++
++def test_sanitize_address_encoding():
++    assert sanitize_address('a@xn--f6h.d', force_ascii=True) == 'a@xn--f6h.d'
++    assert sanitize_address('a@xn--f6h.d', force_ascii=False) == 'a@xn--f6h.d'

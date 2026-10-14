@@ -1,0 +1,334 @@
+--- /dev/null
++++ b/tests/unit/test_isort_grader.py
+@@ -0,0 +1,143 @@
++"""Tests all major functionality of the isort library
++
++Should be ran using py.test by simply running py.test in the isort project directory
++"""
++
++
++import os
++import os.path
++import subprocess
++import sys
++from io import StringIO
++from pathlib import Path
++from tempfile import NamedTemporaryFile
++from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Set, Tuple
++import py
++import pytest
++import isort
++from isort import api, files, sections
++from isort.exceptions import ExistingSyntaxErrors, FileSkipped, MissingSection
++from isort.settings import Config
++from isort.utils import exists_case_sensitive
++from .utils import UnreadableStream, as_stream
++
++
++if TYPE_CHECKING:
++    WrapModes: Any
++else:
++    from isort.wrap_modes import WrapModes
++
++
++TEST_DEFAULT_CONFIG = """
++[*.{py,pyi}]
++max_line_length = 120
++indent_style = space
++indent_size = 4
++known_first_party = isort
++known_third_party = kate
++known_something_else = something_entirely_different
++sections = FUTURE, STDLIB, THIRDPARTY, FIRSTPARTY, LOCALFOLDER, SOMETHING_ELSE
++ignore_frosted_errors = E103
++skip = build,.tox,venv
++"""
++
++
++@pytest.fixture(scope="function")
++def default_config():
++    with NamedTemporaryFile(mode="w+", suffix=".cfg") as temp_config:
++        temp_config.write(TEST_DEFAULT_CONFIG)
++        temp_config.flush()
++        yield Config(settings_path=temp_config.name)
++
++
++@pytest.mark.parametrize("filename", ("pyproject.toml", "setup.cfg", ".isort.cfg"))
++def test_settings_are_cached(filename: str) -> None:
++    with NamedTemporaryFile(mode="w+") as temp_config:
++        temp_config.write("[settings]\nprofile = black\n")
++        temp_config.flush()
++        with NamedTemporaryFile() as temp_file:
++            isort.file(temp_file.name, settings=[temp_config.name])
++            config = Config(settings=[temp_config.name])
++            assert config.profile == "black"
++            config = Config(settings=[temp_config.name])
++            assert config.profile == "black"
++
++
++def test_settings_are_cached_for_multiple_files() -> None:
++    with NamedTemporaryFile() as temp_file1, NamedTemporaryFile() as temp_file2, NamedTemporaryFile() as temp_file3:
++        with NamedTemporaryFile(mode="w+") as temp_config:
++            temp_config.write("[settings]\nprofile = black\n")
++            temp_config.flush()
++            isort.file(temp_file1.name, settings=[temp_config.name])
++            isort.file(temp_file2.name, settings=[temp_config.name])
++            isort.file(temp_file3.name, settings=[temp_config.name])
++            config = Config(settings=[temp_config.name])
++            assert config.profile == "black"
++            config = Config(settings=[temp_config.name])
++            assert config.profile == "black"
++
++
++@pytest.mark.parametrize("filename", ("pyproject.toml", "setup.cfg", ".isort.cfg"))
++def test_settings_are_not_cached_when_modified(filename: str) -> None:
++    with NamedTemporaryFile(mode="w+") as temp_config:
++        temp_config.write("[settings]\nprofile = black\n")
++        temp_config.flush()
++        with NamedTemporaryFile() as temp_file:
++            isort.file(temp_file.name, settings=[temp_config.name])
++            config = Config(settings=[temp_config.name])
++            assert config.profile == "black"
++            temp_config.seek(0)
++            temp_config.truncate(0)
++            temp_config.write("[settings]\nprofile = django\n")
++            temp_config.flush()
++            config = Config(settings=[temp_config.name])
++            assert config.profile == "django"
++
++
++def test_settings_are_cached_with_different_settings_paths() -> None:
++    with NamedTemporaryFile(mode="w+") as temp_config1, NamedTemporaryFile(mode="w+") as temp_config2:
++        temp_config1.write("[settings]\nprofile = black\n")
++        temp_config2.write("[settings]\nprofile = django\n")
++        temp_config1.flush()
++        temp_config2.flush()
++        with NamedTemporaryFile() as temp_file:
++            isort.file(temp_file.name, settings=[temp_config1.name])
++            isort.file(temp_file.name, settings=[temp_config2.name])
++            config = Config(settings=[temp_config1.name])
++            assert config.profile == "black"
++            config = Config(settings=[temp_config2.name])
++            assert config.profile == "django"
++
++
++@pytest.mark.skipif(sys.version_info.minor <= 6, reason="requires python 7")
++def test_settings_are_cached_for_multiple_python_versions() -> None:
++    with NamedTemporaryFile(mode="w+") as temp_config1, NamedTemporaryFile(mode="w+") as temp_config2:
++        temp_config1.write("[settings]\nprofile = black\n")
++        temp_config2.write("[settings]\nprofile = django\n")
++        temp_config1.flush()
++        temp_config2.flush()
++        with NamedTemporaryFile() as temp_file:
++            isort.file(temp_file.name, settings=[temp_config1.name])
++            isort.file(temp_file.name, settings=[temp_config2.name])
++            config = Config(settings=[temp_config1.name])
++            assert config.profile == "black"
++            config = Config(settings=[temp_config2.name])
++            assert config.profile == "django"
++
++
++def test_settings_are_cached_for_different_working_dirs() -> None:
++    with NamedTemporaryFile(mode="w+") as temp_config1, NamedTemporaryFile(mode="w+") as temp_config2:
++        temp_config1.write("[settings]\nprofile = black\n")
++        temp_config2.write("[settings]\nprofile = django\n")
++        temp_config1.flush()
++        temp_config2.flush()
++        with NamedTemporaryFile() as temp_file:
++            isort.file(temp_file.name, settings=[temp_config1.name])
++            isort.file(temp_file.name, settings=[temp_config2.name])
++            config = Config(settings=[temp_config1.name])
++            assert config.profile == "black"
++            config = Config(settings=[temp_config2.name])
++            assert config.profile == "django"
++
++
++def test_settings_are_cached_for_editorconfig() -> None:
++    with NamedTemporaryFile(mode="w+") as temp_config:
++        temp_config.write("root=true\n[*]\nindent_style = tab\n")
++        temp_config.flush()
++        with NamedTemporaryFile() as temp_file:
++            isort.file(temp_file.name, settings=[temp_config.name])
++            config = Config(settings=[temp_config.name])
++            assert config.indent_style == "tab"
+--- /dev/null
++++ b/tests/unit/test_settings_grader.py
+@@ -0,0 +1,231 @@
++import os
++import sys
++from pathlib import Path
++import pytest
++from isort import exceptions, settings
++from isort.settings import Config
++from isort.wrap_modes import WrapModes
++
++
++class TestConfig:
++    instance = Config()
++
++    def test_known_settings(self):
++        assert Config(known_third_party=["one"]).known_third_party == frozenset({"one"})
++        assert Config(known_thirdparty=["two"]).known_third_party == frozenset({"two"})
++        assert Config(
++            known_third_party=["one"], known_thirdparty=["two"]
++        ).known_third_party == frozenset({"one"})
++
++    def test_invalid_settings_path(self):
++        with pytest.raises(exceptions.InvalidSettingsPath):
++            Config(settings_path="this_couldnt_possibly_actually_exists/could_it")
++
++    def test_invalid_pyversion(self):
++        with pytest.raises(ValueError):
++            Config(py_version=10)
++
++    def test_default_pyversion(self):
++        assert Config().py_version == sys.version_info.major
++
++    def test_override_pyversion(self):
++        assert Config(py_version=2).py_version == 2
++
++    def test_profile_as_attribute(self):
++        assert Config(profile="black").profile == "black"
++
++    def test_profile_as_method(self):
++        assert Config().profile("black").profile == "black"
++
++    def test_profile_inherits_defaults(self):
++        config = Config(profile="black")
++        assert config.known_stdlib == config.black.known_stdlib
++
++    def test_black_profile_has_default_indent_style(self):
++        assert Config(profile="black").indent_style == "space"
++
++    def test_django_profile_has_default_indent_style(self):
++        assert Config(profile="django").indent_style == "space"
++
++    def test_custom_profile_has_default_indent_style(self):
++        config = Config(profiles={"custom": {"known_stdlib": []}})
++        assert config.custom.known_stdlib == []
++
++    def test_custom_profile_has_default_indent_style(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab"}})
++        assert config.custom.known_stdlib == []
++
++    def test_custom_profile_has_default_indent_style(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1}})
++        assert config.custom.known_stdlib == []
++
++    def test_custom_profile_can_override_indent_style(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1}})
++        assert config.custom.indent_style == "tab"
++
++    def test_custom_profile_can_override_indent_size(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1}})
++        assert config.custom.indent_size == 1
++
++    def test_custom_profile_can_override_max_line_length(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "max_line_length": 120}})
++        assert config.custom.max_line_length == 120
++
++    def test_custom_profile_can_override_skip(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "skip": ["venv", "build"]}})
++        assert config.custom.skip == {"venv", "build"}
++
++    def test_custom_profile_can_override_sections(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "sections": ["FIRSTPARTY", "THIRDPARTY"]}})
++        assert config.custom.sections == {"FIRSTPARTY", "THIRDPARTY"}
++
++    def test_custom_profile_can_override_section_order(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "section_order": ["FIRSTPARTY", "THIRDPARTY"]}})
++        assert config.custom.section_order == ["FIRSTPARTY", "THIRD PARTY", "LOCAL FOLDER", "STDLIB", "THIRDPARTY", "FIRST PARTY", "UNGROUPED"]
++
++    def test_custom_profile_can_override_section_headers(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "section_headers": {"FIRSTPARTY": "CUSTOM FIRSTPARTY HEADER"}}})
++        assert config.custom.section_headers["FIRSTPARTY"] == "CUSTOM FIRSTPARTY HEADER"
++
++    def test_custom_profile_can_override_wrap_code(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "wrap_code": False}})
++        assert config.custom.wrap_code == False
++
++    def test_custom_profile_can_override_wrap_comments(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "wrap_comments": False}})
++        assert config.custom.wrap_comments == False
++
++    def test_custom_profile_can_override_wrap_divider_comments(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "wrap_divider_comments": False}})
++        assert config.custom.wrap_divider_comments == False
++
++    def test_custom_profile_can_override_add_star_import_blank_lines_before(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "add_star_import_blank_lines_before": False}})
++        assert config.custom.add_star_import_blank_lines_before == False
++
++    def test_custom_profile_can_override_remove_redundant_blank_lines(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "remove_redundant_blank_lines": False}})
++        assert config.custom.remove_redundant_blank_lines == False
++
++    def test_custom_profile_can_override_add_duplicate_empty_lines(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "add_duplicate_empty_lines": True}})
++        assert config.custom.add_duplicate_empty_lines == True
++
++    def test_custom_profile_can_override_add_extra_lines_above_builtins(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "add_extra_lines_above_builtins": 2}})
++        assert config.custom.add_extra_lines_above_builtins == 2
++
++    def test_custom_profile_can_override_sort_statically_imported_members_alphabetically(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "sort_statically_imported_members_alphabetically": True}})
++        assert config.custom.sort_statically_imported_members_alphabetically == True
++
++    def test_custom_profile_can_override_sort_reimports_alphabetically(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "sort_reimports_alphabetically": True}})
++        assert config.custom.sort_reimports_alphabetically == True
++
++    def test_custom_profile_can_override_sort_reexports_alphabetically(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "sort_reexports_alphabetically": True}})
++        assert config.custom.sort_reexports_alphabetically == True
++
++    def test_custom_profile_can_override_force_single_line_disabled(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "force_single_line_disabled": True}})
++        assert config.custom.force_single_line_disabled == True
++
++    def test_custom_profile_can_override_sort_by_camel_case_disabled(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "sort_by_camel_case_disabled": True}})
++        assert config.custom.sort_by_camel_case_disabled == True
++
++    def test_custom_profile_can_override_ignore_frosted_errors(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "ignore_frosted_errors": ["E103"]}})
++        assert config.custom.ignore_frosted_errors == {"E103"}
++
++    def test_custom_profile_can_override_formatting_plugins(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "formatting_plugins": [{"name": "something"}]}})
++        assert len(config.custom.formatting_plugins) == 1
++
++    def test_custom_profile_can_override_additional_dependencies(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "additional_dependencies": ["something"]}})
++        assert len(config.custom.additional_dependencies) == 1
++
++    def test_custom_profile_can_override_prepend_only_sections(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "prepend_only_sections": ["FOO"]}})
++        assert len(config.custom.prepend_only_sections) == 1
++
++    def test_custom_profile_can_override_inline_comma(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "inline_comma": True}})
++        assert config.custom.inline_comma == True
++
++    def test_custom_profile_can_override_inline_comment(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "inline_comment": True}})
++        assert config.custom.inline_comment == True
++
++    def test_custom_profile_can_override_include_trailing_comma(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "include_trailing_comma": True}})
++        assert config.custom.include_trailing_comma == True
++
++    def test_custom_profile_can_override_multi_line_output_split_on_commas(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "multi_line_output_split_on_commas": True}})
++        assert config.custom.multi_line_output_split_on_commas == True
++
++    def test_custom_profile_can_override_use_parenthesis(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "use_parenthesis": True}})
++        assert config.custom.use_parenthesis == True
++
++    def test_custom_profile_can_override_line_separator(self):
++        config = Config(profiles={"custom": {"known_stdlib": [], "indent_style": "tab", "indent_size": 1, "line_separator": "\r\n"}})
++        assert config.custom.line_separator == "\r\n"
++
++    def test

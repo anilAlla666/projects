@@ -1,0 +1,95 @@
+--- /dev/null
++++ b/tests/test_client_grader.py
+@@ -0,0 +1,78 @@
++from __future__ import annotations
++import asyncio
++import contextlib
++import itertools
++import logging
++import socket
++from functools import partial
++from typing import Any
++from unittest.mock import AsyncMock, MagicMock, call, create_autospec, patch
++import pytest
++from google.protobuf import message
++from aioesphomeapi._frame_helper.plain_text import APIPlaintextFrameHelper
++from aioesphomeapi.api_pb2 import (
++    AlarmControlPanelCommandRequest,
++    BinarySensorStateResponse,
++    BluetoothConnectionsFreeResponse,
++    BluetoothDeviceClearCacheResponse,
++    BluetoothDeviceConnectionResponse,
++    BluetoothDevicePairingResponse,
++    BluetoothDeviceRequest,
++    BluetoothDeviceUnpairingResponse,
++    BluetoothGATTCharacteristic,
++    BluetoothGATTDescriptor,
++    BluetoothGATTErrorResponse,
++    BluetoothGATTGetServicesDoneResponse,
++    BluetoothGATTGetServicesResponse,
++    BluetoothGATTNotifyDataResponse,
++    BluetoothGATTNotifyResponse,
++    BluetoothGATTReadResponse,
++    BluetoothGATTService,
++    BluetoothGATTWriteResponse,
++    BluetoothLEAdvertisementResponse,
++    BluetoothLERawAdvertisement,
++    BluetoothLERawAdvertisementsResponse,
++    BluetoothServiceData,
++    ButtonCommandRequest,
++    CameraImageRequest,
++    CameraImageResponse,
++    CameraStreamRequest,
++    CameraStreamResponse,
++    CoverCommandRequest,
++    DeviceInfoResponse,
++    DiscoveryRequest,
++    DiscoveryResponse,
++    DiscoveryStatusResponse,
++    DisconnectReason,
++    EntityConfig,
++    EntityConfigDiscoveryResponse,
++    EntityConfigResponse,
++    EntityStateResponse,
++    EventRequest,
++    FanCommandRequest,
++    HomeAssistantStateResponse,
++    LightCommandRequest,
++    LogMessageRequest,
++    LogLevel,
++    MediaPlayerCommandRequest,
++    MQTTSubscribeRequest,
++    NumberCommandRequest,
++    RemoteIRSendRequest,
++    RestartRequest,
++    ResetPasswordRequest,
++    ScriptExecuteRequest,
++    SelectCommandRequest,
++    SirenCommandRequest,
++    SwitchCommandRequest,
++    TextCommandRequest,
++    TimezoneResponse,
++    UpdateCheckResponse,
++    VoiceAssistantRequest,
++    VoiceAssistantAudioSettings,
++    VoiceAssistantAudioSettingsModel,
++    VoiceAssistantResponse,
++    WeatherResponse,
++    WifiscanRequest,
++    WifiscanResponse,
++    WifisetRequest,
++    WifisetResponse,
++    WindowCoveringCommandRequest,
++    ZoneCommandRequest,
++)
++from aioesphomeapi.api_pb2_grader import APIVersion
++from aioesphomeapi.client import APIClient, APIConnection, ConnectionClosedError
++from aioesphomeapi.exceptions import ConnectionResetError, InvalidPacketError
++from aioesphomeapi.frame_helper import FrameHelper
++from aioesphomeapi.message import Packet, parse_packet
++
++
++@pytest.fixture(name="mock_client")
++def fixture_mock_client():
++    """Return a mocked client instance."""
++    return create_autospec(APIClient)

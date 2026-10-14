@@ -1,0 +1,102 @@
+--- /dev/null
++++ b/tests/test_attaches_grader.py
+@@ -0,0 +1,113 @@
++from unittest.mock import Mock
++
++
++import pytest
++from coolamqp.attaches import Consumer
++from coolamqp.amqp import BasicConsume, BasicCancel, BasicCancelOk
++from coolamqp.attaches.consumer import (
++    StateChange, StateChangeReason,
++    _ST_DECLARED_BY_SERVER, _ST_ONLINE, _ST_CONSUMER_CANCELLED_BY_CLIENT, _ST_CANCELLED_BY_BROKER, _ST_DEAD
++)
++from coolamqp.channel import Channel
++from coolamqp.connection import Connection
++from coolamqp.exchange import Exchange
++from coolamqp.exceptions import AmqpError, ConsumerCancelledByBroker, ResourceLocked
++from coolamqp.message import ReceivedMessage
++from coolamqp.queue import Queue
++from coolamqp.utils import Callable
++
++
++class TestConsumer(object):
++    def setup_method(self):
++        self.c = Consumer(
++            queue=Queue("q"),
++            on_message=lambda msg: True,
++            no_ack=False,
++            qos=(None, 0),
++            cancel_on_failure=True,
++            future_to_notify=None,
++            fail_on_first_time_resource_locked=False,
++            body_receive_mode="bytes",
++        )
++
++    def test_constructor__when_no_qos_is_given_then_none(self):
++        c = Consumer(Queue("q"), lambda msg: True)
++        assert c.qos is None
++
++    def test_constructor__when_int_given_as_qos_then_set_to_0(self):
++        c = Consumer(Queue("q"), lambda msg: True, qos=1)
++        assert c.qos == (0, 1)
++
++    def test_constructor__when_tuple_given_as_qos_then_passed_along(self):
++        c = Consumer(Queue("q"), lambda msg: True, qos=(1, 2))
++        assert c.qos == (1, 2)
++
++    def test_constructor__when_invalid_type_given_as_qos_then_raises(self):
++        with pytest.raises(TypeError):
++            c = Consumer(Queue("q"), lambda msg: True, qos="invalid")
++
++    def test_cancel__when_channel_destroyed_then_future_succeeds(self):
++        c = Consumer(Queue("q"), lambda msg: True, qos=(None, 0), cancel_on_failure=True)
++        f = c.cancel()
++        c.destroy_channel(None)
++        assert f.done()
++
++    def test_cancel__when_consumer_cancelled_by_client_then_state_changed(self):
++        c = Consumer(Queue("q"), lambda msg: True, qos=(None, 0), cancel_on_failure=True)
++        c.cancel()
++        assert c.state == _ST_CONSUMER_CANCELLED_BY_CLIENT
++
++    def test_cancel__when_channel_destroyed_after_cancel_then_future_succeeds(self):
++        c = Consumer(Queue("q"), lambda msg: True, qos=(None, 0), cancel_on_failure=True)
++        c.cancel()
++        f = c.cancel()
++        c.destroy_channel(None)
++        assert f.done()
++
++    def test_handle_cancel__when_cancel_from_server_then_state_changed_and_call_on_broker_cancel(self):
++        c = Consumer(Queue("q"), lambda msg: True, qos=(None, 0), cancel_on_failure=True)
++        on_broker_cancel_mock = Mock()
++        c.on_broker_cancel.add(on_broker_cancel_mock)
++        c.handle_cancel(BasicCancel(consumer_tag=c.consumer_tag, no_wait=False))
++        assert c.state == _ST_CANCELLED_BY_BROKER
++        on_broker_cancel_mock.assert_called_once_with(c)
++
++    def test_handle_cancel__when_cancel_from_server_and_cancel_from_client_then_state_changed(self):
++        c = Consumer(Queue("q"), lambda msg: True, qos=(None, 0), cancel_on_failure=True)
++        c.cancel()
++        c.handle_cancel(BasicCancel(consumer_tag=c.consumer_tag, no_wait=False))
++        assert c.state == _ST_CONSUMER_CANCELLED_BY_CLIENT
++
++    def test_handle_cancel_ok__when_cancel_ok_from_server_then_state_changed(self):
++        c = Consumer(Queue("q"), lambda msg: True, qos=(None, 0), cancel_on_failure=True)
++        c.handle_cancel_ok(BasicCancelOk(consumer_tag=c.consumer_tag))
++        assert c.state == _ST_CANCELLED_BY_BROKER
++
++    def test_handle_cancel_ok__when_cancel_ok_from_server_but_not_my_consumer_tag_then_do_nothing(self):
++        c = Consumer(Queue("q"), lambda msg: True, qos=(None, 0), cancel_on_failure=True)
++        c.handle_cancel_ok(BasicCancelOk(consumer_tag="other"))
++        assert c.state != _ST_CANCELLED_BY_BROKER
++
++    def test_handle_basic_consume__when_declared_by_server_then_state_changed(self):
++        c = Consumer(Queue("q"), lambda msg: True, qos=(None, 0), cancel_on_failure=True)
++        c.handle_basic_consume(BasicConsume(consumer_tag="tag", no_local=False, exclusive=False, arguments={}))
++        assert c.state == _ST_DECLARED_BY_SERVER
++
++    def test_handle_basic_consume__when_declared_by_server_and_fail_on_first_time_resource_locked_then_fail(self):
++        c = Consumer(Queue("q"), lambda msg: True, qos=(None, 0), cancel_on_failure=True, fail_on_first_time_resource_locked=True)
++        c.handle_error(AmqpError(40, "resource locked"))
++        assert c.state == _ST_DEAD

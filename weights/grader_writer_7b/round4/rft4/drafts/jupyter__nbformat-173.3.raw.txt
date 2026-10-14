@@ -1,0 +1,51 @@
+--- /dev/null
++++ b/tests/test_readwrite_grader.py
+@@ -0,0 +1,43 @@
++import os.path
++from pathlib import Path
++import pytest
++
++
++@pytest.mark.parametrize(
++    "filename",
++    [
++        ("notebooks/hello-world.ipynb"),
++        ("notebooks/empty-notebook.ipynb"),
++        ("notebooks/multiline-string.ipynb"),
++        ("notebooks/notebook-with-output.ipynb"),
++        ("notebooks/invalid.ipynb"),
++    ],
++)
++def test_pathlib(tmpdir, filename):
++    data_dir = os.path.join(os.path.dirname(__file__), "..")
++    src_file = Path(data_dir) / filename
++    dst_file = tmpdir.join(filename)
++    # Copy the source file into the temporary directory.
++    dst_file.write(src_file.read_text())
++    assert dst_file.exists()
++    # Use pathlib.Path objects for reading/writing.
++    nb = read(dst_file, as_version=4)
++    assert nb
++    write(nb, dst_file, version=4)
++    # Check that the output is as expected.
++    nb = read(dst_file, as_version=4)
++    assert nb
++    # Test writing to a string.
++    s = writes(nb, version=4)
++    assert s
++    # Test writing to a binary stream.
++    with open(str(dst_file), mode="wb") as fd:
++        write(nb, fd, version=4)
++    # Test writing to a text stream.
++    with open(str(dst_file), mode="wt", encoding="UTF-8") as fd:
++        write(nb, fd, version=4)
++
++
++def read(path, *args, **kwargs):
++    with path.open(mode="rt", encoding="UTF-8") as fd:
++        return nbformat.read(fd, *args, **kwargs)
++
++
++def write(notebook, path, *args, **kwargs):
++    with path.open(mode="wt", encoding="UTF-8") as fd:
++        nbformat.write(notebook, fd, *args, **kwargs)

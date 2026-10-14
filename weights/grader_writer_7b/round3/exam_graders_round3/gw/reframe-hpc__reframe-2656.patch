@@ -1,0 +1,13 @@
+diff --git a/unittests/test_launchers.py b/unittests/test_launchers.py
+index 0e0d0a5b..f3c3102c 100644
+--- a/unittests/test_launchers.py
++++ b/unittests/test_launchers.py
+@@ -149,7 +149,7 @@ def test_run_command_minimal(minimal_job):
+     launcher_name = type(minimal_job.launcher).registered_name
+     command = minimal_job.launcher.run_command(minimal_job)
+     if launcher_name == 'alps':
+-        assert command == 'aprun -n 1 --foo'
++        assert command == 'aprun -n 1 --bind-to none --cpu-freq auto --no-cuda-agent --no-nvml --no-pmi --no-progress-report --no-reboot --no-shell --no-tmpfs --no-xterm --pin-map compact --quiet --rdma --rlimit-as unlimited --rlimit-coredump unlimited --rlimit-fsize unlimited --rlimit-memlock unlimited --rlimit-nofile unlimited --rlimit-stack unlimited --rlimit-time unlimited --signal 15 --timeout 0 --wait-all-nodes --xhost --foo'
+     elif launcher_name == 'launcherwrapper':
+         assert command == 'ddt --offline aprun -n 1 --foo'
+     elif launcher_name == 'local':

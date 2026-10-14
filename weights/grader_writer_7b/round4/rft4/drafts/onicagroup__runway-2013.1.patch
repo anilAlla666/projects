@@ -1,0 +1,135 @@
+--- /dev/null
++++ b/tests/unit/core/components/test_module_path_grader.py
+@@ -0,0 +1,92 @@
++"""Test runway.core.components._module_path."""
++
++
++from __future__ import annotations
++from copy import deepcopy
++from pathlib import Path
++from typing import TYPE_CHECKING, Dict, List, Optional, Union
++import pytest
++from mock import MagicMock
++from typing_extensions import TypedDict
++from runway.config.components.runway import RunwayModuleDefinition
++from runway.config.models.runway import RunwayModuleDefinitionModel
++from runway.core.components._module_path import ModulePath
++
++
++if TYPE_CHECKING:
++    from pytest_mock import MockerFixture
++    from runway.core.components import DeployEnvironment
++
++
++MODULE = "runway.core.components._module_path"
++
++
++TypeDefTestDefinitionExpected = TypedDict(
++    "TypeDefTestDefinitionExpected",
++    arguments=Dict[str, str],
++    location=str,
++    source=str,
++    uri=str,
++)
++
++
++TypeDefTestDefinition = TypedDict(
++    "TypeDefTestDefinition",
++    definition=Optional[Union[Path, str]],
++    expected=TypeDefTestDefinitionExpected,
++)
++
++
++TESTS: List[TypeDefTestDefinition] = [
++    {
++        "definition": "foo",
++        "expected": {
++            "arguments": {},
++            "location": "foo",
++            "source": "",
++            "uri": "",
++        },
++    },
++    {
++        "definition": "foo::bar/baz",
++        "expected": {
++            "arguments": {},
++            "location": "bar/baz",
++            "source": "foo",
++            "uri": "",
++        },
++    },
++    {
++        "definition": "foo::/bar/baz",
++        "expected": {
++            "arguments": {},
++            "location": "/bar/baz",
++            "source": "foo",
++            "uri": "",
++        },
++    },
++    {
++        "definition": "foo:://bar/baz",
++        "expected": {
++            "arguments": {},
++            "location": "//bar/baz",
++            "source": "foo",
++            "uri": "",
++        },
++    },
++    {
++        "definition": "foo::bar/baz?qux=corge&grault=garply",
++        "expected": {
++            "arguments": {"grault": "garply", "qux": "corge"},
++            "location": "bar/baz",
++            "source": "foo",
++            "uri": "",
++        },
++    },
++    {
++        "definition": "git::https://github.com/foo/bar",
++        "expected": {
++            "arguments": {},
++            "location": "https://github.com/foo/bar",
++            "source": "git",
++            "uri": "https://github.com/foo/bar",
++        },
++    },
++]
+--- /dev/null
++++ b/tests/unit/module/staticsite/options/test_components_grader.py
+@@ -0,0 +1,36 @@
++"""Test runway.module.staticsite.options.components."""
++
++
++from __future__ import annotations
++from runway.module.staticsite.options.components import StaticSiteOptions
++from runway.module.staticsite.options.models import (
++    RunwayStaticSiteModuleOptionsDataModel,
++    RunwayStaticSitePreBuildStepDataModel,
++)
++
++
++MODULE = "runway.module.staticsite.options.components"
++
++
++class TestStaticSiteOptions:
++    """Test StaticSiteOptions."""
++
++    def test_parse_obj(self) -> None:
++        """Test parse_obj."""
++        obj = StaticSiteOptions.parse_obj({})
++        assert isinstance(obj.data, RunwayStaticSiteModuleOptionsDataModel)
++        assert (
++            obj.data.dict(exclude_defaults=True, exclude_none=True, exclude_unset=True)
++            == {}
++        )
++
++    def test_parse_obj_model(self) -> None:
++        """Test parse_obj model."""
++        obj = StaticSiteOptions.parse_obj(RunwayStaticSiteModuleOptionsDataModel())
++        assert isinstance(obj.data, RunwayStaticSiteModuleOptionsDataModel)
++        assert (
++            obj.data.dict(exclude_defaults=True, exclude_none=True, exclude_unset=True)
++            == {}
++        )

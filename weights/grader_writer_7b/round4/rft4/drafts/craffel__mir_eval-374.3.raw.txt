@@ -1,0 +1,38 @@
+--- /dev/null
++++ b/tests/test_sonify_grader.py
+@@ -0,0 +1,35 @@
++""" Unit tests for sonification methods """
++
++
++import pytest
++import mir_eval
++import numpy as np
++import scipy
++
++
++def test_pitch_contour():
++    # Generate some random pitch
++    fs = 8000
++    times = np.linspace(0, 5, num=5 * fs, endpoint=True)
++
++    noise = scipy.ndimage.gaussian_filter1d(np.random.randn(len(times)), sigma=256)
++    freqs = 440.0 * 2.0 ** (16 * noise)
++    amps = np.linspace(0, 1, num=5 * fs, endpoint=True)
++
++    # negate a bunch of sequences
++    idx = np.unique(np.random.randint(0, high=len(times), size=32))
++    for start, end in zip(idx[::2], idx[1::2]):
++        freqs[start:end] *= -1
++
++    # Test with inferring duration
++    x = mir_eval.sonify.pitch_contour(times, freqs, fs)
++    assert len(x) == fs * 5
++
++    # Test with an explicit duration
++    # This forces the interpolator to go off the end of the sampling grid,
++    # which should result in a constant sequence in the output
++    x = mir_eval.sonify.pitch_contour(times, freqs, fs, length=fs * 7)
++    assert len(x) == fs * 7
++    assert np.allclose(x[-fs * 2 :], x[-fs * 2])
++
++    # TODO: test interpolation modes?

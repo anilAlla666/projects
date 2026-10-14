@@ -1,0 +1,36 @@
+diff --git a/test_elasticsearch/test_client_utils_bytes.py b/test_elasticsearch/test_client_utils_bytes.py
+new file mode 100644
+--- /dev/null
++++ b/test_elasticsearch/test_client_utils_bytes.py
+@@ -0,0 +1,40 @@
++# -*- coding: utf-8 -*-
++from __future__ import unicode_literals
++
++from elasticsearch.client.utils import _make_path
++
++from .test_cases import TestCase
++
++
++class TestMakePathBytes(TestCase):
++    def test_handles_unicode(self):
++        id = "\u4e2d\u6587"
++        self.assertEquals(
++            '/some-index/type/%E4%B8%AD%E6%96%87',
++            _make_path('some-index', 'type', id))
++
++    def test_handles_utf8_encoded_bytes(self):
++        id = "\u4e2d\u6587".encode('utf-8')
++        self.assertEquals(
++            '/some-index/type/%E4%B8%AD%E6%96%87',
++            _make_path('some-index', 'type', id))
++
++    def test_handles_ascii_bytes(self):
++        id = b'celery-task-meta-c4f1201f-eb7b-41d5-9318-a75a8cfbdaa0'
++        self.assertEquals(
++            '/some-index/type/celery-task-meta-c4f1201f-eb7b-41d5-9318-a75a8cfbdaa0',
++            _make_path('some-index', 'type', id))
++
++    def test_handles_native_str(self):
++        self.assertEquals(
++            '/some-index/type/abc',
++            _make_path('some-index', 'type', str('abc')))

@@ -1,0 +1,19 @@
+diff --git a/tests/test_client.py b/tests/test_client.py
+index 0b0d0a1..e1c0f96 100644
+--- a/tests/test_client.py
++++ b/tests/test_client.py
+@@ -157,6 +157,14 @@ def test_create_resources(mocked_responses, api_client, api_url):
+     )
+ 
+     post_data = list(contacts_data) # make a copy
++    for contact in post_data:
++        del contact["id"]
++
++    contacts = api_client._create_resources(Contact, post_data)
++    assert len(contacts) == 2
++    assert all(isinstance(contact, Contact) for contact in contacts)
++    assert len(mocked_responses.calls) == 1
++
+ 
+ def test_call_resource_method(mocked_responses, api_client, api_url):
+     contact_data = {

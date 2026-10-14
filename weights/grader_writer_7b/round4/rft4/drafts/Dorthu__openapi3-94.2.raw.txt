@@ -1,0 +1,39 @@
+--- /dev/null
++++ b/tests/test_schemas_grader.py
+@@ -0,0 +1,40 @@
++from openapi3 import OpenAPI
++
++
++def test_component_parameter_numeric_default():
++    spec_str = """\
++openapi: 3.0.0
++
++info:
++  title: Test api
++  description: test
++  version: 0.1.0
++
++paths:
++  /test:
++    get:
++      requestBody:
++        content:
++          application/json:
++            schema:
++              type: string
++        required: true
++      responses:
++        200:
++          description: A good test
++
++components:
++  parameters:
++    someComponent:
++      name: someComponent
++      in: query
++      schema:
++        type: number
++        minimum: 0
++        default: 0
++"""
++    OpenAPI(spec_str)

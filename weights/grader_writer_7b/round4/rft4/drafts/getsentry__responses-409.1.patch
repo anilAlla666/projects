@@ -1,0 +1,120 @@
+--- /dev/null
++++ b/responses/test_responses_grader.py
+@@ -0,0 +1,121 @@
++from __future__ import absolute_import, print_function, division, unicode_literals
++import inspect
++import os
++import re
++import six
++from io import BufferedReader, BytesIO
++from sys import version_info
++import pytest
++import requests
++import responses
++from requests.exceptions import ConnectionError, HTTPError
++from responses import BaseResponse, Call, CallList, Match, Response, PassthroughResponse, matchers
++
++
++try:
++    from mock import patch, Mock
++except ImportError:
++    from unittest.mock import patch, Mock  # type: ignore
++
++
++def assert_reset():
++    assert len(responses._default_mock._matches) == 0
++    assert len(responses.calls) == 0
++
++
++def assert_response(resp, body=None, content_type="text/plain"):
++    assert resp.status_code == 200
++    assert resp.reason == "OK"
++    if content_type is not None:
++        assert resp.headers["Content-Type"] == content_type
++    else:
++        assert "Content-Type" not in resp.headers
++    assert resp.text == body
++
++
++def assert_params(resp, expected):
++    assert hasattr(resp, "request"), "Missing request"
++    assert hasattr(resp.request, "params")
++    for key, value in expected.items():
++        assert resp.request.params.get(key) == value
++
++
++def get_response_body(resp):
++    if version_info >= (3, 0):
++        return resp.content.decode("utf-8")
++    else:
++        return resp.content
++
++
++@pytest.fixture(scope="function")
++def reset_responses(request):
++    """Reset responses after each test function."""
++    yield
++    assert_reset()
++
++
++@pytest.fixture(scope="class")
++def reset_responses_class(request):
++    """Reset responses before each class test method."""
++    yield
++    assert_reset()
++
++
++def _ensure_url_default_path(url):
++    """
++    Ensures the url ends with a path, otherwise append a slash.
++    This makes testing against urls easier because most urls will end
++    with a slash.
++    """
++    if "?" in url:
++        return url
++    elif url.endswith("/"):
++        return url
++    else:
++        return "{}/".format(url)
++
++
++def assert_calls(call_list, calls):
++    for i, c in enumerate(calls):
++        assert call_list[i].request == c.request
++        assert call_list[i].response == c.response
++
++
++def get_patched_session():
++    session = requests.Session()
++    responses.reset()
++    responses._add_patcher(std_mock.patch.object(session, "send"))
++    return session
++
++
++@pytest.fixture
++def patched_session():
++    return get_patched_session()
++
++
++@pytest.mark.parametrize(
++    "method,prefix",
++    [
++        (responses.GET, "http://www.example.com/a/b/c?query=true#anchor"),
++        (responses.POST, "https://api.example.com/v1/users"),
++        (responses.DELETE, "http://localhost:8080/api/v1/some_resource"),
++    ],
++)
++def test_passthrough_responses_in_calllist(method, prefix):
++    @responses.activate
++    def run():
++        responses.add_passthru(prefix)
++
++        response = requests.request(method, prefix)
++        assert response.status_code == 200
++
++        call_list = responses.calls
++        assert len(call_list) == 1
++        assert call_list[0].request.url == prefix
++
++    run()
++    assert_reset()

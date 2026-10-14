@@ -1,0 +1,17 @@
+--- /dev/null
++++ b/tests/test_ext_grader.py
+@@ -0,0 +1,12 @@
++import pytest
++from sphinx.domains.std import ObjectDescription
++
++
++def test_get_option_record_with_show_default_none():
++    """Test that we don't crash when `opt.show_default` is set to None.
++
++    https://github.com/click-contrib/sphinx-click/issues/47
++    """
++    class FakeOption(object):
++        show_default = None
++
++    record = _get_option_record(FakeOption())
++    assert "default" not in record[1]

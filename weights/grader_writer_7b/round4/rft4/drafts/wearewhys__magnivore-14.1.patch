@@ -1,0 +1,20 @@
+--- /dev/null
++++ b/tests/test_lexicon_grader.py
+@@ -0,0 +1,16 @@
++import pytest
++from magnivore.Lexicon import Lexicon
++
++
++def test_factor_round_up():
++    result = Lexicon.factor({'round': True, 'from': 'a', 'factor': 'b'}, {'a': 5, 'b': 2})
++    assert result == 11
++
++
++def test_factor_round_down():
++    result = Lexicon.factor({'round': False, 'from': 'a', 'factor': 'b'}, {'a': 5, 'b': 2})
++    assert result == 10
++
++
++def test_factor_round_no_key():
++    result = Lexicon.factor({'from': 'a', 'factor': 'b'}, {'a': 5, 'b': 2})
++    assert result == 10

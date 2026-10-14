@@ -1,0 +1,71 @@
+--- /dev/null
++++ b/tests/test_confidence_grader.py
+@@ -0,0 +1,62 @@
++"""Test confidence estimation functions."""
++
++
++import pytest
++from mokapot import read_csv
++from mokapot.confidence import GroupedConfidence, LinearConfidence
++from mokapot.model import Model
++
++
++@pytest.fixture
++def psm_data():
++    """Return a small dataset with three decoy and two target PSMs."""
++    data = {
++        "spec_id": ["S_0"] * 5,
++        "query": ["Q_0", "Q_1", "Q_0", "Q_1", "Q_2"],
++        "score": [1.0, 1.1, 2.0, 2.1, 3.0],
++        "charge": [1, 1, 2, 2, 3],
++        "decoy": [False, False, True, True, True],
++        "is_target": [True, True, False, False, False],
++    }
++    return read_csv(data)
++
++
++def test_linear_confidence(psm_data):
++    """Check the output of linear confidence estimation."""
++    model = Model(score_col="score", charge_col="charge", decoy_col="decoy")
++    conf = LinearConfidence(psm_data, model)
++    assert conf.psms["mokapot score"].max() <= 1
++    assert conf.psms["mokapot score"].min() >= 0
++
++
++def test_grouped_confidence(psm_data):
++    """Check the output of grouped confidence estimation."""
++    psm_data._group_column = "charge"
++    model = Model(score_col="score", charge_col="charge", decoy_col="decoy")
++    conf = GroupedConfidence(psm_data, model)
++    assert conf.psms["mokapot score"].max() <= 1
++    assert conf.psms["mokapot score"].min() >= 0
++
++
++def test_grouped_confidence_decoys(psm_data):
++    """Check the output of grouped confidence estimation including decoys."""
++    psm_data._group_column = "charge"
++    model = Model(score_col="score", charge_col="charge", decoy_col="decoy")
++    conf = GroupedConfidence(psm_data, model, include_decoys=True)
++    assert conf.psms["mokapot score"].max() <= 1
++    assert conf.psms["mokapot score"].min() >= 0
++
++
++def test_grouped_confidence_single_group(psm_data):
++    """Check the output of grouped confidence estimation with a single group."""
++    psm_data._group_column = "charge"
++    psm_data._data = psm_data._data.query("charge == 1").reset_index(drop=True)
++    model = Model(score_col="score", charge_col="charge", decoy_col="decoy")
++    conf = GroupedConfidence(psm_data, model)
++    assert conf.psms["mokapot score"].max() <= 1
++    assert conf.psms["mokapot score"].min() >= 0
++
++
++def test_grouped_confidence_single_group_decoys(psm_data):
++    """Check the output of grouped confidence estimation with a single group
++    and decoys included."""
++    psm_data._group_column = "charge"
++    psm_data._data = psm_data._data.query("charge == 1").reset_index(drop=True)
++    model = Model(score_col="score", charge_col="charge", decoy_col="decoy")
++    conf = GroupedConfidence(psm_data, model, include_decoys=True)
++    assert conf.psms["mokapot score"].max() <= 1
++    assert conf.psms["mokapot score"].min() >= 0

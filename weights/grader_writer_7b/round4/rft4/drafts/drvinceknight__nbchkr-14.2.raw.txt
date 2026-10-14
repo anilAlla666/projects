@@ -1,0 +1,118 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,117 @@
++import os
++import pytest
++from pathlib import Path
++import nbformat  # type: ignore
++
++
++@pytest.fixture(scope="module")
++def nb_path():
++    """
++    A fixture that returns the path to the sample notebook
++    """
++    return Path(__file__).parent.parent / "assets/sample_notebook.ipynb"
++
++
++@pytest.fixture(scope="module")
++def source_nb_path():
++    """
++    A fixture that returns the path to the sample notebook
++    """
++    return Path(__file__).parent.parent / "assets/source_sample_notebook.ipynb"
++
++
++@pytest.fixture(scope="module")
++def source_nb():
++    """
++    A fixture that reads the sample notebook into memory
++    """
++    return nbformat.read(source_nb_path(), as_version=4)
++
++
++@pytest.fixture(scope="module")
++def nb():
++    """
++    A fixture that reads the sample notebook into memory
++    """
++    return nbformat.read(nb_path(), as_version=4)
++
++
++@pytest.fixture(scope="module")
++def nb_with_answers():
++    """
++    A fixture that reads the sample notebook with answers into memory
++    """
++    return nbformat.read(Path(__file__).parent.parent / "assets/answers_sample_notebook.ipynb", as_version=4)
++
++
++@pytest.fixture(scope="module")
++def nb_without_answers():
++    """
++    A fixture that reads the sample notebook without answers into memory
++    """
++    return nbformat.read(Path(__file__).parent.parent / "assets/no_answer_sample_notebook.ipynb", as_version=4)
++
++
++@pytest.fixture(scope="module")
++def nb_with_scores():
++    """
++    A fixture that reads the sample notebook with scores into memory
++    """
++    return nbformat.read(Path(__file__).parent.parent / "assets/scores_sample_notebook.ipynb", as_version=4)
++
++
++@pytest.fixture(scope="module")
++def nb_without_scores():
++    """
++    A fixture that reads the sample notebook without scores into memory
++    """
++    return nbformat.read(Path(__file__).parent.parent / "assets/no_score_sample_notebook.ipynb", as_version=4)
++
++
++def test_add_checks__adds_correct_answers(nb_with_answers, nb_without_answers, source_nb):
++    result = nbformat.v4.rwmanager.RWManager().add_checks(nb_with_answers, source_nb)
++    assert result == nb_without_answers
++
++
++def test_get_score__returns_zero_when_no_score(nb_without_scores):
++    result = nbformat.v4.rwmanager.RWManager().get_score(nb_without_scores[0])
++    assert result == 0
++
++
++def test_get_score__returns_zero_when_no_score_in_tags(nb_with_answers):
++    result = nbformat.v4.rwmanager.RWManager().get_score(nb_with_answers[0])
++    assert result == 0
++
++
++def test_get_score__returns_correct_score(nb_with_scores):
++    result = nbformat.v4.rwmanager.RWManager().get_score(nb_with_scores[0])
++    assert result == 1
++
++
++def test_check__executes_and_returns_correct_results(nb_with_answers, tmpdir):
++    tmp_dir = Path(tmpdir.strpath)
++    output_path = tmp_dir / "output.ipynb"
++    result = nbformat.v4.rwmanager.RWManager().check(nb_with_answers, tmp_dir, output_path=output_path)
++    assert result == (1, 1, "")
++
++
++def test_execute_preprocess__executes_the_notebook(nb_with_answers, tmpdir):
++    tmp_dir = Path(tmpdir.strpath)
++    output_path = tmp_dir / "output.ipynb"
++    nbformat.v4.rwmanager.RWManager().execute_preprocess(nb_with_answers, tmp_dir, output_path=output_path)
++    assert len(os.listdir(str(tmp_dir))) == 1
++    assert os.path.isfile(str(output_path))
++
++
++def test_remove_cells__removes_all_cells_matching_tags_regex_patterns(nb_with_answers, tmpdir):
++    tmp_dir = Path(tmpdir.strpath)
++    output_path = tmp_dir / "output.ipynb"
++    result = nbformat.v4.rwmanager.RWManager().remove_cells(
++        nb_with_answers,
++        tmp_dir,
++        output_path=output_path,
++        tags_regex_patterns_to_ignore=["hide"],
++    )
++    assert len(result["cells"]) == 1

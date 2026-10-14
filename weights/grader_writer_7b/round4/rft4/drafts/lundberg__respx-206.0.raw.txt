@@ -1,0 +1,54 @@
+--- /dev/null
++++ b/tests/test_patterns_grader.py
+@@ -0,0 +1,47 @@
++import re
++from unittest.mock import ANY
++import httpx
++import pytest
++from respx.patterns import (
++    JSON,
++    URL,
++    Content,
++    Cookies,
++    Data,
++    Headers,
++    Host,
++    Lookup,
++    M,
++    Method,
++    Params,
++    Path,
++    Pattern,
++    Port,
++    Scheme,
++    merge_patterns,
++    parse_url_patterns,
++)
++
++
++def test_empty_params_lookup():
++    pattern = Method("GET") & Params({}) & Path("/")
++    request = httpx.Request("GET", "/?q=", headers={"Content-Type": "application/json"})
++    match = pattern.match(request)
++    assert match
++
++
++@pytest.mark.parametrize(
++    "method,headers,payload,expected",
++    [
++        ("GET", {}, "", False),
++        ("GET", {"content-type": "application/json"}, '{"foo":"bar"}', False),
++        ("GET", {"content-type": "application/json"}, '{"foo":"bar","baz":""}', True),
++        ("GET", {"content-type": "application/json"}, '{"foo":"bar","baz":null}', True),
++        ("GET", {"content-type": "application/json"}, '{"foo":"bar","baz":[]}', True),
++        ("GET", {"content-type": "application/json"}, '{"foo":"bar","baz":{}}', True),
++        ("GET", {"content-type": "application/json"}, '{"foo":"bar","baz":false}', True),
++        ("GET", {"content-type": "application/json"}, '{"foo":"bar","baz":true}', True),
++        ("GET", {"content-type": "application/json"}, '{"foo":"bar","baz":null}', True),
++    ],
++)
++def test_empty_data_payload(method, headers, payload, expected):
++    pattern = Method("GET") & Path("/") & Data({})
++    request = httpx.Request(method, "/", headers=headers, content=payload.encode())
++    match = pattern.match(request)
++    assert bool(match) is expected

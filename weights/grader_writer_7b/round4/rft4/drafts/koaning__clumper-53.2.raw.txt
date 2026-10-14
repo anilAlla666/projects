@@ -1,0 +1,18 @@
+--- /dev/null
++++ b/tests/test_clump_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++from clumper import Clumper
++
++
++def test_write_jsonl_raises():
++    """Test that errors are raised when overwriting."""
++    clump = Clumper({"a": 1})
++    with pytest.raises(FileExistsError):
++        clump.write_jsonl("tests/data/overwritten.txt")
++
++
++def test_read_jsonl_raises():
++    """Test that errors are raised when overwriting."""
++    with pytest.raises(ValueError):
++        Clumper.read_jsonl("tests/data/nonexistentfile.txt")

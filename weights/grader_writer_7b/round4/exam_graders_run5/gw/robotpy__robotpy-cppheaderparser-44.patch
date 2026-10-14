@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/test/test_CppHeaderParser_grader.py
+@@ -0,0 +1,26 @@
++import unittest
++import sys
++import CppHeaderParser as CppHeaderParser
++
++
++def filter_pameters(p, extra=[]):
++    "Reduce a list of dictionaries to the desired keys for function parameter testing"
++    rtn = []
++    for d in p:
++        rd = {}
++        for k in ["name", "desc", "type"] + extra:
++            rd[k] = d.get(k)
++        rtn.append(rd)
++    return rtn
++
++
++def filter_dict_keys(d, keys):
++    "Filter a dictonary to a specified set of keys"
++    rtn = {}
++    for k in keys:
++        rtn[k] = d.get(k, None)
++    return rtn
++
++
++class TypedefInReturnTestCase(unittest.TestCase):
++    def test_fn(self):
++        h = """
++typedef C A;
++
++class B { public: A aMethod(); };
++"""
++        CppHeaderParser.CppHeader(h, "string")

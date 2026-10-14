@@ -1,0 +1,87 @@
+--- /dev/null
++++ b/src/qibo/tests/test_gates_abstract_grader.py
+@@ -0,0 +1,25 @@
++"""Tests methods defined in `qibo/gates/abstract.py` and `qibo/gates/gates.py`."""
++
++
++import pytest
++from qibo import gates
++
++
++def test_controlled_by():
++    gate = gates.RX(0, 0.1234).controlled_by(1, 2, 3)
++    assert gate.target_qubits == (0,)
++    assert gate.control_qubits == (1, 2, 3)
++    assert gate.is_controlled_by
++    assert isinstance(gate, gates.RX)
++    with pytest.raises(RuntimeError):
++        gate = gates.CNOT(0, 1).controlled_by(2)
++
++
++def test_light_cone():
++    circuit = gates.Circuit(1)
++    circuit.add(gates.H(0))
++    circuit.add(gates.RY(0, 0.1234))
++    light_c = circuit.light_cone(0, 1)[0]
++    assert light_c.get_parameters() == circuit.get_parameters()
++    assert light_c.control_qubits == ()
+--- /dev/null
++++ b/src/qibo/tests/test_backends_grader.py
+@@ -0,0 +1,55 @@
++import numpy as np
++import pytest
++from qibo import gates
++
++
++GATES = [
++    ("H", (0,), np.array([[1, 1], [1, -1]]) / np.sqrt(2)),
++    ("X", (0,), np.array([[0, 1], [1, 0]])),
++    ("Y", (0,), np.array([[0, -1j], [1j, 0]])),
++    ("Z", (1,), np.array([[1, 0], [0, -1]])),
++    ("S", (2,), np.array([[1, 0], [0, 1j]])),
++    ("T", (2,), np.array([[1, 0], [0, np.exp(1j * np.pi / 4.0)]])),
++    (
++        "CNOT",
++        (0, 1),
++        np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]]),
++    ),
++    ("CZ", (1, 3), np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, -1]])),
++    (
++        "SWAP",
++        (2, 4),
++        np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]]),
++    ),
++    (
++        "FSWAP",
++        (2, 4),
++        np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, -1]]),
++    ),
++    (
++        "TOFFOLI",
++        (1, 2, 3),
++        np.array(
++            [
++                [1, 0, 0, 0, 0, 0, 0, 0],
++                [0, 1, 0, 0, 0, 0, 0, 0],
++                [0, 0, 1, 0, 0, 0, 0, 0],
++                [0, 0, 0, 1, 0, 0, 0, 0],
++                [0, 0, 0, 0, 1, 0, 0, 0],
++                [0, 0, 0, 0, 0, 1, 0, 0],
++                [0, 0, 0, 0, 0, 0, 0, 1],
++                [0, 0, 0, 0, 0, 0, 1, 0],
++            ]
++        ),
++    ),
++    (
++        "CY",
++        (1, 3),
++        np.array(
++            [
++                [1, 0, 0, 0],
++                [0, 1, 0, 0],
++                [0, 0, 0, -1j],
++                [0, 0, 1j, 0],
++            ]
++        ),
++    ),
++]

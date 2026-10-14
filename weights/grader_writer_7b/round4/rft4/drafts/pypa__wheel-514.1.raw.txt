@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/tests/cli/test_unpack_grader.py
+@@ -0,0 +1,27 @@
++from __future__ import annotations
++import os
++from pathlib import Path
++from stat import S_IRUSR, S_IWUSR, S_IXUSR
++from wheel.cli.unpack import unpack
++
++
++def test_preserve_permissions(wheel_paths, tmp_path):
++    """
++    Make sure 'wheel unpack' preserves file permissions.
++    """
++    # Create a dummy wheel file with specific permissions.
++    dummy_wheel = Path(tmp_path) / "dummy.whl"
++    dummy_wheel.touch(mode=S_IRUSR | S_IWUSR | S_IXUSR)
++
++    # Unpack it.
++    unpack(dummy_wheel, str(tmp_path))
++
++    # Check if the resulting file has the same permissions.
++    unpacked_file = (
++        Path(tmp_path) / f"{dummy_wheel.stem}.data" / "purelib" / dummy_wheel.name
++    )
++    assert unpacked_file.exists()
++    actual_mode = unpacked_file.stat().st_mode & ~S_IFMT
++    expected_mode = S_IRUSR | S_IWUSR | S_IXUSR
++    assert actual_mode == expected_mode

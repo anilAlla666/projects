@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/unittests/test_functools_grader.py
+@@ -0,0 +1,16 @@
++import functools
++import pytest
++import asyncstdlib as a
++from .utility import sync, asyncify, multi_sync, Switch, Schedule
++
++
++@sync
++async def test_cached_property_awaitable_return_value():
++    class A:
++        @a.cached_property
++        async def value(self):
++            return 42
++
++    a = A()
++    assert isinstance(a.value, int)
++    assert a.value == 42

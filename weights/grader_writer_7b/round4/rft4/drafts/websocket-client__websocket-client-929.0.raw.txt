@@ -1,0 +1,90 @@
+--- /dev/null
++++ b/websocket/tests/test_url_grader.py
+@@ -0,0 +1,42 @@
++import os
++import unittest
++from websocket._url import get_proxy_info, parse_url, _is_address_in_network, _is_no_proxy_host
++
++
++class ProxyInfoTest(unittest.TestCase):
++    def setUp(self):
++        os.environ.clear()
++
++    def tearDown(self):
++        os.environ.clear()
++
++    def testGetProxyEnvVar(self):
++        os.environ["HTTP_PROXY"] = "http://localhost/"
++        os.environ["HTTPS_PROXY"] = "http://localhost2/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", False), ("localhost", None, None))
++        os.environ["HTTP_PROXY"] = "http://localhost:3128/"
++        os.environ["HTTPS_PROXY"] = "http://localhost2:3128/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", False), ("localhost", 3128, None))
++
++        os.environ["HTTP_PROXY"] = "http://localhost/"
++        os.environ["HTTPS_PROXY"] = "http://localhost2/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", True), ("localhost2", None, None))
++        os.environ["HTTP_PROXY"] = "http://localhost:3128/"
++        os.environ["HTTPS_PROXY"] = "http://localhost2:3128/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", True), ("localhost2", 3128, None))
++
++        os.environ["HTTP_PROXY"] = "http://a:b@localhost/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", False), ("localhost", None, ("a", "b")))
++        os.environ["HTTP_PROXY"] = "http://a:b@localhost:3128/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", False), ("localhost", 3128, ("a", "b")))
++
++        os.environ["HTTP_PROXY"] = "http://a:b@localhost/"
++        os.environ["HTTPS_PROXY"] = "http://a:b@localhost2/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", False), ("localhost", None, ("a", "b")))
++        os.environ["HTTP_PROXY"] = "http://a:b@localhost:3128/"
++        os.environ["HTTPS_PROXY"] = "http://a:b@localhost2:3128/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", False), ("localhost", 3128, ("a", "b")))
++
++        os.environ["HTTP_PROXY"] = "http://a:b@localhost/"
++        os.environ["HTTPS_PROXY"] = "http://a:b@localhost2/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", True), ("localhost2", None, ("a", "b")))
++        os.environ["HTTP_PROXY"] = "http://a:b@localhost:3128/"
++        os.environ["HTTPS_PROXY"] = "http://a:b@localhost2:3128/"
++        self.assertEqual(get_proxy_info("echo.websocket.events", True), ("localhost2", 3128, ("a", "b")))
+--- /dev/null
++++ b/websocket/tests/test_websocket_grader.py
+@@ -0,0 +1,31 @@
++import os
++import os.path
++import socket
++import websocket as ws
++import unittest
++from websocket._handshake import _create_sec_websocket_key, \
++    _validate as _validate_header
++from websocket._http import read_headers
++from websocket._utils import validate_utf8
++from base64 import decodebytes as base64decode
++
++
++"""
++test_websocket.py
++websocket - WebSocket client library for Python
++
++Copyright 2023 engn33r
++
++Licensed under the Apache License, Version 2.0 (the "License");
++you may not use this file except in compliance with the License.
++You may obtain a copy of the License at
++
++    http://www.apache.org/licenses/LICENSE-2.0
++
++Unless required by applicable law or agreed to in writing, software
++distributed under the License is distributed on an "AS IS" BASIS,
++WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++See the License for the specific language governing permissions and
++limitations under the License.
++"""
++
++
++try:
++    import ssl
++    from ssl import SSLError
++except ImportError:
++    # dummy class of SSLError for ssl none-support environment.
++    class SSLError(Exception):
++        pass

@@ -1,0 +1,98 @@
+--- /dev/null
++++ b/test/test_parser_lexer_test_grader.py
+@@ -0,0 +1,34 @@
++"""The Test file for The New Parser (Lexing steps)."""
++
++
++import pytest
++import logging
++from sqlfluff.parser import Lexer
++from sqlfluff.parser.lexer import SingletonMatcher, LexMatch, RegexMatcher, RepeatedMultiMatcher
++from sqlfluff.parser import RawSegment, FileSegment, FilePositionMarker
++from sqlfluff.errors import SQLLexError
++from sqlfluff.config import FluffConfig
++
++
++def assert_matches(instring, matcher, matchstring):
++    """Assert that a matcher does or doesn't work on a string.
++
++    The optional `matchstring` argument, which can optionally
++    be None, allows to either test positive matching of a
++    particular string or negative matching (that it explicitly)
++    doesn't match.
++    """
++    start_pos = FilePositionMarker.from_fresh()
++    res = matcher.match(instring, start_pos)
++    # Check we've got the right type
++    assert isinstance(res, LexMatch)
++    if matchstring is None:
++        assert res.new_string == instring
++        assert res.new_pos == start_pos
++        assert res.segments == ()  # tuple
++    else:
++        new_pos = start_pos.advance_by(matchstring)
++        assert res.new_string == instring[len(matchstring):]
++        assert res.new_pos == new_pos
++        assert len(res.segments) == 1
++        assert res.segments[0].raw == matchstring
+--- /dev/null
++++ b/test/test_parser_match_test_grader.py
+@@ -0,0 +1,57 @@
++"""The Test file for The New Parser (MatchResult Classes)."""
++
++
++import pytest
++from sqlfluff.parser.match import MatchResult
++from sqlfluff.parser import RawSegment, FilePositionMarker
++
++
++@pytest.fixture(scope="module")
++def raw_seg():
++    """Construct a raw segment as a fixture."""
++    fp = FilePositionMarker.from_fresh().advance_by('abc')
++    return RawSegment('foobar', fp)
++
++
++input_funcs = [
++    lambda x: (x,),               # tuple
++    lambda x: [x],                      # list
++    lambda x: x,                        # segment
++    lambda x: (elem for elem in [x])    # generator
++]
++
++
++def test__parser__match_concat_with_empty():
++    """Test concatenation with empty."""
++    m1 = MatchResult.from_matched([])
++    m2 = MatchResult.from_matched(['foo'])
++    m3 = m1 + m2
++    assert len(m3) == 1
++    assert m3.raws() == ['foo']
++
++
++def test__parser__match_concat_with_mixed():
++    """Test concatenation with mixed results."""
++    m1 = MatchResult.from_matched(['foo'])
++    m2 = MatchResult.from_unmatched('bar')
++    m3 = m1 + m2
++    assert len(m3) == 2
++    assert m3.raws() == ['foo', 'bar']
++
++
++def test__parser__match_concat_with_unmatched():
++    """Test concatenation with unmatched."""
++    m1 = MatchResult.from_matched(['foo'])
++    m2 = MatchResult.from_unmatched('bar')
++    m3 = m1 + m2
++    assert len(m3) == 2
++    assert m3.raws() == ['foo', 'bar']
++
++
++def test__parser__match_concat_with_unmatched_and_matched():
++    """Test concatenation with unmatched and matched."""
++    m1 = MatchResult.from_matched(['foo'])
++    m2 = MatchResult.from_unmatched('bar')
++    m3 = MatchResult.from_matched(['baz'])
++    m4 = m1 + m2 + m3
++    assert len(m4) == 3
++    assert m4.raws() == ['foo', 'bar', 'baz']

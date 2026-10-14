@@ -1,0 +1,38 @@
+To address the issue where the `artpath` field is hidden in the `/album/` endpoint despite the `INCLUDE_PATHS` configuration being set, we need to add a test that checks if the `artpath` is included in the response when `INCLUDE_PATHS` is enabled.
+
+Here's the unified diff for the `test/test_web.py` file:
+
+```diff
+diff --git a/test/test_web.py b/test/test_web.py
+index 3b4c5d6..7e8f9a0 100644
+--- a/test/test_web.py
++++ b/test/test_web.py
+@@ -139,6 +139,24 @@ class WebPluginTest(_common.LibTestCase):
+         self.assertEqual(response.status_code, 200)
+         self.assertEqual(res_json['id'], 2)
+         self.assertEqual(res_json['album'], u'other album')
++
++    def test_get_album_with_artpath(self):
++        # Enable INCLUDE_PATHS in the config
++        web.app.config['INCLUDE_PATHS'] = True
++
++        # Create an album with art
++        album = Album(album=u'album with art', artpath='/path/to/art.jpg')
++        self.lib.add(album)
++
++        # Fetch the album
++        response = self.client.get('/album/3')
++        res_json = json.loads(response.data.decode('utf-8'))
++
++        self.assertEqual(response.status_code, 200)
++        self.assertIn('artpath', res_json)
++        self.assertEqual(res_json['artpath'], '/path/to/art.jpg')
++
+ 
+     def test_get_multiple_albums_by_id(self):
+         response = self.client.get('/album/1,2')
+```
+
+This new test (`test_get_album_with_artpath`) sets up a scenario where an album has an `artpath`. It then enables the `INCLUDE_PATHS` configuration and fetches the album using the `/album/` endpoint. The test checks if the `artpath` field is present in the response and matches the expected value.
+
+With this test, you can verify that the fix resolves the issue by ensuring that the `artpath` is included in the response when `INCLUDE_PATHS` is enabled.

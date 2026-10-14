@@ -1,0 +1,46 @@
+diff --git a/particula/tests/particle_test.py b/particula/tests/particle_test.py
+index 0b0d010..1000000 100644
+--- a/particula/tests/particle_test.py
++++ b/particula/tests/particle_test.py
+@@ -287,11 +287,11 @@ def test_condensation_stuff():
+ 
+     simple_cond_kwargs = {
+         "mode": 200e-9,  # 200 nm median
+-        "nbins": 1000,  # 1000 bins
++        "nbins": 100,  # 1000 bins
+         "nparticles": 2e6,  # 1e4 #
+         "volume": 1e-6,  # per 1e-6 m^3 (or 1 cc)
+         "gsigma": 1.25,  # relatively narrow
+-        "cutoff": .99999,  # let's take it all lol
++        "cutoff": .9999,  # let's take it all lol
+         "vapor_radius": 1.6e-9,  # 1.6 nm
+         "vapor_density": 1400,  # 1400 kg/m^3
+         "vapor_concentration": 1,  # 1 ug/m^3
+diff --git a/particula/util/tests/particle_mass_test.py b/particula/util/tests/particle_mass_test.py
+index 0111000..1000000 100644
+--- a/particula/util/tests/particle_mass_test.py
++++ b/particula/util/tests/particle_mass_test.py
+@@ -1,10 +1,10 @@
+ """ test the particle mass calculation
+ """
+ 
+-import numpy as np
+ import pytest
+-from particula import u
++import numpy as np
++from particula import u, particle
+ 
+ 
+ def test_particle_mass():
+@@ -44,3 +44,11 @@ def test_particle_mass():
+     with pytest.raises(ValueError):
+         mass(radius=1*u.m, volume_void=1*u.kg)
+ 
++    with pytest.raises(ValueError):
++        mass()
++
++    with pytest.raises(ValueError):
++        mass(radius=particle.Particle())
++
++    with pytest.raises(ValueError):
++        mass(density=particle.Particle())

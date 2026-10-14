@@ -1,0 +1,130 @@
+--- /dev/null
++++ b/test/test_json/test_json_commands_grader.py
+@@ -0,0 +1,110 @@
++"""Tests for `fakeredis-py`'s emulation of Redis's JSON command subset."""
++
++
++from __future__ import annotations
++from typing import (Any, Dict, List, Tuple, )
++import pytest
++import redis
++from redis import exceptions
++from redis.commands.json.decoders import decode_list, unstring
++from redis.commands.json.path import Path
++
++
++json_tests = pytest.importorskip("jsonpath_ng")
++
++
++SAMPLE_DATA = {
++    "a": ["foo"],
++    "nested1": {"a": ["hello", None, "world"]},
++    "nested2": {"a": 31},
++}
++
++
++@pytest.fixture(scope="function")
++def json_data() -> Dict[str, Any]:
++    """A module-scoped "blob" of JSON-encodable data."""
++    return {
++        "L1": {
++            "a": {
++                "A1_B1": 10,
++                "A1_B2": False,
++                "A1_B3": {
++                    "A1_B3_C1": None,
++                    "A1_B3_C2": [
++                        "A1_B3_C2_D1_1",
++                        "A1_B3_C2_D1_2",
++                        -19.5,
++                        "A1_B3_C2_D1_4",
++                        "A1_B3_C2_D1_5",
++                        {"A1_B3_C2_D1_6_E1": True},
++                    ],
++                    "A1_B3_C3": [1],
++                },
++                "A1_B4": "A1_B4",
++            },
++            "b": {
++                "B1_A1": 10,
++                "B1_A2": False,
++                "B1_A3": {
++                    "B1_A3_C1": None,
++                    "B1_A3_C2": [
++                        "B1_A3_C2_D1_1",
++                        "B1_A3_C2_D1_2",
++                        -19.5,
++                        "B1_A3_C2_D1_4",
++                        "B1_A3_C2_D1_5",
++                        {"B1_A3_C2_D1_6_E1": True},
++                    ],
++                    "B1_A3_C3": [1],
++                },
++                "B1_A4": "B1_A4",
++            },
++        },
++        "M1": {
++            "a": {
++                "A1_B1": 10,
++                "A1_B2": False,
++                "A1_B3": {
++                    "A1_B3_C1": None,
++                    "A1_B3_C2": [
++                        "A1_B3_C2_D1_1",
++                        "A1_B3_C2_D1_2",
++                        -19.5,
++                        "A1_B3_C2_D1_4",
++                        "A1_B3_C2_D1_5",
++                        {"A1_B3_C2_D1_6_E1": True},
++                    ],
++                    "A1_B3_C3": [1],
++                },
++                "A1_B4": "A1_B4",
++            },
++            "b": {
++                "B1_A1": 10,
++                "B1_A2": False,
++                "B1_A3": {
++                    "B1_A3_C1": None,
++                    "B1_A3_C2": [
++                        "B1_A3_C2_D1_1",
++                        "B1_A3_C2_D1_2",
++                        -19.5,
++                        "B1_A3_C2_D1_4",
++                        "B1_A3_C2_D1_5",
++                        {"B1_A3_C2_D1_6_E1": True},
++                    ],
++                    "B1_A3_C3": [1],
++                },
++                "B1_A4": "B1_A4",
++            },
++        },
++    }
++
++
++def test_scan_iter_types(r: redis.Redis) -> None:
++    r.set("str", "val")
++    r.lpush("list", "val")
++    r.sadd("set", "val")
++    r.zadd("zset", {"val": 1})
++    r.hset("hash", "field", "val")
++    assert r.scan_iter(_type="STRING") == [b"str"]
++    assert r.scan_iter(_type="LIST") == [b"list"]
++    assert r.scan_iter(_type="SET") == [b"set"]
++    assert r.scan_iter(_type="ZSET") == [b"zset"]
++    assert r.scan_iter(_type="HASH") == [b"hash"]
++    assert r.scan_iter(_type="NONEXISTENTTYPE") == []
+--- /dev/null
++++ b/test/test_mixins/test_set_commands_grader.py
+@@ -0,0 +1,10 @@
++from __future__ import annotations
++import os
++from datetime import timedelta
++from time import sleep
++import pytest
++import redis
++import redis.client
++from redis.exceptions import ResponseError
++
++
++def test_set_ex_should_expire_value(r):

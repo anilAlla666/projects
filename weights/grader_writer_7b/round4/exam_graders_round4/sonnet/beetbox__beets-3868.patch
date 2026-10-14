@@ -1,0 +1,81 @@
+--- /dev/null
++++ b/test/test_web_artpath.py
+@@ -0,0 +1,76 @@
++# -*- coding: utf-8 -*-
++
++"""Tests for the 'web' plugin: album artpath honouring INCLUDE_PATHS"""
++
++from __future__ import division, absolute_import, print_function
++
++import json
++import unittest
++
++from test import _common
++from beets import util
++from beets.library import Album
++from beetsplug import web
++
++
++class WebPluginArtpathTest(_common.LibTestCase):
++
++    def setUp(self):
++        super(WebPluginArtpathTest, self).setUp()
++
++        for track in self.lib.items():
++            track.remove()
++
++        album = Album(album=u'album with art', artpath=b'/path/to/cover.jpg')
++        self.lib.add(album)
++        self.album_id = album.id
++
++        web.app.config['TESTING'] = True
++        web.app.config['lib'] = self.lib
++        web.app.config['INCLUDE_PATHS'] = False
++        self.client = web.app.test_client()
++
++    def _expected_artpath(self):
++        stored = self.lib.get_album(self.album_id).artpath
++        return util.displayable_path(stored)
++
++    def test_album_artpath_hidden_by_default(self):
++        response = self.client.get('/album/{0}'.format(self.album_id))
++        res_json = json.loads(response.data.decode('utf-8'))
++
++        self.assertEqual(response.status_code, 200)
++        self.assertNotIn('artpath', res_json)
++
++    def test_album_artpath_included_when_include_paths(self):
++        web.app.config['INCLUDE_PATHS'] = True
++        response = self.client.get('/album/{0}'.format(self.album_id))
++        res_json = json.loads(response.data.decode('utf-8'))
++
++        self.assertEqual(response.status_code, 200)
++        self.assertIn('artpath', res_json)
++        self.assertEqual(res_json['artpath'], self._expected_artpath())
++
++    def test_albums_list_artpath_included_when_include_paths(self):
++        web.app.config['INCLUDE_PATHS'] = True
++        response = self.client.get(
++            '/album/{0},{0}'.format(self.album_id))
++        res_json = json.loads(response.data.decode('utf-8'))
++
++        self.assertEqual(response.status_code, 200)
++        for album in res_json['albums']:
++            self.assertEqual(album['artpath'], self._expected_artpath())
++
++    def test_album_query_artpath_included_when_include_paths(self):
++        web.app.config['INCLUDE_PATHS'] = True
++        response = self.client.get('/album/query/art')
++        res_json = json.loads(response.data.decode('utf-8'))
++
++        self.assertEqual(response.status_code, 200)
++        self.assertEqual(len(res_json['results']), 1)
++        self.assertEqual(res_json['results'][0]['artpath'],
++                         self._expected_artpath())
++
++
++def suite():
++    return unittest.TestLoader().loadTestsFromName(__name__)
++
++if __name__ == '__main__':
++    unittest.main(defaultTest='suite')

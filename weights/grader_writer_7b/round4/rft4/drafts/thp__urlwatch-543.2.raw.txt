@@ -1,0 +1,105 @@
+--- /dev/null
++++ b/lib/urlwatch/tests/test_filters_grader.py
+@@ -0,0 +1,100 @@
++import os
++import logging
++import yaml
++from urlwatch.filters import FilterBase
++import pytest
++
++
++logger = logging.getLogger(__name__)
++
++
++TESTDATA = [
++    # Legacy string-style filter definition conversion
++    ('grep', [('grep', {})]),
++    ('grep:foo', [('grep', {'re': 'foo'})]),
++    ('beautify,grep:foo,html2text', [('beautify', {}), ('grep', {'re': 'foo'}), ('html2text', {})]),
++    ('re.sub:.*', [('re.sub', {'pattern': '.*'})]),
++    ('re.sub', [('re.sub', {})]),
++
++    # New dict-style filter definition normalization/mapping
++    ([{'grep': None}], [('grep', {})]),
++    ([{'grep': {'re': 'bla'}}], [('grep', {'re': 'bla'})]),
++    ([{'reverse': '\n\n'}], [('reverse', {'separator': '\n\n'})]),
++    (['html2text', {'grep': 'Current.*version'}, 'strip'], [
++        ('html2text', {}),
++        ('grep', {'re': 'Current.*version'}),
++        ('strip', {}),
++    ]),
++    ([{'css': 'body'}], [('css', {'selector': 'body'})]),
++    ([{'html2text': {'method': 'bs4', 'parser': 'html5lib'}}], [
++        ('html2text', {'method': 'bs4', 'parser': 'html5lib'}),
++    ]),
++]
++
++
++FILTER_TESTS = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), 'data/filter_tests.yaml'), 'r', encoding='utf8'))
++
++
++def _run_shell_pipe_filter(cmd, input):
++    cmd = [cmd] + ['--debug'] * 2
++    cmd.append('--no-cache')
++    cmd.extend(['--config', '/dev/null'])
++    cmd.extend(['--urls', '-'])
++    cmd += ['-']
++    proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
++    return proc.communicate(input=input)[0].decode()
++
++
++@pytest.mark.parametrize('input, output', TESTDATA)
++def test_normalize_filter_list(input, output):
++    assert list(FilterBase.normalize_filter_list(input)) == output
++
++
++class TestShellPipeFilter:
++    def test_no_env_overwrite(self, monkeypatch):
++        monkeypatch.setenv('PATH', '/home/stosh/bin:/usr/local/bin:/usr/bin:/bin')
++        monkeypatch.delenv('HOME')
++
++        input = "env"
++        output = "PATH=/home/stosh/bin:/usr/local/bin:/usr/bin:/bin\nHOME=\n"
++        actual = _run_shell_pipe_filter(['python3', '-m', 'urlwatch.filters', 'shellpipe', input], input)
++
++        assert actual == output
++
++    def test_no_env_addition(self, monkeypatch):
++        monkeypatch.setenv('URLWATCH_JOB_NAME', 'test')
++        monkeypatch.setenv('URLWATCH_JOB_LOCATION', 'location')
++
++        input = "env"
++        output = "URLWATCH_JOB_NAME=test\nURLWATCH_JOB_LOCATION=location\n"
++        actual = _run_shell_pipe_filter(['python3', '-m', 'urlwatch.filters', 'shellpipe', input], input)
++
++        assert actual == output
++
++    def test_no_env_modification(self, monkeypatch):
++        monkeypatch.setenv('URLWATCH_JOB_NAME', 'test')
++        monkeypatch.setenv('URLWATCH_JOB_LOCATION', 'location')
++
++        input = "echo \$URLWATCH_JOB_NAME \$URLWATCH_JOB_LOCATION"
++        output = "test location\n"
++        actual = _run_shell_pipe_filter(['python3', '-m', 'urlwatch.filters', 'shellpipe', input], input)
++
++        assert actual == output
++
++    def test_env_override(self, monkeypatch):
++        monkeypatch.setenv('URLWATCH_JOB_NAME', 'test')
++        monkeypatch.setenv('URLWATCH_JOB_LOCATION', 'location')
++
++        input = "env"
++        output = "URLWATCH_JOB_NAME=override\nURLWATCH_JOB_LOCATION=override\n"
++        actual = _run_shell_pipe_filter(['python3', '-m', 'urlwatch.filters', 'shellpipe', input], input)
++
++        assert actual == output
++
++    def test_env_missing(self, monkeypatch):
++        monkeypatch.delenv('URLWATCH_JOB_NAME')
++        monkeypatch.delenv('URLWATCH_JOB_LOCATION')
++
++        input = "env"
++        output = ""
++        actual = _run_shell_pipe_filter(['python3', '-m', 'urlwatch.filters', 'shellpipe', input], input)
++
++        assert actual == output

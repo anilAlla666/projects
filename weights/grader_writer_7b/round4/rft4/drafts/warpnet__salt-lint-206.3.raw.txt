@@ -1,0 +1,55 @@
+--- /dev/null
++++ b/tests/unit/test_TestYamlHasOctalValueRule_grader.py
+@@ -0,0 +1,48 @@
++import unittest
++from saltlint.linter.collection import RulesCollection
++from saltlint.rules.YamlHasOctalValueRule import YamlHasOctalValueRule
++from tests import RunFromText
++
++
++GOOD_NUMBER_STATE = '''
++testdirectory:
++  file.recurse:
++    - name: /tmp/directory
++    - file_mode: 700
++    - dir_mode: '0775'
++
++testdirectory02:
++  file.recurse:
++    - name: /tmp/directory02
++    - file_mode: 0
++    - dir_mode: "0775"
++
++# Non-number values should be skipped, for more information see:
++# https://github.com/warpnet/salt-lint/issues/68
++apache_disable_default_site:
++  apache_site.disabled:
++    - name: 000-default
++
++# Valid MAC address.
++mac_address_valid:
++  network.managed:
++    - mac: 00:e5:e5:aa:60:69
++'''
++
++
++BAD_NUMBER_STATE = '''
++# Unquoted octal values with leading zero's.
++testdirectory:
++  file.recurse:
++    - name: /tmp/directory
++    - file_mode: 00
++    - dir_mode: 0700
++
++# Unquoted octal values with leading zero's followed by a YAML of Jinja
++# comment.
++testdirectory:
++  file.recurse:
++    - name: /tmp/directory
++    - file_mode: 00 # COMMENT
++    - dir_mode:0700{# JINJA COMMENT #}
++'''
++
++
++if __name__ == '__main__':
++    unittest.main()

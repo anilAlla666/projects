@@ -1,0 +1,54 @@
+The tests below reproduce the issue's example and a variant with moving points between two staypoints. They check that `generate_triplegs` accepts string `user_id` values and keeps them unchanged. I did not run them against the current or the fixed code.
+
+```diff
+--- /dev/null
++++ b/tests/preprocessing/test_positionfixes_string_user_id.py
+@@ -0,0 +1,66 @@
++import geopandas as gpd
++import pandas as pd
++import pytest
++
++from trackintel.preprocessing.positionfixes import generate_staypoints, generate_triplegs
++
++
++def _make_pfs(user_ids, xs):
++    n = len(xs)
++    return gpd.GeoDataFrame(
++        {
++            "user_id": user_ids,
++            "tracked_at": pd.date_range("2023-01-01T00:00:00Z", freq="60s", periods=n),
++        },
++        geometry=gpd.points_from_xy(xs, xs),
++        crs="EPSG:4326",
++    )
++
++
++class TestTriplegsStringUserId:
++    def test_issue_example(self):
++        """generate_triplegs must not fail when user_id is a string."""
++        pfs = _make_pfs("test", [0] * 5 + [1] * 5)
++        pfs, sp = generate_staypoints(pfs)
++        pfs, tpls = generate_triplegs(pfs)
++        if len(tpls) > 0:
++            assert (tpls["user_id"] == "test").all()
++
++    def test_string_user_id_with_triplegs(self):
++        """Triplegs are generated and keep the string user_id."""
++        xs = [0] * 5 + [0.1 * i for i in range(1, 6)] + [1] * 5
++        pfs = _make_pfs("test", xs)
++        pfs, sp = generate_staypoints(pfs, method="sliding", dist_threshold=100, time_threshold=3)
++        assert len(sp) >= 1
++        pfs, tpls = generate_triplegs(pfs, sp)
++        assert len(tpls) >= 1
++        assert (tpls["user_id"] == "test").all()
++        assert tpls["user_id"].dtype == pfs["user_id"].dtype
++
++    def test_string_user_id_without_staypoints_arg(self):
++        """Case where no staypoint_id is available on pfs and no staypoints are given."""
++        xs = [0.1 * i for i in range(10)]
++        pfs = _make_pfs("abc", xs)
++        pfs, sp = generate_staypoints(pfs)
++        pfs, tpls = generate_triplegs(pfs.drop(columns="staypoint_id", errors="ignore"), sp)
++        if len(tpls) > 0:
++            assert (tpls["user_id"] == "abc").all()
+```

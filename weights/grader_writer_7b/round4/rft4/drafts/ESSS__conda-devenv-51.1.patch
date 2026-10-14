@@ -1,0 +1,57 @@
+--- /dev/null
++++ b/tests/test_conda_devenv_grader.py
+@@ -0,0 +1,55 @@
++import os
++from pathlib import Path
++from unittest.mock import patch
++import pytest
++
++
++@pytest.fixture(scope="function")
++def devenv_file(tmp_path):
++    env_yml = tmp_path / "environment.devenv.yml"
++    env_yml.write_text("""\
++dependencies:
++- python=3.8
++- numpy
++""")
++    yield env_yml
++
++
++@pytest.fixture(scope="function")
++def conda_env_yml(tmp_path):
++    env_yml = tmp_path / "environment.yml"
++    env_yml.write_text("""\
++dependencies:
++- python=3.8
++- numpy
++""")    
++    yield env_yml
++
++
++def test_devenv_calls_undeveloped_if_no_output_file(devenv_file):
++    """Ensure that we call undeveloped even if no output file is specified"""
++    with patch("conda_devenv.devenv.undeveloped") as mock:
++        conda_devenv.devenv(["--name", "test"])
++        assert mock.called
++
++
++def test_devenv_calls_undeveloped_if_no_output_file(conda_env_yml):
++    """Ensure that we call undeveloped even if no output file is specified"""
++    with patch("conda_devenv.devenv.undeveloped") as mock:
++        conda_devenv.devenv(["--name", "test"])
++        assert mock.called
++
++
++def test_devenv_calls_undeveloped_if_name_is_set(devenv_file):
++    """Ensure that we call undeveloped when name is set"""
++    with patch("conda_devenv.devenv.undeveloped") as mock:
++        conda_devenv.devenv(["--name", "test"])
++        assert mock.called
++
++
++def test_devenv_calls_undeveloped_if_name_is_set(conda_env_yml):
++    """Ensure that we call undeveloped when name is set"""
++    with patch("conda_devenv.devenv.undeveloped") as mock:
++        conda_devenv.devenv(["--name", "test"])
++        assert mock.called

@@ -1,0 +1,78 @@
+--- /dev/null
++++ b/geopandas/tests/test_geodataframe_grader.py
+@@ -0,0 +1,76 @@
++import json
++import os
++import shutil
++import tempfile
++import numpy as np
++import pandas as pd
++from pyproj import CRS
++from pyproj.exceptions import CRSError
++from shapely.geometry import Point, Polygon
++import geopandas
++from geopandas import GeoDataFrame, GeoSeries, points_from_xy, read_file
++from geopandas.array import GeometryArray, GeometryDtype, from_shapely
++from geopandas.testing import assert_geodataframe_equal, assert_geoseries_equal
++from geopandas.tests.util import PACKAGE_DIR, validate_boro_df
++from pandas.testing import assert_frame_equal, assert_index_equal, assert_series_equal
++import pytest
++
++
++@pytest.fixture
++def dfs(request):
++    s1 = GeoSeries(
++        [
++            Polygon([(0, 0), (2, 0), (2, 2), (0, 2)]),
++            Polygon([(2, 2), (4, 2), (4, 4), (2, 4)]),
++        ]
++    )
++    s2 = GeoSeries(
++        [
++            Polygon([(1, 1), (3, 1), (3, 3), (1, 3)]),
++            Polygon([(3, 3), (5, 3), (5, 5), (3, 5)]),
++        ]
++    )
++    df1 = GeoDataFrame({"col1": [1, 2], "geometry": s1})
++    df2 = GeoDataFrame({"col2": [1, 2], "geometry": s2})
++    return df1, df2
++
++
++@pytest.fixture
++def dfs_merge(dfs):
++    return [d.assign(foo=d.col1 + d.col2) for d in dfs]
++
++
++@pytest.fixture
++def dfs_diffcrs(request):
++    s1 = GeoSeries([Point(0, 0), Point(2, 0)], crs=4326)
++    s2 = GeoSeries([Point(0, 0), Point(2, 0)], crs=25833)
++    df1 = GeoDataFrame({"col1": [1, 2], "geometry": s1}, crs=4326)
++    df2 = GeoDataFrame({"col2": [1, 2], "geometry": s2}, crs=25833)
++    return df1, df2
++
++
++def test_merge_preserve_geometry_columns():
++    # https://github.com/geopandas/geopandas/issues/2931
++    point = shapely.Point(600000, 5000000)
++    df_1 = geopandas.GeoDataFrame(
++        data={"geom": [shapely.Point([1, 2])]},
++        geometry="geom",
++        crs="25832",
++    )
++    df_2 = geopandas.GeoDataFrame(
++        data={"geom": [point]},
++        geometry="geom",
++        crs="25832",
++    )
++    df_merged = df_1.merge(df_2, left_index=True, right_index=True)
++    assert type(df_merged) == geopandas.GeoDataFrame
++    assert df_merged._geometry_column_name == "geom"
++
++    df_merged = df_1.merge(df_2, left_index=True, right_index=True, suffixes=(None, "_r"))
++    assert type(df_merged) == geopandas.GeoDataFrame
++    assert df_merged._geometry_column_name == "geom"
++
++    df_merged = df_1.merge(df_2, how="outer", left_index=True, right_index=True)
++    assert type(df_merged) == geopandas.GeoDataFrame
++    assert df_merged._geometry_column_name == "geom"

@@ -1,0 +1,17 @@
+--- /dev/null
++++ b/tests/test_converters_grader.py
+@@ -0,0 +1,15 @@
++import unittest
++from ruamel.yaml import YAML
++from exchange_metadata_converter.converters import convert_to_kubernetes_name
++
++
++class TestConvertToKubernetesName(unittest.TestCase):
++    def setUp(self):
++        self.maxDiff = None
++
++    def test_invalid_name(self):
++        input = 'Finance Proposition Bank'
++        expected = 'finance-proposition-bank'
++        result = convert_to_kubernetes_name(input)
++        self.assertEqual(expected, result)

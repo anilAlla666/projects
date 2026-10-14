@@ -1,0 +1,34 @@
+--- /dev/null
++++ b/test/test_json/test_json_commands_grader.py
+@@ -0,0 +1,11 @@
++"""Tests for `fakeredis-py`'s emulation of Redis's JSON command subset."""
++
++
++from __future__ import annotations
++from typing import (Any, Dict, List, Tuple, )
++import pytest
++import redis
++from redis import exceptions
++from redis.commands.json.decoders import decode_list, unstring
++from redis.commands.json.path import Path
++
++
++def test_scan_iter_type(r: redis.Redis) -> None:
++    r.zadd("key", {"a": 2})
++    assert list(r.scan_iter(match="key", _type="ZSET")) == [b"key"]
+--- /dev/null
++++ b/test/test_mixins/test_set_commands_grader.py
+@@ -0,0 +1,10 @@
++from __future__ import annotations
++import os
++from datetime import timedelta
++from time import sleep
++import pytest
++import redis
++import redis.client
++from redis.exceptions import ResponseError
++
++
++def test_scan_iter_type(r: redis.Redis) -> None:
++    r.zadd("key", {"a": 2})
++    assert list(r.scan_iter(match="key", _type="ZSET")) == [b"key"]

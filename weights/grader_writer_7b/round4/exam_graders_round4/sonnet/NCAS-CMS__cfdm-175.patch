@@ -1,0 +1,53 @@
+diff --git a/cfdm/test/test_dimension_coordinate_no_data_str.py b/cfdm/test/test_dimension_coordinate_no_data_str.py
+new file mode 100644
+--- /dev/null
++++ b/cfdm/test/test_dimension_coordinate_no_data_str.py
+@@ -0,0 +1,53 @@
++import datetime
++import faulthandler
++import unittest
++
++faulthandler.enable()  # to debug seg faults and timeouts
++
++import cfdm
++
++
++class DimensionCoordinateNoDataStrTest(unittest.TestCase):
++    """Printing of fields/domains with data-less dimension coordinates."""
++
++    def setUp(self):
++        cfdm.LOG_LEVEL("DISABLE")
++
++    def test_field_str_dimension_coordinate_no_data(self):
++        f = cfdm.example_field(2)
++        t = f.construct("time")
++        t.del_data()
++        self.assertFalse(t.has_data())
++
++        s = str(f)
++        self.assertIsInstance(s, str)
++        self.assertTrue(len(s) > 0)
++        self.assertIn("time", s)
++        repr(f)
++
++    def test_domain_str_dimension_coordinate_no_data(self):
++        f = cfdm.example_field(2)
++        f.construct("time").del_data()
++        d = f.domain
++
++        s = str(d)
++        self.assertIsInstance(s, str)
++        self.assertIn("time", s)
++        repr(d)
++
++    def test_field_str_with_data_still_works(self):
++        f = cfdm.example_field(2)
++        s = str(f)
++        self.assertIn("time", s)
++
++
++if __name__ == "__main__":
++    print("Run date:", datetime.datetime.now())
++    cfdm.environment()
++    print()
++    unittest.main(verbosity=2)

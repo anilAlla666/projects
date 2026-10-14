@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,34 @@
++from __future__ import annotations
++import wn
++
++
++def test_relation_names_from_oevn() -> None:
++    oewn = wn.WordNet('oewn')
++    dog = oewn.synsets('dog')[0]
++    assert dog.relations().keys() == {'hypernym'}
++
++
++def test_relation_names_from_expand_lexicons() -> None:
++    oewn = wn.WordNet('oewn')
++    fr = wn.WordNet('fr')
++    oewn_fr = wn.WordNet(['oewn', 'fr'])
++
++    dog = oewn.synsets('dog')[0]
++    chien = fr.synsets('chien')[0]
++
++    assert dog.relations()['hypernym'][0].relation_name() == 'hypernym'
++    assert dog.relations()['hyponym'][0].relation_name() == 'hyponym'
++
++    assert chien.relations()['hypernym'][0].relation_name() == 'hypernym'
++    assert chien.relations()['hyponym'][0].relation_name() == 'hyponym'
++
++    assert oewn_fr.synsets('dog')[0].relations()['hypernym'][0].relation_name() == \
++           'hypernym'
++    assert oewn_fr.synsets('chien')[0].relations()['hypernym'][0].relation_name() == \
++           'hypernym'
++
++    assert oewn_fr.synsets('chien')[0].relations()['hyponym'][0].relation_name() == \
++           'hyponym'
++    assert oewn_fr.synsets('dog')[0].relations()['hyponym'][0].relation_name() == \
++           'hyponym'

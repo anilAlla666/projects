@@ -1,0 +1,39 @@
+--- /dev/null
++++ b/tests/test_dataclasses_grader.py
+@@ -0,0 +1,34 @@
++from dataclasses import dataclass, fields, field
++from typing import Optional
++import pytest
++from dacite.dataclasses import get_default_value_for_field, DefaultValueNotFoundError, is_frozen
++
++
++def test_get_default_value_for_field_with_default_factory():
++    @dataclass
++    class X:
++        i: int = field(default_factory=lambda: 1)
++
++    dataclass_field = fields(X)[0]
++
++    value = get_default_value_for_field(field=dataclass_field, type_=dataclass_field.type)
++
++    assert value == 1
++
++
++def test_get_default_value_for_field_with_default_factory_multiple_calls():
++    @dataclass
++    class X:
++        i: int = field(default_factory=lambda: 1)
++
++    dataclass_field = fields(X)[0]
++
++    value_1 = get_default_value_for_field(field=dataclass_field, type_=dataclass_field.type)
++    value_2 = get_default_value_for_field(field=dataclass_field, type_=dataclass_field.type)
++
++    assert value_1 == 1
++    assert value_1 == value_2
++
++
++def test_get_default_value_for_field_with_default_factory_none():
++    @dataclass
++    class X:
++        i: int = field(default_factory=None)

@@ -1,0 +1,28 @@
+diff --git a/tests/test_population.py b/tests/test_population.py
+index 340b2e1..d2a3f4b 100644
+--- a/tests/test_population.py
++++ b/tests/test_population.py
+@@ -339,6 +339,27 @@ class TestPopulationCopy:
+     def test_combine_nothing(self):
+         with raises(ValueError):
+             Population.combine()
++
++class TestElitism:
++
++    def test_elitism_with_one_individual(self, simple_individuals):
++        pop = Population(simple_individuals, eval_function=lambda x: x)
++        pop.evaluate()
++        pop.mutate(lambda x: x + 1, elitist=True)
++        assert pop.current_best.fitness == 0
++
++    def test_elitism_with_multiple_individuals(self, simple_individuals):
++        pop = Population(simple_individuals, eval_function=lambda x: x)
++        pop.evaluate()
++        pop.mutate(lambda x: x + 1, elitist=True)
++        assert all(individual.fitness == 0 for individual in pop.individuals if individual != pop.current_best)
++
++    def test_elitism_with_zero_probability(self, simple_individuals):
++        pop = Population(simple_individuals, eval_function=lambda x: x)
++        pop.evaluate()
++        pop.mutate(lambda x: x + 1, probability=0, elitist=True)
++        assert all(individual.fitness == 0 for individual in pop.individuals)

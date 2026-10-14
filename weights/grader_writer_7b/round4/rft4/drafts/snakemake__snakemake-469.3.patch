@@ -1,0 +1,33 @@
+--- /dev/null
++++ b/tests/test_io_grader.py
+@@ -0,0 +1,29 @@
++from snakemake.io import _wildcard_regex, expand
++from snakemake.exceptions import WildcardError
++import pytest
++
++
++@pytest.mark.parametrize(
++    "input,expected",
++    [
++        ("a{b}c", ["a1bc"]),
++        ("a{b}c", ["a1bc", "a2bc"]),
++        ("a{b}c{d}", ["a1c2", "a2c3"]),
++        ("a{b}c{d}", ["a1c2", "a2c3", "a4c5"]),
++        ("a{b}c{d}", ["a1c2", "a2c3", "a4c5", "a6c7"]),
++        ("a{b}c{d}{e}", ["a1c23", "a2c34", "a4c56"]),
++        ("a{b}c{d}{e}", ["a1c23", "a2c34", "a4c56", "a7c89"]),
++        ("a{b}c{d}{e}", ["a1c23", "a2c34", "a4c56", "a7c89", "a10c1112"]),
++        ("a{b}c{d}{e}{f}", ["a1c2345", "a2c3456", "a4c5678"]),
++        ("a{b}c{d}{e}{f}", ["a1c2345", "a2c3456", "a4c5678", "a9c101112"]),
++        ("a{b}c{d}{e}{f}", ["a1c2345", "a2c3456", "a4c5678", "a9c101112", "a13c141516"]),
++        ("a{b}c{d}{e}{f}{g}", ["a1c23456", "a2c34567", "a4c56789"]),
++        (
++            "a{b}c{d}{e}{f}{g}",
++            ["a1c23456", "a2c34567", "a4c56789", "a10c111213"],
++        ),
++    ],
++)
++def test_expand_pathlib(input, expected):
++    result = expand(input, b=[1, 2, 4], c=[3], d=[2, 3, 5], e=[3, 4, 6], f=[5, 6, 7, 8])
++    assert all(isinstance(r, str) for r in result)
++    assert result == expected

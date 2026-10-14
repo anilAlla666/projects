@@ -1,0 +1,28 @@
+--- /dev/null
++++ b/tests/test_clump_grader.py
+@@ -0,0 +1,25 @@
++import pytest
++from clumper import Clumper
++
++
++def test_write_json():
++    clump_orig = Clumper.read_json("tests/data/pokemon.json")
++    clump_orig.write_json("tests/data/pokemon_copy.json")
++
++    clump_copy = Clumper.read_json("tests/data/pokemon_copy.json")
++
++    assert clump_copy.collect() == clump_orig.collect()
++
++
++def test_write_jsonl():
++    clump_orig = Clumper.read_jsonl("tests/data/cards.jsonl")
++    clump_orig.write_jsonl("tests/data/cards_copy.jsonl")
++
++    clump_copy = Clumper.read_jsonl("tests/data/cards_copy.jsonl")
++
++    assert clump_copy.collect() == clump_orig.collect()
++
++
++def test_write_yml():
++    clump_orig = Clumper.read_yaml("tests/data/demo-flat-1.yaml")
++    clump_orig.write_yaml("tests/data/demo-flat-copy.yml")

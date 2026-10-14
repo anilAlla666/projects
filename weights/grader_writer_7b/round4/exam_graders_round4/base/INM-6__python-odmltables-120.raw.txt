@@ -1,0 +1,50 @@
+To address the issue where an error occurs when converting an empty CSV file (apart from the header), we need to ensure that the `row_id` variable is properly defined even when there are no data rows. We will add a new test file to check this behavior.
+
+Here's the unified diff that adds a new test file `test_empty_csv_conversion.py`:
+
+```diff
+diff --git a/odmltables/tests/test_empty_csv_conversion.py b/odmltables/tests/test_empty_csv_conversion.py
+new file mode 100644
+index 0000000..e2b8c3d
+--- /dev/null
++++ b/odmltables/tests/test_empty_csv_conversion.py
+@@ -0,0 +1,35 @@
++# -*- coding: utf-8 -*-
++"""
++Created on Tue Oct 10 10:00:00 2023
++
++@author: yourname
++"""
++
++import unittest
++from io import StringIO
++from odmltables.odml_csv_table import OdmlCsvTable
++
++class TestEmptyCSVConversion(unittest.TestCase):
++    def test_convert_empty_csv(self):
++        """
++        Test conversion of an empty CSV file (only header).
++        """
++        # Create an empty CSV string with just a header
++        csv_data = "row_id,Path,Section_Name,Section_Definition,Property_Name,Property_Definition,Value,Data_Unit,Data_Uncertainty,odML_Data_Type\n"
++
++        # Use StringIO to simulate reading from a file
++        csv_file = StringIO(csv_data)
++
++        # Initialize the OdmlCsvTable object
++        table = OdmlCsvTable()
++
++        # Load the CSV data into the table
++        table.load_from_file(csv_file)
++
++        # Check if the table has been loaded correctly without errors
++        self.assertIsNotNone(table._odmldict)
++        self.assertEqual(len(table._odmldict), 0)
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This test file includes a single test method `test_convert_empty_csv` which checks if the `OdmlCsvTable` object can handle an empty CSV file (containing only a header) without raising an error. The test uses `StringIO` to simulate reading from a file, initializes the `OdmlCsvTable` object, loads the CSV data, and then verifies that the `_odmldict` attribute is not `None` and is empty.
+
+By adding this test file, we ensure that the fix resolves the issue and that future changes do not reintroduce it.

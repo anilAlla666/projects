@@ -1,0 +1,105 @@
+--- /dev/null
++++ b/test/test_mail_grader.py
+@@ -0,0 +1,109 @@
++import base64
++from email.mime.image import MIMEImage
++from django.core.mail import EmailMessage, EmailMultiAlternatives
++from django.test import override_settings
++from django.test.testcases import SimpleTestCase
++from sendgrid.helpers.mail import (
++    BypassListManagement,
++    ClickTracking,
++    CustomArg,
++    Email,
++    Ganalytics,
++    Header,
++    MailSettings,
++    Personalization,
++    SpamCheck,
++    Substitution,
++    TrackingSettings,
++)
++from sendgrid_backend.mail import SendgridBackend
++from sendgrid_backend.util import SENDGRID_5, SENDGRID_6, dict_to_personalization
++
++
++if SENDGRID_6:
++    from sendgrid.helpers.mail import Bcc, Cc, To
++
++
++class TestMailGeneration(SimpleTestCase):
++    # Any assertDictEqual failures will show the entire diff instead of just a snippet
++    maxDiff = None
++
++    @classmethod
++    def setUpClass(cls):
++        super(TestMailGeneration, cls).setUpClass()
++        with override_settings(
++            EMAIL_BACKEND="sendgrid_backend.SendgridBackend",
++            SENDGRID_API_KEY="DUMMY_API_KEY",
++        ):
++            cls.backend = SendgridBackend()
++
++    def test_reply_to_multiple(self):
++        msg = EmailMessage(
++            subject="Hello, World!",
++            body="Hello, World!",
++            from_email="Sam Smith <sam.smith@example.com>",
++            to=["John Doe <john.doe@example.com>", "jane.doe@example.com"],
++            cc=["Stephanie Smith <stephanie.smith@example.com>"],
++            bcc=["Sarah Smith <sarah.smith@example.com>"],
++            reply_to=["Sam Smith <sam.smith@example.com>", "jane.doe@example.com"],
++        )
++
++        mail = self.backend._build_sg_mail(msg)
++
++        reply_to = mail.get("reply_to_list")
++        assert len(reply_to) == 2
++        assert reply_to[0].get("email") == "sam.smith@example.com"
++        assert reply_to[1].get("email") == "jane.doe@example.com"
++
++    def test_reply_to_single(self):
++        msg = EmailMessage(
++            subject="Hello, World!",
++            body="Hello, World!",
++            from_email="Sam Smith <sam.smith@example.com>",
++            to=["John Doe <john.doe@example.com>", "jane.doe@example.com"],
++            cc=["Stephanie Smith <stephanie.smith@example.com>"],
++            bcc=["Sarah Smith <sarah.smith@example.com>"],
++            reply_to=["Sam Smith <sam.smith@example.com>"],
++        )
++
++        mail = self.backend._build_sg_mail(msg)
++
++        reply_to = mail.get("reply_to_list")
++        assert len(reply_to) == 1
++        assert reply_to[0].get("email") == "sam.smith@example.com"
++
++    def test_reply_to_none(self):
++        msg = EmailMessage(
++            subject="Hello, World!",
++            body="Hello, World!",
++            from_email="Sam Smith <sam.smith@example.com>",
++            to=["John Doe <john.doe@example.com>", "jane.doe@example.com"],
++            cc=["Stephanie Smith <stephanie.smith@example.com>"],
++            bcc=["Sarah Smith <sarah.smith@example.com>"],
++        )
++
++        mail = self.backend._build_sg_mail(msg)
++
++        assert not mail.get("reply_to_list")
++
++    def test_reply_to_empty(self):
++        msg = EmailMessage(
++            subject="Hello, World!",
++            body="Hello, World!",
++            from_email="Sam Smith <sam.smith@example.com>",
++            to=["John Doe <john.doe@example.com>", "jane.doe@example.com"],
++            cc=["Stephanie Smith <stephanie.smith@example.com>"],
++            bcc=["Sarah Smith <sarah.smith@example.com>"],
++            reply_to=[],
++        )
++
++        mail = self.backend._build_sg_mail(msg)
++
++        assert not mail.get("reply_to_list")

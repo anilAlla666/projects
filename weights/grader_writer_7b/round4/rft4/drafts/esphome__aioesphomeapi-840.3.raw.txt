@@ -1,0 +1,43 @@
+--- /dev/null
++++ b/tests/test_client_grader.py
+@@ -0,0 +1,36 @@
++from __future__ import annotations
++import asyncio
++import contextlib
++import itertools
++import logging
++import socket
++from functools import partial
++from typing import Any
++from unittest.mock import AsyncMock, MagicMock, call, create_autospec, patch
++import pytest
++from google.protobuf import message
++from aioesphomeapi._frame_helper.plain_text import APIPlaintextFrameHelper
++from aioesphomeapi.api_pb2 import (
++    AlarmControlPanelCommandRequest,
++    BinarySensorStateResponse,
++    BluetoothConnectionsFreeResponse,
++    BluetoothDeviceClearCacheResponse,
++    BluetoothDeviceConnectionResponse,
++    BluetoothDevicePairingResponse,
++    BluetoothDeviceRequest,
++    BluetoothDeviceUnpairingResponse,
++    BluetoothGATTCharacteristic,
++    BluetoothGATTDescriptor,
++    BluetoothGATTErrorResponse,
++    BluetoothGATTGetServicesDoneResponse,
++    BluetoothGATTGetServicesResponse,
++    BluetoothGATTNotifyDataResponse,
++    BluetoothGATTNotifyResponse,
++    BluetoothGATTReadResponse,
++    BluetoothGATTService,
++    BluetoothGATTWriteResponse,
++    BluetoothLEAdvertisementResponse,
++    BluetoothLERawAdvertisement,
++    BluetoothLERawAdvertisementsResponse,
++    BluetoothServiceData,
++    ButtonCommandRequest,
++    CameraImageRequest,
++    ClimateCommandRequest,
++    DeviceInfoResponse,
++    ErrorStatus,

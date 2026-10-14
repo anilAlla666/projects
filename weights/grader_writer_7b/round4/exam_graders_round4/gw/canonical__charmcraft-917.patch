@@ -1,0 +1,119 @@
+--- /dev/null
++++ b/tests/test_main_grader.py
+@@ -0,0 +1,110 @@
++import argparse
++import ast
++import os
++import subprocess
++import sys
++import textwrap
++from argparse import ArgumentParser
++from unittest.mock import patch
++import pytest
++from craft_cli import (
++    ArgumentParsingError,
++    CommandGroup,
++    CraftError,
++    EmitterMode,
++    ProvideHelpException,
++)
++from craft_store.errors import CraftStoreError
++from charmcraft import __version__, env, utils
++from charmcraft.cmdbase import BaseCommand, JSON_FORMAT
++from charmcraft.commands.store.client import ALTERNATE_AUTH_ENV_VAR
++from charmcraft.main import COMMAND_GROUPS, main, _get_system_details
++
++
++def get_command_parser(command_class):
++    """Return the parser for the given command class."""
++    parser = ArgumentParser(add_help=False)
++    command_class.fill_parser(parser)
++    return parser
++
++
++def get_all_parsers():
++    """Yield all parsers for commands."""
++    for group in COMMAND_GROUPS:
++        for command_class in group.commands:
++            yield get_command_parser(command_class)
++
++
++def get_all_argument_names():
++    """Yield all argument names found in all commands."""
++    for parser in get_all_parsers():
++        for action in parser._actions:
++            yield action.dest
++
++
++@pytest.fixture
++def config(tmp_path):
++    """Create a fake configuration."""
++    config_file = tmp_path / "config.yaml"
++    config_file.write_text(textwrap.dedent("""\
++        type: charm
++        name: mycharm
++        summary: some summary
++        description: |
++            some description
++        bases:
++        - build-on:
++          - os: ubuntu
++            channel: focal/stable
++          run-on:
++          - os: ubuntu
++            channel: focal/stable
++        """))
++    return utils.load_yaml(config_file)
++
++
++class MySimpleCommand(BaseCommand):
++    """A simple minimal command to be used by different tests."""
++
++    help_msg = "some help"
++    name = "cmdname"
++    overview = "test overview"
++
++
++def test_get_system_details_auth_hidden(caplog):
++    """The auth variable is hidden."""
++    os.environ["CHARMCRAFT_AUTH"] = "my-auth-value"
++    caplog.set_level(emit.INFO_LEVEL)
++    details = _get_system_details()
++    assert "Environment:" in details
++    assert "CHARMCRAFT_AUTH=<hidden>" in details
++
++
++def test_get_system_details_no_auth(caplog):
++    """No auth variable is reported."""
++    caplog.set_level(emit.INFO_LEVEL)
++    details = _get_system_details()
++    assert "Environment:" in details
++    assert "CHARMCRAFT_AUTH" not in details
++
++
++def test_get_system_details_other_variables(caplog):
++    """Other variables are reported."""
++    os.environ["MY_VARIABLE"] = "my-value"
++    caplog.set_level(emit.INFO_LEVEL)
++    details = _get_system_details()
++    assert "Environment:" in details
++    assert "MY_VARIABLE=my-value" in details
++
++
++def test_get_system_details_multiple_variables(caplog):
++    """Multiple variables are reported."""
++    os.environ["MY_VARIABLE"] = "my-value"
++    os.environ["ANOTHER_VARIABLE"] = "another-value"
++    caplog.set_level(emit.INFO_LEVEL)
++    details = _get_system_details()
++    assert "Environment:" in details
++    assert "MY_VARIABLE=my-value" in details
++    assert "ANOTHER_VARIABLE=another-value" in details
++
++
++def test_get_system_details_empty(caplog):
++    """No variables are reported."""
++    caplog.set_level(emit.INFO_LEVEL)
++    details = _get_system_details()
++    assert "Environment:" in details
++    assert "None" in details

@@ -1,0 +1,75 @@
+--- /dev/null
++++ b/sosw/managers/test/unit/test_ecology_grader.py
+@@ -0,0 +1,68 @@
++import boto3
++import logging
++import time
++import unittest
++import os
++from collections import defaultdict
++from unittest.mock import MagicMock, patch
++
++
++logging.getLogger('botocore').setLevel(logging.WARNING)
++
++
++os.environ["STAGE"] = "test"
++
++
++os.environ["autotest"] = "True"
++
++
++from sosw.labourer import Labourer
++from sosw.managers.ecology import EcologyManager
++from sosw.test.variables import TEST_ECOLOGY_CLIENT_CONFIG
++
++
++class ecology_manager_UnitTestCase(unittest.TestCase):
++    TEST_CONFIG = TEST_ECOLOGY_CLIENT_CONFIG
++
++    LABOURER = Labourer(id='some_function', arn='arn:aws:lambda:us-west-2:000000000000:function:some_function')
++
++    def setUp(self):
++        """
++        We keep copies of main parameters here, because they may differ from test to test and cleanup needs them.
++        This is responsibility of the test author to update these values if required from test.
++        """
++
++        self.patcher = patch("sosw.app.get_config")
++        self.get_config_patch = self.patcher.start()
++
++        self.config = self.TEST_CONFIG.copy()
++
++        self.manager = EcologyManager(custom_config=self.config)
++
++    def tearDown(self):
++        self.get_config_patch.stop()
++
++    def test_get_max_labourer_duration__returns_cached_value(self):
++        ec = MagicMock()
++        ec.get_function.return_value = {'Configuration': {'Timeout': 10}}
++        self.manager._ec = ec
++
++        # Set max duration manually
++        self.manager.max_labourer_duration = 10
++
++        self.assertEqual(self.manager.get_max_labourer_duration(self.LABOURER), 10)
++
++    def test_get_max_labourer_duration__fetches_from_api(self):
++        ec = MagicMock()
++        ec.get_function.return_value = {'Configuration': {'Timeout': 10}}
++        self.manager._ec = ec
++
++        self.assertEqual(self.manager.get_max_labourer_duration(self.LABOURER), 10)
++
++        # Check that we've fetched it from the API
++        ec.get_function.assert_called_once_with(FunctionName=self.LABOURER.function_name)
++
++    def test_get_max_labourer_duration__raises_exception_if_cannot_fetch_from_api(self):
++        ec = MagicMock()
++        ec.get_function.side_effect = Exception("Cannot fetch Lambda info from AWS API!")
++        self.manager._ec = ec
++
++        with self.assertRaises(Exception) as context:
++            self.manager.get_max_labourer_duration(self.LABOURER)
++        self.assertTrue("Cannot fetch Lambda info from AWS API!" in str(context.exception))

@@ -1,0 +1,19 @@
+diff --git a/tests/test_add_command.py b/tests/test_add_command.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_add_command.py
+@@ -0,0 +1,34 @@
++import subprocess
++import unittest
++
++class TestAddCommand(unittest.TestCase):
++    def test_add_non_existent_branch(self):
++        # Run the git-machete add command with a non-existent branch
++        result = subprocess.run(['git', 'machete', 'add', 'non-existent-branch'], capture_output=True, text=True)
++
++        # Check that the command failed with the expected error message
++        self.assertNotEqual(result.returncode, 0)
++        self.assertIn("AttributeError: 'str' object has no attribute 'full_name'", result.stderr)
++
++if __name__ == '__main__':
++    unittest.main()

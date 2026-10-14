@@ -1,0 +1,57 @@
+To address the issue where functions don't work in `nodebook` in Python 3 due to changes in the AST, we need to ensure that the `ReferenceFinder` class correctly handles function definitions and their parameters.
+
+Here's a unified diff that includes a new test case to verify the fix:
+
+```diff
+diff --git a/tests/test_nodebookcore.py b/tests/test_nodebookcore.py
+index 3f4e5d6..b7c8d9e 100644
+--- a/tests/test_nodebookcore.py
++++ b/tests/test_nodebookcore.py
+@@ -1,5 +1,6 @@
+ from __future__ import absolute_import
+ import pandas as pd
++from nodebook.nodebookcore import ReferenceFinder
+ import pytest
+ from nodebook.nodebookcore import ReferenceFinder, Nodebook, Node
+ from nodebook.pickledict import PickleDict
+@@ -10,6 +11,7 @@ import ast
+ 
+ 
+ class TestReferenceFinder(object):
++    @pytest.fixture()
+     @pytest.fixture()
+     def rf(self):
+         return ReferenceFinder()
+@@ -100,6 +102,24 @@ class TestReferenceFinder(object):
+         assert rf.inputs == {'x'}
+         assert rf.imports == {'pandas'}
+         assert rf.locals == {'pd', 'y'}
++
++    def test_function_def(self, rf):
++        code_tree = ast.parse("""
++def add(a, b):
++    return a + b
++""")
++        rf.visit(code_tree)
++        assert rf.inputs == set()
++        assert rf.imports == set()
++        assert rf.locals == {'add', 'a', 'b'}
++
++    def test_function_call(self, rf):
++        code_tree = ast.parse("""
++x = add(1, 2)
++""")
++        rf.visit(code_tree)
++        assert rf.inputs == {'add'}
++        assert rf.imports == set()
++        assert rf.locals == {'x', 'add', 'a', 'b'}
+ 
+ 
+ class TestNodebook(object):
+```
+
+This diff includes two new test cases:
+1. `test_function_def`: This test checks if the `ReferenceFinder` can correctly identify the function definition and its parameters.
+2. `test_function_call`: This test checks if the `ReferenceFinder` can correctly identify the function call and its inputs.
+
+These tests will fail on the current code because the `ReferenceFinder` does not handle function definitions and calls correctly in Python 3. Once the fix is applied, these tests should pass.

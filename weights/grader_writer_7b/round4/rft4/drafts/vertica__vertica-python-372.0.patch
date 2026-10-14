@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/vertica_python/tests/integration_tests/test_cursor_grader.py
+@@ -0,0 +1,25 @@
++from __future__ import print_function, division, absolute_import
++from datetime import date, datetime, time
++from decimal import Decimal
++from uuid import UUID
++import pytest
++
++
++@pytest.mark.usefixtures('_init')
++class TestBindParameters(TestVerticaPython):
++    def test_tuple_in_param(self):
++        values = (1, (1, 2, 3))
++        expected = [(True,)]
++        with self._connect() as conn:
++            cur = conn.cursor()
++            cur.execute("CREATE TABLE {} (a BOOLEAN)".format(self._table))
++            cur.execute("INSERT INTO {} (a) VALUES (%s IN %s)".format(self._table), values)
++            conn.commit()
++            cur.execute("SELECT * FROM {}".format(self._table))
++            res = cur.fetchall()
++            self.assertListOfListsEqual(res, expected)
++
++            cur.execute("DROP TABLE IF EXISTS {}".format(self._table))
++            conn.commit()
++
++
++if __name__ == '__main__':
++    unittest.main()

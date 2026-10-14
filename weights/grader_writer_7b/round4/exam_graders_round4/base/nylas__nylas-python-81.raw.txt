@@ -1,0 +1,71 @@
+```diff
+diff --git a/tests/test_client_success_codes.py b/tests/test_client_success_codes.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_client_success_codes.py
+@@ -0,0 +1,100 @@
++import json
++from six.moves.urllib.parse import parse_qs
++import pytest
++from urlobject import URLObject
++import responses
++from nylas.client import APIClient
++from nylas.client.errors import APIClientError
++
++
++def urls_equal(url1, url2):
++    """
++    Compare two URLObjects, without regard to the order of their query strings.
++    """
++    return (
++        url1.without_query() == url2.without_query() and
++        url1.query_dict == url2.query_dict
++    )
++
++
++def test_handle_201_created(mocked_responses, api_client, api_url):
++    contact_data = {
++        "id": 1,
++        "name": "first",
++        "email": "first@example.com",
++    }
++    mocked_responses.add(
++        responses.POST,
++        api_url + "/contacts/",
++        content_type='application/json',
++        status=201,
++        body=json.dumps(contact_data),
++    )
++
++    post_data = {
++        "name": "first",
++        "email": "first@example.com",
++    }
++
++    contact = api_client.contacts.create(post_data)
++    assert isinstance(contact, dict)
++    assert contact['id'] == 1
++    assert contact['name'] == 'first'
++    assert contact['email'] == 'first@example.com'
++    assert len(mocked_responses.calls) == 1
++
++
++def test_handle_204_no_content(mocked_responses, api_client, api_url):
++    mocked_responses.add(
++        responses.DELETE,
++        api_url + "/contacts/1",
++        content_type='application/json',
++        status=204,
++        body='',
++    )
++
++    api_client.contacts.delete(1)
++    assert len(mocked_responses.calls) == 1
+```
+
+This patch introduces two new test files:
+
+1. `test_client_success_codes.py`: Contains tests to ensure that the client handles HTTP success status codes other than 200 correctly.
+
+These tests will fail on the current code because the client is hardcoded to only accept the 200 status code as success. Once the issue is fixed, these tests should pass, indicating that the client now correctly handles 201 Created and 204 No Content status codes.

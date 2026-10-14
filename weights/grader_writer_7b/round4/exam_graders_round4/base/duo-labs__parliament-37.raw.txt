@@ -1,0 +1,55 @@
+To address the issue with the `RESOURCE_MISMATCH` for `redshift:GetClusterCredentials`, we need to ensure that the ARN matching logic correctly handles the specific format required by Redshift. The current implementation has some complexities that may not be necessary for this particular use case.
+
+Here's a unified diff that includes a new test file `test_redshift_credentials.py` to verify the fix:
+
+```diff
+diff --git a/tests/test_redshift_credentials.py b/tests/test_redshift_credentials.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_redshift_credentials.py
+@@ -0,0 +1,45 @@
++import unittest
++from parliament import is_arn_match
++
++class TestRedshiftCredentials(unittest.TestCase):
++    def test_redshift_getclustercredentials(self):
++        arn_format = "arn:*:redshift:*:*:dbuser:*/*"
++        resource = "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/the_user"
++
++        # Expected result is True since the ARNs match
++        self.assertTrue(is_arn_match("dbuser", arn_format, resource))
++
++    def test_redshift_getclustercredentials_mismatch(self):
++        arn_format = "arn:*:redshift:*:*:dbuser:*/*"
++        resource = "arn:aws:redshift:us-west-2:123456789012:dbuser:another_cluster/the_user"
++
++        # Expected result is False since the ARNs do not match
++        self.assertFalse(is_arn_match("dbuser", arn_format, resource))
++
++    def test_redshift_getclustercredentials_wildcard_resource(self):
++        arn_format = "arn:*:redshift:*:*:dbuser:*/*"
++        resource = "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/*"
++
++        # Expected result is True since the ARNs match
++        self.assertTrue(is_arn_match("dbuser", arn_format, resource))
++
++    def test_redshift_getclustercredentials_wildcard_arn_format(self):
++        arn_format = "arn:*:redshift:*:*:dbuser:*/*"
++        resource = "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/the_user"
++
++        # Expected result is True since the ARNs match
++        self.assertTrue(is_arn_match("dbuser", arn_format, resource))
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This test file includes several test cases to ensure that the `is_arn_match` function correctly handles the `redshift:GetClusterCredentials` action. Specifically, it checks for both matching and non-matching scenarios to validate the fix.
+
+To run the tests, you can execute the following command in your project directory:
+
+```sh
+python -m unittest discover tests
+```
+
+This will discover and run all the tests in the `tests` directory, including the newly added `test_redshift_credentials.py` file. The tests should fail initially due to the current implementation issues and pass once the fix is applied.

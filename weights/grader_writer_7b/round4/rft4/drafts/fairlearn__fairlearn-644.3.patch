@@ -1,0 +1,187 @@
+--- /dev/null
++++ b/test/unit/metrics/test_extra_metrics_grader.py
+@@ -0,0 +1,33 @@
++import numpy as np
++import pytest
++import sklearn.metrics as skm
++import fairlearn.metrics as metrics
++from fairlearn.metrics._extra_metrics import _get_labels_for_confusion_matrix
++
++
++class TestSingleValueArrays:
++    def test_all_zeros(self):
++        zeros = np.zeros(10)
++
++        # Should behave as if pos_label=1
++        assert metrics.true_positive_rate(zeros, zeros) == 0
++        assert metrics.false_positive_rate(zeros, zeros) == 0
++        assert metrics.true_negative_rate(zeros, zeros) == 1
++        assert metrics.false_negative_rate(zeros, zeros) == 0
++
++        assert metrics.true_positive_rate(zeros, zeros, pos_label=1) == 0
++        assert metrics.false_positive_rate(zeros, zeros, pos_label=1) == 0
++        assert metrics.true_negative_rate(zeros, zeros, pos_label=1) == 1
++        assert metrics.false_negative_rate(zeros, zeros, pos_label=1) == 0
++
++        assert metrics.true_positive_rate(zeros, zeros, pos_label=0) == 1
++        assert metrics.false_positive_rate(zeros, zeros, pos_label=0) == 0
++        assert metrics.true_negative_rate(zeros, zeros, pos_label=0) == 0
++        assert metrics.false_negative_rate(zeros, zeros, pos_label=0) == 0
++
++        assert metrics.mean_absolute_error(zeros, zeros) == 0
++        assert metrics.mean_absolute_error(zeros, zeros, pos_label=0) == 0
++        assert metrics.mean_absolute_error(zeros, zeros, pos_label=1) == 0
++        assert metrics.mean_squared_error(zeros, zeros) == 0
++        assert metrics.mean_squared_error(zeros, zeros, pos_label=0) == 0
++        assert metrics.mean_squared_error(zeros, zeros, pos_label=1) == 0
+--- /dev/null
++++ b/test/unit/metrics/test_metrics_engine_dicts_grader.py
+@@ -0,0 +1,121 @@
++import pytest
++import fairlearn.metrics as metrics
++
++
++y_true = [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
++
++
++y_pred = [1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
++
++
++sf_binary = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
++
++
++derived_metric_results = {
++    metrics.true_positive_rate_difference: 0.4,
++    metrics.true_positive_rate_ratio: 0.6,
++    metrics.true_negative_rate_difference: 0.083333333,
++    metrics.true_negative_rate_ratio: 0.88888889,
++    metrics.false_positive_rate_difference: 0.083333333,
++    metrics.false_positive_rate_ratio: 0.75,
++    metrics.false_negative_rate_difference: 0.4,
++    metrics.false_negative_rate_ratio: 0,
++    metrics.selection_rate_difference: 0.11111111,
++    metrics.selection_rate_ratio: 0.8,
++    metrics.accuracy_score_difference: 0.11111111,
++    metrics.accuracy_score_ratio: 0.85714286,
++    metrics.accuracy_score_group_min: 0.66666667,
++    metrics.zero_one_loss_difference: 0.11111111,
++    metrics.zero_one_loss_ratio: 0.66666667,
++    metrics.zero_one_loss_group_max: 0.33333333,
++    metrics.balanced_accuracy_score_group_min: 0.675,
++    metrics.precision_score_group_min: 0.6,
++    metrics.recall_score_group_min: 0.6,
++    metrics.roc_auc_score_group_min: 0.675,
++    metrics.mean_absolute_error_group_max: 0.33333333,
++    metrics.mean_squared_error_group_max: 0.33333333,
++    metrics.r2_score_group_min: -0.35,
++    metrics.f1_score_group_max: 0.75,
++    metrics.log_loss_group_min: 7.67546133,
++}
++
++
++def test_regression_metrics_exist():
++    assert len(metrics._derived_metric_dict['regression']) == 2
++
++
++def test_regression_metrics_keys():
++    keys = list(metrics._derived_metric_dict['regression'].keys())
++    assert 'mean_absolute_error' in keys
++    assert 'mean_squared_error' in keys
++
++
++def test_mean_absolute_error_smoke():
++    assert metrics.mean_absolute_error(y_true, y_pred) == 0.4
++
++
++def test_mean_absolute_error_with_weights():
++    weight = np.arange(len(y_true))
++    actual = skm.mean_absolute_error(y_true, y_pred, sample_weight=weight)
++    assert metrics.mean_absolute_error(y_true, y_pred, sample_weight=weight) == actual
++
++
++def test_mean_squared_error_smoke():
++    assert metrics.mean_squared_error(y_true, y_pred) == 0.4
++
++
++def test_mean_squared_error_with_weights():
++    weight = np.arange(len(y_true))
++    actual = skm.mean_squared_error(y_true, y_pred, sample_weight=weight)
++    assert metrics.mean_squared_error(y_true, y_pred, sample_weight=weight) == actual
++
++
++def test_r2_score_smoke():
++    assert metrics.r2_score(y_true, y_pred) == -0.35
++
++
++def test_r2_score_with_weights():
++    weight = np.arange(len(y_true))
++    actual = skm.r2_score(y_true, y_pred, sample_weight=weight)
++    assert metrics.r2_score(y_true, y_pred, sample_weight=weight) == actual
++
++
++def test_f1_score_smoke():
++    assert metrics.f1_score(y_true, y_pred) == 0.75
++
++
++def test_f1_score_with_weights():
++    weight = np.arange(len(y_true))
++    actual = skm.f1_score(y_true, y_pred, average=None, sample_weight=weight)
++    assert metrics.f1_score(y_true, y_pred, sample_weight=weight) == actual
++
++
++def test_precision_score_smoke():
++    assert metrics.precision_score(y_true, y_pred) == 0.6
++
++
++def test_precision_score_with_weights():
++    weight = np.arange(len(y_true))
++    actual = skm.precision_score(y_true, y_pred, average=None, sample_weight=weight)
++    assert metrics.precision_score(y_true, y_pred, sample_weight=weight) == actual
++
++
++def test_recall_score_smoke():
++    assert metrics.recall_score(y_true, y_pred) == 0.6
++
++
++def test_recall_score_with_weights():
++    weight = np.arange(len(y_true))
++    actual = skm.recall_score(y_true, y_pred, average=None, sample_weight=weight)
++    assert metrics.recall_score(y_true, y_pred, sample_weight=weight) == actual
++
++
++def test_roc_auc_score_smoke():
++    assert metrics.roc_auc_score(y_true, y_pred) == 0.675
++
++
++def test_roc_auc_score_with_weights():
++    weight = np.arange(len(y_true))
++    actual = skm.roc_auc_score(y_true, y_pred, average=None, sample_weight=weight)
++    assert metrics.roc_auc_score(y_true, y_pred, sample_weight=weight) == actual
+--- /dev/null
++++ b/test/unit/metrics/test_metrics_engine_groups_grader.py
+@@ -0,0 +1,27 @@
++import numpy as np
++import pytest
++import fairlearn.metrics as metrics
++
++
++y_true = [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
++
++
++y_pred = [1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
++
++
++sf_binary = [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
++
++
++@pytest.mark.parametrize("prediction_type",
++                         ['binary_classification',
++                          'regression',
++                          'multi_class'])
++def test_create_group_metric_set(prediction_type):
++    dash_dict = metrics._group_metric_set.create_group_metric_set(
++        y_true=y_true,
++        predictions=y_pred,
++        sensitive_features=sf_binary,
++        prediction_type=prediction_type)
++    assert dash_dict is not None

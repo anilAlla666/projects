@@ -1,0 +1,45 @@
+--- /dev/null
++++ b/sunpy_soar/tests/test_sunpy_soar_grader.py
+@@ -0,0 +1,43 @@
++import os
++import astropy.units as u
++import pytest
++import sunpy.map
++from sunpy.net import Fido
++from sunpy.net import attrs as a
++from sunpy.util.exceptions import SunpyDeprecationWarning
++from sunpy_soar.client import SOARClient
++
++
++def test_string_interpolation():
++    # Check that we can use string interpolation in the path parameter
++    id = a.Instrument('EUI')
++    time = a.Time('2021-02-11', '2021-02-12')
++    level = a.Level(1)
++    product = a.soar.Product('EUI-FSI174-IMAGE')
++
++    res = Fido.search(id, time, level, product)
++    files = Fido.fetch(res[0, 0], path='{instrument}')
++    assert len(files) == 1
++    fname = files[0]
++    assert u.allclose(os.path.getsize(fname) * u.byte,
++                      res[0, 0]['Filesize'], atol=1e-3*u.Mbyte)
++    # Smoke test that we can read this into a map
++    sunpy.map.Map(fname)
++
++
++def test_string_interpolation_path_keyword():
++    # Check that we can use string interpolation in the path parameter
++    id = a.Instrument('EUI')
++    time = a.Time('2021-02-11', '2021-02-12')
++    level = a.Level(1)
++    product = a.soar.Product('EUI-FSI174-IMAGE')
++
++    res = Fido.search(id, time, level, product)
++    files = Fido.fetch(res, path='{instrument}')
++    assert len(files) == 37
++    fname = files[0]
++    assert u.allclose(os.path.getsize(fname) * u.byte,
++                      res[0, 0]['Filesize'], atol=1e-3*u.Mbyte)
++    # Smoke test that we can read this into a map
++    sunpy.map.Map(fname)

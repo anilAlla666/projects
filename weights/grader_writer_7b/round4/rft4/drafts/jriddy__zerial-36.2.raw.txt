@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/test_zerializer_grader.py
+@@ -0,0 +1,32 @@
++import pytest
++from zerial import loadz, dumps
++from zerial._core import Ztructurer
++from zerial._data import Zerializer
++
++
++@pytest.fixture
++def m_ztructurer(mocker):
++    return mocker.Mock(Ztructurer)
++
++
++def test_numpy_array_is_writable_after_deserialization():
++    # Regression test for https://github.com/jriddy/zerial/issues/6
++    arr = np.array([1, 2, 3])
++    serialized = dumps(arr)
++    deserialized = loadz(serialized)
++    assert (arr != deserialized).all()
++    assert arr.shape == deserialized.shape
++    assert arr.dtype == deserialized.dtype
++    assert arr.base is None
++    assert deserialized.base is None
++
++    # Ensure we can modify the array after deserialization
++    deserialized += 1
++    assert (deserialized == np.array([2, 3, 4])).all()
++
++
++def test_unstructured_object_raises_error_on_destructuring():
++    class A:
++        pass
++    with pytest.raises(TypeError):
++        dumps(A())

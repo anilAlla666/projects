@@ -1,0 +1,111 @@
+--- /dev/null
++++ b/tests/test_ext_marshmallow_grader.py
+@@ -0,0 +1,62 @@
++import json
++import pytest
++from marshmallow.fields import Field, DateTime, Dict, String, Nested, List
++from marshmallow import Schema
++from apispec import APISpec
++from apispec.ext.marshmallow import MarshmallowPlugin
++from apispec.ext.marshmallow.openapi import MARSHMALLOW_VERSION_INFO
++from apispec.ext.marshmallow import common
++from apispec.exceptions import APISpecError
++from .schemas import (
++    PetSchema,
++    AnalysisSchema,
++    RunSchema,
++    SelfReferencingSchema,
++    OrderedSchema,
++    PatternedObjectSchema,
++    DefaultValuesSchema,
++    AnalysisWithListSchema,
++)
++from .utils import get_schemas, get_parameters, get_responses, get_paths, build_ref
++
++
++class TestSchemaWithCustomResolver:
++    def test_string_type_is_handled(self, spec):
++        class MySchema(Schema):
++            foo = String()
++
++        spec.components.schema("MySchema", schema=MySchema)
++        spec.register_component({"x-custom": "value"}, "schema", "MySchema")
++
++        class SchemaWithRef(Schema):
++            bar = Ref(MySchema)
++
++        spec.components.schema("SchemaWithRef", schema=SchemaWithRef)
++        result = get_schemas(spec)["SchemaWithRef"]["properties"]["bar"]
++        assert result == {"$ref": "#/components/schemas/MySchema"}
++
++    def test_string_type_is_handled_for_none(self, spec):
++        class MySchema(Schema):
++            foo = String()
++
++        spec.components.schema("MySchema", schema=MySchema)
++
++        class SchemaWithRef(Schema):
++            bar = Ref(None)
++
++        spec.components.schema("SchemaWithRef", schema=SchemaWithRef)
++        result = get_schemas(spec)["SchemaWithRef"]["properties"]["bar"]
++        assert result == {"type": "string"}
++
++    def test_non_string_type_raises(self, spec):
++        class MySchema(Schema):
++            foo = String()
++
++        spec.components.schema("MySchema", schema=MySchema)
++
++        class SchemaWithRef(Schema):
++            bar = Ref([MySchema])
++
++        spec.components.schema("SchemaWithRef", schema=SchemaWithRef)
++        result = get_schemas(spec)["SchemaWithRef"]["properties"]["bar"]
++        assert result == {"type": "array", "items": {"$ref": "#/components/schemas/MySchema"}}
+--- /dev/null
++++ b/tests/test_ext_marshmallow_openapi_grader.py
+@@ -0,0 +1,34 @@
++import pytest
++from marshmallow import fields, Schema, validate
++from apispec.ext.marshmallow import MarshmallowPlugin
++from apispec.ext.marshmallow.openapi import MARSHMALLOW_VERSION_INFO
++from apispec import exceptions, utils, APISpec
++from .schemas import CustomList, CustomStringField
++from .utils import get_schemas, build_ref
++
++
++@pytest.fixture(params=["2.0", "3.0"])
++def spec(request):
++    return APISpec(title="test", version="1", openapi_version=request.param)
++
++
++class TestFieldValidation:
++    class ValidationSchema(Schema):
++        id = fields.Int(dump_only=True)
++        range = fields.Int(validate=validate.Range(min=1, max=10))
++        multiple_ranges = fields.Int(
++            validate=[
++                validate.Range(min=1),
++                validate.Range(min=3),
++                validate.Range(max=10),
++                validate.Range(max=7),
++            ]
++        )
++        list_length = fields.List(fields.Str, validate=validate.Length(min=1, max=10))
++        custom_list_length = CustomList(
++            fields.Str, validate=validate.Length(min=1, max=10)
++        )
++        string_length = fields.Str(validate=validate.Length(min=1, max=10))
++        custom_field_length = CustomStringField(validate=validate.Length(min=1, max=10))
++        multiple_lengths = fields.Str(
++            validate=[
++                validate.Length(min=1),
++                validate.Length(min=3),
++                validate.Length(max=10),
++                validate.Length(max=7),
++            ]
++        )
++        equal_length = fields.Str(
++            validate=[validate.Length(equal=5), validate.Length(min=1, max=10)]
++        )

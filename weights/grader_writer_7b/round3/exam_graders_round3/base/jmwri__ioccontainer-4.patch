@@ -1,0 +1,43 @@
+diff --git a/test_inject.py b/test_inject.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/test_inject.py
+@@ -0,0 +1,52 @@
++import unittest
++from ioccontainer.inject import inject_decorator, Container
++
++class TestInject(unittest.TestCase):
++    def setUp(self):
++        self.container = Container()
++        self.container.register(MyService)
++
++    def test_inject_override_none(self):
++        @inject_decorator(self.container)
++        def my_function(my_service=None):
++            return my_service
++
++        result = my_function()
++        self.assertIsInstance(result, MyService)
++
++    def test_inject_no_override(self):
++        @inject_decorator(self.container)
++        def my_function(my_service=MyService()):
++            return my_service
++
++        result = my_function()
++        self.assertIsInstance(result, MyService)
++
++    def test_inject_with_arg(self):
++        @inject_decorator(self.container)
++        def my_function(my_service=None):
++            return my_service
++
++        result = my_function(MyService())
++        self.assertIsInstance(result, MyService)
++
++if __name__ == '__main__':
++    unittest.main()
++
++class MyService:
++    pass

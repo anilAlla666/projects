@@ -1,0 +1,45 @@
+--- /dev/null
++++ b/tests/test_translate_process_graph_grader.py
+@@ -0,0 +1,39 @@
++import unittest
++from openeo_pg_parser_python.translate_process_graph import *
++
++
++class TestTranslateGraph(unittest.TestCase):
++    def setUp(self):
++        self.pg_filepath = "tests/test_data/valid/pg.json"
++
++    def test_translate_graph_with_valid_json_file_path(self):
++        graph = translate_graph(self.pg_filepath)
++        self.assertEqual(len(graph.nodes), 2)
++        self.assertEqual(graph.get_node("image").id, "image")
++        self.assertEqual(graph.get_node("mask").id, "mask")
++
++    def test_translate_graph_with_invalid_json_file_path(self):
++        invalid_filepath = "/path/to/nonexistent/file.json"
++        with self.assertRaises(FileNotFoundError) as context:
++            translate_graph(invalid_filepath)
++        self.assertTrue("is not a valid json filepath." in str(context.exception))
++
++    def test_translate_graph_with_empty_dictionary(self):
++        empty_dict = {}
++        with self.assertRaises(ValueError) as context:
++            translate_graph(empty_dict)
++        self.assertTrue("Input dictionary is empty." in str(context.exception))
++
++    def test_translate_graph_with_invalid_dictionary(self):
++        invalid_dict = {"invalid_key": "value"}
++        with self.assertRaises(KeyError) as context:
++            translate_graph(invalid_dict)
++        self.assertTrue("'processes' key missing in process graph." in str(context.exception))
++
++    def test_walk_pg_graph_with_non_string_input_for_node_name(self):
++        non_string_input = 123
++        with self.assertRaises(TypeError) as context:
++            walk_pg_graph({}, {non_string_input: []})
++        self.assertTrue("Process name must be a string but got {}.".format(type(non_string_input).__name__) in str(
++            context.exception))
++
++
++if __name__ == '__main__':
++    unittest.main()

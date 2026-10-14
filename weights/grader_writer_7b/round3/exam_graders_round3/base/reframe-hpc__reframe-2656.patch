@@ -1,0 +1,27 @@
+diff --git a/unittests/test_launchers.py b/unittests/test_launchers.py
+index 3a4b5c6..7d8e9f0 100644
+--- a/unittests/test_launchers.py
++++ b/unittests/test_launchers.py
+@@ -118,6 +118,24 @@ def test_run_command_with_options(options_job):
+     assert command == 'srun --foo'
+ 
++def test_srun_no_cpus_per_task_error(simple_job):
++    simple_job.launcher.options = []
++    with pytest.raises(ValueError):
++        simple_job.launcher.run_command(simple_job)
++
++def test_srun_with_cpus_per_task(simple_job):
++    simple_job.launcher.options = []
++    simple_job.environ['SLURM_CPUS_PER_TASK'] = '2'
++    command = simple_job.launcher.run_command(simple_job)
++    assert command == 'srun --cpus-per-task=2 --foo'
++
++def test_srun_with_env_var(simple_job):
++    simple_job.launcher.options = []
++    simple_job.environ['SRUN_CPUS_PER_TASK'] = '2'
++    command = simple_job.launcher.run_command(simple_job)
++    assert command == 'srun --cpus-per-task=2 --foo'
++
+ def test_run_command_with_alloc(simple_job):
+     simple_job.launcher.options = ['--alloc']
+     command = simple_job.launcher.run_command(simple_job)

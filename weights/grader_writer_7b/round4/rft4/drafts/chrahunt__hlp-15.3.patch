@@ -1,0 +1,24 @@
+--- /dev/null
++++ b/tests/test_cli_grader.py
+@@ -0,0 +1,21 @@
++import pytest
++from hlp.cli import parse_args
++
++
++def test_autocomplete_builtin_names():
++    # https://github.com/chrahunt/hlp/issues/1
++    args = parse_args(["help", "set.", "--complete"])
++    assert args.complete == [
++        "AttributeError",
++        "BaseException",
++        "bool",
++        "bytes",
++        "classmethod",
++        "compile",
++        "dict",
++        "enumerate",
++        "filter",
++        "float",
++        "frozenset",
++        "hash",
++    ]

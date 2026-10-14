@@ -1,0 +1,141 @@
+--- /dev/null
++++ b/tests/test_scim2_filter_parser_transpilers_grader.py
+@@ -0,0 +1,150 @@
++from unittest.mock import patch
++import pytest
++from scim2_filter_parser.ast import *
++
++
++def assert_ast_equal(expected, actual):
++    if isinstance(expected, list):
++        expected = [expected[0]]
++
++    assert len(actual) == len(expected), 'Expected {} elements, but got {}'.format(len(expected), len(actual))
++
++    for i, e in enumerate(expected):
++        assert isinstance(e, type(actual[i])), \
++            '{}th element: Expected {}, but got {}'.format(i, type(e).__name__, type(actual[i]).__name__)
++
++        if isinstance(e, AttrPath):
++            assert e.uri == actual[i].uri
++            assert e.attr_name == actual[i].attr_name
++            assert e.sub_attr == actual[i].sub_attr
++        elif isinstance(e, SubAttr):
++            assert e.attr_name == actual[i].attr_name
++        elif isinstance(e, Filter):
++            assert e.expr == actual[i].expr
++            assert e.negated == actual[i].negated
++        elif isinstance(e, LogExpr):
++            assert e.expr1 == actual[i].expr1
++            assert e.expr2 == actual[i].expr2
++            assert e.op == actual[i].op
++        elif isinstance(e, AttrExpr):
++            assert e.value == actual[i].value
++            assert e.attr_path == actual[i].attr_path
++            assert e.comp_value == actual[i].comp_value
++        elif isinstance(e, Value):
++            assert e.type == actual[i].type
++            assert e.text == actual[i].text
++        elif isinstance(e, CompValue):
++            assert e.type == actual[i].type
++            assert e.text == actual[i].text
++        elif isinstance(e, BoolValue):
++            assert e.value == actual[i].value
++        elif isinstance(e, IntValue):
++            assert e.value == actual[i].value
++        elif isinstance(e, DecimalValue):
++            assert e.value == actual[i].value
++        elif isinstance(e, DateTimeValue):
++            assert e.value == actual[i].value
++        elif isinstance(e, BinaryValue):
++            assert e.value == actual[i].value
++        elif isinstance(e, StringValue):
++            assert e.value == actual[i].value
++        else:
++            assert False, 'Unhandled type {}'.format(type(e).__name__)
++
++
++class MockAttrMap(dict):
++    def __missing__(self, key):
++        return key
++
++
++@patch.object(Transpiler, 'get_next_id', lambda _, x=None: 'id_{}'.format(x))
++class TestSQLTranspiler:
++    @classmethod
++    def setup_class(cls):
++        cls.attr_map = MockAttrMap({
++            'urn:ietf:params:scim:schemas:core:2.0:User': {
++                'userName': 'username',
++                'email': {
++                    'primary': 'email.primary',
++                    'value': 'email.value',
++                }
++            }
++        })
++
++    def setup_method(self):
++        self.t = Transpiler(self.attr_map)
++
++    def test_visit_AttrPath(self):
++        p = AttrPath('urn:ietf:params:scim:schemas:core:2.0:User', AttrName('email'), AttrURI())
++
++        result = self.t.visit(p)
++
++        assert result == ('email', 'primary', 'value', None)
++
++    def test_visit_AttrPath_with_sub_attr(self):
++        p = AttrPath('urn:ietf:params:scim:schemas:core:2.0:User', AttrName('email'), AttrURI(), SubAttr('work'))
++
++        result = self.t.visit(p)
++
++        assert result == ('email.work', 'primary', 'value', None)
++
++    def test_visit_AttrPath_uri_none(self):
++        p = AttrPath(None, AttrName('email'), AttrURI())
++
++        result = self.t.visit(p)
++
++        assert result == ('email', 'primary', 'value', None)
++
++    def test_visit_AttrPath_uri_empty(self):
++        p = AttrPath('', AttrName('email'), AttrURI())
++
++        result = self.t.visit(p)
++
++        assert result == ('email', 'primary', 'value', None)
++
++    def test_visit_AttrPath_uri_string(self):
++        p = AttrPath('urn:ietf:params:scim:schemas:core:2.0:User', AttrName('email'), AttrURI('http://example.com'))
++
++        result = self.t.visit(p)
++
++        assert result == ('email', 'primary', 'value', 'http://example.com')
++
++    def test_visit_AttrPath_uri_invalid(self):
++        p = AttrPath('urn:ietf:params:scim:schemas:core:2.0:User', AttrName('email'), AttrURI(':invalid:'))
++
++        result = self.t.visit(p)
++
++        assert result == ('email', 'primary', 'value', ':invalid:')
++
++    def test_visit_AttrPath_uri_multiple(self):
++        p = AttrPath('urn:ietf:params:scim:schemas:core:2.0:User', AttrName('email'), AttrURI(['http://a.com', 'http://b.com']))
++
++        result = self.t.visit(p)
++
++        assert result == ('email', 'primary', 'value', ['http://a.com', 'http://b.com'])
++
++    def test_visit_AttrPath_uri_invalid_multiple(self):
++        p = AttrPath('urn:ietf:params:scim:schemas:core:2.0:User', AttrName('email'), AttrURI(['http://a.com', ':invalid:', 'http://b.com']))
++
++        result = self.t.visit(p)
++
++        assert result == ('email', 'primary', 'value', ['http://a.com', ':invalid:', 'http://b.com'])
++
++    def test_visit_AttrPath_uri_invalid_str_and_list(self):
++        p = AttrPath('urn:ietf:params:scim:schemas:core:2.0:User', AttrName('email'), AttrURI(':invalid:', ['http://a.com', 'http://b.com']))
++
++        result = self.t.visit(p)
++
++        assert result == ('email', 'primary', 'value', ':invalid:', ['http://a.com', 'http://b.com'])

@@ -1,0 +1,43 @@
+--- /dev/null
++++ b/tests/test_speedcopy_grader.py
+@@ -0,0 +1,43 @@
++import shutil
++import speedcopy
++import os
++
++
++speedcopy.SPEEDCOPY_DEBUG = True
++
++
++def setup_function(function):
++    speedcopy.patch_copyfile()
++
++
++def teadown_function(function):
++    speedcopy.unpatch_copyfile()
++
++
++def test_copy(tmpdir):
++    src = tmpdir.join("source")
++    dst = tmpdir.join("destination")
++    with open(str(src), "wb") as f:
++        f.write(os.urandom(5 * 1024 * 1024))
++    f.close()
++
++    shutil.copyfile(str(src), str(dst))
++
++    assert os.path.isfile(str(dst))
++
++
++def test_relative_path(tmpdir):
++    src = tmpdir.join("source")
++    dst = tmpdir.join("destination")
++    with open(str(src), "wb") as f:
++        f.write(os.urandom(5 * 1024 * 1024))
++    f.close()
++
++    # Test with relative path
++    os.chdir(tmpdir.strpath)
++    shutil.copyfile("source", "destination")
++
++    assert os.path.isfile(str(dst))

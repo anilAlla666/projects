@@ -1,0 +1,95 @@
+--- /dev/null
++++ b/tests/test_projectbuilder_grader.py
+@@ -0,0 +1,84 @@
++from __future__ import unicode_literals
++import copy
++import os
++import sys
++import typing
++import pep517.wrappers
++import pytest
++import build
++
++
++if sys.version_info >= (3, 8):  # pragma: no cover
++    import email
++    from importlib import metadata as importlib_metadata
++
++    email_message_from_string = email.message_from_string
++else:  # pragma: no cover
++    import importlib_metadata
++
++    email_message_from_string = importlib_metadata._compat.email_message_from_string
++
++
++if sys.version_info >= (3,):  # pragma: no cover
++    build_open_owner = 'builtins'
++else:  # pragma: no cover
++    build_open_owner = 'build'
++    FileNotFoundError = IOError
++    PermissionError = OSError
++
++
++DUMMY_METADATA = """
++Version: 1.0.0
++Provides-Extra: some_extra
++""".strip()
++
++
++DEFAULT_BACKEND = {
++    'build-backend': 'setuptools.build_meta:__legacy__',
++    'requires': ['setuptools'],
++}
++
++
++@pytest.fixture(params=['pyproject_v1', 'pyproject_v2'], ids=['v1', 'v2'])
++def test_path(request, tmp_dir):
++    path = tmp_dir.join(request.param)
++    path.mkdir()
++    return path
++
++
++@pytest.fixture
++def test_pyproject_toml(test_path):
++    pyproject = test_path.join('pyproject.toml')
++    pyproject.write(DUMMY_METADATA)
++    return test_path
++
++
++@pytest.fixture
++def test_pyproject_json(test_path):
++    pyproject = test_path.join('pyproject.json')
++    pyproject.write(DUMMY_METADATA)
++    return test_path
++
++
++@pytest.fixture
++def test_flit_path(test_path):
++    flit = test_path.join('pyproject.toml')
++    flit.write('[build-system]\nrequires = ["flit_core"]\nbuild-backend = "flit_core.buildapi"\n')
++    return test_path
++
++
++@pytest.fixture
++def test_no_backend_path(test_path):
++    pyproject = test_path.join('pyproject.toml')
++    pyproject.write("[build-system]\nrequires = ['setuptools']\n")
++    return test_path
++
++
++@pytest.fixture
++def test_no_requires_path(test_path):
++    pyproject = test_path.join('pyproject.toml')
++    pyproject.write("[build-system]\n")
++    return test_path
++
++
++@pytest.fixture
++def test_typo(test_path):
++    pyproject = test_path.join('pyproject.toml')
++    pyproject.write(
++        '[build-system]\nrequires = ["setuptools"]\nbuild-backend = "setuptools.build_meta"'.replace(
++            'build_meta', 'buildd_meta'
++        )
++    )
++    return test_path

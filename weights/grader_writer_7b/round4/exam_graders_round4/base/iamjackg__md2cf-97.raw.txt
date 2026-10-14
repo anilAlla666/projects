@@ -1,0 +1,49 @@
+To address the issue of link parsing failing for document references, we need to ensure that links starting with `#` (which are internal anchor links) are correctly handled without being treated as relative paths.
+
+Here's a unified diff that adds a new test file `test_md2cf_confluence_renderer.py` to verify the fix:
+
+```diff
+diff --git a/tests/test_md2cf_confluence_renderer.py b/tests/test_md2cf_confluence_renderer.py
+new file mode 100644
+index 0000000..e4b8c3d
+--- /dev/null
++++ b/tests/test_md2cf_confluence_renderer.py
+@@ -0,0 +1,45 @@
++import unittest
++from unittest.mock import patch
++
++from md2cf.confluence_renderer import ConfluenceRenderer
++
++
++class TestConfluenceRenderer(unittest.TestCase):
++    @patch('md2cf.confluence_renderer.urlparse')
++    def test_link_with_fragment(self, mock_urlparse):
++        renderer = ConfluenceRenderer(enable_relative_links=True)
++        
++        # Mock the result of urlparse to simulate an internal anchor link
++        mock_urlparse.return_value = type('ParseResult', (), {
++            'scheme': '',
++            'netloc': '',
++            'path': '',
++            'fragment': 'frequently-asked-questions-osep'
++        })()
++
++        # Render a link with a fragment
++        rendered_link = renderer.link('#frequently-asked-questions-osep', '', '')
++
++        # Check if the link was rendered correctly without being replaced
++        self.assertEqual(rendered_link, '#frequently-asked-questions-osep')
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This test case checks if the `ConfluenceRenderer` class correctly handles internal anchor links (those starting with `#`). It mocks the `urlparse` function to simulate an internal anchor link and verifies that the link is rendered unchanged.
+
+To run the test, you can execute the following command in your project directory:
+
+```sh
+python -m unittest discover tests
+```
+
+This will discover and run all tests in the `tests` directory, including the newly added test case. The test should fail before applying the fix and pass after the fix is implemented.

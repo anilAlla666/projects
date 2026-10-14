@@ -1,0 +1,46 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,43 @@
++from dataclasses import dataclass, is_dataclass
++from serde.core import should_impl_dataclass
++
++
++def test_should_impl_dataclass():
++    @dataclass
++    class Base:
++        a: int
++
++    class Derived(Base):
++        b: int
++
++    is_dataclass(Base)
++    is_dataclass(Derived)
++    assert not should_impl_dataclass(Base)
++    assert should_impl_dataclass(Derived)
++
++    @dataclass
++    class Base:
++        pass
++
++    class Derived(Base):
++        pass
++
++    is_dataclass(Base)
++    is_dataclass(Derived)
++    assert not should_impl_dataclass(Base)
++    assert not should_impl_dataclass(Derived)
++
++    @dataclass
++    class Base:
++        pass
++
++    class Derived(Base):
++        b: int
++
++    is_dataclass(Base)
++    is_dataclass(Derived)
++    assert not should_impl_dataclass(Base)
++    assert should_impl_dataclass(Derived)
++
++    class Base:
++        a: int

@@ -1,0 +1,78 @@
+--- /dev/null
++++ b/test_v20_grader.py
+@@ -0,0 +1,37 @@
++import unittest
++from stix2patterns.v20.object_validator import verify_object
++
++
++class TestV20(unittest.TestCase):
++    def setUp(self):
++        self.test_data = [
++            ("file:hashes[*] = '8665c8d477534008b3058b72e2dae8ae'",
++             ["FAIL: hashes type does not support wildcard subscription"]),
++            ("file:hashes['md5'] = '8665c8d477534008b3058b72e2dae8ae'",
++             []),
++            ("file:hashes['sha256'] = '8665c8d477534008b3058b72e2dae8ae'",
++             []),
++            ("file:hashes['sha512'] = '8665c8d477534008b3058b72e2dae8ae'",
++             []),
++            ("file:hashes['unknown-hash-type'] = \
++             '8665c8d477534008b3058b72e2dae8ae'",
++             ["FAIL: 'UNKNOWN-HASH-TYPE' is not a valid hash"]),
++            ("file:hashes['md5', 'sha512'] = \
++             ['8665c8d477534008b3058b72e2dae8ae', \
++             '8665c8d477534008b3058b72e2dae8ae']",
++             []),
++            ("file:hashes['md5', 'unknown-hash-type'] = \
++             ['8665c8d477534008b3058b72e2dae8ae', \
++             '8665c8d477534008b3058b72e2dae8ae']",
++             ["FAIL: 'UNKNOWN-HASH-TYPE' is not a valid hash"])
++        ]
++
++    def test_verify_object(self):
++        for pattern, expected_result in self.test_data:
++            result = verify_object(pattern)
++            self.assertEqual(result, expected_result)
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/test_v21_grader.py
+@@ -0,0 +1,37 @@
++import unittest
++from stix2patterns.v21.object_validator import verify_object
++
++
++class TestV21(unittest.TestCase):
++    def setUp(self):
++        self.test_data = [
++            ("file:hashes[*] = '8665c8d477534008b3058b72e2dae8ae'",
++             ["FAIL: hashes type does not support wildcard subscription"]),
++            ("file:hashes['md5'] = '8665c8d477534008b3058b72e2dae8ae'",
++             []),
++            ("file:hashes['sha256'] = '8665c8d477534008b3058b72e2dae8ae'",
++             []),
++            ("file:hashes['sha512'] = '8665c8d477534008b3058b72e2dae8ae'",
++             []),
++            ("file:hashes['unknown-hash-type'] = \
++             '8665c8d477534008b3058b72e2dae8ae'",
++             ["FAIL: 'UNKNOWN-HASH-TYPE' is not a valid hash"]),
++            ("file:hashes['md5', 'sha512'] = \
++             ['8665c8d477534008b3058b72e2dae8ae', \
++             '8665c8d477534008b3058b72e2dae8ae']",
++             []),
++            ("file:hashes['md5', 'unknown-hash-type'] = \
++             ['8665c8d477534008b3058b72e2dae8ae', \
++             '8665c8d477534008b3058b72e2dae8ae']",
++             ["FAIL: 'UNKNOWN-HASH-TYPE' is not a valid hash"])
++        ]
++
++    def test_verify_object(self):
++        for pattern, expected_result in self.test_data:
++            result = verify_object(pattern)
++            self.assertEqual(result, expected_result)
++
++
++if __name__ == '__main__':
++    unittest.main()

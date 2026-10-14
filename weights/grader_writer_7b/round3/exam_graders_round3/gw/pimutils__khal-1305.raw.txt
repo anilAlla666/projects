@@ -1,0 +1,148 @@
+diff --git a/tests/khalendar_test.py b/tests/khalendar_test.py
+index 0e1a5c0..1000000 100644
+--- a/tests/khalendar_test.py
++++ /dev/null
+@@ -1,611 +0,0 @@
+-import datetime as dt
+-import logging
+-import os
+-from textwrap import dedent
+-from time import sleep
+-
+-import pytest
+-from freezegun import freeze_time
+-
+-import khal.khalendar.exceptions
+-import khal.utils
+-from khal import icalendar as icalendar_helpers
+-from khal.khalendar import CalendarCollection
+-from khal.khalendar.backend import CouldNotCreateDbDir
+-from khal.khalendar.event import Event
+-from khal.khalendar.vdir import Item
+-
+-from . import utils
+-from .utils import (
+-    BERLIN,
+-    LOCALE_BERLIN,
+-    LOCALE_SYDNEY,
+-    LONDON,
+-    SYDNEY,
+-    CollVdirType,
+-    DumbItem,
+-    _get_text,
+-    cal1,
+-    cal2,
+-    cal3,
+-    normalize_component,
+-)
+-
+-today = dt.date.today()
+-yesterday = today - dt.timedelta(days=1)
+-tomorrow = today + dt.timedelta(days=1)
+-
+-aday = dt.date(2014, 4, 9)
+-bday = dt.date(2014, 4, 10)
+-
+-card = '''BEGIN:VCARD
+-VERSION:3.0
+-FN:Unix
+-N:Unix;;;
+-BDAY:1971-03-11
+-CATEGORIES:unix
+-END:VCARD'''
+-
+-card_29thfeb = '''BEGIN:VCARD
+-VERSION:3.0
+-FN:LeapYear
+-N:LeapYear;;;
+-BDAY:1971-02-29
+-CATEGORIES:leapyear
+-END:VCARD'''
+-
+-card_no_year = '''BEGIN:VCARD
+-VERSION:3.0
+-FN:NoYear
+-N:NoYear;;;
+-BDAY:--03-11
+-CATEGORIES:noyear
+-END:VCARD'''
+-
+-
+-def test_coll_vdirs(coll_vdirs):
+-    coll, vdirs = coll_vdirs
+-    assert coll.calendars == [cal1, cal2, cal3]
+-    assert coll._vdirs == vdirs
+-    assert coll._vdirs[cal1] == vdirs[cal1]
+-    assert coll._vdirs[cal2] == vdirs[cal2]
+-    assert coll._vdirs[cal3] == vdirs[cal3]
+-
+-
+-def test_coll_vdirs_empty(calendars, vdirs):
+-    coll = CalendarCollection(calendars, vdirs)
+-    assert coll.calendars == calendars
+-    assert coll._vdirs == vdirs
+-    assert coll._vdirs[cal1] == vdirs[cal1]
+-    assert coll._vdirs[cal2] == vdirs[cal2]
+-    assert coll._vdirs[cal3] == vdirs[cal3]
+-
+-
+-def test_coll_vdirs_missing(calendars, vdirs):
+-    del vdirs[cal1]
+-    with pytest.raises(CouldNotCreateDbDir):
+-        CalendarCollection(calendars, vdirs)
+-
+-
+-def test_coll_vdirs_invalid(calendars, vdirs):
+-    vdirs[cal1] = None
+-    with pytest.raises(CouldNotCreateDbDir):
+-        CalendarCollection(calendars, vdirs)
+-
+-
+-def test_coll_get_events(coll_vdirs):
+-    coll, vdirs = coll_vdirs
+-    assert coll.get_events(today, today) == []
+-    assert coll.get_events(yesterday, tomorrow) == []
+-
+-
+-def test_coll_get_floating(coll_vdirs):
+-    coll, vdirs = coll_vdirs
+-    assert coll.get_floating(today, today) == []
+-    assert coll.get_floating(yesterday, tomorrow) == []
+-
+-
+-def test_coll_get_all_day(coll_vdirs):
+-    coll, vdirs = coll_vdirs
+-    assert coll.get_all_day(today, today) == []
+-    assert coll.get_all_day(yesterday, tomorrow) == []
+-
+-
+-def test_coll_needs_update(coll_vdirs):
+-    coll, vdirs = coll_vdirs
+-    assert not coll.needs_update()
+-
+-
+-def test_coll_update_db(coll_vdirs, sleep_time):
+-    coll, vdirs = coll_vdirs
+-    assert not coll.needs_update()
+-    sleep(sleep_time)  # Make sure we get a new ctag on upload
+-    vdirs[cal1].upload(DumbItem(card, 'unix'))
+-    assert coll.needs_update()
+-    coll.update_db()
+-    assert not coll.needs_update()
+-
+-
+-def test_coll_get_events_after_upload(coll_vdirs, sleep_time):
+-    coll, vdirs = coll_vdirs
+-    assert coll.get_events(today, today) == []
+-    assert coll.get_events(yesterday, tomorrow) == []
+-    sleep(sleep_time)  # Make sure we get a new ctag on upload
+-    vdirs[cal1].upload(DumbItem(card, 'unix'))
+-    coll.update_db()
+-    assert coll.get_events(today, today) == [
+-        Event(normalize_component(new_vevent(
+-            'BEGIN:VEVENT\r\n'
+-            'SUMMARY:Unix\r\n'
+-            'DTSTART;VALUE=DATE:19710311\r\n'
+-            'DTEND;VALUE=DATE:19710312\r\n'
+-            'DTSTAMP:20140216T120000Z\r\n'
+-            'UID:JH3KUOYR3G3L3F3E3D3C3B3A3938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837363534333231303938373635343332313039383736353433323130393837

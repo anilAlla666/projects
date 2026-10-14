@@ -1,0 +1,84 @@
+--- /dev/null
++++ b/sphinx_gallery/tests/test_notebook_grader.py
+@@ -0,0 +1,36 @@
++r"""
++Testing the Jupyter notebook parser
++"""
++
++
++from __future__ import division, absolute_import, print_function
++import json
++import tempfile
++import os
++import pytest
++import sphinx_gallery.gen_rst as sg
++from sphinx_gallery.notebook import (rst2md, jupyter_notebook, save_notebook,
++                                     python_to_jupyter_cli)
++
++
++def test_jupyter_notebook(gallery_conf):
++    """Test that written ipython notebook file corresponds to python object."""
++    file_conf, blocks = sg.split_code_and_text_blocks(
++        'tutorials/plot_parse.py')
++    example_nb = jupyter_notebook(blocks, gallery_conf)
++
++    with tempfile.NamedTemporaryFile('w', delete=False) as f:
++        save_notebook(example_nb, f.name)
++    try:
++        with open(f.name, "r") as fname:
++            assert json.load(fname) == example_nb
++    finally:
++        os.remove(f.name)
++    assert example_nb.get('cells')[0]['source'][0] == "%matplotlib inline"
++    assert example_nb.get('cells')[1]['source'][0] == "# test last notebook cell"
++
++    # Test custom first cell text
++    test_text = '# testing\n%matplotlib notebook'
++    gallery_conf['last_notebook_cell'] = test_text
++    example_nb = jupyter_notebook(blocks, gallery_conf)
++    assert example_nb.get('cells')[2]['source'][0] == test_text
+--- /dev/null
++++ b/sphinx_gallery/tests/test_gen_gallery_grader.py
+@@ -0,0 +1,43 @@
++r"""
++Test Sphinx-Gallery
++"""
++
++
++from __future__ import (division, absolute_import, print_function,
++                        unicode_literals)
++import codecs
++import os
++import sys
++import re
++import pytest
++from sphinx.errors import ExtensionError
++from sphinx_gallery.gen_gallery import (check_duplicate_filenames,
++                                        collect_gallery_files,
++                                        write_computation_times)
++
++
++@pytest.mark.conf_file(content="""
++sphinx_gallery_conf = {
++    'first_notebook_cell': 2,
++}""")
++def test_first_notebook_cell_config(sphinx_app_wrapper):
++    from sphinx_gallery.gen_gallery import parse_config
++    # First cell must be str
++    with pytest.raises(ValueError):
++        parse_config(sphinx_app_wrapper.create_sphinx_app())
++
++
++@pytest.mark.conf_file(content="""
++sphinx_gallery_conf = {
++    'last_notebook_cell': 2,
++}""")
++def test_last_notebook_cell_config(sphinx_app_wrapper):
++    from sphinx_gallery.gen_gallery import parse_config
++    # Last cell must be tuple(str, str)
++    with pytest.raises(ValueError):
++        parse_config(sphinx_app_wrapper.create_sphinx_app())
++
++
++def test_write_computation_times_noop():
++    write_computation_times(None, None, [[[0]]])

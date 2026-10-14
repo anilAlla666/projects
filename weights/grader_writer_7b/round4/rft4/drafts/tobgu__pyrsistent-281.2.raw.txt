@@ -1,0 +1,25 @@
+--- /dev/null
++++ b/tests/test_helpers_grader.py
+@@ -0,0 +1,20 @@
++from __future__ import print_function, absolute_import
++import pytest
++from pyrsistent import freeze, pmap, pset, pvector
++
++
++def test_freeze_dict():
++    assert freeze({"a": 1, "b": {"c": 2}}) == pmap({"a": 1, "b": pmap({"c": 2})})
++
++
++def test_freeze_defaultdict():
++    d = {}
++    dd = defaultdict(d.__class__)
++    dd[1] = 2
++    dd[2][3] = 4
++    dd[2][5] = 6
++
++    res = freeze(dd)
++    expected = pmap({
++        1: 2,
++        2: pmap({3: 4, 5: 6}),
++    })
++    assert res == expected

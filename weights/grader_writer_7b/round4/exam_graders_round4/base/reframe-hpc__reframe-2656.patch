@@ -1,0 +1,41 @@
+diff --git a/unittests/test_srun_launcher.py b/unittests/test_srun_launcher.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/unittests/test_srun_launcher.py
+@@ -0,0 +1,45 @@
++# Copyright 2016-2022 Swiss National Supercomputing Centre (CSCS/ETH Zurich)
++# ReFrame Project Developers. See the top-level LICENSE file for details.
++#
++# SPDX-License-Identifier: BSD-3-Clause
++
++import os
++import pytest
++
++from reframe.core.launchers import SrunLauncher
++from reframe.core.schedulers import Job
++
++
++@pytest.fixture
++def srun_job():
++    return Job(launcher=SrunLauncher())
++
++
++def test_srun_no_cpus_per_task(srun_job):
++    srun_job.options.append('--foo')
++    command = srun_job.launcher.run_command(srun_job)
++    assert '--cpus-per-task=' not in command
++
++
++def test_srun_with_cpus_per_task(srun_job):
++    os.environ['SLURM_CPUS_PER_TASK'] = '2'
++    srun_job.options.append('--foo')
++    command = srun_job.launcher.run_command(srun_job)
++    assert '--cpus-per-task=2' in command
++
++
++def test_srun_set_env_var(srun_job):
++    os.environ['SRUN_CPUS_PER_TASK'] = '2'
++    srun_job.options.append('--foo')
++    command = srun_job.launcher.run_command(srun_job)
++    assert '--cpus-per-task=2' in command

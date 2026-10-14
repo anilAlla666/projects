@@ -1,0 +1,71 @@
+I haven't run these tests. They rely on `python_codon_tables.get_codons_table()` returning a shared cached object, as the issue describes. If it doesn't, the tests would pass on the current code and not decide the issue.
+
+The tests add entries to the module-level `human_codon_table`, `yeast_codon_table` and `ecoli_codon_table`. They then check that a fresh `get_codons_table()` call still returns only the standard keys. They also check that the three tables are independent of each other and of fresh tables. Each test removes the entries it added, so a failing test does not pollute the others.
+
+```diff
+--- /dev/null
++++ b/tests/test_codon_tables_copy.py
+@@ -0,0 +1,64 @@
++import pytest
++import python_codon_tables as pct
++
++from seqlike.codon_tables import (
++    human_codon_table,
++    yeast_codon_table,
++    ecoli_codon_table,
++)
++
++STANDARD_KEYS = "*ACDEFGHIKLMNPQRSTVWY"
++
++TABLES = [
++    ("h_sapiens_9606", human_codon_table),
++    ("s_cerevisiae_4932", yeast_codon_table),
++    ("e_coli_316407", ecoli_codon_table),
++]
++
++
++@pytest.mark.parametrize("name,table", TABLES)
++def test_modifying_seqlike_table_does_not_leak(name, table):
++    added = []
++    try:
++        for key, val in [("-", {"---": 1}), ("X", {"NNN": 1})]:
++            if key not in table:
++                table[key] = val
++                added.append(key)
++        fresh = pct.get_codons_table(name)
++        assert "".join(sorted(fresh.keys())) == STANDARD_KEYS
++    finally:
++        for key in added:
++            table.pop(key, None)
++        # in case of leakage into pct's shared data, clean up as well
++        fresh_after = pct.get_codons_table(name)
++        for key in ("-", "X"):
++            fresh_after.pop(key, None)
++
++
++@pytest.mark.parametrize("name,table", TABLES)
++def test_modifying_inner_dict_does_not_leak(name, table):
++    letter = "A"
++    codon = "ZZZ"
++    table[letter][codon] = 0.5
++    try:
++        fresh = pct.get_codons_table(name)
++        assert codon not in fresh[letter]
++    finally:
++        table[letter].pop(codon, None)
++        pct.get_codons_table(name)[letter].pop(codon, None)
++
++
++def test_module_tables_are_independent_objects():
++    assert human_codon_table is not yeast_codon_table
++    assert human_codon_table is not ecoli_codon_table
++    marker = "Q9"
++    human_codon_table[marker] = {"AAA": 1}
++    try:
++        assert marker not in yeast_codon_table
++        assert marker not in ecoli_codon_table
++        assert marker not in pct.get_codons_table("h_sapiens_9606")
++    finally:
++        human_codon_table.pop(marker, None)
++        pct.get_codons_table("h_sapiens_9606").pop(marker, None)
+```

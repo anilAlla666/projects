@@ -1,0 +1,12 @@
+--- /dev/null
++++ b/stix2validator/tests/test_musts_grader.py
+@@ -0,0 +1,10 @@
++from stix2validator import validate_string
++
++
++def test_snort_pattern():
++    pattern = "[snort:'alert tcp $HOME_NET any -> $EXTERNAL_NET 25 (msg:\"ET TROJAN Blackhole SMTP Open Relay\"; flow:to_server,established; content:\"EHLO\"; nocase; content:\"$EXT_DNS\"; nocase; distance:0; within:100; content:\"MAIL FROM:\"; nocase; content:\"$HOME_NET\"; nocase; distance:0; within:100; content:\"RCPT TO:\"; nocase; content:\"$HOME_NET\"; nocase; distance:0; within:100; content:\"DATA\"; nocase; content:\"$HOME_NET\"; nocase; distance:0; within:100; content:\"QUIT\"; nocase; content:\"$HOME_NET\"; nocase; distance:0; within:100; classtype:trojan-activity; sid:2000000; rev:1;)']"
++    result = validate_string(pattern, version="2.1", schema_version="2.1")
++    assert result.is_valid() is True
++    assert len(result.errors) == 0
++    assert len(result.warnings) == 0

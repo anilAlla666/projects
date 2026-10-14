@@ -1,0 +1,42 @@
+--- /dev/null
++++ b/tests/test_canonicalize_modifications_grader.py
+@@ -0,0 +1,43 @@
++import pytest
++from vermouth import Molecule
++from vermouth.processors.canonicalize_modifications import (
++    CanonicalizeModifications, allowed_ptms, identify_ptms,
++)
++
++
++@pytest.mark.parametrize(
++    'node_names, expected',
++    [
++        ([], []),
++        (['A'], []),
++        (['A', 'B'], []),
++        (['A', 'A', 'A'], ['A']),
++        (['A', 'A', 'B'], ['A', 'B']),
++        (['A', 'A', 'A', 'B'], ['A', 'B']),
++        (['A', 'A', 'A', 'A', 'B'], ['A', 'B']),
++        (['A', 'A', 'B', 'C'], ['A', 'B', 'C']),
++        (['A', 'A', 'A', 'B', 'C'], ['A', 'B', 'C']),
++        (['A', 'A', 'A', 'A', 'B', 'C'], ['A', 'B', 'C']),
++        (['A', 'A', 'A', 'A', 'A', 'B', 'C'], ['A', 'B', 'C']),
++        (['A', 'A', 'A', 'A', 'A', 'A', 'B', 'C'], ['A', 'B', 'C']),
++    ],
++)
++def test_allowed_ptms(node_names, expected):
++    """
++    Check that we get the correct subset of PTMs when filtering by the
++    node names present.
++    """
++    molecule = Molecule(name='test')
++    molecule.add_nodes_from([
++        {'atomid': idx} for idx, name in enumerate(node_names)
++    ])
++    known_ptms = {
++        'PTM': [('A',), ('B',)],
++    }
++    res_ptms = [('A',), ('A',)]
++    options = allowed_ptms(molecule, res_ptms, known_ptms)
++    assert options == [[known_ptms['PTM'][i]] for i in expected]

@@ -1,0 +1,153 @@
+--- /dev/null
++++ b/tests/test_middleware_grader.py
+@@ -0,0 +1,53 @@
++import unittest
++from bugsnag.middleware import MiddlewareStack
++
++
++class TestMiddlewareClass(object):
++    def __init__(self, callback):
++        self.callback = callback
++        self.char = None
++
++    def __call__(self, item):
++        item.append(self.char)
++        self.callback(item)
++
++
++class TestMiddlewareClassA(TestMiddlewareClass):
++    def __init__(self, callback):
++        TestMiddlewareClass.__init__(self, callback)
++        self.char = 'A'
++
++
++class TestMiddlewareClassB(TestMiddlewareClass):
++    def __init__(self, callback):
++        TestMiddlewareClass.__init__(self, callback)
++        self.char = 'B'
++
++
++class TestMiddlewareClassC(TestMiddlewareClass):
++    def __init__(self, callback):
++        TestMiddlewareClass.__init__(self, callback)
++        self.char = 'C'
++
++
++class TestMiddlewareReturning(object):
++    def __init__(self, callback):
++        pass
++
++    def __call__(self, item):
++        return
++
++
++class TestMiddlewareStack(unittest.TestCase):
++    def test_insert_before_default_ordering(self):
++        a = []
++
++        m = MiddlewareStack()
++        m.append(TestMiddlewareClassA)
++        m.append(TestMiddlewareClassB)
++        m.insert_before(bugsnag.middleware.TestMiddlewareClass, TestMiddlewareClassC)
++        m.run(a, lambda: a.append('Callback'))
++
++        self.assertEqual(a, ['A', 'B', 'C', 'Callback'])
+--- /dev/null
++++ b/tests/integrations/test_wsgi_grader.py
+@@ -0,0 +1,108 @@
++from webtest import TestApp
++from bugsnag.wsgi.middleware import BugsnagMiddleware
++from six import Iterator
++import bugsnag.notification
++import bugsnag
++from tests.utils import IntegrationTest
++
++
++class SentinelError(RuntimeError):
++    pass
++
++
++class TestWSGI(IntegrationTest):
++    def setUp(self):
++        super(TestWSGI, self).setUp()
++        bugsnag.configure(use_ssl=False,
++                          endpoint=self.server.address,
++                          api_key='3874876376238728937',
++                          notify_release_stages=['dev'],
++                          release_stage='dev',
++                          asynchronous=False)
++
++    def test_bugsnag_middleware_closes_iterables(self):
++
++        class CrashOnCloseIterable(object):
++
++            def __init__(self, environ, start_response):
++                start_response("200 OK",
++                               [('Content-Type', 'text/plain; charset=utf-8')])
++
++            def __iter__(self):
++                yield 'OK'
++
++            def close(self):
++                raise SentinelError("oops")
++
++        app = TestApp(BugsnagMiddleware(CrashOnCloseIterable))
++
++        self.assertRaises(SentinelError, lambda: app.get('/beans'))
++
++        self.assertEqual(1, len(self.server.received))
++        payload = self.server.received[0]['json_body']
++        environ = payload['events'][0]['metaData']['environment']
++        self.assertEqual(environ['PATH_INFO'], '/beans')
++
++    def test_bugsnag_middleware_attaches_unhandled_data(self):
++
++        class CrashOnStartApp(object):
++
++            def __init__(self, environ, start_response):
++                raise SentinelError("oops")
++
++        app = TestApp(BugsnagMiddleware(CrashOnStartApp))
++
++        self.assertRaises(SentinelError, lambda: app.get('/beans'))
++
++        self.assertEqual(1, len(self.server.received))
++        payload = self.server.received[0]['json_body']
++        event = payload['events'][0]
++
++        self.assertTrue(event['unhandled'])
++        self.assertEqual(event['severityReason'], {
++            'type': 'unhandledExceptionMiddleware',
++            'attributes': {
++                'framework': 'WSGI'
++            }
++        })
++
++    def test_bugsnag_middleware_doesnt_attach_unhandled_data_if_disabled(self):
++
++        class CrashOnStartApp(object):
++
++            def __init__(self, environ, start_response):
++                raise SentinelError("oops")
++
++        app = TestApp(BugsnagMiddleware(CrashOnStartApp))
++
++        self.assertRaises(SentinelError, lambda: app.get('/beans', extra_environ={'HTTP_BUGSNAG_UNHANDLED_DATA': 'false'}))
++
++        self.assertEqual(1, len(self.server.received))
++        payload = self.server.received[0]['json_body']
++        event = payload['events'][0]
++
++        self.assertFalse(event['unhandled'])
++        self.assertIsNone(event.get('severityReason'))
++
++    def test_bugsnag_middleware_handles_bad_encoding(self):
++
++        class BadEncodingApp(object):
++
++            def __init__(self, environ, start_response):
++                raise SentinelError("oops")
++
++        app = TestApp(BugsnagMiddleware(BadEncodingApp))
++
++        self.assertRaises(SentinelError, lambda: app.get('/bad-%F0%A0%AE%AD%E0%B8%A2%EF%B8%8F%FF%C2%83%F0%AF%B8%A4%F0%9D%9C%8F%F0%9D%9C%90%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%80%AA%E2%8

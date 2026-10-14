@@ -1,0 +1,14 @@
+--- /dev/null
++++ b/tests/test_fields_grader.py
+@@ -0,0 +1,10 @@
++import pytest
++from cincoconfig import Config, Field
++
++
++class TestSecureField:
++    @pytest.mark.parametrize(
++        ('value', 'expected'),
++        ((None, None), ('', None), ('foo', 'foo'))
++    )
++    def test_empty_strings_are_none(self, value, expected):
++        assert Field().to_python(None, value) == expected

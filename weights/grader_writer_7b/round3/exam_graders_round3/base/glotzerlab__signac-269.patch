@@ -1,0 +1,38 @@
+diff --git a/tests/test_synceddict.py b/tests/test_synceddict.py
+index 1234567..89abcde 100644
+--- a/tests/test_synceddict.py
++++ b/tests/test_synceddict.py
+@@ -1,5 +1,6 @@
+ import unittest
+ from signac.core.synceddict import SyncedAttrDict
+ 
++from signac import init_project
+ 
+ class TestSyncedAttrDict(unittest.TestCase):
+ 
+@@ -10,6 +11,24 @@ class TestSyncedAttrDict(unittest.TestCase):
+         self.assertEqual(sp['a'], {'b': 'c'})
+ 
+     def test_values_view(self):
++        project = init_project('test')
++        job = project.open_job({'a': {'b': 'c'}}).init()
++        sp = job.sp
++
++        # Get the values view
++        values_view = sp.values()
++
++        # Check if the view reflects changes to the original dictionary
++        sp['a']['d'] = 'e'
++        self.assertIn('d', values_view)
++
++    def test_values_no_modification(self):
++        project = init_project('test')
++        job = project.open_job({'a': {'b': 'c'}}).init()
++        sp = job.sp
++
++        # Get the values view
++        values_view = sp.values()
++
++        # Modify the view
++        values_view.update({'f': 'g'})
++        self.assertNotIn('f', sp['a'])

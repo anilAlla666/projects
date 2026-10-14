@@ -1,0 +1,14 @@
+--- /dev/null
++++ b/tests/test_yaml_source_grader.py
+@@ -0,0 +1,12 @@
++import unittest
++from unittest.mock import patch
++from dnry.config.yaml.source import YamlSource
++
++
++class TestYamlSource(unittest.TestCase):
++    @patch('os.path.exists', lambda x: False)
++    def test_load_optional(self):
++        src = YamlSource(["a.yaml"], required=False)
++        result = src.load(None, None)
++        self.assertEqual(result, {})

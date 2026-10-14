@@ -1,0 +1,43 @@
+--- /dev/null
++++ b/tests/test_cli_grader.py
+@@ -0,0 +1,34 @@
++import json
++import os
++import re
++from unittest.mock import MagicMock
++from click.testing import CliRunner
++from pierone.cli import cli
++
++
++def test_cves_with_unknown_layer(monkeypatch, tmpdir):
++    response = MagicMock()
++    response.json.return_value = {
++        'Vulnerabilities': [],
++        'Features': []
++    }
++
++    runner = CliRunner()
++    monkeypatch.setattr('stups_cli.config.load_config', lambda x: {'url': 'foobar', 'clair_url': 'barfoo'})
++    monkeypatch.setattr('zign.api.get_token', MagicMock(return_value='tok123'))
++    monkeypatch.setattr('os.path.expanduser', lambda x: x.replace('~', str(tmpdir)))
++    monkeypatch.setattr('pierone.api.session.get', MagicMock(return_value=response))
++    with runner.isolated_filesystem():
++        result = runner.invoke(cli, ['cves', 'myteam', 'myart', '1.2'], catch_exceptions=False)
++        assert 'COULDNT_FIGURE_OUT' in result.output
++
++
++def test_cves_with_empty_layer(monkeypatch, tmpdir):
++    response = MagicMock()
++    response.json.return_value = {
++        'Vulnerabilities': [],
++        'Features': []
++    }
++
++    runner = CliRunner()
++    monkeypatch.setattr('stups_cli.config.load_config', lambda x: {'url': 'foobar', 'clair_url': 'barfoo'})
++    monkeypatch.setattr('zign.api.get_token', MagicMock(return_value='tok123'))
++    monkeypatch.setattr('os.path.expanduser', lambda x: x.replace('~', str(tmpdir)))
++    monkeypatch.setattr('pierone.api.session.get', MagicMock(return_value=response))
++    with runner.isolated_filesystem():
++        result = runner.invoke(cli, ['cves', 'myteam', 'myart', '1.2'], catch_exceptions=False)
++        assert 'No vulnerabilities found.' in result.output

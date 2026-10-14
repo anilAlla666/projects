@@ -1,0 +1,147 @@
+--- /dev/null
++++ b/test/test_endpoint_grader.py
+@@ -0,0 +1,127 @@
++from concurrent import futures
++import time
++import mock
++import pytest
++from pyls_jsonrpc import exceptions
++from pyls_jsonrpc.endpoint import Endpoint
++
++
++MSG_ID = 'id'
++
++
++@pytest.fixture()
++def dispatcher():
++    return {}
++
++
++@pytest.fixture()
++def consumer():
++    return mock.MagicMock()
++
++
++@pytest.fixture()
++def endpoint(dispatcher, consumer):
++    return Endpoint(dispatcher, consumer, id_generator=lambda: MSG_ID)
++
++
++def test_request_cancel(endpoint, consumer):
++    future = endpoint.request('methodName', {'key': 'value'})
++    assert not future.done()
++
++    consumer.assert_called_once_with({
++        'jsonrpc': '2.0',
++        'id': MSG_ID,
++        'method': 'methodName',
++        'params': {'key': 'value'}
++    })
++
++    # Cancel the request
++    future.cancel()
++    consumer.assert_any_call({
++        'jsonrpc': '2.0',
++        'method': '$/cancelRequest',
++        'params': {'id': MSG_ID}
++    })
++
++    with pytest.raises(exceptions.JsonRpcException) as exc_info:
++        assert future.result(timeout=2)
++
++    assert isinstance(exc_info.value, exceptions.JsonRpcRequestCancelled)
++
++
++def test_request_error(endpoint, consumer):
++    future = endpoint.request('methodName', {'key': 'value'})
++    assert not future.done()
++
++    consumer.assert_called_once_with({
++        'jsonrpc': '2.0',
++        'id': MSG_ID,
++        'method': 'methodName',
++        'params': {'key': 'value'}
++    })
++
++    # Send an error back from the client
++    error = exceptions.JsonRpcInvalidRequest(data=1234)
++    endpoint.consume({
++        'jsonrpc': '2.0',
++        'id': MSG_ID,
++        'error': error.to_dict()
++    })
++
++    assert isinstance(future.exception(), exceptions.JsonRpcInvalidRequest)
++
++
++def test_request_error_after_cancel(endpoint, consumer):
++    future = endpoint.request('methodName', {'key': 'value'})
++    assert not future.done()
++
++    consumer.assert_called_once_with({
++        'jsonrpc': '2.0',
++        'id': MSG_ID,
++        'method': 'methodName',
++        'params': {'key': 'value'}
++    })
++
++    # Cancel the request
++    future.cancel()
++    consumer.assert_any_call({
++        'jsonrpc': '2.0',
++        'method': '$/cancelRequest',
++        'params': {'id': MSG_ID}
++    })
++
++    # Send an error back from the client
++    error = exceptions.JsonRpcInvalidRequest(data=1234)
++    endpoint.consume({
++        'jsonrpc': '2.0',
++        'id': MSG_ID,
++        'error': error.to_dict()
++    })
++
++    assert isinstance(future.exception(), exceptions.JsonRpcRequestCancelled)
++
++
++def test_request_invalid_method(endpoint, consumer):
++    future = endpoint.request('methodName', {'key': 'value'})
++    assert not future.done()
++
++    consumer.assert_called_once_with({
++        'jsonrpc': '2.0',
++        'id': MSG_ID,
++        'method': 'methodName',
++        'params': {'key': 'value'}
++    })
++
++    # Send an error back from the client
++    error = exceptions.JsonRpcMethodNotFound(data="not found")
++    endpoint.consume({
++        'jsonrpc': '2.0',
++        'id': MSG_ID,
++        'error': error.to_dict()
++    })
++
++    assert isinstance(future.exception(), exceptions.JsonRpcMethodNotFound)
++
++
++def assert_consumer_error(consumer_mock, exception):
++    """Assert that the consumer mock has had once call with the given error message and code.
++
++    The error's data part is not compared since it contains the traceback.
++    """
++    assert len(consumer_mock.mock_calls) == 1
++    _name, args, _kwargs = consumer_mock.mock_calls[0]
++    assert args[0]['error']['message'] == exception.message
++    assert args[0]['error']['code'] == exception.code
++
++
++def await_assertion(condition, timeout=3.0, interval=0.1, exc=None):
++    if timeout <= 0:
++        raise exc if exc else AssertionError("Failed to wait for condition %s" % condition)
++    try:
++        condition()
++    except AssertionError as e:
++        time.sleep(interval)
++        await_assertion(condition, timeout=(timeout - interval), interval=interval, exc=e)

@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_functions_grader.py
+@@ -0,0 +1,13 @@
++import numpy as np
++import rowan
++
++
++def test_to_axis_angle_multiple():
++    """Test that to_axis_angle works when passed an array of quaternions."""
++    q = np.random.randn(100, 4)
++    q /= np.linalg.norm(q, axis=1)[:, None]
++    ax, ang = rowan.to_axis_angle(q)
++
++    assert ax.shape == (100, 3)
++    assert ang.shape == (100,)
++    assert np.allclose(rowan.from_axis_angle(ax, ang), q)

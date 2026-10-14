@@ -1,0 +1,64 @@
+--- /dev/null
++++ b/tests/v0x01/test_common/test_header_grader.py
+@@ -0,0 +1,29 @@
++"""Testing Header structure."""
++
++
++import os
++import unittest
++from pyof.v0x01.common.header import Header, Type
++
++
++class TestHeader(unittest.TestCase):
++    """Test the message Header."""
++
++    def setUp(self):
++        """Setup the TestHeader Class instantiating a HELLO header."""
++        self.message = Header()
++        self.message.message_type = Type.OFPT_HELLO
++        self.message.length = 0
++
++    def test_xid(self):
++        """[Common/Header] - generate unique xid."""
++        first_xid = self.message.xid
++        second_xid = Header(xid=None).xid
++        third_xid = Header(xid=None).xid
++        fourth_xid = Header(xid=None).xid
++        fifth_xid = Header(xid=None).xid
++
++        self.assertNotEqual(first_xid, second_xid)
++        self.assertNotEqual(second_xid, third_xid)
++        self.assertNotEqual(third_xid, fourth_xid)
++        self.assertNotEqual(fourth_xid, fifth_xid)
+--- /dev/null
++++ b/tests/v0x04/test_common/test_header_grader.py
+@@ -0,0 +1,29 @@
++"""Tests header structure of v0x04."""
++
++
++import os
++import unittest
++from pyof.v0x04.common.header import Header, Type
++
++
++class TestHeader(unittest.TestCase):
++    """Test the message Header."""
++
++    def setUp(self):
++        """Setup the TestHeader Class instantiating a HELLO header."""
++        self.message = Header()
++        self.message.message_type = Type.OFPT_HELLO
++        self.message.length = 0
++
++    def test_xid(self):
++        """[Common/Header] - generate unique xid."""
++        first_xid = self.message.xid
++        second_xid = Header(xid=None).xid
++        third_xid = Header(xid=None).xid
++        fourth_xid = Header(xid=None).xid
++        fifth_xid = Header(xid=None).xid
++
++        self.assertNotEqual(first_xid, second_xid)
++        self.assertNotEqual(second_xid, third_xid)
++        self.assertNotEqual(third_xid, fourth_xid)
++        self.assertNotEqual(fourth_xid, fifth_xid)

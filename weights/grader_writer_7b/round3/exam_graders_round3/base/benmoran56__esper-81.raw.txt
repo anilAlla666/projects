@@ -1,0 +1,45 @@
+Here are the tests that should be added to ensure the fix works correctly:
+
+```diff
+diff --git a/tests/test_world.py b/tests/test_world.py
+index 1a2b3c4..5d6e7f8 100644
+--- a/tests/test_world.py
++++ b/tests/test_world.py
+@@ -1,5 +1,6 @@
+ import unittest
+ import esper
++from typing import Optional
+ 
+ 
+ class TestWorld(unittest.TestCase):
+@@ -10,6 +11,24 @@ class TestWorld(unittest.TestCase):
+         world = esper.World()
+         entity = world.create_entity()
+         self.assertTrue(world.entity_exists(entity))
++
++    def test_create_empty_entity(self):
++        world = esper.World()
++        entity = world.create_entity()
++        self.assertTrue(world.entity_exists(entity))
++        self.assertEqual(len(world.components_for_entity(entity)), 0)
++
++    def test_add_component_to_nonexistent_entity(self):
++        world = esper.World()
++        made_up_entity = 123
++        with self.assertRaises(KeyError):
++            world.add_component(made_up_entity, None)
++
++    def test_delete_nonexistent_entity(self):
++        world = esper.World()
++        made_up_entity = 123
++        with self.assertRaises(KeyError):
++            world.delete_entity(made_up_entity)
+```
+
+These tests cover the following scenarios:
+
+1. Creating an empty entity and checking if it exists.
+2. Adding a component to a non-existent entity and ensuring it raises a `KeyError`.
+3. Deleting a non-existent entity and ensuring it raises a `KeyError`.
+
+These tests should fail with the current implementation and pass after applying the proposed fix.

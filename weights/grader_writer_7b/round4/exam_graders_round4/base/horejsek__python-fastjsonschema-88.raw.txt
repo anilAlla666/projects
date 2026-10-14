@@ -1,0 +1,68 @@
+To address the issue of supporting tuples as arrays in `fastjsonschema`, we need to add tests that ensure the fix works correctly. Below is a unified diff that includes a new test file `tests/json_schema/test_tuples_as_arrays.py`. This test file contains tests that will fail with the current implementation and pass after the fix is applied.
+
+```diff
+diff --git a/tests/json_schema/test_tuples_as_arrays.py b/tests/json_schema/test_tuples_as_arrays.py
+new file mode 100644
+index 0000000..e6b8c9f
+--- /dev/null
++++ b/tests/json_schema/test_tuples_as_arrays.py
+@@ -0,0 +1,45 @@
++import pytest
++
++from fastjsonschema import compile
++
++
++def test_tuple_as_array():
++    schema = {
++        "type": "array",
++        "items": {"type": "integer"}
++    }
++    validator = compile(schema)
++
++    # Test with a tuple
++    data = (1, 2, 3)
++    assert validator(data) == True
++
++    # Test with a list
++    data = [1, 2, 3]
++    assert validator(data) == True
++
++    # Test with an invalid tuple
++    data = (1, "two", 3)
++    with pytest.raises(ValidationError):
++        validator(data)
++
++    # Test with an invalid list
++    data = [1, "two", 3]
++    with pytest.raises(ValidationError):
++        validator(data)
++
++
++def test_tuple_as_array_with_additional_items():
++    schema = {
++        "type": "array",
++        "items": {"type": "integer"},
++        "additionalItems": False
++    }
++    validator = compile(schema)
++
++    # Test with a tuple
++    data = (1, 2, 3)
++    assert validator(data) == True
++
++    # Test with a list
++    data = [1, 2, 3]
++    assert validator(data) == True
++
++    # Test with an invalid tuple
++    data = (1, "two", 3)
++    with pytest.raises(ValidationError):
++        validator(data)
++
++    # Test with an invalid list
++    data = [1, "two", 3]
++    with pytest.raises(ValidationError):
++        validator(data)
+```
+
+These tests cover various scenarios including valid and invalid tuples and lists, ensuring that the fix allows tuples to be validated as arrays while maintaining compatibility with existing list validations. The tests should fail with the current implementation and pass once the fix is applied.

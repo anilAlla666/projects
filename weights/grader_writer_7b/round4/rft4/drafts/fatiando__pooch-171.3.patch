@@ -1,0 +1,82 @@
+--- /dev/null
++++ b/pooch/tests/test_utils_grader.py
+@@ -0,0 +1,83 @@
++"""
++Test the utility functions.
++"""
++
++
++import os
++import hashlib
++from pathlib import Path
++import tempfile
++from tempfile import NamedTemporaryFile, TemporaryDirectory
++import pytest
++from ..core import Pooch
++from ..utils import (
++    make_registry,
++    parse_url,
++    make_local_storage,
++    file_hash,
++    hash_matches,
++    temporary_file,
++    unique_file_name,
++)
++from .utils import check_tiny_data, capture_log
++
++
++DATA_DIR = str(Path(__file__).parent / "data" / "store")
++
++
++REGISTRY = (
++    "tiny-data.txt baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d\n"
++)
++
++
++REGISTRY_RECURSIVE = (
++    "subdir/tiny-data.txt baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d\n"
++    "tiny-data.txt baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d\n"
++)
++
++
++def test_make_local_storage_not_exists(tmpdir):
++    """Test making local storage without existing directory."""
++    # First time, directory does not exists
++    path = os.path.join(tmpdir, "test")
++    with pytest.warns(UserWarning) as warninfo:
++        make_local_storage(path)
++    assert os.path.exists(path)
++    assert len(warninfo) == 1
++    assert "Cannot write to data cache folder" in str(warninfo[0].message)
++
++
++@pytest.mark.parametrize(
++    "parallel", [False, True], ids=["no_parallel", "parallel"]
++)
++def test_make_local_storage_exists(tmpdir, parallel):
++    """Test making local storage with existing directory."""
++    path = os.path.join(tmpdir, "test")
++    os.mkdir(path)
++    with pytest.warns(UserWarning) as warninfo:
++        make_local_storage(path)
++    assert os.path.exists(path)
++    assert len(warninfo) == 1
++    assert "Cannot write to data cache folder" in str(warninfo[0].message)
++
++    # Try again, but now with multiple processes trying to create it
++    if parallel:
++        import multiprocessing
++
++        def make_storage(path):
++            make_local_storage(path)
++
++        procs = []
++        for i in range(10):
++            proc = multiprocessing.Process(target=make_storage, args=(path,))
++            procs.append(proc)
++            proc.start()
++        for proc in procs:
++            proc.join()
++
++        # Only the first process will actually make the directory
++        assert os.listdir(path) == ["test-0"]

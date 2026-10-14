@@ -1,0 +1,96 @@
+--- /dev/null
++++ b/tests/utils/test_core_grader.py
+@@ -0,0 +1,62 @@
++import types
++import numpy as np
++import pandas as pd
++import pytest
++import altair as alt
++from altair.utils.core import parse_shorthand, update_nested, infer_encoding_types
++from altair.utils.core import infer_dtype
++
++
++FAKE_CHANNELS_MODULE = '''
++"""Fake channels module for utility tests."""
++
++from altair.utils import schemapi
++
++
++class FieldChannel:
++    def __init__(self, shorthand, **kwargs):
++        kwargs['shorthand'] = shorthand
++        return super(FieldChannel, self).__init__(**kwargs)
++
++
++class ValueChannel:
++    def __init__(self, value, **kwargs):
++        kwargs['value'] = value
++        return super(ValueChannel, self).__init__(**kwargs)
++
++
++class X(FieldChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "x"
++
++
++class XValue(ValueChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "x"
++
++
++class Y(FieldChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "y"
++
++
++class YValue(ValueChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "y"
++
++
++class Color(FieldChannel, schemapi.SchemaBase):
++    _schema = {}
++    _encoding_name = "color"
++
++
++def _getargs(*args, **kwds):
++    args = list(args)
++    if len(kwds) == 1 and kwds.get("__args") is not None:
++        args.extend(kwds.pop("__args"))
++    return args, kwds
++'''
++
++
++def test_invalid_data_type():
++    with pytest.raises(
++        ValueError, match=r'"\(fd " is not one of the valid encoding data types'
++    ):
++        parse_shorthand(r"blah:(fd ")
+--- /dev/null
++++ b/tests/utils/test_utils_grader.py
+@@ -0,0 +1,25 @@
++import pytest
++import warnings
++import json
++import numpy as np
++import pandas as pd
++from altair.utils import infer_vegalite_type, sanitize_dataframe
++
++
++@pytest.mark.skipif(
++    not hasattr(pd, "StringDtype"),
++    reason="dedicated String dtype not supported in pandas v{}".format(pd.__version__),
++)
++def test_sanitize_arrow_string_dtype():
++    df = pd.DataFrame(
++        {
++            "string_object": ["a", "b", "c", "d"],
++            "string_string": pd.array(["a", "b", "c", "d"], dtype="string"),
++            "string_object_null": ["a", "b", None, "d"],
++            "string_string_null": pd.array(["a", "b", None, "d"], dtype="string"),
++            "string_pyarrow": pd.array(["a", "b", "c", "d"], dtype="string[pyarrow]"),
++        }
++    )
++
++    df_clean = sanitize_dataframe(df)
++    assert {col.dtype.name for _, col in df_clean.items()} == {"object"}

@@ -1,0 +1,58 @@
+--- /dev/null
++++ b/tests/test_cli_grader.py
+@@ -0,0 +1,53 @@
++"""
++This module contains unit tests for the flake8-gl-codeclimate CLI tool.
++
++These tests run the cli tool directly without invoking the flake8 API, which
++makes them faster than testing the plugin itself.
++
++It is possible to test the plugin directly by creating a temporary configuration
++file with the appropriate values and then running the flake8 CLI with the
++--config option set to point to the temporary configuration file.
++"""
++
++
++from __future__ import annotations
++import subprocess
++from pathlib import Path
++import pytest
++
++
++def run_flake8(*args: str) -> tuple[str, str]:
++    """Run flake8 with the given arguments."""
++    proc = subprocess.Popen(
++        ["flake8"] + list(args),
++        stdout=subprocess.PIPE,
++        stderr=subprocess.PIPE,
++    )
++    out, err = proc.communicate()
++    return out.decode(), err.decode()
++
++
++@pytest.mark.parametrize(
++    ("input", "expected"),
++    (
++        (
++            "test_path/to/file.py:2:3:E226 missing whitespace around arithmetic operator\n"
++            "test_path/to/file.py:2:3:F821 undefined name 'a'\n"
++            "test_path/to/file.py:2:3:WPS404 bad continue\n",
++            [
++                {"filename": "test_path/to/file.py", "violations": []},
++                {
++                    "filename": "test_path/to/file.py",
++                    "violations": [
++                        {"code": "E226", "line_number": 2, "text": "missing whitespace around arithmetic operator"},
++                        {"code": "F821", "line_number": 2, "text": "undefined name 'a'"},
++                        {"code": "WPS404", "line_number": 2, "text": "bad continue"},
++                    ],
++                },
++            ],
++        ),
++    ),
++)
++def test_format(input: str, expected: list[dict]) -> None:
++    """Test that the format function works correctly."""
++    assert subprocess.run(["flake8", "--format=gl-codeclimate"], input=input.encode()).stdout == bytes(
++        f"[\n{expected}\n]\n", encoding="utf-8"
++    )

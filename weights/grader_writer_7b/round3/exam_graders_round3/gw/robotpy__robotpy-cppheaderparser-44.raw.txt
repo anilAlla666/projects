@@ -1,0 +1,26 @@
+diff --git a/test/test_CppHeaderParser.py b/test/test_CppHeaderParser.py
+index 0e0f3b0..d0c0708 100644
+--- a/test/test_CppHeaderParser.py
++++ b/test/test_CppHeaderParser.py
+@@ -3842,6 +3842,20 @@ class NestedTypedef(unittest.TestCase):
+     def setUp(self):
+         self.cppHeader = CppHeaderParser.CppHeader(
+             """
++template <class SomeType> class A {
++ public:
++  typedef B <SomeType> C;
++
++  A();
++
++ protected:
++  C aCInstance;
++};
++
++class B {
++ public:
++  void foo();
++};
++""",
+             "string",
+         )
+ 

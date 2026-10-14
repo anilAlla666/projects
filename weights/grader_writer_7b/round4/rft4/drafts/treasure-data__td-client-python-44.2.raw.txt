@@ -1,0 +1,54 @@
+--- /dev/null
++++ b/tdclient/test/test_cursor_test_grader.py
+@@ -0,0 +1,51 @@
++from __future__ import print_function
++from __future__ import unicode_literals
++
++
++try:
++    from unittest import mock
++except ImportError:
++    import mock
++
++
++import pytest
++from tdclient import cursor
++from tdclient import errors
++from tdclient.test.test_helper import *
++
++
++def setup_function(function):
++    unset_environ()
++
++
++def test_fetchall_empty():
++    td = cursor.Cursor(mock.MagicMock())
++    td._executed = "42"
++    td._rows = []
++    td._rownumber = 0
++    td._rowcount = len(td._rows)
++    assert td.fetchall() == []
++
++
++def test_fetchmany_empty():
++    td = cursor.Cursor(mock.MagicMock())
++    td._executed = "42"
++    td._rows = []
++    td._rownumber = 0
++    td._rowcount = len(td._rows)
++    assert td.fetchmany() == []
++
++
++def test_fetchone_empty():
++    td = cursor.Cursor(mock.MagicMock())
++    td._executed = "42"
++    td._rows = []
++    td._rownumber = 0
++    td._rowcount = len(td._rows)
++    assert td.fetchone() is None
++
++
++def test_cursor_nextset():
++    td = cursor.Cursor(mock.MagicMock())
++    with pytest.raises(errors.NotSupportedError) as error:
++        td.nextset()

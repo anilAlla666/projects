@@ -1,0 +1,126 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,121 @@
++import json
++from pathlib import Path
++import pytest
++from nbchkr.utils import (
++    read,
++    remove_cells,
++    write,
++    add_checks,
++    get_tags,
++    get_score,
++    check,
++)
++
++
++@pytest.fixture
++def notebook():
++    return read(Path(__file__).parent.parent / "examples" / "notebook.ipynb")
++
++
++@pytest.fixture
++def source_notebook():
++    return read(Path(__file__).parent.parent / "examples" / "source_notebook.ipynb")
++
++
++@pytest.fixture
++def tagged_notebook():
++    return read(Path(__file__).parent.parent / "examples" / "tagged_notebook.ipynb")
++
++
++def test_read(notebook):
++    assert isinstance(notebook, dict)
++
++
++def test_remove_cells(tagged_notebook):
++    new_notebook = remove_cells(tagged_notebook)
++    assert len(new_notebook["cells"]) == 1
++    assert new_notebook["cells"][0]["source"] == "# Test Notebook\n"
++
++
++def test_write(tmpdir, tagged_notebook):
++    write(tmpdir / "new_notebook.json", tagged_notebook)
++    assert Path(tmpdir / "new_notebook.json").exists()
++    new_notebook = read(tmpdir / "new_notebook.json")
++    assert isinstance(new_notebook, dict)
++
++
++def test_add_checks(notebook, source_notebook):
++    new_source_notebook = add_checks(notebook, source_notebook)
++    assert len(new_source_notebook["cells"]) == 2
++    assert new_source_notebook["cells"][1]["source"] == "print('Test')\n"
++
++
++def test_get_tags(tagged_notebook):
++    tags = get_tags(tagged_notebook["cells"][0])
++    assert tags == "test|hide|score:2"
++
++
++def test_get_score(tagged_notebook):
++    score = get_score(tagged_notebook["cells"][0], "score:(\\d+)")
++    assert score == 2
++
++
++def test_check(tmpdir, notebook):
++    tmpdir.mkdir("tests")
++    tmpdir.join("tests").mkdir("results")
++    new_notebook = remove_cells(notebook)
++    write(tmpdir.join("tests", "new_notebook.json"), new_notebook)
++    result = check(tmpdir.join("tests", "new_notebook.json"))
++    assert result[0] == 0
++    assert result[1] == 0
++    assert result[2].startswith("# Student Score:")
++
++
++def test_check_with_results(tmpdir, notebook):
++    tmpdir.mkdir("tests")
++    tmpdir.join("tests").mkdir("results")
++    new_notebook = remove_cells(notebook)
++    write(tmpdir.join("tests", "new_notebook.json"), new_notebook)
++    execute_preprocessor = ExecutePreprocessor(timeout=600)
++    execute_preprocessor(tmpdir.join("tests", "new_notebook.json"))
++    result = check(tmpdir.join("tests", "new_notebook.json"))
++    assert result[0] == 0
++    assert result[1] == 2
++    assert result[2].startswith("# Student Score:")
++
++
++def test_check_with_answer_and_solution(tmpdir, notebook, source_notebook):
++    tmpdir.mkdir("tests")
++    tmpdir.join("tests").mkdir("results")
++    new_notebook = remove_cells(notebook)
++    write(tmpdir.join("tests", "new_notebook.json"), new_notebook)
++    add_checks(notebook, source_notebook)
++    execute_preprocessor = ExecutePreprocessor(timeout=600)
++    execute_preprocessor(tmpdir.join("tests", "new_notebook.json"))
++    result = check(tmpdir.join("tests", "new_notebook.json"))
++    assert result[0] == 2
++    assert result[1] == 2
++    assert result[2].startswith("# Student Score:")
++
++
++def test_check_with_answer_only(tmpdir, notebook, source_notebook):
++    tmpdir.mkdir("tests")
++    tmpdir.join("tests").mkdir("results")
++    new_notebook = remove_cells(notebook)
++    write(tmpdir.join("tests", "new_notebook.json"), new_notebook)
++    add_checks(notebook, source_notebook)
++    result = check(tmpdir.join("tests", "new_notebook.json"))
++    assert result[0] == 0
++    assert result[1] == 2
++    assert result[2].startswith("# Student Score:")
++
++
++def test_check_with_solution_only(tmpdir, notebook, source_notebook):
++    tmpdir.mkdir("tests")
++    tmpdir.join("tests").mkdir("results")
++    new_notebook = remove_cells(notebook)
++    write(tmpdir.join("tests", "new_notebook.json"), new_notebook)
++    execute_preprocessor = ExecutePreprocessor(timeout=600)
++    execute_preprocessor(tmpdir.join("tests", "new_notebook.json"))
++    result = check(tmpdir.join("tests", "new_notebook.json"))
++    assert result[0] == 2
++    assert result[1] == 2
++    assert result[2].startswith("# Student Score:")

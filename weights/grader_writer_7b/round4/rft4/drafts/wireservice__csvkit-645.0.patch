@@ -1,0 +1,64 @@
+--- /dev/null
++++ b/tests/test_utilities/test_csvsql_grader.py
+@@ -0,0 +1,61 @@
++import sys
++import six
++
++
++try:
++    from mock import patch
++except ImportError:
++    from unittest.mock import patch
++
++
++from csvkit.utilities.csvsql import CSVSQL, launch_new_instance
++from tests.utils import CSVKitTestCase, EmptyFileTests, stdin_as_string
++
++
++class TestCSVSQL(CSVKitTestCase, EmptyFileTests):
++    Utility = CSVSQL
++
++    def test_stdin(self):
++        input_file = six.StringIO('a,b,c\n1,2,3\n')
++
++        with stdin_as_string(input_file):
++            sql = self.get_output(['--table', 'foo'])
++
++            self.assertTrue('CREATE TABLE foo' in sql)
++            self.assertTrue('a INTEGER NOT NULL' in sql)
++            self.assertTrue('b INTEGER NOT NULL' in sql)
++            self.assertTrue('c INTEGER NOT NULL' in sql)
++
++    def test_stdin_and_filename(self):
++        input_file = six.StringIO("a,b,c\n1,2,3\n")
++
++        with stdin_as_string(input_file):
++            sql = self.get_output(['examples/dummy.csv'])
++
++            self.assertTrue('CREATE TABLE stdin' in sql)
++            self.assertTrue('CREATE TABLE dummy' in sql)
++
++    def test_stdin_is_not_read_if_explicitly_named(self):
++        input_file = six.StringIO("a,b,c\n1,2,3\n")
++
++        with stdin_as_string(input_file):
++            sql = self.get_output(['-', 'examples/dummy.csv'])
++
++            self.assertTrue('CREATE TABLE stdin' in sql)
++            self.assertTrue('CREATE TABLE dummy' in sql)
++
++    def test_stdin_is_not_added_when_reading_from_a_file(self):
++        with stdin_as_string(six.StringIO()):
++            utility = CSVSQL([], six.StringIO())
++            utility.main()
++
++            self.assertEqual(len(utility.input_files), 1)
++            self.assertFalse(isinstance(utility.input_files[0], six.StringIO))
++
++    def test_stdin_is_added_when_reading_from_a_file_and_explicitly_named(self):
++        with stdin_as_string(six.StringIO()):
++            utility = CSVSQL(['-'], six.StringIO())
++            utility.main()
++
++            self.assertEqual(len(utility.input_files), 1)
++            self.assertIsInstance(utility.input_files[0], six.StringIO)

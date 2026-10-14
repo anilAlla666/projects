@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/tests/test_schemas_grader.py
+@@ -0,0 +1,17 @@
++from unittest import TestCase
++
++
++class SchemasTest(TestCase):
++    def test_invalid_default(self):
++        """Check invalid default values"""
++
++        spec_dict = {
++            "components": {
++                "parameters": {
++                    "someComponent": {"name": "someComponent", "in": "query", "schema": {"type": "number", "default": "0"}}
++                }
++            },
++        }
++
++        self.assertRaises(Exception, lambda: spec_dict["components"]["parameters"])

@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/tests/abjadext/nauert/test_concatenatinggracehandler_grader.py
+@@ -0,0 +1,24 @@
++import pytest
++import abjad
++from abjadext.nauert import ConcatenatingGraceHandler, Quantizer
++
++
++def test_concatenatinggracehandler__call_1():
++    durations = [1000, 1, 999]
++    pitches = [0, None, 0]
++    q_event_sequence = abjadext.nauert.QEventSequence.from_millisecond_pitch_pairs(
++        tuple(zip(durations, pitches))
++    )
++    grace_handler = ConcatenatingGraceHandler(replace_rest_with_final_grace_note=True)
++    quantizer = Quantizer(grace_handler=grace_handler)
++    result = quantizer(q_event_sequence)
++    assert abjad.wf.test(result)
++    result = [x for x in result.leaves() if not isinstance(x, type(None))]
++    assert len(result) == 4
++    assert all(isinstance(x, abjad.Note) for x in result)
++
++
++def test_concatenatinggracehandler__call_2():
++    durations = [1000, 1, 999, 1000]
++    pitches = [0, 0, None, 0]
++    q_event_sequence = abjadext.nauert.QEventSequence.from_millisecond_pitch_pairs(
++        tuple(zip(durations, pitches))
++    )

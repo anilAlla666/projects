@@ -1,0 +1,13 @@
+--- /dev/null
++++ b/tests/test_client_side_socks_grader.py
+@@ -0,0 +1,10 @@
++import pytest
++
++
++@pytest.mark.asyncio
++async def test_socks_invalid_response(pair_factory, Client, socks):
++    client = Client(socks_host=socks.host, socks_port=socks.port,
++                    socks_version=5, username="foo", password="bar")
++    with pytest.raises(aioftp.ServerError):
++        async with pair_factory(client):
++            pass

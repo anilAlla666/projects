@@ -1,0 +1,98 @@
+--- /dev/null
++++ b/tests/test_unit_tools_grader.py
+@@ -0,0 +1,100 @@
++import logging
++import pytest
++import subprocess
++import yaml
++from contextlib import contextmanager
++from cekit.descriptor.base import _merge_descriptors, _merge_lists
++from cekit.descriptor import Descriptor, Image, Module, Overrides, Run
++from cekit.errors import CekitError
++from cekit import tools
++
++
++rhel_7_os_release = '''NAME="Red Hat Enterprise Linux Server"
++VERSION="7.7 (Maipo)"
++ID="rhel"
++ID_LIKE="fedora"
++VARIANT="Server"
++VARIANT_ID="server"
++# Some comment
++VERSION_ID="7.7"
++PRETTY_NAME="Red Hat Enterprise Linux Server 7.7 Beta (Maipo)"
++ANSI_COLOR="0;31"
++CPE_NAME="cpe:/o:redhat:enterprise_linux:7.7:beta:server"
++HOME_URL="https://www.redhat.com/"
++BUG_REPORT_URL="https://bugzilla.redhat.com/"
++
++REDHAT_BUGZILLA_PRODUCT="Red Hat Enterprise Linux 7"
++REDHAT_BUGZILLA_PRODUCT_VERSION=7.7
++REDHAT_SUPPORT_PRODUCT="Red Hat Enterprise Linux"
++REDHAT_SUPPORT_PRODUCT_VERSION="7.7 Beta"'''
++
++
++rhel_8_os_release = '''NAME="Red Hat Enterprise Linux"
++# Poor comment
++VERSION="8.0 (Ootpa)"
++ID="rhel"
++ID_LIKE="fedora"
++VERSION_ID="8.0"
++PLATFORM_ID="platform:el8"
++PRETTY_NAME="Red Hat Enterprise Linux 8.0 (Ootpa)"
++ANSI_COLOR="0;31"
++CPE_NAME="cpe:/o:redhat:enterprise_linux:8.0:GA"
++HOME_URL="https://www.redhat.com/"
++BUG_REPORT_URL="https://bugzilla.redhat.com/"
++
++REDHAT_BUGZILLA_PRODUCT="Red Hat Enterprise Linux 8"
++REDHAT_BUGZILLA_PRODUCT_VERSION=8.0
++REDHAT_SUPPORT_PRODUCT="Red Hat Enterprise Linux"
++REDHAT_SUPPORT_PRODUCT_VERSION="8.0"'''
++
++
++@contextmanager
++def mocked_dependency_handler(mocker):
++    yield tools.DependencyHandler()
++
++
++def test_brew_get_artifact_url():
++    expected_url = "http://download.devel.redhat.com/brewroot/packages/javax.json/1.0.4/1/maven/org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar"
++    actual_url = tools.brew_get_artifact_url("569870f975deeeb6691fcb9bc02a9555", "maven")
++    assert actual_url == expected_url
++
++
++def test_brew_get_artifact_url_with_dot_in_group_id():
++    expected_url = "http://download.devel.redhat.com/brewroot/packages/javax.json/1.0.4/1/maven/org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar"
++    actual_url = tools.brew_get_artifact_url("569870f975deeeb6691fcb9bc02a9555", "maven", "org.glassfish.javax.json")
++    assert actual_url == expected_url
++
++
++def test_brew_get_artifact_url_with_dot_in_artifact_id():
++    expected_url = "http://download.devel.redhat.com/brewroot/packages/javax.json/1.0.4/1/maven/org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar"
++    actual_url = tools.brew_get_artifact_url("569870f975deeeb6691fcb9bc02a9555", "maven", "org.glassfish", "javax.json")
++    assert actual_url == expected_url
++
++
++def test_brew_get_artifact_url_with_dot_in_version():
++    expected_url = "http://download.devel.redhat.com/brewroot/packages/javax.json/1.0.4/1/maven/org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar"
++    actual_url = tools.brew_get_artifact_url("569870f975deeeb6691fcb9bc02a9555", "maven", "org.glassfish", "javax.json", "1.0.4")
++    assert actual_url == expected_url
++
++
++def test_brew_get_artifact_url_with_dot_in_filename():
++    expected_url = "http://download.devel.redhat.com/brewroot/packages/javax.json/1.0.4/1/maven/org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar"
++    actual_url = tools.brew_get_artifact_url("569870f975deeeb6691fcb9bc02a9555", "maven", "org.glassfish", "javax.json", "1.0.4", "javax.json-1.0.4.jar")
++    assert actual_url == expected_url
++
++
++def test_brew_get_artifact_url_with_dot_in_all_parts():
++    expected_url = "http://download.devel.redhat.com/brewroot/packages/javax.json/1.0.4/1/maven/org.glassfish/javax.json/1.0.4/javax.json-1.0.4.jar"
++    actual_url = tools.brew_get_artifact_url("569870f975deeeb6691fcb9bc02a9555", "maven", "org.glassfish.javax.json", "javax.json", "1.0.4", "javax.json-1.0.4.jar")
++    assert actual_url == expected_url
++
++
++def test_brew_get_artifact_url_with_dot_in_all_parts_and_extra_path():
++    expected_url = "http://download.devel.redhat.com/brewroot/packages/javax.json/1.0.4/1/maven/org.glassfish/javax.json/1.0.4/javax.json-1.0.4.jar"
++    actual_url = tools.brew_get_artifact_url("569870f975deeeb6691fcb9bc02a9555", "maven", "org.glassfish.javax.json", "javax.json", "1.0.4", "javax.json-1.0.4.jar", "/path/to/artifact")
++    assert actual_url == expected_url

@@ -1,0 +1,48 @@
+To address the issue where the `Batch` object is not iterable, we need to add a method to the `Batch` class that makes it iterable. This can be done by implementing the `__iter__` method.
+
+Here's the unified diff that adds a new test file `tests/test_batch_iterable.py` to check if the `Batch` object is now iterable:
+
+```diff
+diff --git a/tests/test_batch_iterable.py b/tests/test_batch_iterable.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_batch_iterable.py
+@@ -0,0 +1,34 @@
++import pytest
++from hyp3_sdk.jobs import Batch, Job
++
++SUCCEEDED_JOB = {
++    "job_id": "d1c05104-b455-4f35-a95a-84155d63f855",
++    "status_code": "SUCCEEDED",
++    "files": [{"filename": "PAIR_PROCESS.nc", "size": 5949932, "url": "https://PAIR_PROCESS.nc"}]
++}
++
++def test_batch_iterable():
++    job1 = Job.from_dict(SUCCEEDED_JOB)
++    job2 = Job.from_dict(SUCCEEDED_JOB)
++    batch = Batch([job1, job2])
++
++    # Check if the batch is iterable
++    assert iter(batch) is not None
++
++    # Iterate over the batch and collect job IDs
++    job_ids = [job.job_id for job in batch]
++    assert job_ids == [job1.job_id, job2.job_id]
++
++    # Check if iterating over an empty batch works
++    empty_batch = Batch([])
++    assert list(empty_batch) == []
++
++    # Check if adding a single job to an empty batch makes it iterable
++    empty_batch += job1
++    assert list(empty_batch) == [job1.job_id]
+```
+
+This test file includes several checks:
+1. It verifies that the `Batch` object is iterable.
+2. It iterates over the `Batch` object and collects the job IDs to ensure they match the expected values.
+3. It checks that iterating over an empty `Batch` object results in an empty list.
+4. It ensures that adding a single job to an empty `Batch` object makes it iterable.
+
+These tests will fail on the current code because the `Batch` object is not iterable, and they will pass once the issue is fixed.

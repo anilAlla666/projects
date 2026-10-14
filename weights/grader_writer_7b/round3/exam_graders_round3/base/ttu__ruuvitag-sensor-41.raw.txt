@@ -1,0 +1,58 @@
+To address the issue with the Ruuvi Firmware 1.2.8 trimming extra NULLs at the end of transmission, we need to ensure that our data parsing logic correctly handles these cases. Below is a unified diff that includes a new test case in `tests/test_ruuvitag_sensor.py` to verify that the fix works as expected.
+
+```diff
+diff --git a/tests/test_ruuvitag_sensor.py b/tests/test_ruuvitag_sensor.py
+--- a/tests/test_ruuvitag_sensor.py
++++ b/tests/test_ruuvitag_sensor.py
+@@ -1,5 +1,6 @@
+ from unittest import TestCase
+ from unittest.mock import patch
++from ruuvitag_sensor.decoder import Decoder
+ 
+ from ruuvitag_sensor.ruuvi import RuuviTagSensor
+ from ruuvitag_sensor.ruuvitag import RuuviTag
+@@ -10,6 +11,7 @@ class TestRuuviTagSensor(TestCase):
+ 
+     def get_data(self, mac, bt_device):
+         # https://ruu.vi/#AjwYAMFc
+-        data = '043E2A0201030157168974A5F41E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD'
++        data = '043E2A0201030157168974A5F41E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD\x00\x00'
+         return data[26:]
+ 
+     @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_data',
+@@ -22,6 +24,7 @@ class TestRuuviTagSensor(TestCase):
+         self.assertEqual(state, {})
+ 
+         state = tag.update()
++        self.assertIn('temperature', state)
+         self.assertEqual(state['temperature'], 24)
+         self.assertEqual(state['pressure'], 995)
+         self.assertEqual(state['humidity'], 30)
+@@ -100,6 +103,24 @@ class TestRuuviTagSensor(TestCase):
+         self.assertEqual(len(datas), 5)
+ 
+     @patch('ruuvitag_sensor.ble_communication.BleCommunicationDummy.get_datas',
++            get_datas)
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_datas',
++            get_datas)
++    def test_handle_null_termination(self):
++        """Test handling of null termination in data"""
++        def get_data_with_null(mac, bt_device):
++            # Simulate data with null termination
++            data = '043E2A0201030157168974A5F41E0201060303AAFE1616AAFE10EE037275752E76692F23416A7759414D4663CD\x00\x00'
++            return data[26:]
++
++        @patch('ruuvitag_sensor.ble_communication.BleCommunicationDummy.get_data',
++               get_data_with_null)
++        @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_data',
++               get_data_with_null)
++        def test_tag_update_with_null(self):
++            tag = RuuviTag('48:2C:6A:1E:59:3D')
++            state = tag.update()
++            self.assertIn('temperature', state)
++            self.assertEqual(state['temperature'], 24)
++
++        test_tag_update_with_null()
+```
+
+This diff introduces a new test case `test_handle_null_termination` that simulates data with null termination (`\x00\x00`) and verifies that the `update` method still correctly parses the temperature. This ensures that the fix addresses the issue without depending on specific details left open by the original bug report.

@@ -1,0 +1,206 @@
+--- /dev/null
++++ b/tests/test_middleware_grader.py
+@@ -0,0 +1,77 @@
++import unittest
++from bugsnag.middleware import MiddlewareStack
++
++
++class TestMiddlewareClass(object):
++    def __init__(self, callback):
++        self.callback = callback
++        self.char = None
++
++    def __call__(self, item):
++        item.append(self.char)
++        self.callback(item)
++
++
++class TestMiddlewareClassA(TestMiddlewareClass):
++    def __init__(self, callback):
++        TestMiddlewareClass.__init__(self, callback)
++        self.char = 'A'
++
++
++class TestMiddlewareClassB(TestMiddlewareClass):
++    def __init__(self, callback):
++        TestMiddlewareClass.__init__(self, callback)
++        self.char = 'B'
++
++
++class TestMiddlewareClassC(TestMiddlewareClass):
++    def __init__(self, callback):
++        TestMiddlewareClass.__init__(self, callback)
++        self.char = 'C'
++
++
++class TestMiddlewareReturning(object):
++    def __init__(self, callback):
++        pass
++
++    def __call__(self, item):
++        return
++
++
++class TestMiddlewareCrashing(object):
++    def __init__(self, callback):
++        pass
++
++    def __call__(self, item):
++        raise RuntimeError()
++
++
++class TestMiddlewareStack(unittest.TestCase):
++    def test_insert_before_default_ordering(self):
++        a = []
++
++        m = MiddlewareStack()
++        m.append(TestMiddlewareClassA)
++        m.append(TestMiddlewareClassB)
++        m.insert_before(TestMiddlewareClass, TestMiddlewareClassC)
++        m.run(a, lambda: a.append('Callback'))
++
++        self.assertEqual(a, ['A', 'B', 'C', 'Callback'])
++
++    def test_insert_after_default_ordering(self):
++        a = []
++
++        m = MiddlewareStack()
++        m.append(TestMiddlewareClassA)
++        m.append(TestMiddlewareClassB)
++        m.insert_after(TestMiddlewareClass, TestMiddlewareClassC)
++        m.run(a, lambda: a.append('Callback'))
++
++        self.assertEqual(a, ['A', 'B', 'C', 'Callback'])
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/tests/integrations/test_wsgi_grader.py
+@@ -0,0 +1,117 @@
++from webtest import TestApp
++from bugsnag.wsgi.middleware import BugsnagMiddleware
++from six import Iterator
++import bugsnag.notification
++import bugsnag
++from tests.utils import IntegrationTest
++
++
++class SentinelError(RuntimeError):
++    pass
++
++
++class TestWSGI(IntegrationTest):
++    def setUp(self):
++        super(TestWSGI, self).setUp()
++        bugsnag.configure(use_ssl=False,
++                          endpoint=self.server.address,
++                          api_key='3874876376238728937',
++                          notify_release_stages=['dev'],
++                          release_stage='dev',
++                          asynchronous=False)
++
++    def test_bugsnag_middleware_working(self):
++        def BasicWorkingApp(environ, start_response):
++            start_response("200 OK",
++                           [('Content-Type', 'text/plain; charset=utf-8')])
++            return iter([b'OK'])
++
++        app = TestApp(BugsnagMiddleware(BasicWorkingApp))
++
++        resp = app.get('/', status=200)
++
++        self.assertEqual(resp.body, b'OK')
++        self.assertEqual(0, len(self.server.received))
++
++    def test_bugsnag_middleware_crash_on_start(self):
++
++        class CrashOnStartApp(object):
++            def __init__(self, environ, start_response):
++                raise SentinelError("oops")
++
++            def __iter__(self):
++                return b'OK'
++
++        app = TestApp(BugsnagMiddleware(CrashOnStartApp))
++
++        self.assertRaises(SentinelError, lambda: app.get('/beans'))
++
++        self.assertEqual(1, len(self.server.received))
++        payload = self.server.received[0]['json_body']
++        event = payload['events'][0]
++
++        self.assertEqual(event['severityReason'], {
++            'type': 'unhandledExceptionMiddleware',
++            'attributes': {
++                'framework': 'WSGI'
++            }
++        })
++
++    def test_bugsnag_middleware_crash_on_finish(self):
++
++        class CrashOnFinishApp(object):
++            def __init__(self, environ, start_response):
++                start_response("200 OK",
++                               [('Content-Type', 'text/plain; charset=utf-8')])
++                raise SentinelError("oops")
++
++            def __iter__(self):
++                return b'OK'
++
++        app = TestApp(BugsnagMiddleware(CrashOnFinishApp))
++
++        self.assertRaises(SentinelError, lambda: app.get('/beans'))
++
++        self.assertEqual(1, len(self.server.received))
++        payload = self.server.received[0]['json_body']
++        event = payload['events'][0]
++
++        self.assertEqual(event['severityReason'], {
++            'type': 'unhandledExceptionMiddleware',
++            'attributes': {
++                'framework': 'WSGI'
++            }
++        })
++
++    def test_bugsnag_middleware_crash_while_setting_meta_data(self):
++
++        class CrashAfterSettingMetaData(object):
++            def __init__(self, environ, start_response):
++                bugsnag.configure_request(meta_data={"account":
++                                                     {"paying": True}})
++
++            def __iter__(self):
++                raise SentinelError("oops")
++
++        app = TestApp(BugsnagMiddleware(CrashAfterSettingMetaData))
++
++        self.assertRaises(SentinelError, lambda: app.get('/beans'))
++
++        self.assertEqual(1, len(self.server.received))
++        payload = self.server.received[0]['json_body']
++        event = payload['events'][0]
++        self.assertEqual(event['metaData']['account'], {"paying": True})
++
++    def test_bugsnag_middleware_closes_iterables(self):
++
++        class CrashOnCloseIterable(object):
++
++            def __init__(self, environ, start_response):
++                start_response("200 OK",
++                               [('Content-Type', 'text/plain; charset=utf-8')])
++
++            def __iter__(self):
++                yield 'OK'
++
++            def close(self):
++                raise SentinelError("oops")
++
++        app = TestApp(BugsnagMiddleware(CrashOnCloseIterable))
++
++        self.assertRaises(SentinelError, lambda: app.get('/beans'))
++
++        self.assertEqual(1, len(self.server.received))
++        payload = self.server.received[0]['json_body']
++        environ = payload['events'][0]['metaData']['environment']
++        self.assertEqual(environ['PATH_INFO'], '/beans')

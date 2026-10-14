@@ -1,0 +1,22 @@
+--- /dev/null
++++ b/tests/test_grader_generated.py
+@@ -0,0 +1,19 @@
++import time
++from redpocket import RedPocket
++
++def test_get_details_with_type_api_faster_than_default(test_client):
++    # Create a RedPocket instance
++    rp = RedPocket(username="fake", password="password")
++
++    # Measure the response time for the default URL
++    start_time = time.time()
++    rp.get_line_details(account_hash="AAA1BBB2")
++    default_url_response_time = time.time() - start_time
++
++    # Measure the response time for the URL with type=api
++    start_time = time.time()
++    rp.get_line_details(account_hash="AAA1BBB2", params={"type": "api"})
++    api_url_response_time = time.time() - start_time
++
++    # Assert that the API URL response time is less than the default URL response time
++    assert api_url_response_time < default_url_response_time

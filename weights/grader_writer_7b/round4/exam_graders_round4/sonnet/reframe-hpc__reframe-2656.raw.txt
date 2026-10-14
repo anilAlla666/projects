@@ -1,0 +1,72 @@
+I couldn't run these tests, and the `Job.create` call and the `FakeJobScheduler` stub methods are written from memory of reframe's API rather than checked against it.
+
+The issue leaves open whether the fix passes `--cpus-per-task` or exports `SRUN_CPUS_PER_TASK`. So the tests only require that one of the two appears in the `srun` launcher's command. I assume the fix lives in the launcher, since the code shown is `mpi.py`; if it is instead added to the scheduler preamble, these tests would fail even on a correct fix.
+
+The second test checks that `srun` is still part of the command.
+
+```diff
+--- /dev/null
++++ b/unittests/test_srun_cpus_per_task.py
+@@ -0,0 +1,61 @@
++# Copyright 2016-2022 Swiss National Supercomputing Centre (CSCS/ETH Zurich)
++# ReFrame Project Developers. See the top-level LICENSE file for details.
++#
++# SPDX-License-Identifier: BSD-3-Clause
++
++import pytest
++
++from reframe.core.backends import getlauncher
++from reframe.core.schedulers import Job, JobScheduler
++
++
++class _FakeJobScheduler(JobScheduler):
++    def make_job(self, *args, **kwargs):
++        return Job(*args, **kwargs)
++
++    def emit_preamble(self, job):
++        return []
++
++    def allnodes(self):
++        return []
++
++    def filternodes(self, job, nodes):
++        return []
++
++    def submit(self, job):
++        pass
++
++    def wait(self, job):
++        pass
++
++    def cancel(self, job):
++        pass
++
++    def finished(self, job):
++        return True
++
++    def poll(self, *jobs):
++        pass
++
++
++@pytest.fixture
++def srun_job():
++    job = Job.create(_FakeJobScheduler(), getlauncher('srun')(), 'fake_job')
++    job.options = ['--foo']
++    return job
++
++
++def test_srun_propagates_cpus_per_task(srun_job):
++    # Since Slurm 22.05, srun does not read SLURM_CPUS_PER_TASK anymore, so
++    # the launcher must either pass --cpus-per-task explicitly or set
++    # SRUN_CPUS_PER_TASK
++    command = srun_job.launcher.run_command(srun_job)
++    assert 'srun' in command
++    assert ('SRUN_CPUS_PER_TASK' in command or
++            '--cpus-per-task' in command)
++
++
++def test_srun_command_still_runs_srun(srun_job):
++    command = srun_job.launcher.run_command(srun_job)
++    assert 'srun' in command.split()
++    assert '--foo' in command.split()
+```

@@ -1,0 +1,133 @@
+To address the issue of shadowing the Python keyword `int` when importing `pyteal`, we need to ensure that the submodule `pyteal.ast.int` does not interfere with the built-in `int` function. One way to achieve this is to rename the submodule to something else that does not conflict with Python keywords.
+
+Here's a proposed solution:
+
+1. Rename the submodule `pyteal.ast.int` to `pyteal.ast.teal_int`.
+2. Update all references to `pyteal.ast.int` in the codebase to use the new name.
+
+Let's implement this step-by-step.
+
+### Step 1: Rename the submodule
+
+Rename `pyteal/ast/int.py` to `pyteal/ast/teal_int.py`.
+
+### Step 2: Update the imports
+
+Update all imports in the codebase to use the new submodule name.
+
+#### Update `pyteal/__init__.py`
+
+```python
+# pyteal/__init__.py
+from .ast import *
+from .ir import *
+from .compiler import compileTeal
+from .types import TealType
+from .errors import TealInternalError, TealTypeError, TealInputError
+from .util import execute
+from .config import MAX_GROUP_SIZE
+```
+
+#### Update `pyteal/ast/__init__.py`
+
+```python
+# pyteal/ast/__init__.py
+# abstract types
+from .expr import Expr
+
+# basic types
+from .leafexpr import LeafExpr
+from .addr import Addr
+from .bytes import Bytes
+from .err import Err
+from .teal_int import Int, EnumInt  # Updated import
+
+# properties
+from .arg import Arg
+from .txn import TxnType, TxnField, TxnExpr, TxnaExpr, TxnArray, TxnObject, Txn
+from .gtxn import GtxnExpr, GtxnaExpr, TxnGroup, Gtxn
+from .global_ import Global, GlobalField
+from .app import App, AppField, OnComplete
+from .asset import AssetHolding, AssetParam
+
+# meta
+from .array import Array
+from .tmpl import Tmpl
+from .nonce import Nonce
+
+# unary ops
+from .unaryexpr import UnaryExpr, Btoi, Itob, Len, Sha256, Sha512_256, Keccak256, Not, BitwiseNot, Pop, Return, Balance
+
+# binary ops
+from .binaryexpr import BinaryExpr, Add, Minus, Mul, Div, BitwiseAnd, BitwiseOr, BitwiseXor, Mod, Eq, Neq, Lt, Le, Gt, Ge
+
+# more ops
+from .ed25519verify import Ed25519Verify
+from .substring import Substring
+from .naryexpr import NaryExpr, And, Or, Concat
+
+# control flow
+from .if_ import If
+from .cond import Cond
+from .seq import Seq
+from .assert_ import Assert
+
+# misc
+from .scratch import ScratchSlot, ScratchLoad, ScratchStore
+from .maybe import MaybeValue
+```
+
+#### Update `pyteal/ast/teal_int.py`
+
+```python
+# pyteal/ast/teal_int.py
+class Int:
+    def __init__(self, value):
+        self.value = value
+
+class EnumInt(Int):
+    pass
+```
+
+### Step 3: Write tests
+
+We need to write tests to verify that the renaming has resolved the issue. Here's a unified diff that adds two new test files:
+
+```diff
+diff --git a/tests/test_pyteal_ast_teal_int.py b/tests/test_pyteal_ast_teal_int.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_pyteal_ast_teal_int.py
+@@ -0,0 +1,10 @@
++import unittest
++from pyteal import ast
++
++class TestTealInt(unittest.TestCase):
++    def test_int_creation(self):
++        int_value = ast.teal_int.Int(5)
++        self.assertEqual(int_value.value, 5)
++
++    def test_enum_int_creation(self):
++        enum_int_value = ast.teal_int.EnumInt(10)
++        self.assertEqual(enum_int_value.value, 10)
++
++if __name__ == '__main__':
++    unittest.main()
+diff --git a/tests/test_pyteal_ast_int_shadowing.py b/tests/test_pyteal_ast_int_shadowing.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_pyteal_ast_int_shadowing.py
+@@ -0,0 +1,10 @@
++import unittest
++from pyteal import *
++
++class TestAstIntShadowing(unittest.TestCase):
++    def test_int_functionality(self):
++        result = int(5)
++        self.assertEqual(result, 5)
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+These tests will fail if the submodule `pyteal.ast.int` still shadows the built-in `int` function. Once the submodule is renamed, these tests should pass.

@@ -1,0 +1,74 @@
+To address the issue of link parsing failing for document references, we need to modify the `link` method in the `ConfluenceRenderer` class to handle links starting with `#`. These links should be treated as internal anchor links rather than relative paths.
+
+Here's the updated code:
+
+```python
+def link(self, link, title, text):
+    parsed_link = urlparse(link)
+    if self.enable_relative_links and (
+        not parsed_link.scheme and not parsed_link.netloc
+    ):
+        # Check if the link starts with '#'
+        if parsed_link.path.startswith('#'):
+            # Internal anchor link
+            replacement_link = f"md2cf-anchor-link-{uuid.uuid4()}"
+            self.relative_links.append(
+                RelativeLink(
+                    path=parsed_link.path,
+                    replacement=replacement_link,
+                    fragment=parsed_link.fragment,
+                    original=link,
+                    escaped_original=mistune.escape_link(link),
+                )
+            )
+            link = replacement_link
+        else:
+            # Relative link
+            replacement_link = f"md2cf-internal-link-{uuid.uuid4()}"
+            self.relative_links.append(
+                RelativeLink(
+                    path=unquote(parsed_link.path),
+                    replacement=replacement_link,
+                    fragment=parsed_link.fragment,
+                    original=link,
+                    escaped_original=mistune.escape_link(link),
+                )
+            )
+            link = replacement_link
+    return super(ConfluenceRenderer, self).link(link, title, text)
+```
+
+Now, let's write a test to ensure that this fix works correctly. We'll add a new test case to the existing test suite.
+
+```diff
+diff --git a/tests/test_md2cf.py b/tests/test_md2cf.py
+new file mode 100644
+index 0000000..e4b8c3d
+--- /dev/null
++++ b/tests/test_md2cf.py
+@@ -0,0 +1,25 @@
++import unittest
++from md2cf.confluence_renderer import ConfluenceRenderer
++from urllib.parse import urlparse
++
++class TestConfluenceRenderer(unittest.TestCase):
++    def setUp(self):
++        self.renderer = ConfluenceRenderer(enable_relative_links=True)
++
++    def test_internal_anchor_link(self):
++        link = "#frequently-asked-questions-osep"
++        title = "Frequently Asked Questions"
++        text = "FAQs"
++        
++        result = self.renderer.link(link, title, text)
++        expected = '<a href="md2cf-anchor-link-xxxxxxxx-xxxx-Mxxx-Nxxx">FAQs</a>'
++        
++        self.assertIn('href="md2cf-anchor-link-', result)
++        self.assertNotIn('href="', result)
++        self.assertEqual(result, expected)
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This test ensures that the `link` method correctly handles internal anchor links starting with `#` and does not treat them as relative paths. The test checks that the output contains the correct anchor link format and does not contain an external URL format.

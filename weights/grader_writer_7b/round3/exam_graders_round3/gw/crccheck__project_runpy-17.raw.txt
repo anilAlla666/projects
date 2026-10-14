@@ -1,0 +1,17 @@
+diff --git a/test_project_runpy.py b/test_project_runpy.py
+index 0e1a5b0..101002c 100644
+--- a/test_project_runpy.py
++++ b/test_project_runpy.py
+@@ -146,6 +146,12 @@ class HeidiReadableSqlFilter(TestCase):
+ 
+     def test_filter_params_is_optional(self):
+         logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=())
++        record = mock.MagicMock(args=(1.0,))
++        self.assertTrue(logging_filter.filter(record))
++        self.assertEqual('', record.args[1])
++
++    def test_filter_no_sql(self):
+         record = mock.MagicMock(args=())
+         record = mock.MagicMock(args=(1.0, 'foo'))
+         self.assertTrue(logging_filter.filter(record))

@@ -1,0 +1,74 @@
+--- /dev/null
++++ b/tests/test_v20_grader.py
+@@ -0,0 +1,34 @@
++import pytest
++from stix2patterns.v20.validator import run_validator
++
++
++def test_invalid_hash_wildcard():
++    patterns = [
++        "[file:hashes[*] = '8665c8d477534008b3058b72e2dae8ae']",
++        "[ipv4-addr:value[*] = '8665c8d477534008b3058b72e2dae8ae']",
++        "[domain-name:value[*] = '8665c8d477534008b3058b72e2dae8ae']",
++        "[url:value[*] = '8665c8d477534008b3058b72e2dae8ae']",
++    ]
++    for pattern in patterns:
++        results = run_validator(pattern, "2.0")
++        assert len(results) == 1
++        assert "is not supported" in results[0]
++
++
++@pytest.mark.parametrize("pattern", [
++    '[file:hashes["md5"] = "dffd6021bb2bd5b0af676290809ec3a5"]',
++    '[file:hashes["sha1"] = "8665c8d477534008b3058b72e2dae8ae"]'
++])
++def test_valid_hashes_with_quoted_key(pattern):
++    results = run_validator(pattern, "2.0")
++    assert len(results) == 0
++
++
++@pytest.mark.parametrize("pattern", [
++    '[file:hashes["invalid-hash-type"] = "dffd6021bb2bd5b0af676290809ec3a5"]',
++    '[file:hashes["invalid-hash-type"] = "8665c8d477534008b3058b72e2dae8ae"]',
++])
++def test_invalid_hashes_with_quoted_key(pattern):
++    results = run_validator(pattern, "2.0")
++    assert len(results) == 1
++    assert "is not a valid hash type" in results[0]
+--- /dev/null
++++ b/tests/test_v21_grader.py
+@@ -0,0 +1,34 @@
++import pytest
++from stix2patterns.v21.validator import run_validator
++
++
++def test_invalid_hash_wildcard():
++    patterns = [
++        "[file:hashes[*] = '8665c8d477534008b3058b72e2dae8ae']",
++        "[ipv4-addr:value[*] = '8665c8d477534008b3058b72e2dae8ae']",
++        "[domain-name:value[*] = '8665c8d477534008b3058b72e2dae8ae']",
++        "[url:value[*] = '8665c8d477534008b3058b72e2dae8ae']",
++    ]
++    for pattern in patterns:
++        results = run_validator(pattern, "2.1")
++        assert len(results) == 1
++        assert "is not supported" in results[0]
++
++
++@pytest.mark.parametrize("pattern", [
++    '[file:hashes["md5"] = "dffd6021bb2bd5b0af676290809ec3a5"]',
++    '[file:hashes["sha1"] = "8665c8d477534008b3058b72e2dae8ae"]'
++])
++def test_valid_hashes_with_quoted_key(pattern):
++    results = run_validator(pattern, "2.1")
++    assert len(results) == 0
++
++
++@pytest.mark.parametrize("pattern", [
++    '[file:hashes["invalid-hash-type"] = "dffd6021bb2bd5b0af676290809ec3a5"]',
++    '[file:hashes["invalid-hash-type"] = "8665c8d477534008b3058b72e2dae8ae"]',
++])
++def test_invalid_hashes_with_quoted_key(pattern):
++    results = run_validator(pattern, "2.1")
++    assert len(results) == 1
++    assert "is not a valid hash type" in results[0]

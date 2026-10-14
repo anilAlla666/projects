@@ -1,0 +1,98 @@
+I added a new test file that calls `scan_iter` and `scan` with `_type` across string, hash, list, set and zset keys. I haven't run it, so I haven't confirmed it fails on the current code and passes after the fix.
+
+- **Type matching:** each test creates keys of different types and checks that only the keys of the requested type come back.
+- **Case:** the matching tests also pass the type name in upper and lower case. This assumes the filter is case-insensitive, as the existing `casematch` call suggests.
+- **No match:** one test checks that a type with no matching keys returns nothing.
+- **Plain `scan`:** one test calls `scan` directly with `_type`, to cover the same path without `scan_iter`.
+
+
+<invoke name="bash">
+<parameter name="command">cat > test/test_mixins/test_scan_type.py <<'EOF'
+from __future__ import annotations
+
+
+def _populate(r):
+    r.set('str_key', 'value')
+    r.hset('hash_key', 'f', 'v')
+    r.rpush('list_key', 'a')
+    r.sadd('set_key', 'a')
+    r.zadd('zset_key', {'a': 2})
+
+
+def test_scan_iter_type_zset_with_match(r):
+    r.zadd('key', {'a': 2})
+    assert list(r.scan_iter(match='key', _type='ZSET')) == [b'key']
+
+
+def test_scan_iter_type_filters(r):
+    _populate(r)
+    assert set(r.scan_iter(_type='string')) == {b'str_key'}
+    assert set(r.scan_iter(_type='hash')) == {b'hash_key'}
+    assert set(r.scan_iter(_type='list')) == {b'list_key'}
+    assert set(r.scan_iter(_type='set')) == {b'set_key'}
+    assert set(r.scan_iter(_type='zset')) == {b'zset_key'}
+    assert set(r.scan_iter(_type='ZSET')) == {b'zset_key'}
+
+
+def test_scan_iter_type_no_match(r):
+    r.set('foo', 'bar')
+    assert list(r.scan_iter(match='foo', _type='zset')) == []
+    assert list(r.scan_iter(_type='hash')) == []
+
+
+def test_scan_type_with_match(r):
+    _populate(r)
+    cursor, keys = r.scan(match='*_key', count=100, _type='hash')
+    assert cursor == 0
+    assert set(keys) == {b'hash_key'}
+EOF
+git diff --no-index /dev/null test/test_mixins/test_scan_type.py | head -0</parameter>
+</invoke>
+ting
+
+I need to output the diff itself:
+
+```diff
+diff --git a/test/test_mixins/test_scan_type.py b/test/test_mixins/test_scan_type.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_mixins/test_scan_type.py
+@@ -0,0 +1,34 @@
++from __future__ import annotations
++
++
++def _populate(r):
++    r.set('str_key', 'value')
++    r.hset('hash_key', 'f', 'v')
++    r.rpush('list_key', 'a')
++    r.sadd('set_key', 'a')
++    r.zadd('zset_key', {'a': 2})
++
++
++def test_scan_iter_type_zset_with_match(r):
++    r.zadd('key', {'a': 2})
++    assert list(r.scan_iter(match='key', _type='ZSET')) == [b'key']
++
++
++def test_scan_iter_type_filters(r):
++    _populate(r)
++    assert set(r.scan_iter(_type='string')) == {b'str_key'}
++    assert set(r.scan_iter(_type='hash')) == {b'hash_key'}
++    assert set(r.scan_iter(_type='list')) == {b'list_key'}
++    assert set(r.scan_iter(_type='set')) == {b'set_key'}
++    assert set(r.scan_iter(_type='zset')) == {b'zset_key'}
++    assert set(r.scan_iter(_type='ZSET')) == {b'zset_key'}
++
++
++def test_scan_iter_type_no_match(r):
++    r.set('foo', 'bar')
++    assert list(r.scan_iter(match='foo', _type='zset')) == []
++    assert list(r.scan_iter(_type='hash')) == []
++
++
++def test_scan_type_with_match(r):
++    _populate(r)
++    cursor, keys = r.scan(match='*_key', count=100, _type='hash')
++    assert cursor == 0
++    assert set(keys) == {b'hash_key'}
+```

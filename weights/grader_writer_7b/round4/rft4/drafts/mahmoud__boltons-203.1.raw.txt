@@ -1,0 +1,56 @@
+--- /dev/null
++++ b/tests/test_funcutils_grader.py
+@@ -0,0 +1,17 @@
++from boltons.funcutils import (copy_function,
++                               total_ordering,
++                               InstancePartial,
++                               CachedInstancePartial)
++
++
++class Greeter(object):
++    def __init__(self, greeting):
++        self.greeting = greeting
++
++    def greet(self, excitement='.'):
++        return self.greeting.capitalize() + excitement
++
++    partial_greet = InstancePartial(greet, excitement='!')
++    cached_partial_greet = CachedInstancePartial(greet, excitement='...')
++
++    def native_greet(self):
++        return self.greet(';')
+--- /dev/null
++++ b/tests/test_funcutils_fb_grader.py
+@@ -0,0 +1,29 @@
++import pytest
++from boltons.funcutils import wraps, FunctionBuilder
++
++
++def pita_wrap(flag=False):
++
++    def cedar_dec(func):
++        @wraps(func)
++        def cedar_wrapper(*a, **kw):
++            return (flag, func.__name__, func(*a, **kw))
++        return cedar_wrapper
++
++    return cedar_dec
++
++
++def wrappable_func(a, b):
++    return a, b
++
++
++def wrappable_varkw_func(a, b, **kw):
++    return a, b
++
++
++def test_wraps_expected():
++    assert wrappable_func.__annotations__ == {}
++
++    def expect_dict(func):
++        @wraps(func, expected={'c': 6})
++        def wrapped(*args, **kwargs):
++            args, c = args[:2], args[-1]
++            return func(*args, **kwargs) + (c,)
++        return wrapped

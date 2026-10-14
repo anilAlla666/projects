@@ -1,0 +1,40 @@
+--- a/tests/test_jobs.py
++++ b/tests/test_jobs.py
+@@ -203,6 +203,38 @@
+     assert batch.any_expired()
+ 
+ 
++def test_batch_iterable():
++    job1 = Job.from_dict(SUCCEEDED_JOB)
++    job2 = Job.from_dict(FAILED_JOB)
++    job3 = Job.from_dict(SUCCEEDED_JOB)
++    batch = Batch([job1, job2, job3])
++
++    iterated = [job for job in batch]
++    assert len(iterated) == 3
++    assert iterated[0] is job1
++    assert iterated[1] is job2
++    assert iterated[2] is job3
++
++    # can iterate more than once
++    assert list(batch) == [job1, job2, job3]
++    assert list(batch) == [job1, job2, job3]
++
++
++def test_batch_iterable_empty():
++    assert list(Batch()) == []
++    for _ in Batch():
++        assert False, 'empty batch should not yield jobs'
++
++
++def test_batch_iterable_comprehension():
++    batch = Batch([Job.from_dict(SUCCEEDED_JOB), Job.from_dict(SUCCEEDED_JOB)])
++    sizes = [job.files[0]['size'] for job in batch]
++    assert sizes == [5949932, 5949932]
++    for job in batch:
++        assert isinstance(job, Job)
++
++
+ def test_batch_filter_jobs():
+     succeeded_job = Job.from_dict(SUCCEEDED_JOB)
+     succeeded_job.expiration_time = datetime.now(tz.UTC) + timedelta(days=7)

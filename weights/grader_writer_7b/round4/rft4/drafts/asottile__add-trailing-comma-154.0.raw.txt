@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/tests/features/test_literals_test_grader.py
+@@ -0,0 +1,30 @@
++import pytest
++from add_trailing_comma._main import _fix_src
++
++
++@pytest.mark.parametrize(
++    ('src', 'expected'),
++    (
++        (
++            'x = (\n'
++            '    object  # < comma is added here\n'
++            '),\n'
++            'object',
++
++            'x = (\n'
++            '    object,  # < comma is added here\n'
++            ')\n'
++            ',\n'
++            'object',
++        ),
++    ),
++)
++def test_fixes_tuples_with_single_elements(src, expected):
++    assert _fix_src(src, min_version=(2, 7)) == expected
++
++
++def test_noop_tuple_literal_without_braces():
++    src = (
++        'x = \\\n'
++        '    1, \\\n'
++        '    2, \\\n'
++        '    3'
++    )
++    assert _fix_src(src, min_version=(2, 7)) == src

@@ -1,0 +1,121 @@
+--- /dev/null
++++ b/tests/unit/test_tools_grader.py
+@@ -0,0 +1,120 @@
++import argparse
++import lzma
++from pathlib import Path
++import pytest
++from auditwheel.tools import EnvironmentDefault, dir2zip, zip2dir
++
++
++@pytest.mark.parametrize(
++    ("environ", "passed", "expected"),
++    [
++        (None, None, "manylinux1"),
++        (None, "manylinux2010", "manylinux2010"),
++        ("manylinux2010", None, "manylinux2010"),
++        ("manylinux2010", "linux", "linux"),
++    ],
++)
++def test_environment_action(monkeypatch, environ, passed, expected):
++    choices = ["linux", "manylinux1", "manylinux2010"]
++    argv = []
++    if passed:
++        argv = ["--plat", passed]
++    if environ:
++        monkeypatch.setenv("AUDITWHEEL_PLAT", environ)
++    p = argparse.ArgumentParser()
++    p.add_argument(
++        "--plat",
++        action=EnvironmentDefault,
++        env="AUDITWHEEL_PLAT",
++        dest="PLAT",
++        choices=choices,
++        default="manylinux1",
++    )
++    args = p.parse_args(argv)
++    assert args.PLAT == expected
++
++
++def _write_test_permissions_zip(path):
++    source_zip_xz = Path(__file__).parent / "test-permissions.zip.xz"
++    with lzma.open(source_zip_xz) as f:
++        path.write_bytes(f.read())
++
++
++def _check_permissions(path):
++    for i in range(8):
++        for j in range(8):
++            for k in range(8):
++                mode = (path / f"{i}{j}{k}.f").stat().st_mode
++                assert ((mode >> 6) & 7) == (i | 6)  # always read/write
++                assert ((mode >> 3) & 7) == j
++                assert ((mode >> 0) & 7) == k
++                mode = (path / f"{i}{j}{k}.d").stat().st_mode
++                assert ((mode >> 6) & 7) == 7  # always read/write/execute
++                assert ((mode >> 3) & 7) == 5  # always read/execute
++                assert ((mode >> 0) & 7) == 5  # always read/execute
++
++
++def test_zip2dir_permissions(tmp_path):
++    source_zip = tmp_path / "test-permissions.zip"
++    _write_test_permissions_zip(source_zip)
++    extract_path = tmp_path / "unzip"
++    zip2dir(str(source_zip), str(extract_path))
++    _check_permissions(extract_path)
++
++
++def test_zip2dir_round_trip_permissions(tmp_path):
++    source_zip = tmp_path / "test-permissions.zip"
++    _write_test_permissions_zip(source_zip)
++    extract_path = tmp_path / "unzip2"
++    zip2dir(str(source_zip), str(tmp_path / "unzip1"))
++    dir2zip(str(tmp_path / "unzip1"), str(tmp_path / "tmp.zip"))
++    zip2dir(str(tmp_path / "tmp.zip"), str(extract_path))
++    _check_permissions(extract_path)
++
++
++def test_dir2zip_no_date(tmp_path):
++    test_file = tmp_path / "testfile.txt"
++    test_file.write_text("test content")
++    dir2zip(str(tmp_path), str(test_file.with_suffix(".zip")))
++
++
++def _get_expected_times(date_time):
++    date_time_args = date_time.timetuple()[:6]
++    return {"date_time": date_time_args}
++
++
++@pytest.mark.parametrize(
++    ("environ", "expected"),
++    [
++        (None, {"date_time": None}),
++        ("2020-01-01T00:00:00Z", {"date_time": (2020, 1, 1, 0, 0, 0)}),
++        ("2020-01-01T00:00:00", {"date_time": (2020, 1, 1, 0, 0, 0)}),
++        ("2020-01-01T00:00:00.000Z", {"date_time": (2020, 1, 1, 0, 0, 0)}),
++        ("2020-01-01T00:00:00.000", {"date_time": (2020, 1, 1, 0, 0, 0)}),
++        ("2020-01-01T00:00:00.000000Z", {"date_time": (2020, 1, 1, 0, 0, 0)}),
++        ("2020-01-01T00:00:00.000000", {"date_time": (2020, 1, 1, 0, 0, 0)}),
++        ("2020-01-01T00:00:00.000000000Z", {"date_time": (2020, 1, 1, 0, 0, 0)}),
++        ("2020-01-01T00:00:00.000000000", {"date_time": (2020, 1, 1, 0, 0, 0)}),
++    ],
++)
++def test_dir2zip_date(environ, expected):
++    if environ:
++        with pytest.warns(DeprecationWarning):
++            dir2zip(".", ".", environ)
++    else:
++        dir2zip(".", ".", date_time=environ)
++    with zipfile.ZipFile(".") as zf:
++        info = zf.getinfo("/")
++        assert info.date_time == expected["date_time"]
++
++
++def test_dir2zip_deprecated_arg(tmp_path):
++    with pytest.deprecated_call():
++        dir2zip(".", str(tmp_path / "test.zip"), "2020-01-01T00:00:00.000Z")
++
++
++def test_dir2zip_unsupported_date_format():
++    with pytest.raises(ValueError, match="unsupported time format"):
++        dir2zip(".", ".", "2020-01-01T00:00:00.000ZZZ")

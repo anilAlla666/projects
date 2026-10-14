@@ -1,0 +1,171 @@
+--- /dev/null
++++ b/test/unit/test_crc_grader.py
+@@ -0,0 +1,227 @@
++import io
++import string
++import unittest
++from collections import namedtuple
++import pytest
++from crc._crc import (
++    Byte,
++    Calculator,
++    Configuration,
++    Crc8,
++    Crc16,
++    Register,
++    TableBasedRegister,
++    _generate_template,
++    create_lookup_table,
++)
++
++
++Fixture = namedtuple("Fixture", "data checksum")
++
++
++class TestTableBasedRegister(unittest.TestCase):
++    def setUp(self):
++        config = Configuration(
++            width=8,
++            polynomial=0x07,
++            init_value=0x00,
++            final_xor_value=0x00,
++            reverse_input=True,
++            reverse_output=True,
++        )
++        self.table_based_register = TableBasedRegister(config)
++
++    def tearDown(self):
++        del self.table_based_register
++
++    def test_update_and_digest(self):
++        data = b"123"
++        result = self.table_based_register.update(data)
++        self.assertEqual(result, 0xB4)
++
++    def test_update_and_digest_multiple_times(self):
++        data = b"123"
++        first_result = self.table_based_register.update(data)
++        second_result = self.table_based_register.update(data)
++        third_result = self.table_based_register.update(data)
++        self.assertEqual(first_result, 0xB4)
++        self.assertEqual(second_result, 0xB4)
++        self.assertEqual(third_result, 0xB4)
++
++    def test_init(self):
++        self.assertEqual(self.table_based_register.register, 0)
++
++    def test_init_with_value(self):
++        self.table_based_register.register = 0x12
++        self.assertEqual(self.table_based_register.register, 0x12)
++
++    def test_reversed_register(self):
++        self.assertEqual(self.table_based_register.reverse(), 0x01)
++
++    def test_reversed_register_when_reverse_input_is_false(self):
++        config = Configuration(
++            width=8,
++            polynomial=0x07,
++            init_value=0x00,
++            final_xor_value=0x00,
++            reverse_input=False,
++            reverse_output=True,
++        )
++        table_based_register = TableBasedRegister(config)
++        self.assertEqual(table_based_register.reverse(), 0x01)
++
++    def test_process_byte(self):
++        byte = Byte.from_bytes(b"\x01")
++        self.assertEqual(self.table_based_register._process_byte(byte), 0x01)
++
++    def test_calculate(self):
++        calculator = Calculator(Crc8.POLY_8)
++        self.assertEqual(calculator.calculate(b""), 0)
++        self.assertEqual(calculator.calculate(b"A"), 0x55)
++        self.assertEqual(calculator.calculate(b"BC"), 0x6D)
++        self.assertEqual(calculator.calculate(b"XYZ"), 0x7E)
++
++    def test_calculate_multiple_calls_same_data(self):
++        calculator = Calculator(Crc8.POLY_8)
++        self.assertEqual(calculator.calculate(b""), 0)
++        self.assertEqual(calculator.calculate(b"A"), 0x55)
++        self.assertEqual(calculator.calculate(b"BC"), 0x6D)
++        self.assertEqual(calculator.calculate(b"XYZ"), 0x7E)
++
++    def test_calculate_multiple_calls_different_data(self):
++        calculator = Calculator(Crc8.POLY_8)
++        self.assertEqual(calculator.calculate(b""), 0)
++        self.assertEqual(calculator.calculate(b"A"), 0x55)
++        self.assertEqual(calculator.calculate(b"BC"), 0x6D)
++        self.assertEqual(calculator.calculate(b"XYZ"), 0x7E)
++        self.assertEqual(calculator.calculate(b"XYZW"), 0x7F)
++
++    def test_calculate_multiple_calls_mixed_data(self):
++        calculator = Calculator(Crc8.POLY_8)
++        self.assertEqual(calculator.calculate(b""), 0)
++        self.assertEqual(calculator.calculate(b"A"), 0x55)
++        self.assertEqual(calculator.calculate(b"BC"), 0x6D)
++        self.assertEqual(calculator.calculate(b"XYZ"), 0x7E)
++        self.assertEqual(calculator.calculate(b"XYZW"), 0x7F)
++        self.assertEqual(calculator.calculate(b"XYZWX"), 0x3F)
++        self.assertEqual(calculator.calculate(b"YZWX"), 0x42)
++
++    def test_calculate_multiple_calls_with_init_value(self):
++        calculator = Calculator(Crc8.POLY_8, init_value=0x12)
++        self.assertEqual(calculator.calculate(b""), 0x12)
++        self.assertEqual(calculator.calculate(b"A"), 0x67)
++        self.assertEqual(calculator.calculate(b"BC"), 0x7F)
++        self.assertEqual(calculator.calculate(b"XYZ"), 0x88)
++
++    def test_calculate_multiple_calls_with_final_xor_value(self):
++        calculator = Calculator(Crc8.POLY_8, final_xor_value=0x12)
++        self.assertEqual(calculator.calculate(b""), 0x12)
++        self.assertEqual(calculator.calculate(b"A"), 0x67)
++        self.assertEqual(calculator.calculate(b"BC"), 0x7F)
++        self.assertEqual(calculator.calculate(b"XYZ"), 0x88)
++
++    def test_calculate_multiple_calls_with_reverse_output(self):
++        calculator = Calculator(Crc8.POLY_8, reverse_output=True)
++        self.assertEqual(calculator.calculate(b""), 0)
++        self.assertEqual(calculator.calculate(b"A"), 0x5A)
++        self.assertEqual(calculator.calculate(b"BC"), 0x62)
++        self.assertEqual(calculator.calculate(b"XYZ"), 0x7B)
++
++    def test_calculate_multiple_calls_with_reverse_output_true_and_reverse_input_true(self):
++        calculator = Calculator(
++            Crc8.POLY_8, reverse_output=True, reverse_input=True
++        )
++        self.assertEqual(calculator.calculate(b""), 0)
++        self.assertEqual(calculator.calculate(b"A"), 0x55)
++        self.assertEqual(calculator.calculate(b"BC"), 0x6D)
++        self.assertEqual(calculator.calculate(b"XYZ"), 0x7E)
++
++    def test_calculate_multiple_calls_with_reverse_output_true_and_reverse_input_false(self):
++        calculator = Calculator(
++            Crc8.POLY_8, reverse_output=True, reverse_input=False
++        )
++        self.assertEqual(calculator.calculate(b""), 0)
++        self.assertEqual(calculator.calculate(b"A"), 0x5A)
++        self.assertEqual(calculator.calculate(b"BC"), 0x62)
++        self.assertEqual(calculator.calculate(b"XYZ"), 0x7B)
++
++    def test_calculate_multiple_calls_with_reverse_output_false_and_reverse_input_true(self):
++        calculator = Calculator(
++            Crc8.POLY_8, reverse_output=False, reverse_input=True
++        )
++        self.assertEqual(calculator.calculate(b""), 0)
++        self.assertEqual(calculator.calculate(b"A"), 0x55)
++        self.assertEqual(calculator.calculate(b"BC"), 0x6D)
++        self.assertEqual(calculator.calculate(b"XYZ"), 0x7E)
++
++    def test_calculate_multiple_calls_with_reverse_output_false_and_reverse_input_false(self):
++        calculator = Calculator(
++            Crc8.POLY_8, reverse_output=False, reverse_input=False
++        )
++        self.assertEqual(calculator.calculate(b""), 0)
++        self.assertEqual(calculator.calculate(b"A"), 0x5A)
++        self.assertEqual(calculator.calculate(b"BC"), 0x62)
++        self.assertEqual(calculator.calculate(b"XYZ"), 0x7B)
++
++
++if __name__ == "__main__":
++    unittest.main()

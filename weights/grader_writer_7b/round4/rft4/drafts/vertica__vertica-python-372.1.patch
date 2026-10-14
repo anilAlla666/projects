@@ -1,0 +1,101 @@
+--- /dev/null
++++ b/vertica_python/tests/integration_tests/test_cursor_grader.py
+@@ -0,0 +1,111 @@
++from __future__ import print_function, division, absolute_import
++from datetime import date, datetime, time
++from decimal import Decimal
++from uuid import UUID
++import six
++from six.moves import range
++import unittest
++from vertica_python import errors
++from vertica_python.vertica.cursor import Cursor
++
++
++class TestBindParameters(unittest.TestCase):
++    _table = 'test_bind_parameters'
++
++    def setUp(self):
++        try:
++            with self._connect() as conn:
++                cur = conn.cursor()
++                cur.execute('DROP TABLE IF EXISTS {}'.format(self._table))
++        except errors.ConnectionError:
++            # If the connection fails, we don't have a database to drop the table
++            pass
++
++    def tearDown(self):
++        try:
++            with self._connect() as conn:
++                cur = conn.cursor()
++                cur.execute('DROP TABLE IF EXISTS {}'.format(self._table))
++        except errors.ConnectionError:
++            # If the connection fails, we don't have a database to drop the table
++            pass
++
++    def assertListOfListsEqual(self, actual, expected):
++        self.assertEqual(len(actual), len(expected),
++                         "Expected {} rows, got {}"
++                         .format(len(expected), len(actual)))
++        for i in range(len(expected)):
++            self.assertEqual(actual[i], expected[i],
++                             "Row {} mismatch\nActual: {}\nExpected: {}".format(i, actual[i], expected[i]))
++
++    def _connect(self):
++        return Cursor()
++
++    def test_tuple_of_tuples(self):
++        with self._connect() as conn:
++            cur = conn.cursor()
++            cur.execute('''
++                CREATE TABLE {} (
++                    id INT PRIMARY KEY,
++                    data TEXT
++                )
++            '''.format(self._table))
++
++            test_cases = [
++                ((1, 2, 3), ('a', 'b', 'c')),
++                ((None,), (None,))
++            ]
++
++            for ids, datas in test_cases:
++                cur.execute('INSERT INTO {} (id, data) VALUES (?, ?)'
++                            .format(self._table), (ids, datas))
++
++                cur.execute('SELECT id, data FROM {} ORDER BY id ASC'
++                            .format(self._table))
++
++                expected_ids = [id for id, _ in test_cases[0]]
++                expected_datas = [data for _, data in test_cases[1]]
++                expected = list(zip(expected_ids, expected_datas))
++
++                self.assertEqual(cur.fetchall(), expected)
++
++    def test_list_of_lists(self):
++        with self._connect() as conn:
++            cur = conn.cursor()
++            cur.execute('''
++                CREATE TABLE {} (
++                    id INT PRIMARY KEY,
++                    data TEXT
++                )
++            '''.format(self._table))
++
++            test_cases = [
++                ([1, 2, 3], ['a', 'b', 'c']),
++                ([None], [None])
++            ]
++
++            for ids, datas in test_cases:
++                cur.execute('INSERT INTO {} (id, data) VALUES (?, ?)'
++                            .format(self._table), (ids, datas))
++
++                cur.execute('SELECT id, data FROM {} ORDER BY id ASC'
++                            .format(self._table))
++
++                expected_ids = [id for id, _ in test_cases[0]]
++                expected_datas = [data for _, data in test_cases[1]]
++                expected = list(zip(expected_ids, expected_datas))
++
++                self.assertEqual(cur.fetchall(), expected)

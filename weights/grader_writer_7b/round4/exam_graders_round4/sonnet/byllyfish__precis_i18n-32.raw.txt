@@ -1,0 +1,49 @@
+I couldn't see the repo's existing tests, so this is written from memory of the API. I haven't run it.
+
+- **API assumption:** it uses `precis_i18n.get_profile('Nickname')` and `enforce`.
+- **Error type:** it accepts any `ValueError`, which includes `UnicodeError`.
+- **Message check:** it looks for `invalid_white_space` in `str(exc)`, in case the library puts the reason somewhere else.
+
+**What the tests cover:**
+- **Control characters:** `\x1f`, `\x1c`, `\x1d`, `\x1e`, `\x0b` and `\x0c` at the start or end of a nickname must fail with `invalid_white_space`. These characters are not stripped today, so the current code rejects them with a different reason, which is why the message check fails now.
+- **Left out on purpose:** `\n`, `\t` and `\r`, because the issue leaves open whether they keep being stripped.
+- **Regression guard:** plain ASCII spaces, and non-ASCII `Zs` spaces mapped to ASCII, must still be stripped and collapsed.
+
+```diff
+--- /dev/null
++++ b/tests/test_nickname_whitespace.py
+@@ -0,0 +1,50 @@
++import unittest
++
++from precis_i18n import get_profile
++
++
++class NicknameWhiteSpaceTest(unittest.TestCase):
++    def setUp(self):
++        self.profile = get_profile('Nickname')
++
++    def _error_text(self, value):
++        try:
++            result = self.profile.enforce(value)
++        except ValueError as exc:  # UnicodeError is a ValueError
++            return str(exc) + ' ' + repr(getattr(exc, 'reason', ''))
++        self.fail('expected error for %r, got %r' % (value, result))
++
++    def test_control_chars_not_stripped(self):
++        for value in ('\x1fb\x1f', '\x1fb', 'b\x1f', '\x1cb\x1c',
++                      '\x1db\x1d', '\x1eb\x1e', '\x0bb\x0b', '\x0cb\x0c'):
++            text = self._error_text(value)
++            self.assertIn('invalid_white_space', text, repr(value))
++
++    def test_ascii_space_still_stripped(self):
++        self.assertEqual(self.profile.enforce('  a  '), 'a')
++        self.assertEqual(self.profile.enforce(' a   b '), 'a b')
++
++    def test_nonascii_space_still_mapped_and_stripped(self):
++        self.assertEqual(self.profile.enforce('\u3000a\u2003\u2003b\u00a0'),
++                         'a b')
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

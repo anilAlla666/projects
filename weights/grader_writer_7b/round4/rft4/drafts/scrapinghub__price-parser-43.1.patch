@@ -1,0 +1,21 @@
+--- /dev/null
++++ b/tests/test_parser_grader.py
+@@ -0,0 +1,17 @@
++import pytest
++from price_parser import Price
++
++
++def test_extract_price_text_with_non_break_space():
++    assert Price.fromstring("€\xa010").amount_float == 10.0
++
++
++def test_extract_price_text_with_full_width_space():
++    assert Price.fromstring("€　10").amount_float == 10.0
++
++
++def test_extract_price_text_with_multiple_currency_symbol():
++    assert Price.fromstring("€10£20").amount_float == 10.0
++
++
++if __name__ == "__main__":
++    pytest.main(["-v", "-k", "test_extract_price_text_with_non_break_space"])

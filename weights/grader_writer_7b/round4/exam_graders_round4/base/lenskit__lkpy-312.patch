@@ -1,0 +1,76 @@
+diff --git a/tests/test_topn_ndcg.py b/tests/test_topn_ndcg.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_topn_ndcg.py
+@@ -0,0 +1,100 @@
++import numpy as np
++import pandas as pd
++
++from lenskit.metrics.topn import ndcg
++
++
++def test_ndcg_no_k():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [1, 2]})
++
++    assert ndcg(recs, truth) != 0.7344
++    assert ndcg(recs, truth, k=2) == 0.8888
++
++
++def test_ndcg_with_k_less_than_list_length():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [2, 3, 1]})
++
++    assert ndcg(recs, truth) == 1.0
++    assert ndcg(recs, truth, k=2) != 1.21
++    assert ndcg(recs[:2], truth, k=2) == 1.0
++
++
++def test_ndcg_with_k_greater_than_list_length():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [1, 2]})
++
++    assert ndcg(recs, truth, k=3) == 0.8888
++
++
++def test_ndcg_with_empty_recommendations():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': []})
++
++    assert ndcg(recs, truth) == 0.0
++
++
++def test_ndcg_with_all_irrelevant_items():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [4, 5, 6]})
++
++    assert ndcg(recs, truth) == 0.0
++
++
++def test_ndcg_with_single_relevant_item():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [2]})
++
++    assert ndcg(recs, truth) == 1.0
++
++
++def test_ndcg_with_multiple_relevant_items():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [2, 3]})
++
++    assert ndcg(recs, truth) == 1.0
++
++
++def test_ndcg_with_tie_in_ratings():
++    truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 3.0, 4.0]})
++    truth = truth.set_index('item')
++    recs = pd.DataFrame({'item': [2, 3]})
++
++    assert ndcg(recs, truth) == 1.0

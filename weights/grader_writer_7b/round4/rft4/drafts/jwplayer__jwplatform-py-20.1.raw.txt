@@ -1,0 +1,32 @@
+--- /dev/null
++++ b/tests/test_client_grader.py
+@@ -0,0 +1,27 @@
++import unittest
++from mock import patch
++import jwplatform.client as client
++
++
++class TestClient(unittest.TestCase):
++    def setUp(self):
++        self.key = "test-key"
++        self.secret = "test-secret"
++        self.scheme = "test-scheme"
++        self.host = "test-host"
++        self.port = "test-port"
++        self.api_version = "test-api-version"
++        self.agent = "test-agent"
++
++    @patch("jwplatform.client.requests")
++    def test_defaults_used_if_none_passed_in_kwargs(self, mock_requests):
++        c = client.Client(self.key, self.secret)
++
++        self.assertEqual(c._scheme, "https")
++        self.assertEqual(c._host, "api.jwplatform.com")
++        self.assertEqual(c._port, 80)
++        self.assertEqual(c._api_version, "v1")
++        self.assertEqual(c._agent, None)
++        self.assertTrue(isinstance(c._connection, client.requests.Session))
++
++
++if __name__ == '__main__':
++    unittest.main()

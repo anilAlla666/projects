@@ -1,0 +1,32 @@
+--- /dev/null
++++ b/unittests/test_functools_grader.py
+@@ -0,0 +1,28 @@
++import functools
++import pytest
++import asyncstdlib as a
++from .utility import sync, asyncify, multi_sync, Switch, Schedule
++
++
++@sync
++async def test_cached_property():
++    class Pair:
++        def __init__(self, a, b):
++            self.a = a
++            self.b = b
++
++        @a.cached_property
++        async def total(self):
++            return self.a + self.b
++
++    pair = Pair(1, 2)
++    assert (await pair.total) == 3
++    pair.a = 2
++    assert (await pair.total) == 3
++    del pair.total
++    assert (await pair.total) == 4
++    assert type(Pair.total) is a.cached_property
++    # Test the case where the result is itself a property
++    pair.total = property(lambda x: x + 1)
++    assert (await pair.total) == 5
++    del pair.total
++    assert (await pair.total) == 6

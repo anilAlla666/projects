@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/tests/test_pyls_plugins_grader.py
+@@ -0,0 +1,43 @@
++import pytest
++from pyls import Document, LanguageServer
++
++
++@pytest.fixture
++def ls():
++    server = LanguageServer()
++    server.start_io()
++    yield server
++    server.stop()
++
++
++@pytest.mark.parametrize("config,expected", [
++    (
++        {},
++        {'ignore': [], 'max-line-length': 79}
++    ),
++    (
++        {"pycodestyle": {"ignore": ["W123"], "max-line-length": 100}},
++        {'ignore': ["W123"], 'max-line-length': 100}
++    ),
++    (
++        {"pycodestyle": {"max_line_length": 100}},
++        {'ignore': [], 'max-line-length': 100}
++    ),
++    (
++        {"pycodestyle": {"ignore": ["W123"]}},
++        {'ignore': ["W123"], 'max-line-length': 79}
++    ),
++    (
++        {"pycodestyle": {}},
++        {'ignore': [], 'max-line-length': 79}
++    ),
++    (
++        {"pep8": {"ignore": ["W123"], "max-line-length": 100}},
++        {'ignore': ["W123"], 'max-line-length': 100}
++    ),
++    (
++        {"pep8": {"max_line_length": 100}},
++        {'ignore': [], 'max-line-length': 100}
++    ),
++    (
++        {"pep8": {"ignore": ["W123"]}},
++        {'ignore': ["W123"], 'max-line-length': 79}
++    ),
++])
++def test_pycodestyle_config(ls, tmpdir, config, expected):
++    doc = Document(uri='file://' + str(tmpdir.join('test.py')), language_id='python')
++    ls.config.update(doc.path, config)
++    assert ls.pycodestyle_config(doc.path) == expected

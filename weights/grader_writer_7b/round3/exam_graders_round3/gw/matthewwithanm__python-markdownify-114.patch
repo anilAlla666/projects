@@ -1,0 +1,31 @@
+diff --git a/tests/test_markdownify.py b/tests/test_markdownify.py
+index 0e1f3d4..a0b0c34 100644
+--- a/tests/test_markdownify.py
++++ b/tests/test_markdownify.py
+@@ -1,4 +1,5 @@
+ from __future__ import unicode_literals
+ 
++import pytest
+ from markdownify import markdownify as md
+ 
+ 
+@@ -10,6 +11,10 @@ def test_md():
+     assert md('TEXT<div>div</div>') == 'TEXT\ndiv\n'
+ 
+ 
++@pytest.mark.parametrize("html,expected", [
++    ('TEXT<table><caption>Caption</caption><tr><td>CELL</td></tr></tbody></table>', 'TEXT\n\nCaption\n\n| CELL |\n\n'),
++])
++def test_md_table_captions(html, expected):
++    assert md(html) == expected
++
+ 
+ @pytest.mark.parametrize("html,expected", [
+-    ('TEXT<table><caption>Caption</caption><tr><td>CELL</td></tr></tbody></table>', 'TEXT\n\nCaption| CELL |\n\n'),
++    ('TEXT<figure><figcaption>Caption</figcaption><span>SPAN</span></figure>', 'TEXTCaption\n\nSPAN\n\n'),
++    ('<figure><span>SPAN</span><figcaption>Caption</figcaption></figure>TEXT', 'SPAN\n\nCaption\n\nTEXT'),
+ ])
+-def test_md_table_captions(html, expected):
+-    assert md(html) == expected
++def test_md_figure_captions(html, expected):
++    assert md(html) == expected

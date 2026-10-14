@@ -1,0 +1,181 @@
+--- /dev/null
++++ b/tests/test_enforcer_grader.py
+@@ -0,0 +1,37 @@
++"""
++Test the enforcer
++"""
++
++
++import os
++import unittest
++from scitokens.scitokens import SciToken
++from scitokens.enforcer import SciTokenEnforcer
++from scitokens.tools.admin_create_token import create_token
++from scitokens.tools.admin_add_key import add_key
++
++
++class TestSciTokenEnforcer(unittest.TestCase):
++    """
++    Test the creation of a simple SciToken
++    """
++
++    def setUp(self):
++        self.test_issuer = "test_issuer"
++        self.token_path = "/tmp/test_scitoken"
++        self.key_path = "/tmp/test_public_key.pem"
++        self.token = create_token(self.test_issuer, "test_scope", self.token_path)
++        self.pubkey = add_key(self.test_issuer, self.key_path)
++        self.enforcer = SciTokenEnforcer(self.test_issuer, self.key_path)
++
++    def tearDown(self):
++        if os.path.exists(self.token_path):
++            os.remove(self.token_path)
++        if os.path.exists(self.key_path):
++            os.remove(self.key_path)
++
++    def test_any_in_array(self):
++        # This should pass since the scope value has "ANY" in an array
++        token = SciToken.decode(open(self.token_path).read())
++        token.set("scope", ["ANY"])
++        self.assertTrue(self.enforcer.verify(token))
+--- /dev/null
++++ b/tests/test_keycache_grader.py
+@@ -0,0 +1,90 @@
++"""
++Test the keycache
++"""
++
++
++import os, stat
++import sys
++import tempfile
++import shutil
++import unittest
++from unittest import mock
++from scitokens.utils.keycache import KeyCache
++from scitokens.utils.errors import UnableToCreateCache
++from cryptography.hazmat.primitives.asymmetric.rsa import generate_private_key
++from cryptography.hazmat.backends import default_backend
++from cryptography.hazmat.primitives import serialization
++
++
++try:
++    from urllib.error import URLError
++except ImportError:
++    from urllib2 import URLError
++
++
++import create_webserver
++
++
++class TestKeyCache(unittest.TestCase):
++    """
++    Test the creation of a simple SciToken
++    """
++
++    def setUp(self):
++
++        # Force the keycache to create a cache in a new directory
++        self.tmp_dir = tempfile.mkdtemp()
++        self.old_xdg = os.environ.get('XDG_CACHE_HOME', None)
++        os.environ['XDG_CACHE_HOME'] = self.tmp_dir
++        # Clear the cache
++        self.keycache = KeyCache()
++
++    def tearDown(self):
++
++        # Clean up after ourselves
++        if self.old_xdg:
++            os.environ['XDG_CACHE_HOME'] = self.old_xdg
++        else:
++            del os.environ['XDG_CACHE_HOME']
++        shutil.rmtree(self.tmp_dir)
++
++    def test_any_in_array(self):
++        """
++        Test when the next_update triggers and goes to the webserver
++        """
++        # Stand up an HTTP server
++        private_key = generate_private_key(
++            public_exponent=65537,
++            key_size=2048,
++            backend=default_backend()
++        )
++        public_numbers = private_key.public_key().public_numbers()
++        test_id = "thisisatestid"
++        server_address = create_webserver.start_server(public_numbers.n, public_numbers.e, test_id)
++
++        # Create a pem encoded public key, just to insert, want to make sure
++        # it downloads from the server
++        tmp_private_key = generate_private_key(
++            public_exponent=65537,
++            key_size=2048,
++            backend=default_backend()
++        )
++        public_key = tmp_private_key.public_key()
++        public_pem = public_key.public_bytes(
++            encoding=serialization.Encoding.PEM,
++            format=serialization.PublicFormat.SubjectPublicKeyInfo
++        )
++
++        # Now try to get the public key from the server
++        self.keycache.addkeyinfo("http://localhost:{}/".format(server_address[1]),
++                                 test_id,
++                                 public_key,
++                                 cache_timer=60,
++                                 next_update=-1)
++
++        # Next update should trigger now
++        pubkey_from_keycache = self.keycache.getkeyinfo("http://localhost:{}/".format(server_address[1]),
++                                             test_id,
++                                             insecure=True)
++
++        # Now compare the 2 public keys
++        public_pem = private_key.public_key().public_bytes(
++            encoding=serialization.Encoding.PEM,
++            format=serialization.PublicFormat.SubjectPublicKeyInfo
++        )
++
++        pubkey_pem_from_keycache = pubkey_from_keycache.public_bytes(
++            encoding=serialization.Encoding.PEM,
++            format=serialization.PublicFormat.SubjectPublicKeyInfo
++        )
++
++        self.assertEqual(public_pem, pubkey_pem_from_keycache)
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/tests/test_urltools_grader.py
+@@ -0,0 +1,27 @@
++"""
++Unit coverage tests for the urltools sub-package
++"""
++
++
++from scitokens.urltools import unquote, normalize_path
++import os
++import sys
++import unittest
++
++
++if os.path.exists("src"):
++    sys.path.append("src")
++
++
++if os.path.exists("../src"):
++    sys.path.append("../src")
++
++
++class TestUrltools(unittest.TestCase):
++    def test_unquote(self):
++        """
++        Run through the logic of the unquote function.
++        """
++        self.assertEqual(unquote('foo%23bar'), 'foo#bar')
++        self.assertEqual(unquote('foo%23bar', ['#']), 'foo%23bar')
++
++
++if __name__ == '__main__':
++    unittest.main()

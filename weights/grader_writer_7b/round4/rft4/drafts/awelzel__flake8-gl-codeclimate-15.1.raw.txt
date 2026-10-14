@@ -1,0 +1,60 @@
+--- /dev/null
++++ b/tests/test_cli_grader.py
+@@ -0,0 +1,56 @@
++from __future__ import absolute_import
++import io
++import os
++import unittest
++import flake8
++
++
++class TestCLI(unittest.TestCase):
++    def setUp(self):
++        self.maxDiff = None
++        self.stdout = io.StringIO()
++        self.stderr = io.StringIO()
++
++    def tearDown(self):
++        delattr(flake8.__dict__, 'style_guide')
++
++    def run_cli(self, args):
++        from flake8.main.application import Application
++        app = Application(args=args)
++        app.run_checks()
++
++    def test_relative_file_path_in_output(self):
++        """Test that the filename does not contain './'"""
++        args = [
++            "--config=%s" % os.path.join(
++                os.path.dirname(os.path.realpath(__file__)),
++                "..", ".flake8"),
++            os.path.join(
++                os.path.dirname(os.path.realpath(__file__)),
++                "fixtures", "test.py")]
++
++        self.run_cli(args)
++
++        expected_json = '''[
++\t{
++\t\t"type": "issue",
++\t\t"check_name": "Unused Import",
++\t\t"description": "Imported but unused [F401]",
++\t\t"categories": [
++\t\t\t"unused-code"
++\t\t],
++\t\t"location": {
++\t\t\t"path": "fixtures/test.py",
++\t\t\t"lines": {
++\t\t\t\t"begin": 1,
++\t\t\t\t"end": 1
++\t\t\t}
++\t\t},
++\t\t"fingerprint": "e1a90d477bfe9984164b5800524b796b",
++\t\t"severity": "minor"
++\t}
++]'''
++        self.assertEqual(self.stdout.getvalue(), expected_json)
++
++
++if __name__ == "__main__":
++    unittest.main()

@@ -1,0 +1,154 @@
+--- /dev/null
++++ b/tests/test_classes_grader.py
+@@ -0,0 +1,122 @@
++import unittest
++from mtgjson5.classes import (
++    MtgjsonCardArtworkObject,
++    MtgjsonCardFlavorTextObject,
++    MtgjsonCardForeignDataObject,
++    MtgjsonCardLayoutObject,
++    MtgjsonCardObject,
++    MtgjsonCardPricesObject,
++    MtgjsonCardRelatedCardsObject,
++    MtgjsonCardRulingsObject,
++    MtgjsonCardSubtypesObject,
++    MtgjsonCardSupertypesObject,
++    MtgjsonCardTypesObject,
++    MtgjsonDecklistObject,
++    MtgjsonEditionObject,
++    MtgjsonErrorObject,
++    MtgjsonIdentifiersObject,
++    MtgjsonPurchaseUrlsObject,
++    MtgjsonSetObject,
++    MtgjsonSingularFileObject,
++)
++
++
++class TestMtgJsonCard(unittest.TestCase):
++    def setUp(self):
++        self.card_art = MtgjsonCardArtworkObject()
++        self.card_flavor_text = MtgjsonCardFlavorTextObject()
++        self.card_foreign_data = MtgjsonCardForeignDataObject()
++        self.card_layout = MtgjsonCardLayoutObject()
++        self.card_prices = MtgjsonCardPricesObject()
++        self.card_related_cards = MtgjsonCardRelatedCardsObject()
++        self.card_rulings = MtgjsonCardRulingsObject()
++        self.card_subtypes = MtgjsonCardSubtypesObject()
++        self.card_supertypes = MtgjsonCardSupertypesObject()
++        self.card_types = MtgjsonCardTypesObject()
++        self.purchase_urls = MtgjsonPurchaseUrlsObject()
++        self.card_identifiers = MtgjsonIdentifiersObject()
++
++    def test_sorting(self):
++        """Test sorting"""
++        card_1 = MtgjsonCardObject()
++        card_1.name = "Card One"
++        card_1.number = "1"
++
++        card_2 = MtgjsonCardObject()
++        card_2.name = "Card Two"
++        card_2.number = "2"
++
++        card_3 = MtgjsonCardObject()
++        card_3.name = "Card Three"
++        card_3.number = "3"
++
++        card_4 = MtgjsonCardObject()
++        card_4.name = "Card Four"
++        card_4.number = "4"
++
++        card_5 = MtgjsonCardObject()
++        card_5.name = "Card Five"
++        card_5.number = "5"
++
++        card_6 = MtgjsonCardObject()
++        card_6.name = "Card Six"
++        card_6.number = "6"
++
++        card_7 = MtgjsonCardObject()
++        card_7.name = "Card Seven"
++        card_7.number = "7"
++
++        card_8 = MtgjsonCardObject()
++        card_8.name = "Card Eight"
++        card_8.number = "8"
++
++        card_9 = MtgjsonCardObject()
++        card_9.name = "Card Nine"
++        card_9.number = "9"
++
++        card_10 = MtgjsonCardObject()
++        card_10.name = "Card Ten"
++        card_10.number = "10"
++
++        card_11 = MtgjsonCardObject()
++        card_11.name = "Card Eleven"
++        card_11.number = "11"
++
++        card_12 = MtgjsonCardObject()
++        card_12.name = "Card Twelve"
++        card_12.number = "12"
++
++        card_13 = MtgjsonCardObject()
++        card_13.name = "Card Thirteen"
++        card_13.number = "13"
++
++        card_14 = MtgjsonCardObject()
++        card_14.name = "Card Fourteen"
++        card_14.number = "14"
++
++        card_15 = MtgjsonCardObject()
++        card_15.name = "Card Fifteen"
++        card_15.number = "15"
++
++        card_16 = MtgjsonCardObject()
++        card_16.name = "Card Sixteen"
++        card_16.number = "16"
++
++        card_17 = MtgjsonCardObject()
++        card_17.name = "Card Seventeen"
++        card_17.number = "17"
++
++        card_18 = MtgjsonCardObject()
++        card_18.name = "Card Eighteen"
++        card_18.number = "18"
++
++        card_19 = MtgjsonCardObject()
++        card_19.name = "Card Nineteen"
++        card_19.number = "19"
++
++        card_20 = MtgjsonCardObject()
++        card_20.name = "Card Twenty"
++        card_20.number = "20"
++
++        # Cards in reverse order
++        card_list = [
++            card_20,
++            card_19,
++            card_18,
++            card_17,
++            card_16,
++            card_15,
++            card_14,
++            card_13,
++            card_12,
++            card_11,
++            card_10,
++            card_9,
++            card_8,
++            card_7,
++            card_6,
++            card_5,
++            card_4,
++            card_3,
++            card_2,
++            card_1,
++        ]
++
++        card_list.sort()
++
++        # Ensure cards are in correct order
++        expected_order = [str(x) for x in range(1, 21)]
++        actual_order = [x.number for x in card_list]
++
++        self.assertEqual(expected_order, actual_order)

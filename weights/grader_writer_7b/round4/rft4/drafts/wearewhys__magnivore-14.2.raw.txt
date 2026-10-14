@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_Lexicon_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++from magnivore.Lexicon import Lexicon
++
++
++def test_factor():
++    result = Lexicon.factor({'from': 'test.test2', 'factor': 2}, {'test': {'test2': 1}})
++    assert result == 2
++
++
++@pytest.mark.parametrize("rounding, expected", [('down', 1), ('up', 2)])
++def test_factor_rounding(rounding, expected):
++    result = Lexicon.factor({'from': 'test.test2', 'factor': 1.5, 'rounding': rounding}, {'test': {'test2': 1}})
++    assert result == expected

@@ -1,0 +1,33 @@
+To address the issue, we need to ensure that each call to `get_codons_table` returns an independent copy of the codon table, rather than modifying a shared global state. We can achieve this by copying the codon table when it is returned.
+
+Here’s how you can write the tests to verify that the fix works:
+
+### tests/test_codon_tables.py
+
+Add a new test case to check if the codon table is copied correctly:
+
+```diff
++def test_get_codons_table_is_copy():
++    """Ensure that get_codons_table returns a copy of the codon table."""
++    table1 = python_codon_tables.get_codons_table("h_sapiens_9606")
++    table1["-"] = {"---": 1}
++    table1["X"] = {"NNN": 1}
++
++    table2 = python_codon_tables.get_codons_table("h_sapiens_9606")
++
++    # Check if table2 does not contain the added entries
++    assert '-' not in table2
++    assert 'X' not in table2
+```
+
+### Explanation:
+
+1. **Test Case**: The new test case `test_get_codons_table_is_copy` ensures that calling `get_codons_table` multiple times does not modify the same underlying dictionary.
+   
+2. **Modification**: In the first call to `get_codons_table`, we add new entries (`"-"` and `"X"`).
+
+3. **Second Call**: When we call `get_codons_table` again, the new entries should not be present in the second table.
+
+4. **Assertion**: The assertions check that the new entries are not in the second table, ensuring that each call to `get_codons_table` returns a fresh copy.
+
+By running this test, you can verify that the fix resolves the issue of the codon table being modified across different calls.

@@ -1,0 +1,19 @@
+diff --git a/test/test_model.py b/test/test_model.py
+index 0e0b0c0..022000c 100644
+--- a/test/test_model.py
++++ b/test/test_model.py
+@@ -477,6 +477,14 @@ def test_context(helpers):
+     assert jsonld["@context"] == [base_context, wfrun_ctx, {k: v}]
+ 
+ 
++def test_entity_immutable_id():
++    crate = ROCrate()
++    e = crate.add(DataEntity(crate, "FOO"))
++    with pytest.raises(AttributeError):
++        e.id = "bar"
++    assert e.id == "FOO"
++
++
+ def test_add_no_duplicates(test_data_dir, tmpdir):
+     source = test_data_dir / "sample_file.txt"
+     crate = ROCrate()

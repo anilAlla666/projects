@@ -1,0 +1,97 @@
+--- /dev/null
++++ b/tenacity/tests/test_asyncio_grader.py
+@@ -0,0 +1,56 @@
++import asyncio
++import unittest
++from functools import wraps
++import six
++from tenacity import RetryError
++from tenacity import _asyncio as tasyncio
++from tenacity import retry, stop_after_attempt
++from tenacity.tests.test_tenacity import NoIOErrorAfterCount
++
++
++def asynctest(callable_):
++    callable_ = asyncio.coroutine(callable_)
++
++    @six.wraps(callable_)
++    def wrapper(*a, **kw):
++        loop = asyncio.get_event_loop()
++        return loop.run_until_complete(callable_(*a, **kw))
++
++    return wrapper
++
++
++def _decorated_async_func(func):
++    """Decorator for async functions."""
++    @wraps(func)
++    def wrapper(*args, **kwargs):
++        return func(*args, **kwargs)
++
++    return wrapper
++
++
++_decorated_async_func.__name__ = 'decorated_async_func'
++
++
++class TestAsync(unittest.TestCase):
++    @asynctest
++    def test_decorate_async_function(self):
++        """Test decorator for async functions."""
++        assert asyncio.iscoroutinefunction(_decorated_async_func)
++
++    @asynctest
++    def test_retry(self):
++        assert asyncio.iscoroutinefunction(_retryable_coroutine)
++        thing = NoIOErrorAfterCount(5)
++        yield from _retryable_coroutine(thing)
++        assert thing.counter == thing.count
++
++    @asynctest
++    def test_stop_after_attempt(self):
++        assert asyncio.iscoroutinefunction(
++            _retryable_coroutine_with_2_attempts)
++        thing = NoIOErrorAfterCount(2)
++        try:
++            yield from _retryable_coroutine_with_2_attempts(thing)
++        except RetryError:
++            assert thing.counter == 2
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/tenacity/tests/test_tenacity_grader.py
+@@ -0,0 +1,31 @@
++import logging
++import time
++import unittest
++import warnings
++from contextlib import contextmanager
++from copy import copy
++import pytest
++import six.moves
++import tenacity
++from tenacity import RetryError, Retrying, retry
++from tenacity.compat import make_retry_state
++
++
++class TestRetryException(unittest.TestCase):
++    def test_retry_error_is_pickleable(self):
++        import pickle
++        expected = RetryError(last_attempt=123)
++        pickled = pickle.dumps(expected)
++        actual = pickle.loads(pickled)
++        self.assertEqual(expected.last_attempt, actual.last_attempt)
++
++
++@contextmanager
++def reports_deprecation_warning():
++    __tracebackhide__ = True
++    oldfilters = copy(warnings.filters)
++    warnings.simplefilter('always')
++    try:
++        with pytest.warns(DeprecationWarning):
++            yield
++    finally:
++        warnings.filters = oldfilters

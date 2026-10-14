@@ -1,0 +1,22 @@
+--- /dev/null
++++ b/tests/test_InfluxDBClient_grader.py
+@@ -0,0 +1,17 @@
++import http.server
++import json
++import os
++import threading
++import unittest
++from influxdb_client import InfluxDBClient
++
++
++class InfluxDBClientTest(unittest.TestCase):
++    def setUp(self):
++        self.client = None
++
++    def tearDown(self) -> None:
++        if self.client:
++            self.client.close()
++        if hasattr(self, 'httpd'):
++            self.httpd.shutdown()
++        if hasattr(self, 'httpd_thread'):
++            self.httpd_thread.join()

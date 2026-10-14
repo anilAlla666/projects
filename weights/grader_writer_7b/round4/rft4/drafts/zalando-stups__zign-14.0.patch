@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_api_grader.py
+@@ -0,0 +1,11 @@
++import pytest
++import tokens
++import zign.api
++from unittest.mock import MagicMock
++
++
++def test_get_token_fallback_no_credentials(monkeypatch):
++    def get_token(name):
++        raise tokens.ConfigurationError('TEST')
++
++    monkeypatch.setattr('tokens.get', get_token)
++    with pytest.raises(zign.api.AuthenticationFailed):
++        zign.api.get_token('mytok', ['myscope'])

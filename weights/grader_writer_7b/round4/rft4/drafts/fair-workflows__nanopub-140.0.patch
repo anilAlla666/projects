@@ -1,0 +1,17 @@
+--- /dev/null
++++ b/tests/test_setup_profile_grader.py
+@@ -0,0 +1,15 @@
++import os
++from unittest.mock import patch
++
++
++def test_main():
++    with patch('nanopub.setup_nanopub_profile.click.echo'):
++        with patch('nanopub.setup_nanopub_profile.input') as mock_input:
++            mock_input.side_effect = ['http://orcid.com/0000-0000-0000-0000', 'John Doe']
++            with patch('os.path.exists') as mock_exists:
++                mock_exists.return_value = False
++                with patch('nanopub.setup_nanopub_profile.store_profile') as mock_store:
++                    with patch('nanopub.setup_nanopub_profile.JavaWrapper') as mock_java_wrapper:
++                        setup_nanopub_profile.main()
++                        assert mock_store.call_count == 1

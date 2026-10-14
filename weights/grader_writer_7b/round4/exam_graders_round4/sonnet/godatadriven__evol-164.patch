@@ -1,0 +1,34 @@
+diff --git a/tests/test_elitist_mutation.py b/tests/test_elitist_mutation.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_elitist_mutation.py
+@@ -0,0 +1,35 @@
++from evol import Population
++
++
++def _mutate_add(x):
++    return x + 100
++
++
++class TestElitistMutation:
++
++    def test_elitist_keeps_best_unmutated(self):
++        pop = Population([0, 1, 2, 3, 4], eval_function=lambda x: x)
++        pop.evaluate()
++        pop.mutate(_mutate_add, elitist=True)
++        chromosomes = sorted(ind.chromosome for ind in pop.individuals)
++        assert chromosomes == [4, 100, 101, 102, 103]
++
++    def test_elitist_keeps_best_unmutated_minimizing(self):
++        pop = Population([0, 1, 2, 3, 4], eval_function=lambda x: x, maximize=False)
++        pop.evaluate()
++        pop.mutate(_mutate_add, elitist=True)
++        chromosomes = sorted(ind.chromosome for ind in pop.individuals)
++        assert chromosomes == [0, 101, 102, 103, 104]
++
++    def test_non_elitist_mutates_everyone(self):
++        pop = Population([0, 1, 2, 3, 4], eval_function=lambda x: x)
++        pop.evaluate()
++        pop.mutate(_mutate_add, elitist=False)
++        chromosomes = sorted(ind.chromosome for ind in pop.individuals)
++        assert chromosomes == [100, 101, 102, 103, 104]

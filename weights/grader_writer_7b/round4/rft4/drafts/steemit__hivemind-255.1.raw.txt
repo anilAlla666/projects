@@ -1,0 +1,71 @@
+--- /dev/null
++++ b/tests/utils/test_utils_account_grader.py
+@@ -0,0 +1,12 @@
++import json
++from hive.utils.account import safe_profile_metadata
++
++
++def test_empty_json_metadata():
++    account = {'name': 'foo', 'posting_json_metadata': '{}'}
++    safe_profile = safe_profile_metadata(account)
++    assert safe_profile == {'name': '', 'about': '', 'location': '', 'website': '', 'profile_image': '', 'cover_image': ''}
++
++    account = {'name': 'foo', 'posting_json_metadata': '{"invalid":"data"}'}
++    safe_profile = safe_profile_metadata(account)
++    assert safe_profile == {'name': '', 'about': '', 'location': '', 'website': '', 'profile_image': '', 'cover_image': ''}
+--- /dev/null
++++ b/tests/utils/test_utils_post_grader.py
+@@ -0,0 +1,41 @@
++from decimal import Decimal
++from hive.utils.post import (
++    mentions,
++    post_basic,
++    post_legacy,
++    post_payout,
++    post_stats,
++)
++
++
++POST_1 = {
++    "abs_rshares": 0,
++    "active": "2017-06-20T15:53:51",
++    "active_votes": [
++        {
++            "percent": 10000,
++            "reputation": "468237543674",
++            "rshares": 1506388632,
++            "time": "2017-06-20T15:53:51",
++            "voter": "test-safari",
++            "weight": 0
++        },
++        {
++            "percent": 200,
++            "reputation": "492436677632",
++            "rshares": 110837437,
++            "time": "2017-06-20T16:24:09",
++            "voter": "darth-cryptic",
++            "weight": 846
++        },
++        {
++            "percent": 10000,
++            "reputation": 2992338,
++            "rshares": 621340000,
++            "time": "2017-06-20T15:55:15",
++            "voter": "test25",
++            "weight": 273
++        },
++        {
++            "percent": 10000,
++            "reputation": 2992338,
++            "rshares": 493299375,
++            "time": "2017-06-20T15:55:15",
++            "voter": "mysqlthrashmetal",
++            "weight": 273
++        }
++    ],
++    "cashout_time": "1969-12-31T00:00:00",
++    "created": "2017-06-20T15:53:51",
++    "pending_payout_value": "0.000 SBD",
++    "permlink": "june-spam",
++    "title": "June Spam",
++    "url": "/spam/@test-safari/june-spam"}

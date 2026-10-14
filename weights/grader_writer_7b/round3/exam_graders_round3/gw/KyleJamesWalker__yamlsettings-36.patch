@@ -1,0 +1,36 @@
+diff --git a/tests/test_helpers.py b/tests/test_helpers.py
+index 6f3a0d4..e0c3008 100644
+--- a/tests/test_helpers.py
++++ b/tests/test_helpers.py
+@@ -1,10 +1,12 @@
++import pytest
++
+ import os
+ 
+ import yamlsettings
+ from yamlsettings.yamldict import YAMLDict
+ 
+ 
+-def test_update_from_env():
++def test_update_from_env_with_underscore():
+     os.environ['FOO_BAR'] = 'barbaz'
+ 
+     settings = YAMLDict({'foo_bar': None})
+@@ -12,6 +14,16 @@ def test_update_from_env():
+     assert settings['foo_bar'] == 'barbaz'
+ 
+ 
++def test_update_from_env_with_non_variable_chars():
++    os.environ['FOO-BAR'] = 'barbaz'
++
++    settings = YAMLDict({'foo_bar': None})
++    yamlsettings.update_from_env(settings)
++
++    assert settings['foo_bar'] == 'barbaz'
++
++
++
++
+ def test_save_and_load():
+     settings = YAMLDict({
+         'foo': 'bar',

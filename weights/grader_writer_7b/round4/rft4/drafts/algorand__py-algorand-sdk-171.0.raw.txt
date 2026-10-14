@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/test_future_grader.py
+@@ -0,0 +1,31 @@
++from unittest.mock import patch
++
++
++import pytest
++from algosdk.future.transaction import LogicSigAccount
++from algosdk.v2client import algod
++
++
++@patch.object(algod.AlgodClient, "status")
++def test_send_logic_sig_transaction_raises_error_when_no_signature(status_mock):
++    client = algod.AlgodClient()
++    logic_sig = LogicSigAccount()
++    txid = client.send_transaction(logic_sig.sign(b""))
++    assert txid is None
++    status_mock.assert_not_called()
++
++
++@pytest.mark.parametrize(
++    "response",
++    [
++        {"last-round": 0},
++        {"current-round": 0, "time-caught-up-to": 0},
++        {"last-round": 100, "current-round": 100, "time-caught-up-to": 0},
++    ],
++)
++def test_send_logic_sig_transaction_raises_error_on_status(response):
++    client = algod.AlgodClient()
++    logic_sig = LogicSigAccount()
++    status_mock = client.status.return_value = response
++    with pytest.raises(Exception) as e:
++        client.send_transaction(logic_sig.sign(b""))
++    assert "No signature provided" in str(e.value)
++    status_mock.assert_called_once()

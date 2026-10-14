@@ -1,0 +1,93 @@
+--- /dev/null
++++ b/tests/unit/test_file_checker_grader.py
+@@ -0,0 +1,26 @@
++"""Unit tests for the FileChecker class."""
++
++
++from __future__ import annotations
++import argparse
++from unittest import mock
++import pytest
++import flake8
++from flake8 import checker
++from flake8._compat import importlib_metadata
++from flake8.plugins import finder
++
++
++def test_sort_files_alphabetically(default_options):
++    """Test that the results are sorted by filename alphabetically."""
++    plugin_name = "pyflakes"
++    file_checker_1 = checker.FileChecker(
++        filename="abc.py",
++        plugins=finder.Checkers([], [], []),
++        options=default_options,
++    )
++    file_checker_2 = checker.FileChecker(
++        filename="a.py",
++        plugins=finder.Checkers([], [], []),
++        options=default_options,
++    )
++    assert file_checker_1 <= file_checker_2
+--- /dev/null
++++ b/tests/integration/test_checker_grader.py
+@@ -0,0 +1,57 @@
++"""Integration tests for the checker submodule."""
++
++
++from __future__ import annotations
++import sys
++from unittest import mock
++import pytest
++from flake8 import checker
++from flake8._compat import importlib_metadata
++from flake8.plugins import finder
++from flake8.processor import FileProcessor
++
++
++PHYSICAL_LINE = "# Physical line content"
++
++
++EXPECTED_REPORT = (1, 1, "T000 Expected Message")
++
++
++EXPECTED_REPORT_PHYSICAL_LINE = (1, "T000 Expected Message")
++
++
++EXPECTED_RESULT_PHYSICAL_LINE = ("T000", 0, 1, "Expected Message", None)
++
++
++class PluginClass:
++    """Simple file plugin class yielding the expected report."""
++
++    def __init__(self, tree):
++        """Construct a dummy object to provide mandatory parameter."""
++        pass
++
++    def run(self):
++        """Run class yielding one element containing the expected report."""
++        yield EXPECTED_REPORT + (type(self),)
++
++
++def plugin_func_gen(tree):
++    """Yield the expected report."""
++    yield EXPECTED_REPORT + (type(plugin_func_gen),)
++
++
++def plugin_func_list(tree):
++    """Return a list of expected reports."""
++    return [EXPECTED_REPORT + (type(plugin_func_list),)]
++
++
++def plugin_func_generator(tree):
++    """Generate the expected report."""
++    yield EXPECTED_REPORT + (type(plugin_func_generator),)
++
++
++def test_no_duplicates_in_results(mocker, tmp_path):
++    """Ensure there are no duplicates when collecting results."""
++    file_checker = checker.FileChecker(
++        filename=tmp_path.joinpath("file.py").as_posix(),
++        plugins=mocker.Mock(),
++        options=mocker.Mock(),
++    )
++    assert file_checker.results == []

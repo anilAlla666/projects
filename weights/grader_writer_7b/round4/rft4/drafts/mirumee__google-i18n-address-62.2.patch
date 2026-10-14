@@ -1,0 +1,26 @@
+--- /dev/null
++++ b/tests/test_i18naddress_grader.py
+@@ -0,0 +1,20 @@
++from __future__ import unicode_literals
++import pytest
++from i18naddress import (
++    get_field_order, get_validation_rules, load_validation_data)
++
++
++def test_load_validation_data_no_percents_in_path():
++    try:
++        load_validation_data('ZZ')
++    except Exception as e:
++        assert False, e
++
++
++@pytest.fixture(scope='module')
++def patch_validation_data_path(monkeypatch):
++    monkeypatch.setattr(
++        'i18naddress.VALIDATION_DATA_PATH',
++        '/path/to/data/%s.json'
++    )
++
++    yield
++
++    monkeypatch.undo()

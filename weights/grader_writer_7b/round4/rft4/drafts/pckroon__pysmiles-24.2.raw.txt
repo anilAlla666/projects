@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/tests/test_smiles_helpers_grader.py
+@@ -0,0 +1,30 @@
++import pytest
++from pysmiles.smiles_helper import (
++    correct_aromatic_rings, fill_valence, remove_explicit_hydrogens,
++    add_explicit_hydrogens, mark_aromatic_atoms, mark_aromatic_edges
++)
++from pysmiles.testhelper import assertEqualGraphs, make_mol
++
++
++@pytest.mark.parametrize('helper, kwargs, n_data_in, e_data_in, n_data_out, e_data_out', (
++    (
++        correct_aromatic_rings, {},
++        [(0, {'element': 'Se', 'hcount': 1}),
++         (1, {'element': 'As', 'hcount': 1}),
++         (2, {'element': 'H', 'hcount': 0})],
++        [(0, 1, {}),
++         (1, 2, {})],
++        [(0, {'element': 'Se', 'hcount': 1, 'aromatic': True}),
++         (1, {'element': 'As', 'hcount': 1, 'aromatic': True}),
++         (2, {'element': 'H', 'hcount': 0, 'aromatic': False})],
++        [(0, 1, {'order': 1.5}),
++         (1, 2, {'order': 1})],
++    ),
++))
++def test_helper(helper, kwargs, n_data_in, e_data_in, n_data_out, e_data_out):
++    mol = make_mol(n_data_in, e_data_in)
++    helper(mol, **kwargs)
++    assertEqualGraphs(mol, make_mol(n_data_out, e_data_out))

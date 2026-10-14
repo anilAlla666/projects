@@ -1,0 +1,58 @@
+diff --git a/tests/test_unit_brew_url.py b/tests/test_unit_brew_url.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_unit_brew_url.py
+@@ -0,0 +1,56 @@
++import json
++
++from cekit import tools
++
++
++def _mock_brew(mocker, archive, build):
++    return mocker.patch(
++        'subprocess.check_output',
++        side_effect=[
++            json.dumps([archive]).encode('utf8'),
++            json.dumps(build).encode('utf8'),
++        ])
++
++
++def test_brew_url_preserves_dots_in_artifact_id(mocker):
++    archive = {
++        "build_id": 410568,
++        "version": "1.0.4",
++        "type_name": "jar",
++        "artifact_id": "javax.json",
++        "checksum": "569870f975deeeb6691fcb9bc02a9555",
++        "filename": "javax.json-1.0.4.jar",
++        "btype": "maven",
++        "group_id": "org.glassfish",
++        "id": 863130,
++    }
++    build = {"state": 1, "package_name": "org.glassfish-javax.json", "release": "1"}
++
++    _mock_brew(mocker, archive, build)
++
++    url = tools.get_brew_url("569870f975deeeb6691fcb9bc02a9555")
++
++    assert url.endswith(
++        "/maven/org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar")
++    assert "javax/json" not in url
++
++
++def test_brew_url_group_id_dots_become_slashes(mocker):
++    archive = {
++        "build_id": 1,
++        "version": "2.0",
++        "artifact_id": "foo",
++        "filename": "foo-2.0.jar",
++        "btype": "maven",
++        "group_id": "com.example.bar",
++    }
++    build = {"state": 1, "package_name": "pkg", "release": "3"}
++
++    _mock_brew(mocker, archive, build)
++
++    url = tools.get_brew_url("abc")
++
++    assert url.endswith("/maven/com/example/bar/foo/2.0/foo-2.0.jar")

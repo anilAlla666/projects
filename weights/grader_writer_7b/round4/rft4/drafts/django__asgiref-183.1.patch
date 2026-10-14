@@ -1,0 +1,32 @@
+--- /dev/null
++++ b/tests/test_wsgi_grader.py
+@@ -0,0 +1,26 @@
++import pytest
++from asgiref.testing import ApplicationCommunicator
++from asgiref.wsgi import WsgiToAsgi
++
++
++@pytest.mark.asyncio
++async def test_wsgi_unicode_path():
++    """
++    Test that unicode paths are passed correctly to WSGI.
++    """
++
++    def wsgi_application(environ, start_response):
++        start_response("200 OK", [])
++        return [environ[b"path"]]
++
++    application = WsgiToAsgi(wsgi_application)
++    instance = ApplicationCommunicator(
++        application,
++        {
++            "type": "http",
++            "http_version": "1.0",
++            "method": "GET",
++            "path": "/éàçù/",
++            "query_string": b"",
++            "headers": [],
++        },
++    )
++    await instance.send_input({"type": "http.request"})
++    assert (await instance.receive_output(1)) == {"type": "http.response.body", "body": b"\xc3\xa9\xc3\xa0\xc3\xa7\xc3\xbb/"}

@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/tests/middleware/test_cors_grader.py
+@@ -0,0 +1,51 @@
++from starlette.applications import Starlette
++from starlette.middleware.cors import CORSMiddleware
++from starlette.responses import PlainTextResponse
++from starlette.testclient import TestClient
++
++
++def test_cors_dangerous_regex_example_in_docs():
++    """
++    Ensure that the dangerous regex example in the docs will not allow origins that could
++    be misused.
++    """
++    # The example provided in the docs.
++    pattern_1 = r"^https://.*\.example\.org$"
++    # A potentially dangerous regex that matches `pattern_1` plus an attacker-controlled suffix.
++    pattern_2 = r"^https://.*\.example\.org\.(.*)$"
++
++    assert not pattern_2.match("https://example.org")
++    assert pattern_2.match("https://www.example.org").group(1) == ""
++    assert (
++        pattern_2.match("https://www.example.org.hacker.com").group(1) == "hacker.com"
++    )
++    assert (
++        pattern_2.match("https://www.example.org.attacker.com").group(1)
++        == "attacker.com"
++    )
++
++    # This allows the attacker to craft a malicious URL that bypasses the intended regex.
++    # For instance, if the allowed origin is `https://example.org` using `pattern_1`,
++    # an attacker could register `https://example.org.attacker.com` as a subdomain,
++    # which would match the `pattern_1` regex but not the `pattern_2` regex.
++
++    # To prevent this, we ensure that the regex does not allow for a trailing period.
++    # Note: We assume that the entire string should match, i.e., `$` at the end of the regex.
++    #
++    # The following regex does not allow for a trailing period.
++    pattern_3 = r"^https://.*\.example\.org(\.[^.]+)?$"
++
++    assert not pattern_3.match("https://example.org")
++    assert pattern_3.match("https://www.example.org").group(1) == ""
++    assert (
++        pattern_3.match("https://www.example.org.hacker.com").group(1) == "hacker.com"
++    )
++    assert (
++        pattern_3.match("https://www.example.org.attacker.com").group(1)
++        == "attacker.com"
++    )
++    assert not pattern_3.match("https://www.example.org.")
++    assert not pattern_3.match("https://www.example.org..")
++    assert not pattern_3.match("https://www.example.org..com")

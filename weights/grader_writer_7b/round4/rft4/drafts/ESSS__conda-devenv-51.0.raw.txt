@@ -1,0 +1,47 @@
+--- /dev/null
++++ b/tests/test_cli_grader.py
+@@ -0,0 +1,41 @@
++import os
++from unittest.mock import patch
++import pytest
++from conda_devenv import cli
++
++
++def _create_dummy_devenv_yml(tmp_path):
++    devenv_yml_content = """
++name: my_test_env
++dependencies:
++- python=3.8
++"""
++    dummy_devenv_yml = tmp_path / 'environment.devenv.yml'
++    dummy_devenv_yml.write_text(devenv_yml_content)
++    return dummy_devenv_yml
++
++
++@pytest.mark.parametrize('arg', ['--print', '--print-full'])
++def test_cli_print(capsys, tmp_path, arg):
++    dummy_devenv_yml = _create_dummy_devenv_yml(tmp_path)
++
++    cli.main([str(dummy_devenv_yml), arg])
++
++    captured = capsys.readouterr()
++    assert captured.out.startswith('name: my_test_env')
++    assert captured.err == ''
++
++
++@pytest.mark.parametrize('arg', ['--name', '-n'])
++def test_cli_name(capsys, tmp_path, arg):
++    dummy_devenv_yml = _create_dummy_devenv_yml(tmp_path)
++
++    cli.main([str(dummy_devenv_yml), arg, 'my_test_env'])
++
++    captured = capsys.readouterr()
++    assert captured.out.startswith('name: my_test_env')
++    assert captured.err == ''
++
++
++@patch('conda_devenv.cli.__write_conda_environment_file')
++def test_cli_calls_write_conda_environment_file(mocked_write_conda_environment_file, tmp_path):
++    dummy_devenv_yml = _create_dummy_devenv_yml(tmp_path)
++    cli.main([str(dummy_devenv_yml)])
++    mocked_write_conda_environment_file.assert_called_once()

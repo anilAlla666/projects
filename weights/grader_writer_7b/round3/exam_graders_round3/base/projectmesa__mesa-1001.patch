@@ -1,0 +1,44 @@
+diff --git a/projectmesa/mesa/space.py b/projectmesa/mesa/space.py
+index 1234567..abcdef8 100644
+--- a/projectmesa/mesa/space.py
++++ b/projectmesa/mesa/space.py
+@@ -100,6 +100,14 @@ class NetworkGrid(Grid):
+         """Remove an agent from a node."""
+ 
+         self.G.nodes[node_id]["agent"].remove(agent)
++
++    def remove_agent(self, agent: Agent) -> None:
++        """Remove the agent from the network and set its pos variable to None."""
++        pos = agent.pos
++        self._remove_agent(agent, pos)
++        agent.pos = None
++
+     def get_neighbors(self, node_id: int, radius: int = 1, include_center: bool = False) -> List[int]:
+         """Get the neighbors of a node within a specified radius."""
+         return list(nx.single_source_shortest_path_length(self.G, node_id, radius=radius).keys())
+diff --git a/tests/test_space.py b/tests/test_space.py
+index abcde12..3456789 100644
+--- a/tests/test_space.py
++++ b/tests/test_space.py
+@@ -395,6 +395,24 @@ class TestMultipleNetworkGrid(unittest.TestCase):
+                 assert a.pos == pos
+ 
++    def test_remove_agent(self):
++        """Test removing an agent from the network grid."""
++        model = Model()
++        G = nx.Graph()
++        G.add_node(0)
++        model.grid = NetworkGrid(G)
++        a = Agent(model)
++        model.grid.place_agent(a, 0)
++        assert a.pos == 0
++        assert a in model.grid.G.nodes[0]["agent"]
++        model.grid.remove_agent(a)
++        assert a.pos is None
++        assert a not in model.grid.G.nodes[0]["agent"]
++        assert len(model.grid.G.nodes[0]["agent"]) == 0
++
++
+ class TestSingleGrid(unittest.TestCase):
+     """Testing a single grid."""
+ 

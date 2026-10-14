@@ -1,0 +1,14 @@
+--- /dev/null
++++ b/tests/test_protocol_grader.py
+@@ -0,0 +1,10 @@
++import pytest
++from aiostomp.protocol import Protocol
++
++
++def test_parse_data():
++    protocol = Protocol()
++    protocol.reset()
++    protocol.feed_data(b"FOO")
++    assert protocol._pending_parts == [b"FOO"]
++    protocol.feed_data(b"\n\n")
++    assert protocol._frames_ready == [{'command': 'FOO', 'headers': {}, 'body': ''}]

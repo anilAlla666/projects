@@ -1,0 +1,39 @@
+--- /dev/null
++++ b/tests/test_quom_grader.py
+@@ -0,0 +1,38 @@
++from pathlib import Path
++
++
++import pytest
++from quom.quom import Quom
++from quom.tokenizer import tokenize
++from quom.tokens import EmptyToken
++
++
++@pytest.mark.parametrize(
++    "src", (
++        """
++#include <stdio.h>
++#include <stdio.h>
++#include <stdio.h>
++#include <stdio.h>
++""",
++        """
++#include <stdio.h>
++#include <stdio.h>
++#include <stdio.h>
++#include <stdio.h>
++"""
++    )
++)
++def test_include_skipped_when_found(src):
++    """Test that include is skipped when the same file is found."""
++    quom = Quom()
++    dst = []
++    quom.set_dst(dst)
++    quom.process_str(src)
++    assert len(quom._Quom__processed_files) == 1
++
++
++if __name__ == '__main__':
++    pytest.main(['-v', '-s', __file__])

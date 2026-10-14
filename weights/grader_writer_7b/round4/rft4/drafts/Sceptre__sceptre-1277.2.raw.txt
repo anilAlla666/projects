@@ -1,0 +1,76 @@
+--- /dev/null
++++ b/tests/test_template_handlers/test_http_grader.py
+@@ -0,0 +1,23 @@
++import json
++import pytest
++from sceptre.exceptions import UnsupportedTemplateFileTypeError
++from sceptre.template_handlers.http import Http
++from unittest.mock import patch
++
++
++class TestHttp(object):
++    @patch('sceptre.template_handlers.http.requests')
++    def test_get_template_raises_requests_exception(self, mock_requests):
++        url = "https://raw.githubusercontent.com/acme/bucket.yaml"
++        mock_requests.get.side_effect = Exception("Mock exception")
++        template_handler = Http(
++            name="vpc",
++            arguments={"url": url},
++        )
++        with pytest.raises(Exception) as e:
++            template_handler.handle()
++        assert str(e.value) == "Failed to fetch template at URL {0}: Mock exception".format(url)
++
++    @patch('sceptre.template_handlers.http.requests')
++    def test_get_template_raises_connection_error(self, mock_requests):
++        url = "https://raw.githubusercontent.com/acme/bucket.yaml"
++        mock_requests.get.side_effect = ConnectionError("Mock connection error")
++        template_handler = Http(
++            name="vpc",
++            arguments={"url": url},
++        )
++        with pytest.raises(ConnectionError) as e:
++            template_handler.handle()
+--- /dev/null
++++ b/tests/test_template_handlers/test_template_handlers_grader.py
+@@ -0,0 +1,38 @@
++import pytest
++from sceptre.exceptions import TemplateHandlerArgumentsInvalidError
++from sceptre.template_handlers import TemplateHandler
++
++
++class MockTemplateHandler(TemplateHandler):
++    def __init__(self, *args, **kwargs):
++        super(MockTemplateHandler, self).__init__(*args, **kwargs)
++
++    def schema(self):
++        return {
++            "type": "object",
++            "properties": {
++                "argument": {"type": "string"}
++            },
++            "required": ["argument"]
++        }
++
++    def handle(self):
++        return "TestTemplateHandler"
++
++
++@pytest.fixture
++def mock_template_handler():
++    return MockTemplateHandler(name="mock", arguments={"argument": "test"})
++
++
++class TestTemplateHandlers(object):
++    def test_template_handler_validates_schema(self, mock_template_handler):
++        mock_template_handler.validate()
++
++    def test_template_handler_errors_when_arguments_invalid(self, mock_template_handler):
++        with pytest.raises(TemplateHandlerArgumentsInvalidError):
++            mock_template_handler.arguments = {"non-existent": "test"}
++            mock_template_handler.validate()
++
++    def test_template_handler_handles_missing_argument(self, mock_template_handler):
++        del mock_template_handler.arguments["argument"]
++        with pytest.raises(TemplateHandlerArgumentsInvalidError):
++            mock_template_handler.validate()

@@ -1,0 +1,13 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,10 @@
++from dataclasses import dataclass
++from dataclasses_json.core import _encode_overrides
++
++
++def test_encode_recursive() -> None:
++    @dataclass
++    class B:
++        b: int
++
++    assert _encode_overrides({'a': B(b=1)}, {'a': lambda x: x.b}) == {'a': 1}

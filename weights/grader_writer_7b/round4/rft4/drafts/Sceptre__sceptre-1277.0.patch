@@ -1,0 +1,57 @@
+--- /dev/null
++++ b/tests/test_template_handlers/test_http_grader.py
+@@ -0,0 +1,30 @@
++import json
++import pytest
++from sceptre.exceptions import UnsupportedTemplateFileTypeError
++from sceptre.template_handlers.http import Http
++from unittest.mock import patch
++
++
++class TestHttp(object):
++    @patch('sceptre.template_handlers.http.requests.get')
++    def test_get_template_with_status_code_404_raises_exception(self, mock_get):
++        mock_get.return_value.status_code = 404
++        handler = Http("http_handler", {'url': 'https://raw.githubusercontent.com/acme/bucket.j2'})
++        with pytest.raises(Exception) as excinfo:
++            handler.handle()
++        assert "Error downloading template" in str(excinfo.value)
++
++    @patch('sceptre.template_handlers.http.requests.get')
++    def test_get_template_with_status_code_500_raises_exception(self, mock_get):
++        mock_get.return_value.status_code = 500
++        handler = Http("http_handler", {'url': 'https://raw.githubusercontent.com/acme/bucket.j2'})
++        with pytest.raises(Exception) as excinfo:
++            handler.handle()
++        assert "Error downloading template" in str(excinfo.value)
++
++    @patch('sceptre.template_handlers.http.requests.get')
++    def test_get_template_with_status_code_200_returns_content(self, mock_get):
++        mock_get.return_value.status_code = 200
++        mock_get.return_value.content = b'{"key": "value"}'
++        handler = Http("http_handler", {'url': 'https://raw.githubusercontent.com/acme/bucket.j2'})
++        result = handler.handle()
++        assert result == '{"key": "value"}'
+--- /dev/null
++++ b/tests/test_template_handlers/test_template_handlers_grader.py
+@@ -0,0 +1,17 @@
++import pytest
++from sceptre.exceptions import TemplateHandlerArgumentsInvalidError
++from sceptre.template_handlers import TemplateHandler
++
++
++class MockTemplateHandler(TemplateHandler):
++    def __init__(self, *args, **kwargs):
++        super(MockTemplateHandler, self).__init__(*args, **kwargs)
++
++    def schema(self):
++        return {
++            "type": "object",
++            "properties": {
++                "argument": {"type": "string"}
++            },
++            "required": ["argument"]
++        }
++
++    def handle(self):
++        return "TestTemplateHandler"

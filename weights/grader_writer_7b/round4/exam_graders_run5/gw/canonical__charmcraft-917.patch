@@ -1,0 +1,106 @@
+--- /dev/null
++++ b/tests/test_main_grader.py
+@@ -0,0 +1,100 @@
++import argparse
++import ast
++import os
++import subprocess
++import sys
++import textwrap
++from argparse import ArgumentParser
++from unittest.mock import patch
++import pytest
++from craft_cli import (
++    ArgumentParsingError,
++    CommandGroup,
++    CraftError,
++    EmitterMode,
++    ProvideHelpException,
++)
++from craft_store.errors import CraftStoreError
++from charmcraft import __version__, env, utils
++from charmcraft.cmdbase import BaseCommand, JSON_FORMAT
++from charmcraft.commands.store.client import ALTERNATE_AUTH_ENV_VAR
++from charmcraft.main import COMMAND_GROUPS, main, _get_system_details
++
++
++def test_get_system_details_auth_hidden(caplog):
++    """The CHARMCRAFT_AUTH variable is hidden."""
++    os.environ["CHARMCRAFT_AUTH"] = "my-secret-auth-token"
++    caplog.set_level(emit.INFO_LEVEL)
++    details = _get_system_details()
++    assert "CHARMCRAFT_AUTH=<hidden>" in details
++
++
++def test_get_system_details_other_variables(caplog):
++    """Other CHARMCRAFT variables are included."""
++    os.environ["CHARMCRAFT_OTHER_VARIABLE"] = "other-value"
++    caplog.set_level(emit.INFO_LEVEL)
++    details = _get_system_details()
++    assert "CHARMCRAFT_OTHER_VARIABLE=other-value" in details
++
++
++def test_get_system_details_no_variables(caplog):
++    """No CHARMCRAFT variables are included."""
++    caplog.set_level(emit.INFO_LEVEL)
++    details = _get_system_details()
++    assert "Environment: None" in details
++
++
++def test_get_system_details_extra_variables(caplog):
++    """Extra variables are included."""
++    os.environ["DESKTOP_SESSION"] = "plasma"
++    caplog.set_level(emit.INFO_LEVEL)
++    details = _get_system_details()
++    assert "DESKTOP_SESSION=plasma" in details
++
++
++def test_get_system_details_extra_variables_with_auth(caplog):
++    """Extra variables are included even when CHARMCRAFT_AUTH is present."""
++    os.environ["CHARMCRAFT_AUTH"] = "my-secret-auth-token"
++    os.environ["DESKTOP_SESSION"] = "plasma"
++    caplog.set_level(emit.INFO_LEVEL)
++    details = _get_system_details()
++    assert "CHARMCRAFT_AUTH=<hidden>" in details
++    assert "DESKTOP_SESSION=plasma" in details
++
++
++def test_get_system_details_extra_variables_with_auth_and_other(caplog):
++    """Extra variables are included even when CHARMCRAFT_AUTH is present."""
++    os.environ["CHARMCRAFT_AUTH"] = "my-secret-auth-token"
++    os.environ["CHARMCRAFT_OTHER_VARIABLE"] = "other-value"
++    os.environ["DESKTOP_SESSION"] = "plasma"
++    caplog.set_level(emit.INFO_LEVEL)
++    details = _get_system_details()
++    assert "CHARMCRAFT_AUTH=<hidden>" in details
++    assert "CHARMCRAFT_OTHER_VARIABLE=other-value" in details
++    assert "DESKTOP_SESSION=plasma" in details
++
++
++class MySimpleCommand(BaseCommand):
++    """A simple minimal command to be used by different tests."""
++
++    help_msg = "some help"
++    name = "cmdname"
++    overview = "test overview"
++
++
++def test_basecommand_format_content_json(config):
++    """Properly format content in JSON format."""
++    data = ["foo", "bar"]
++    cmd = MySimpleCommand(config)
++    result = cmd.format_content(JSON_FORMAT, data)
++    assert result == textwrap.dedent(
++        """\
++        [
++            "foo",
++            "bar"
++        ]"""
++    )
++
++
++def test_basecommand_format_content_unkown(config):
++    """The specified format is unknown."""
++    cmd = MySimpleCommand(config)
++    with pytest.raises(ValueError):
++        cmd.format_content("bad format", {})

@@ -1,0 +1,111 @@
+--- /dev/null
++++ b/tests/unit/test_utils_test_grader.py
+@@ -0,0 +1,108 @@
++import base64
++import json
++import os
++import os.path
++import shutil
++import sys
++import tarfile
++import tempfile
++import pytest
++import six
++from docker.client import Client
++from docker.constants import DEFAULT_DOCKER_API_VERSION
++from docker.errors import DockerException, InvalidVersion
++from docker.utils import (
++    parse_repository_tag, parse_host, convert_filters, kwargs_from_env,
++    create_host_config, Ulimit, LogConfig, parse_bytes, parse_env_file,
++    exclude_paths, convert_volume_binds, decode_json_header, tar,
++    split_command, create_ipam_config, create_ipam_pool, parse_devices,
++    parse_ipv6_address
++)
++from docker.utils.utils import create_endpoint_config
++from docker.utils.ports import build_port_bindings, split_port
++from .. import base
++from ..helpers import make_tree
++
++
++TEST_CERT_DIR = os.path.join(
++    os.path.dirname(__file__),
++    'testdata/certs',
++)
++
++
++class ParseHostTest(base.BaseTestCase):
++    def test_parse_host_unix(self):
++        assert parse_host(None) == DEFAULT_UNIX_SOCKET
++
++    def test_parse_host_tcp(self):
++        assert parse_host('localhost:2375') == 'http://localhost:2375'
++        assert parse_host('localhost:2375/') == 'http://localhost:2375/'
++
++    def test_parse_host_tcp_tls(self):
++        assert parse_host('localhost:2376', tls=True) == \
++            'https://localhost:2376'
++        assert parse_host('localhost:2376/', tls=True) == \
++            'https://localhost:2376/'
++
++    def test_parse_host_tcp_ssl(self):
++        assert parse_host('localhost:2376', tls=True) == \
++            'https://localhost:2376'
++        assert parse_host('localhost:2376/', tls=True) == \
++            'https://localhost:2376/'
++
++    def test_parse_host_windows(self):
++        assert parse_host(None, is_win32=True) == DEFAULT_NPIPE
++
++    def test_parse_host_windows_default(self):
++        assert parse_host('', is_win32=True) == DEFAULT_NPIPE
++
++    def test_parse_host_npipe(self):
++        assert parse_host('npipe:////./pipe/docker_engine') == \
++            'npipe:////./pipe/docker_engine'
++        assert parse_host('npipe:////./pipe/docker_engine/') == \
++            'npipe:////./pipe/docker_engine/'
++
++    def test_parse_host_windows_named_pipe(self):
++        assert parse_host(r'npipe:\\.\pipe\docker_engine') == \
++            'npipe:////./pipe/docker_engine'
++
++    def test_parse_host_windows_unc(self):
++        assert parse_host(r'\\.\pipe\docker_engine') == \
++            'npipe:////./pipe/docker_engine'
++
++    def test_parse_host_http(self):
++        assert parse_host('http://localhost:2375') == 'http://localhost:2375'
++        assert parse_host('http://localhost:2375/') == \
++            'http://localhost:2375/'
++
++    def test_parse_host_https(self):
++        assert parse_host('https://localhost:2376') == \
++            'https://localhost:2376'
++        assert parse_host('https://localhost:2376/') == \
++            'https://localhost:2376/'
++
++    def test_parse_host_fd(self):
++        with pytest.raises(DockerException) as exc_info:
++            parse_host('fd://')
++        assert exc_info.value.msg == 'fd protocol is not implemented'
++
++    @pytest.mark.skipif(sys.platform != 'win32',
++                        reason="Windows-only test")
++    def test_parse_host_windows_unc_default(self):
++        assert parse_host(None, is_win32=True) == DEFAULT_NPIPE
++
++    @pytest.mark.skipif(sys.platform != 'win32',
++                        reason="Windows-only test")
++    def test_parse_host_windows_unc(self):
++        assert parse_host(r'\\.\pipe\docker_engine', is_win32=True) == \
++            'npipe:////./pipe/docker_engine'
++
++    @pytest.mark.parametrize(
++        ('addr', 'expected'),
++        (
++            ('::1', '::1'),
++            ('::ffff:127.0.0.1', '127.0.0.1'),
++        ),
++    )
++    def test_parse_ipv6_address(self, addr, expected):
++        assert parse_ipv6_address(addr) == expected

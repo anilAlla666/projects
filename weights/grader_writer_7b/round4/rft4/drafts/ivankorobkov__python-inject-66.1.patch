@@ -1,0 +1,32 @@
+--- /dev/null
++++ b/test/test_injector_grader.py
+@@ -0,0 +1,26 @@
++from asyncio import coroutine
++import inspect
++from random import random
++from unittest import TestCase
++from inject import Injector, InjectorException
++
++
++class TestDecorator(TestCase):
++    def test_param__decorates_async_function(self):
++        @coroutine
++        @inject.param('foo')
++        def test_func(foo):
++            return foo
++
++        assert inspect.isgeneratorfunction(test_func)
++
++    def test_params__decorates_async_function(self):
++        @coroutine
++        @inject.params(foo=int)
++        def test_func(foo):
++            return foo
++
++        assert inspect.isgeneratorfunction(test_func)
++
++    def test_autoparams__decorates_async_function(self):
++        @coroutine
++        @inject.autoparams()
++        def test_func(foo):
++            return foo

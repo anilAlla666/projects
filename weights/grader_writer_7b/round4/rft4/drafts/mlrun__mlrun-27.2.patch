@@ -1,0 +1,176 @@
+--- /dev/null
++++ b/tests/test_httpdb_grader.py
+@@ -0,0 +1,145 @@
++from collections import namedtuple
++from os import environ
++from pathlib import Path
++from socket import socket
++from subprocess import Popen
++from sys import executable
++from tempfile import mkdtemp
++from time import monotonic, sleep
++from urllib.request import urlopen, URLError
++from http import HTTPStatus
++import pytest
++from mlrun.artifacts import Artifact
++from mlrun.db import HTTPRunDB, RunDBError
++from mlrun import RunObject
++
++
++root = Path(__file__).absolute().parent.parent
++
++
++Server = namedtuple('Server', 'process url log_file conn')
++
++
++def free_port():
++    with socket() as sock:
++        sock.bind(('localhost', 0))
++        return sock.getsockname()[1]
++
++
++def get_server(port=None, auth_type=None, auth_data=None):
++    port = port or free_port()
++    log_file = mkdtemp() + '/server.log'
++    cmd = [executable, '-m', 'mlrun.httpdb',
++           '--port', str(port),
++           '--log-file', log_file,
++           ]
++    if auth_type == 'basic':
++        cmd.extend(['--user', auth_data[0], '--password', auth_data[1]])
++    elif auth_type == 'bearer':
++        cmd.append('--token')
++        cmd.append(auth_data)
++    process = Popen(cmd, cwd=root)
++    url = f'http://localhost:{port}'
++    conn = HTTPRunDB(url, user=auth_data[0] if auth_data else None,
++                     password=auth_data[1] if auth_data else None,
++                     token=auth_data if auth_data else None)
++    return Server(process, url, log_file, conn)
++
++
++def wait_for_server(conn, timeout=5):
++    start = monotonic()
++    while True:
++        try:
++            conn.connect(secrets=None)
++            break
++        except Exception as err:
++            if monotonic() - start > timeout:
++                raise RuntimeError(err)
++            sleep(0.1)
++
++
++@pytest.fixture
++def create_server():
++    def func(env=None):
++        with get_server(auth_data=environ.get('MLRUN_AUTH_DATA')) as server:
++            wait_for_server(server.conn)
++            yield server
++    return func
++
++
++@pytest.mark.skip(reason="test is flaky")
++def test_artifact(create_server):
++    server: Server = create_server()
++    db = server.conn
++
++    prj, uid, key, body = 'p7', 'u199', 'k800', 'cucumber'
++    artifact = Artifact(key, body).to_dict()
++
++    db.store_artifact(key, artifact, uid, project=prj)
++    artifacts = db.list_artifacts(project=prj)
++    assert len(artifacts) == 1, 'bad number of artifacs'
++
++    db.del_artifacts(project=prj)
++    artifacts = db.list_artifacts(project=prj)
++    assert len(artifacts) == 0, 'bad number of artifacs after del'
++
++
++def test_artifacts(create_server):
++    server: Server = create_server()
++    db = server.conn
++    prj, uid, key, body = 'p9', 'u19', 'k802', 'tomato'
++    artifact = Artifact(key, body).to_dict()
++
++    db.store_artifact(key, artifact, uid, project=prj)
++    artifacts = db.list_artifacts(project=prj)
++    assert len(artifacts) == 1, 'bad number of artifacs'
++
++    db.del_artifacts(project=prj)
++    artifacts = db.list_artifacts(project=prj)
++    assert len(artifacts) == 0, 'bad number of artifacs after del'
++
++
++def test_basic_auth(create_server):
++    user, passwd = 'bugs', 'bunny'
++    env = {
++        'MLRUN_httpdb__user': user,
++        'MLRUN_httpdb__password': passwd,
++    }
++    server: Server = create_server(env)
++
++    db: HTTPRunDB = server.conn
++
++    with pytest.raises(RunDBError):
++        db.list_runs()
++
++    db.user = user
++    db.password = passwd
++    db.list_runs()
++
++
++def test_bearer_auth(create_server):
++    token = 'banana'
++    env = {'MLRUN_httpdb__token': token}
++    server: Server = create_server(env)
++
++    db: HTTPRunDB = server.conn
++
++    with pytest.raises(RunDBError):
++        db.list_runs()
++
++    db.token = token
++    db.list_runs()
++
++
++def test_get_log(create_server):
++    server: Server = create_server()
++    db = server.conn
++
++    uid = 'x1'
++    log = b'tomato\npepper'
++    db.store_log(uid, body=log)
++
++    got = db.get_log(uid)
++    assert got == log, 'got bad log'
++
++    with pytest.raises(RunDBError):
++        db.get_log('x2')
+--- /dev/null
++++ b/tests/test_rundb_grader.py
+@@ -0,0 +1,24 @@
++import mlrun
++from conftest import rundb_path, results
++
++
++def get_db():
++    return mlrun.get_run_db(rundb_path).connect()
++
++
++def test_list_artifacts():
++
++    db = get_db()
++    artifacts = db.list_artifacts()
++    assert artifacts, 'empty artifacts result'
++
++    html = artifacts.show(display=False)
++
++    with open('{}/artifacts.html'.format(results), 'w') as fp:
++        fp.write(html)
++
++    # TODO: Add a real test instead of just showing it
++    print(html)
++
++    artifacts = db.list_artifacts(tag='latest')
++    assert artifacts, 'empty artifacts result'

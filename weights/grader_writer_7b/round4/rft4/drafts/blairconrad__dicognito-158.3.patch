@@ -1,0 +1,124 @@
+--- /dev/null
++++ b/tests/test_anonymizer_grader.py
+@@ -0,0 +1,131 @@
++import pytest
++from pydicom import dcmread, Dataset
++from pydicom.tag import Tag
++from pydicom.valuerep import PersonName
++from pydicom.valuerep.sequence import Sequence
++
++
++@pytest.fixture
++def empty_dataset():
++    """Return an empty DICOM dataset"""
++    return Dataset()
++
++
++@pytest.fixture
++def simple_dataset(empty_dataset):
++    """Return a basic DICOM dataset with a few tags set"""
++    empty_dataset.PatientName = "Smith^John"
++    empty_dataset.PatientID = "12345"
++    empty_dataset.PatientAge = "30"
++    return empty_dataset
++
++
++@pytest.fixture
++def complex_dataset(simple_dataset):
++    """Return a DICOM dataset with a lot of tags set"""
++    simple_dataset.PatientBirthDate = "19771122"
++    simple_dataset.PatientSex = "M"
++    simple_dataset.PatientSize = "1.70"
++    simple_dataset.PatientWeight = "80.5"
++    simple_dataset.PatientAddress = "123 Main St."
++    simple_dataset.PatientTelephoneNumbers = ["123-456-7890"]
++    simple_dataset.PatientPhotoSequence = Sequence()
++    return simple_dataset
++
++
++@pytest.fixture
++def custom_dataset(complex_dataset):
++    """Return a DICOM dataset with non-standard tags added"""
++    complex_dataset.PatientCreatorName = "Test^User"
++    complex_dataset.PatientCreatorID = "999"
++    complex_dataset.PatientCreatorAge = "29"
++    return complex_dataset
++
++
++@pytest.fixture
++def private_creator_dataset(custom_dataset):
++    """Return a DICOM dataset with private creator tags added"""
++    custom_dataset[Tag(0x0031, 0x0020)] = "1.0"
++    custom_dataset[Tag(0x0031, 0x0021)] = "MITRA LINKED ATTRIBUTES 1.0"
++    custom_dataset[Tag(0x0031, 0x0022)] = "Global Patient ID"
++    custom_dataset[Tag(0x0031, 0x0023)] = "123456"
++    return custom_dataset
++
++
++class TestAnonymizer:
++    def setup_method(self):
++        self.anonymizer = Anonymizer()
++
++    @staticmethod
++    def assert_dataset_equal(d1, d2):
++        assert d1.PatientName != d2.PatientName
++        assert d1.PatientID != d2.PatientID
++        assert d1.PatientAge != d2.PatientAge
++        assert d1.PatientBirthDate != d2.PatientBirthDate
++        assert d1.PatientSex != d2.PatientSex
++        assert d1.PatientSize != d2.PatientSize
++        assert d1.PatientWeight != d2.PatientWeight
++        assert d1.PatientAddress != d2.PatientAddress
++        assert d1.PatientTelephoneNumbers != d2.PatientTelephoneNumbers
++        assert d1.PatientPhotoSequence != d2.PatientPhotoSequence
++        assert d1.PatientCreatorName != d2.PatientCreatorName
++        assert d1.PatientCreatorID != d2.PatientCreatorID
++        assert d1.PatientCreatorAge != d2.PatientCreatorAge
++
++    def test_custom_dataset(self, custom_dataset):
++        anonymized = self.anonymizer.anonymize(custom_dataset)
++        self.assert_dataset_equal(custom_dataset, anonymized)
++
++    def test_private_creator_dataset(self, private_creator_dataset):
++        anonymized = self.anonymizer.anonymize(private_creator_dataset)
++        self.assert_dataset_equal(private_creator_dataset, anonymized)
++
++    def test_walk_with_no_elements(self, empty_dataset):
++        # Regression test for https://github.com/blairconrad/dicognito/issues/55
++        anonymized = self.anonymizer.anonymize(empty_dataset)
++        assert len(anonymized) == 0
++
++    def test_walk_with_no_ids(self, simple_dataset):
++        # Regression test for https://github.com/blairconrad/dicognito/issues/55
++        anonymized = self.anonymizer.anonymize(simple_dataset)
++        assert len(anonymized) == 11
++
++    def test_walk_with_all_ids(self, complex_dataset):
++        # Regression test for https://github.com/blairconrad/dicognito/issues/55
++        anonymized = self.anonymizer.anonymize(complex_dataset)
++        assert len(anonymized) == 19
++
++    def test_walk_with_custom_ids(self, custom_dataset):
++        # Regression test for https://github.com/blairconrad/dicognito/issues/55
++        anonymized = self.anonymizer.anonymize(custom_dataset)
++        assert len(anonymized) == 19
++
++    def test_walk_with_private_creator_ids(self, private_creator_dataset):
++        # Regression test for https://github.com/blairconrad/dicognito/issues/55
++        anonymized = self.anonymizer.anonymize(private_creator_dataset)
++        assert len(anonymized) == 21
++
++    def test_walk_with_private_creator_ids_and_non_ids(self, private_creator_dataset):
++        # Regression test for https://github.com/blairconrad/dicognito/issues/55
++        custom_dataset.PatientCreatorName = "Test^User"
++        custom_dataset.PatientCreatorID = "999"
++        custom_dataset.PatientCreatorAge = "29"
++        anonymized = self.anonymizer.anonymize(custom_dataset)
++        assert len(anonymized) == 21
++
++    def test_walk_with_person_name(self, complex_dataset):
++        # Regression test for https://github.com/blairconrad/dicognito/issues/55
++        name = PersonName("Test^User")
++        complex_dataset.PatientCreatorName = name
++        anonymized = self.anonymizer.anonymize(complex_dataset)
++        assert len(anonymized) == 21

@@ -1,0 +1,275 @@
+--- /dev/null
++++ b/graphene/relay/tests/test_node_grader.py
+@@ -0,0 +1,155 @@
++from collections import OrderedDict
++from graphql_relay import to_global_id
++from ...types import ObjectType, Schema, String
++from ..node import Node, is_node
++
++
++class SharedNodeFields(object):
++
++    shared = String()
++    something_else = String()
++
++    def resolve_something_else(*_):
++        return '----'
++
++
++class MyNode(ObjectType):
++
++    class Meta:
++        interfaces = (Node, )
++    name = String()
++
++    @staticmethod
++    def get_node(info, id):
++        return MyNode(name=str(id))
++
++
++class MyOtherNode(SharedNodeFields, ObjectType):
++    extra_field = String()
++
++    class Meta:
++        interfaces = (Node, )
++
++    def resolve_extra_field(self, *_):
++        return 'extra field info.'
++
++    @staticmethod
++    def get_node(info, id):
++        return MyOtherNode(shared=str(id))
++
++
++class MyOtherNodeWithWrongMethod(SharedNodeFields, ObjectType):
++    extra_field = String()
++
++    class Meta:
++        interfaces = (Node, )
++
++    def resolve_extra_field(self, *_):
++        return 'extra field info.'
++
++    @staticmethod
++    def get_node(*_):
++        raise NotImplementedError
++
++
++class Query(ObjectType):
++    node = Node.Field()
++    onlyNode = Node.Field(MyNode)
++    onlyNodeLazy = Node.Field(lambda: MyNode)
++
++
++schema = Schema(query=Query, types=[MyNode, MyOtherNode])
++
++
++def test_node_field_only_type_wrong():
++    executed = schema.execute(
++        '{ onlyNode(id:"%s") { __typename, name } } ' % Node.to_global_id("MyOtherNode", 1)
++    )
++    assert len(executed.errors) == 1
++    assert str(executed.errors[0]) == 'Must receive an MyOtherNode id.'
++    assert executed.data == {'onlyNode': None}
++
++
++def test_node_field_only_type_lazy_wrong():
++    executed = schema.execute(
++        '{ onlyNodeLazy(id:"%s") { __typename, name } } ' % Node.to_global_id("MyOtherNode", 1)
++    )
++    assert len(executed.errors) == 1
++    assert str(executed.errors[0]) == 'Must receive an MyOtherNode id.'
++    assert executed.data == {'onlyNodeLazy': None}
++
++
++def test_str_schema():
++    assert str(schema) == """
++schema {
++  query: RootQuery
++}
++
++type MyNode implements Node {
++  id: ID!
++  name: String
++}
++
++type MyOtherNode implements Node {
++  id: ID!
++  shared: String
++  somethingElse: String
++  extraField: String
++}
++
++interface Node {
++  id: ID!
++}
++
++type RootQuery {
++  first: String
++  node(id: ID!): Node
++  onlyNode(id: ID!): MyNode
++  onlyNodeLazy(id: ID!): MyNode
++}
++""".lstrip()
+--- /dev/null
++++ b/graphene/relay/tests/test_node_custom_grader.py
+@@ -0,0 +1,167 @@
++import pytest
++from graphql import build_ast_schema, parse, graphql_sync
++from graphql.language.printer import print_ast
++from ...types import Interface, ObjectType, Schema
++from ...types.scalars import Int, String
++from ..node import Node
++
++
++class CustomNode(Node):
++
++    class Meta:
++        name = 'Node'
++
++    @staticmethod
++    def to_global_id(type, id):
++        return id
++
++    @staticmethod
++    def get_node_from_global_id(info, id, only_type=None):
++        assert info.schema == schema
++        if id in user_data:
++            return user_data.get(id)
++        else:
++            return photo_data.get(id)
++
++
++class BasePhoto(Interface):
++    width = Int()
++
++
++class User(ObjectType):
++
++    class Meta:
++        interfaces = [CustomNode]
++    name = String()
++
++
++class Photo(ObjectType):
++
++    class Meta:
++        interfaces = [CustomNode, BasePhoto]
++    title = String()
++    url = String()
++
++
++class Album(ObjectType):
++
++    class Meta:
++        interfaces = [CustomNode]
++    title = String()
++
++
++class Like(ObjectType):
++
++    class Meta:
++        interfaces = [CustomNode]
++    title = String()
++
++
++class Comment(ObjectType):
++
++    class Meta:
++        interfaces = [CustomNode]
++    content = String()
++
++
++user_data = {
++    '1': User(name='John Doe'),
++    '2': User(name='Jane Doe'),
++    '3': User(name='Alice Smith'),
++}
++
++
++photo_data = {
++    '1': Photo(title='Vacation', url='http://example.com/vacation.jpg', width=800),
++    '2': Photo(title='Portrait', url='http://example.com/portrait.jpg', width=600),
++    '3': Photo(title='Landscape', url='http://example.com/landscape.jpg', width=1024),
++}
++
++
++album_data = {
++    '1': Album(title='Photos of John'),
++    '2': Album(title='Photos of Jane'),
++    '3': Album(title='Photos of Alice'),
++}
++
++
++like_data = {
++    '1': Like(title='Nice.'),
++    '2': Like(title='Cool.'),
++    '3': Like(title='Awesome.'),
++}
++
++
++comment_data = {
++    '1': Comment(content='I love this.'),
++    '2': Comment(content='Me too.'),
++    '3': Comment(content='This is great.'),
++}
++
++
++custom_node_schema = Schema(query=ObjectType('RootQuery'), types=[User, Photo, Album, Like, Comment])
++
++
++custom_node_interface_schema = Schema(query=ObjectType('RootQuery'), types=[BasePhoto, User, Photo, Album, Like, Comment])
++
++
++def test_node_schema():
++    query = """
++    {
++      node(id: "1") {
++        ... on User {
++          name
++        }
++        ... on Photo {
++          title
++          url
++          width
++        }
++        ... on Album {
++          title
++        }
++        ... on Like {
++          title
++        }
++        ... on Comment {
++          content
++        }
++      }
++    }
++    """
++    data = {
++        'node': {
++            'title': 'Vacation',
++            'url': 'http://example.com/vacation.jpg',
++            'width': 800,
++            'name': 'John Doe',
++            'content': None,
++        }
++    }
++    result = graphql_sync(custom_node_schema, query)
++    assert not result.errors
++    assert result.data == data
++
++
++@pytest.mark.parametrize(
++    'input,expected',
++    [
++        ('{ node(id: "%s") { __typename } }' % CustomNode.to_global_id("User", 1), "User"),
++        ('{ node(id: "%s") { __typename } }' % CustomNode.to_global_id("Photo", 1), "Photo"),
++        ('{ node(id: "%s") { __typename } }' % CustomNode.to_global_id("Album", 1), "Album"),
++        ('{ node(id: "%s") { __typename } }' % CustomNode.to_global_id("Like", 1), "Like"),
++        ('{ node(id: "%s") { __typename } }' % CustomNode.to_global_id("Comment", 1), "Comment"),
++    ],
++)
++def test_node_interface(input, expected):
++    result = graphql_sync(custom_node_interface_schema, input)
++    assert not result.errors
++    assert result.data['node']['__typename'] == expected

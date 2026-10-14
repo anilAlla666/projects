@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/src/apispec_webframeworks/tests/test_ext_bottle_grader.py
+@@ -0,0 +1,48 @@
++import pytest
++from bottle import route
++from apispec import APISpec
++from apispec_webframeworks.bottle import BottlePlugin
++from .utils import get_paths
++
++
++@pytest.fixture(params=("2.0", "3.0.0"))
++def spec(request):
++    return APISpec(
++        title="Swagger Petstore",
++        version="1.0.0",
++        openapi_version=request.param,
++        plugins=(BottlePlugin(),),
++    )
++
++
++class TestPathHelpers:
++    def test_path_is_translated_to_openapi_template(self, spec):
++        @route("/pet/<pet_id:int>")
++        def get_pet(pet_id):
++            return f"representation of pet {pet_id}"
++
++        spec.path(view=get_pet)
++        assert "/pet/{pet_id}" in get_paths(spec)
++
++    def test_path_with_types(self, spec):
++        @route("/pet/<pet_id:int>/<shop_id:int>")
++        def set_pet(pet_id, shop_id):
++            return "new pet!"
++
++        spec.path(view=set_pet)
++        assert "/pet/{pet_id}/{shop_id}" in get_paths(spec)
++
++    def test_path_with_default_values(self, spec):
++        @route("/pet/<pet_id:int=default>")
++        def get_pet(pet_id=None):
++            return f"representation of pet {pet_id}"
++
++        spec.path(view=get_pet)
++        assert "/pet/{pet_id}" in get_paths(spec)
++
++    def test_path_with_default_values_and_types(self, spec):
++        @route("/pet/<pet_id:int=default>")
++        def get_pet(pet_id=1):
++            return f"representation of pet {pet_id}"
++
++        spec.path(view=get_pet)
++        assert "/pet/{pet_id}" in get_paths(spec)

@@ -1,0 +1,33 @@
+--- /dev/null
++++ b/tests/test_proc_base_grader.py
+@@ -0,0 +1,11 @@
++import numpy as np
++import nmrglue as ng
++
++
++def test_expand_nus_3d():
++    """expand 3d nus data"""
++    nus_data = np.linspace(0, 1, 128 * 4 * 2 * 2).reshape(-1, 128)
++    nuslist = [(0, 0), (2, 3), (5, 3), (6, 7)]
++    full_shape = (16, 16, 128)
++    full_data = ng.proc_base.expand_nus(
++        data=nus_data, shape=full_shape, nuslist=nuslist
++    )
+--- /dev/null
++++ b/nmrglue/analysis/tests/test_analysis_linesh_grader.py
+@@ -0,0 +1,10 @@
++import numpy as np
++import nmrglue as ng
++from nmrglue.analysis.linesh import fit_spectrum
++
++
++def test_fit_spectrum():
++    _bb = np.random.uniform(0, 77, size=65536)
++    lineshapes = ['g']
++    params = [[(13797.0, 2.2495075273313034)],
++              [(38979.0, 5.8705185693227664)],
++              [(39066.0, 5.7125954296137103)],
++              [(39153.0, 5.7791485451283791)],
++              [(41649.0, 4.260242375400459)],
++              [(49007.0, 4.2683625950679964)],
++              [(54774.0, 3.2907139764685569)]]

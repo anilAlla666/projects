@@ -1,0 +1,65 @@
+--- /dev/null
++++ b/tests/test_funcutils_grader.py
+@@ -0,0 +1,47 @@
++from boltons.funcutils import (copy_function,
++                               total_ordering,
++                               InstancePartial,
++                               CachedInstancePartial)
++
++
++class Greeter(object):
++    def __init__(self, greeting):
++        self.greeting = greeting
++
++    def greet(self, excitement='.'):
++        return self.greeting.capitalize() + excitement
++
++    partial_greet = InstancePartial(greet, excitement='!')
++    cached_partial_greet = CachedInstancePartial(greet, excitement='...')
++
++    def native_greet(self):
++        return self.greet(';')
++
++
++class SubGreeter(Greeter):
++    pass
++
++
++def test_annotation_support():
++    from typing import Optional
++
++    def wrapper(func):
++        @wraps(func)
++        def wrapper(*args, **kwargs):
++            func(*args, **kwargs)
++        return wrapper
++
++    @wrapper
++    def foo(x: Optional[int]) -> Optional[int]:
++        return x
++
++    assert foo.__annotations__ == {'x': Optional[int],
++                                   'return': Optional[int]}
++
++    # ensure the inner function has annotations too
++    assert foo.__wrapped__.__annotations__ == {'x': Optional[int],
++                                              'return': Optional[int]}
+--- /dev/null
++++ b/tests/test_funcutils_fb_grader.py
+@@ -0,0 +1,15 @@
++import pytest
++from boltons.funcutils import wraps, FunctionBuilder
++
++
++def pita_wrap(flag=False):
++
++    def cedar_dec(func):
++        @wraps(func)
++        def cedar_wrapper(*a, **kw):
++            return (flag, func.__name__, func(*a, **kw))
++        return cedar_wrapper
++
++    return cedar_dec
++
++
++del pita_wrap

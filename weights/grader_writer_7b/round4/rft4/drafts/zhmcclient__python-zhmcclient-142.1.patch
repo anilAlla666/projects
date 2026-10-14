@@ -1,0 +1,24 @@
+--- /dev/null
++++ b/tests/test__manager_grader.py
+@@ -0,0 +1,21 @@
++from __future__ import absolute_import
++
++
++import pytest
++from zhmcclient.testutils.fixtures import MANAGER_URI
++from zhmcclient.testutils.hypervisor_fixtures import HMC1, CPC1
++
++
++def test_findall_no_match(manager):
++    # pylint: disable=redefined-outer-name
++    assert len(manager.findall()) == 0
++    assert len(manager.findall(type='foobar')) == 0
++    assert len(manager.findall(status='foobar')) == 0
++
++
++@pytest.fixture(scope='function')
++def manager(hmc, session):
++    # pylint: disable=redefined-outer-name
++    manager = hmc.manager(session)
++    yield manager
++    manager.flush()

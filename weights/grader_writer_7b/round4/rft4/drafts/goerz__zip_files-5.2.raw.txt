@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/tests/test_zip_files_grader.py
+@@ -0,0 +1,48 @@
++"""Tests for `zip-files` executable."""
++
++
++import io
++from pathlib import Path
++from zipfile import ZipFile
++from click.testing import CliRunner
++from pkg_resources import parse_version
++from test_zip_folder import _check_exit_code, _prepare_folder_with_git_excludes
++from zip_files import __version__
++from zip_files.zip_files import zip_files
++
++
++ROOT = Path(__file__).parent / 'root'
++
++
++def test_zip_files_preserve_permissions(tmp_path):
++    """Test that zip-files preserves permissions."""
++    runner = CliRunner()
++    folder = tmp_path / 'archive'
++    folder.mkdir()
++    outfile = tmp_path / 'archive.zip'
++    files = [
++        folder / 'a',
++        folder / 'b',
++        folder / 'c',
++    ]
++    files[0].mkdir(mode=0o755 | 0o400)
++    files[1].touch(mode=0o755 | 0o400)
++    files[2].touch(mode=0o755 | 0o400)
++    for f in files:
++        f.chmod(0o755 | 0o400)
++    result = runner.invoke(
++        zip_files,
++        ['--debug', '-o', str(outfile)]
++        + [str(f) for f in files],
++    )
++    _check_exit_code(result)
++    expected_files = [
++        'a',
++        'b',
++        'c',
++    ]
++    with ZipFile(outfile) as zipfile:
++        zipfile.debug = 3
++        assert zipfile.testzip() is None
++        assert set(expected_files) == set(zipfile.namelist())
++        assert zipfile.infolist()[0].external_attr == 0o755 << 16
++        assert zipfile.infolist()[1].external_attr == 0o755 << 16
++        assert zipfile.infolist()[2].external_attr == 0o755 << 16

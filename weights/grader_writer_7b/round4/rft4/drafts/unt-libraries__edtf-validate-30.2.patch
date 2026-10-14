@@ -1,0 +1,59 @@
+--- /dev/null
++++ b/tests/test_valid_edtf_grader.py
+@@ -0,0 +1,49 @@
++import pytest
++from itertools import chain
++from edtf_validate.valid_edtf import (is_valid_interval, is_valid, isLevel0, isLevel1,
++                                      isLevel2, conformsLevel0, conformsLevel1, conformsLevel2)
++
++
++L0_Intervals = [
++    '1964/2008',
++    '2004-06/2006-08',
++    '2004-02-01/2005-02-08',
++    '2004-02-01/2005-02',
++    '2004-02-01/2005',
++    '2005/2006-02',
++    '0000/0000',
++    '0000-02/1111',
++    '0000-01/0000-01-03',
++    '0000-01-13/0000-01-23',
++    '1111-01-01/1111',
++    '0000-01/0000',
++]
++
++
++L1_Intervals = [
++    '-1000/-0999',
++    '-2004-02-01/2005',
++    '-1980-11-01/1989-11-30',
++    '1923-21/1924',
++    '2019-12/2020%',
++    '1984~/2004-06',
++    '1984/2004-06~',
++    '1984~/2004~',
++    '-1984?/2004%',
++    '1984?/2004-06~',
++    '1984-06?/2004-08?',
++    '1984-06-02?/2004-08-08~',
++    '2004-06~/2004-06-11%',
++    '1984-06-02?/',
++    '2003/2004-06-11%',
++    '1952-23~/1953',
++    '-2004-06-01/',
++    '1985-04-12/',
++    '1985-04/',
++    '1985/',
++    '/1985',
++    '/1985-04',
++    '/1985-04-12',
++]
++
++
++invalid_intervals = ['1985-04-12T23:20:30/1990-02-10T23:12:30']
++
++
++class TestInvalidIntervals(object):
++    @pytest.mark.parametrize('interval', invalid_intervals)
++    def test_invalid_interval(self, interval):
++        assert not is_valid_interval(interval)

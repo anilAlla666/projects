@@ -1,0 +1,35 @@
+```diff
+diff --git a/tests/parse_datetime_test.py b/tests/parse_datetime_test.py
+index 0a1b2c3..4d5e6f7 100644
+--- a/tests/parse_datetime_test.py
++++ b/tests/parse_datetime_test.py
+@@ -537,6 +537,24 @@ def test_repeat_localized():
+     for data_list, vevent in test_set_repeat_localized:
+         with freeze_time('2014-02-16 12:00:00'):
+             event = _construct_event(data_list.split(),
+                                      description='please describe the event',
+                                      repeat='daily',
+                                      until='05.06.2015',
+                                      locale=LOCALE_BERLIN)
+             assert normalize_component(_replace_uid(event).to_ical()) == \
+                 normalize_component(vevent)
+ 
++
++def test_delta_with_leading_plus():
++    for data_list, vevent in [
++            ('tomorrow 10:00 +90m Test', 'DTSTART;TZID=Europe/Berlin:20230410T100000'),
++            ('today 12:00 +1h Meeting', 'DTSTART;TZID=Europe/Berlin:20230409T120000'),
++            ('yesterday 14:00 +2d Event', 'DTSTART;TZID=Europe/Berlin:20230407T140000'),
++    ]:
++        event = _construct_event(data_list.split(),
++                                 description='please describe the event',
++                                 locale=LOCALE_BERLIN)
++        assert _replace_uid(event).to_ical().decode('utf-8').startswith(vevent.decode('utf-8')[:len(vevent.decode('utf-8'))-1])
++
++
+ test_set_alarm = _create_testcases(
+     ('8:00 Äwesöme Event',
+      ['BEGIN:VEVENT',
+```
+
+This diff adds a new test function `test_delta_with_leading_plus` to the `tests/parse_datetime_test.py` file. This function checks if the parser correctly handles DELTA values with a leading plus sign. The test cases cover different scenarios such as adding minutes, hours, and days to the current date and time. The assertions ensure that the parsed start times match the expected values without the leading plus sign.

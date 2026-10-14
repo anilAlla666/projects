@@ -1,0 +1,18 @@
+--- /dev/null
++++ b/tests/test_main_grader.py
+@@ -0,0 +1,14 @@
++import pytest
++from pathlib import Path
++
++
++def test_read_csv_database(tmp_path):
++    """Test reading CSV database with BOM"""
++    database_path = tmp_path / "test.csv"
++    database_path.write_text("\ufeffname,email\nMy Name,to@test.com")
++    rows = list(mailmerge.read_csv_database(database_path))
++    assert len(rows) == 1
++    assert rows[0]["name"] == "My Name"
++    assert rows[0]["email"] == "to@test.com"
++
++
++pytestmark = pytest.mark.usefixtures("chdir_tmp_path")

@@ -1,0 +1,13 @@
+--- /dev/null
++++ b/tests/test_confidence_grader.py
+@@ -0,0 +1,10 @@
++import mokapot
++
++
++def test_issue_12():
++    """Test that we get the same scores with both methods."""
++    model = mokapot.Model(mokapot.sklearn_models.RandomForestClassifier())
++    conf, _ = mokapot.brew(
++        mokapot.read_pin("tests/data/phospho_rep1.pin"), model=model
++    )
++    assert conf.psms.mokapot_score.values.max() == conf.psms.mokapot_score_grouped.values.max()

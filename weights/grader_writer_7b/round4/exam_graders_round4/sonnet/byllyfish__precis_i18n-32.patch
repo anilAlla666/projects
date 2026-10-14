@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/tests/test_nickname_whitespace.py
+@@ -0,0 +1,50 @@
++import unittest
++
++from precis_i18n import get_profile
++
++
++class NicknameWhiteSpaceTest(unittest.TestCase):
++    def setUp(self):
++        self.profile = get_profile('Nickname')
++
++    def _error_text(self, value):
++        try:
++            result = self.profile.enforce(value)
++        except ValueError as exc:  # UnicodeError is a ValueError
++            return str(exc) + ' ' + repr(getattr(exc, 'reason', ''))
++        self.fail('expected error for %r, got %r' % (value, result))
++
++    def test_control_chars_not_stripped(self):
++        for value in ('\x1fb\x1f', '\x1fb', 'b\x1f', '\x1cb\x1c',
++                      '\x1db\x1d', '\x1eb\x1e', '\x0bb\x0b', '\x0cb\x0c'):
++            text = self._error_text(value)
++            self.assertIn('invalid_white_space', text, repr(value))
++
++    def test_ascii_space_still_stripped(self):
++        self.assertEqual(self.profile.enforce('  a  '), 'a')
++        self.assertEqual(self.profile.enforce(' a   b '), 'a b')
++
++    def test_nonascii_space_still_mapped_and_stripped(self):
++        self.assertEqual(self.profile.enforce('\u3000a\u2003\u2003b\u00a0'),
++                         'a b')
++
++
++if __name__ == '__main__':
++    unittest.main()

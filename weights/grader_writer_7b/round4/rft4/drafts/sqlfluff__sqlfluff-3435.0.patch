@@ -1,0 +1,69 @@
+--- /dev/null
++++ b/test/rules/test_std_L027_test_grader.py
+@@ -0,0 +1,43 @@
++"""Tests the python routines within L027."""
++
++
++import sqlfluff
++
++
++def test__rules__std_L027_multiple_subquery_tables():
++    """Ensure multiple tables in a sub-query don't raise false positive errors (#2405)."""
++    sql = """
++        SELECT
++            account.id AS account_id,
++            account.isdeleted AS is_deleted
++        FROM salesforce_sd.account
++        INNER JOIN salesforce_sd."user" ON salesforce_sd."user".id = account.ownerid
++        WHERE EXISTS (
++            SELECT 1
++            FROM salesforce_sd.user AS user
++            INNER JOIN salesforce_sd.mapping AS mapping ON (
++                mapping.other_fk = user.id_pk
++            )
++            WHERE mapping.kind = account.kind
++        );
++    """
++    result = sqlfluff.lint(sql)
++    assert "L027" not in [r["code"] for r in result], "L027 should not be raised."
++
++
++def test__rules__std_L027_cross_joined_tables():
++    """Ensure cross-joined tables don't raise false positive errors (#2405)."""
++    sql = """
++        SELECT
++            account.id AS account_id,
++            account.isdeleted AS is_deleted
++        FROM salesforce_sd.account
++        CROSS JOIN salesforce_sd."user"
++        WHERE EXISTS (
++            SELECT 1
++            FROM salesforce_sd.user AS user
++            INNER JOIN salesforce_sd.mapping AS mapping ON (
++                mapping.other_fk = user.id_pk
++            )
++            WHERE mapping.kind = account.kind
++        );
++    """
++    result = sqlfluff.lint(sql)
++    assert "L027" not in [r["code"] for r in result], "L027 should not be raised."
+--- /dev/null
++++ b/plugins/sqlfluff-templater-dbt/test/test_rules_test_grader.py
+@@ -0,0 +1,16 @@
++"""Tests for the standard set of rules."""
++
++
++import pytest
++import os
++from sqlfluff.core.config import FluffConfig
++from sqlfluff.testing.rules import assert_rule_raises_violations_in_file
++from test.fixtures.dbt.templater import (  # noqa
++    DBT_FLUFF_CONFIG,
++    project_dir,
++    dbt_templater,
++)
++
++
++@pytest.mark.skip(reason="TODO: Add back once L027 has been refactored.")
++def test__rules__std_file_dbt():  # noqa
++    """Test linter finds the given errors in (and only in) the right places (DBT)."""

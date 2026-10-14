@@ -1,0 +1,38 @@
+To address the issue where `pierone` fails with a backtrace when the CVE status is `COULDNT_FIGURE_OUT`, we need to add a test that checks how the application handles this specific scenario. The test should ensure that the application gracefully handles the absence of features without crashing.
+
+Here's a unified diff that adds a new test function to `tests/test_cli.py`:
+
+```diff
+diff --git a/tests/test_cli.py b/tests/test_cli.py
+index 0a1b2c3..4d5e6f7 100644
+--- a/tests/test_cli.py
++++ b/tests/test_cli.py
+@@ -208,6 +208,25 @@ def test_cves_with_missing_layer(monkeypatch, tmpdir):
+     response.json.side_effect = [
+         pierone_service_payload,
+         clair_service_payload
++    ]
++
++def test_cves_with_couldnt_figure_out(monkeypatch, tmpdir):
++    pierone_service_payload = {
++        'layers': [
++            {'id': 'layer1', 'features': []}
++        ]
++    }
++    clair_service_payload = {
++        'Vulnerabilities': [],
++        'Features': []
++    }
++
++    response = MagicMock()
++    response.json.side_effect = [
++        pierone_service_payload,
++        clair_service_payload
+     ]
+ 
+     runner = CliRunner()
+```
+
+This new test function `test_cves_with_couldnt_figure_out` sets up a mock response where Clair returns an empty list of features, simulating the `COULDNT_FIGURE_OUT` status. The test ensures that the application can handle this situation without raising a `KeyError`.
+
+By adding this test, we can verify that the fix resolves the issue and prevents the application from crashing when encountering the `COULDNT_FIGURE_OUT` status.

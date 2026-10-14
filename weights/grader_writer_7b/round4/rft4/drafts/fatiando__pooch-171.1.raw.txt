@@ -1,0 +1,102 @@
+--- /dev/null
++++ b/pooch/tests/test_utils_grader.py
+@@ -0,0 +1,100 @@
++"""
++Test the utility functions.
++"""
++
++
++import os
++import hashlib
++from pathlib import Path
++import tempfile
++from tempfile import NamedTemporaryFile, TemporaryDirectory
++import pytest
++from ..core import Pooch
++from ..utils import (
++    make_registry,
++    parse_url,
++    make_local_storage,
++    file_hash,
++    hash_matches,
++    temporary_file,
++    unique_file_name,
++)
++from .utils import check_tiny_data, capture_log
++
++
++DATA_DIR = str(Path(__file__).parent / "data" / "store")
++
++
++REGISTRY = (
++    "tiny-data.txt baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d\n"
++)
++
++
++REGISTRY_RECURSIVE = (
++    "subdir/tiny-data.txt baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d\n"
++    "tiny-data.txt baee0894dba14b12085eacb204284b97e362f4f3e5a5807693cc90ef415c1b2d\n"
++)
++
++
++def test_make_local_storage_no_create():
++    "Check that make_local_storage doesn't create anything"
++    with tempfile.TemporaryDirectory() as tmpdir:
++        pth = Path(tmpdir) / "some_folder"
++        make_local_storage(pth, env=None, version=None, create=False)
++        assert not pth.exists()
++
++
++def test_make_local_storage_no_create_with_env(monkeypatch):
++    "Check that make_local_storage doesn't create anything when using an env var"
++    monkeypatch.setenv("POOCH_CACHE", "nope")
++    with tempfile.TemporaryDirectory() as tmpdir:
++        pth = Path(tmpdir) / "some_folder"
++        make_local_storage(pth, env="POOCH_CACHE", version=None, create=False)
++        assert not pth.exists()
++
++
++def test_make_local_storage_no_create_with_version(monkeypatch):
++    "Check that make_local_storage doesn't create anything when using a version"
++    monkeypatch.setenv("POOCH_CACHE", "nope")
++    with tempfile.TemporaryDirectory() as tmpdir:
++        pth = Path(tmpdir) / "some_folder"
++        make_local_storage(pth, env="POOCH_CACHE", version="v1.2.3", create=False)
++        assert not pth.exists()
++
++
++def test_make_local_storage_with_create(monkeypatch):
++    "Check that make_local_storage creates the directory"
++    with tempfile.TemporaryDirectory() as tmpdir:
++        pth = Path(tmpdir) / "some_folder"
++        make_local_storage(pth, env=None, version=None, create=True)
++        assert pth.exists()
++
++
++def test_make_local_storage_with_create_and_env(monkeypatch):
++    "Check that make_local_storage uses the env var when creating the directory"
++    monkeypatch.setenv("POOCH_CACHE", "nope")
++    with tempfile.TemporaryDirectory() as tmpdir:
++        pth = Path(tmpdir) / "some_folder"
++        make_local_storage(pth, env="POOCH_CACHE", version=None, create=True)
++        assert pth.exists()
++
++
++def test_make_local_storage_with_create_and_version(monkeypatch):
++    "Check that make_local_storage uses the version when creating the directory"
++    monkeypatch.setenv("POOCH_CACHE", "nope")
++    with tempfile.TemporaryDirectory() as tmpdir:
++        pth = Path(tmpdir) / "some_folder"
++        make_local_storage(pth, env="POOCH_CACHE", version="v1.2.3", create=True)
++        assert (pth.parent / "v1.2.3").exists()
++
++
++def test_make_local_storage_with_create_and_env_and_version(monkeypatch):
++    "Check that make_local_storage uses the env var and version"
++    monkeypatch.setenv("POOCH_CACHE", "nope")
++    with tempfile.TemporaryDirectory() as tmpdir:
++        pth = Path(tmpdir) / "some_folder"
++        make_local_storage(
++            pth, env="POOCH_CACHE", version="v1.2.3", create=True
++        )
++        assert (pth.parent / "v1.2.3").exists()

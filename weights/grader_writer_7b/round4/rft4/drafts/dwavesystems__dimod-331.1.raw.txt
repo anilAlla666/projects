@@ -1,0 +1,57 @@
+--- /dev/null
++++ b/tests/test_binary_quadratic_model_grader.py
+@@ -0,0 +1,51 @@
++import unittest
++import random
++import itertools
++import tempfile
++import shutil
++import json
++import collections
++from os import path
++import jsonschema
++import numpy as np
++import dimod
++from dimod.io.json import bqm_json_schema
++
++
++try:
++    import networkx as nx
++    _networkx = True
++except ImportError:
++    _networkx = False
++
++
++try:
++    import pandas as pd
++    _pandas = True
++except ImportError:
++    _pandas = False
++
++
++class TestFunctional(unittest.TestCase):
++    def test_fix_variables(self):
++        bqm = dimod.BinaryQuadraticModel({1: 1, 2: 2}, {(1, 2): 0.5}, 0.5, dimod.SPIN)
++
++        bqm.fix_variables({1: -1, 2: 1})
++
++        self.assertEqual(bqm.linear, {})
++        self.assertEqual(bqm.quadratic, {(1, 2): 0.5})
++        self.assertEqual(bqm.offset, 2.)
++
++        # now let's check that fixing non-existent variables doesn't change anything
++        bqm = dimod.BinaryQuadraticModel({1: 1, 2: 2}, {(1, 2): 0.5}, 0.5, dimod.SPIN)
++
++        bqm.fix_variables({3: -1, 2: 1})
++
++        self.assertEqual(bqm.linear, {1: 1})
++        self.assertEqual(bqm.quadratic, {(1, 2): 0.5})
++        self.assertEqual(bqm.offset, 1.5)
++
++        # also make sure that we can fix all the variables
++        bqm = dimod.BinaryQuadraticModel({1: 1, 2: 2}, {(1, 2): 0.5}, 0.5, dimod.SPIN)
++        bqm.fix_variables({1: -1, 2: 1})
++
++        self.assertEqual(bqm.linear, {})
++        self.assertEqual(bqm.quadratic, {})
++        self.assertEqual(bqm.offset, 2.)

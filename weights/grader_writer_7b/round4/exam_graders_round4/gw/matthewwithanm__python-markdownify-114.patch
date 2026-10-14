@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_markdownify_grader.py
+@@ -0,0 +1,10 @@
++import unittest
++from markdownify import markdownify as md
++
++
++class TestMarkdownify(unittest.TestCase):
++    def test_figure_and_table_captions(self):
++        self.assertEqual(md('TEXT<table><caption>Caption</caption><tr><td>CELL</td></tr></tbody></table>'), 'TEXT\n\nCaption\n\n| CELL |\n\n')
++        self.assertEqual(md('TEXT<figure><figcaption>Caption</figcaption><span>SPAN</span></figure>'), 'TEXT\n\nCaption\n\nSPAN\n\n')
++        self.assertEqual(md('<figure><span>SPAN</span><figcaption>Caption</figcaption></figure>TEXT'), 'SPAN\n\nCaption\n\nTEXT\n\n')
++
++
++if __name__ == '__main__':
++    unittest.main()

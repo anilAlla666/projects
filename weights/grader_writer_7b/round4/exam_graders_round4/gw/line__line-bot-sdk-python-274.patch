@@ -1,0 +1,112 @@
+--- /dev/null
++++ b/tests/models/test_flex_message_grader.py
+@@ -0,0 +1,110 @@
++from __future__ import unicode_literals, absolute_import
++import unittest
++from linebot.models import (
++    FlexSendMessage,
++    BlockStyle,
++    BubbleStyle,
++    BubbleContainer,
++    CarouselContainer,
++    BoxComponent,
++    TextComponent,
++    SeparatorComponent,
++    ImageComponent,
++    ButtonComponent,
++    FillerComponent,
++    IconComponent,
++    SpacerComponent,
++    SpanComponent,
++    URIAction,
++)
++from tests.models.serialize_test_case import SerializeTestCase
++
++
++class TestFlexMessage(SerializeTestCase):
++    def test_box_component(self):
++        arg = {
++            'type': 'box',
++            'layout': 'horizontal',
++            'spacing': 'sm',
++            'padding_all': 'none',
++            'background_color': '#ffffff',
++            'border_width': 'none',
++            'cornerRadius': 'none',
++            'shadow': 'none',
++            'width': 'auto',
++            'height': 'auto',
++            'action': {
++                'type': 'uri',
++                'label': 'Go to LINE',
++                'uri': 'http://example.com/'
++            },
++            'contents': [
++                {
++                    'type': 'text',
++                    'text': 'Hello, World!'
++                }
++            ]
++        }
++        self.assertEqual(
++            self.serialize_as_dict(arg, type=self.BOX),
++            BoxComponent(**arg).as_json_dict()
++        )
++
++    def test_icon_component(self):
++        arg = {
++            'type': 'icon',
++            'url': 'https://example.com/icon.jpg',
++            'size': 'xxs',
++            'aspectRatio': '1:1',
++            'aspectMode': 'cover',
++            'backgroundColor': '#ffffff',
++            'gravity': 'center',
++            'position': 'absolute',
++            'offsetTop': '10px',
++            'offsetBottom': '10px',
++            'offsetStart': '10px',
++            'offsetEnd': '10px',
++            'offsetX': '10px',
++            'offsetY': '10px',
++            'action': {
++                'type': 'uri',
++                'label': 'Go to LINE',
++                'uri': 'http://example.com/'
++            }
++        }
++        self.assertEqual(
++            self.serialize_as_dict(arg, type=self.ICON),
++            IconComponent(**arg).as_json_dict()
++        )
++
++    def test_image_component(self):
++        arg = {
++            'type': 'image',
++            'url': 'https://example.com/image.jpg',
++            'size': 'full',
++            'aspectRatio': '1.91:1',
++            'aspectMode': 'cover',
++            'backgroundColor': '#ffffff',
++            'gravity': 'center',
++            'position': 'absolute',
++            'offsetTop': '10px',
++            'offsetBottom': '10px',
++            'offsetStart': '10px',
++            'offsetEnd': '10px',
++            'offsetX': '10px',
++            'offsetY': '10px',
++            'action': {
++                'type': 'uri',
++                'label': 'Go to LINE',
++                'uri': 'http://example.com/'
++            }
++        }
++        self.assertEqual(
++            self.serialize_as_dict(arg, type=self.IMAGE),
++            ImageComponent(**arg).as_json_dict()
++        )
++
++
++if __name__ == '__main__':
++    unittest.main()

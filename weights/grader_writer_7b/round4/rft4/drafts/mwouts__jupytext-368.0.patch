@@ -1,0 +1,32 @@
+--- /dev/null
++++ b/tests/test_jupytext_read_grader.py
+@@ -0,0 +1,11 @@
++import pytest
++import jupytext
++from jupytext.compare import compare_notebooks
++
++
++def test_roundtrip_markdown_cells(tmpdir):
++    tmp_md = str(tmpdir.join('notebook.md'))
++
++    with open(tmp_md, 'w') as fp:
++        fp.write("""%%python3
++a = 1""")
++
++    nb = jupytext.read(tmp_md)
+--- /dev/null
++++ b/tests/test_jupytext_writers_grader.py
+@@ -0,0 +1,11 @@
++import pytest
++import jupytext
++from jupytext.compare import compare_notebooks
++
++
++def test_roundtrip_python_cells(tmpdir):
++    tmp_py = str(tmpdir.join('notebook.py'))
++
++    with open(tmp_py, 'w') as fp:
++        fp.write("""# %%
++a = 1""")
++
++    nb = jupytext.read(tmp_py)

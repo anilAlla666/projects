@@ -1,0 +1,71 @@
+--- /dev/null
++++ b/tests/ext/test_ext_configparser_grader.py
+@@ -0,0 +1,27 @@
++import os
++from cement.core.foundation import TestApp
++from cement.ext.ext_configparser import ConfigParserConfigHandler
++
++
++def test_getboolean():
++    with TestApp() as app:
++        app.config.set('testapp', 'bool', 'True')
++        assert app.config.getboolean('testapp', 'bool')
++        app.config.set('testapp', 'bool', 'False')
++        assert not app.config.getboolean('testapp', 'bool')
++
++
++def test_getboolean_default():
++    with TestApp() as app:
++        app.config.set('testapp', 'bool', None)
++        assert not app.config.getboolean('testapp', 'bool')
++
++
++def test_getboolean_invalid_value():
++    with TestApp() as app:
++        app.config.set('testapp', 'bool', 'invalid')
++        assert not app.config.getboolean('testapp', 'bool')
++        assert not app.config.getboolean('testapp', 'bool', False)
++        assert app.config.getboolean('testapp', 'bool', True)
++        assert app.config.getboolean('testapp', 'bool', None) is None
+--- /dev/null
++++ b/tests/ext/test_ext_json_grader.py
+@@ -0,0 +1,40 @@
++import os
++import json
++from unittest.mock import patch
++from cement.utils.test import TestApp
++from cement.utils import fs
++
++
++CONFIG_PARSED = dict(
++    section=dict(
++        subsection=dict(
++            list=['item1', 'item2', 'item3', 'item4'],
++            key='value'),
++        key1='ok1',
++        key2='ok2',
++    ),
++)
++
++
++CONFIG = fs.join(os.path.dirname(__file__), '..',
++                 'data', 'config', 'config.json')
++
++
++class JsonApp(TestApp):
++    class Meta:
++        extensions = ['json']
++        output_handler = 'json'
++        config_handler = 'json'
++        config_files = [CONFIG]
++        argv = ['-o', 'json']
++        meta_defaults = {'output.json': {'overridable': True}}
++
++
++def test_getboolean():
++    with JsonApp() as app:
++        assert app.config.getboolean('section', 'key1')
++        assert not app.config.getboolean('section', 'key2')
++        assert not app.config.getboolean('section', 'key2', default=False)
++        assert app.config.getboolean('section', 'key2', default=True)
++        assert app.config.getboolean('section', 'key2', default=None) is None

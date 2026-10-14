@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/tests/test_marshmallow_dataclass_grader.py
+@@ -0,0 +1,25 @@
++import pytest
++from marshmallow import Schema, post_dump
++from marshmallow_dataclass import dataclass
++
++
++class DoubleSchema(Schema):
++    @post_dump
++    def double(self, data, **kwargs):
++        return dict(double=data["number"] * 2)
++
++
++def test_base_schema_of_nested_dataclass():
++    """Test that base_schema of nested dataclasses is correctly inherited"""
++
++    @dataclass(base_schema=DoubleSchema)
++    class A:
++        number: int
++
++    @dataclass
++    class B:
++        a: A
++
++    assert isinstance(B.Schema._declared_fields["a"].schema, DoubleSchema)
++    assert B.Schema().dump(B(A(1))) == {"a": {"double": 2}}

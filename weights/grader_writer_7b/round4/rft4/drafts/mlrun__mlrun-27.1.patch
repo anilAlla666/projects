@@ -1,0 +1,165 @@
+--- /dev/null
++++ b/tests/test_httpdb_grader.py
+@@ -0,0 +1,144 @@
++from collections import namedtuple
++from os import environ
++from pathlib import Path
++from socket import socket
++from subprocess import Popen
++from sys import executable
++from tempfile import mkdtemp
++from time import monotonic, sleep
++from urllib.request import urlopen, URLError
++from http import HTTPStatus
++import pytest
++from mlrun.artifacts import Artifact
++from mlrun.db import HTTPRunDB, RunDBError
++from mlrun import RunObject
++
++
++root = Path(__file__).absolute().parent.parent
++
++
++Server = namedtuple('Server', 'process url log_file conn')
++
++
++def free_port():
++    with socket() as sock:
++        sock.bind(('localhost', 0))
++        return sock.getsockname()[1]
++
++
++def start_server(port, env=None):
++    cmd = [executable, '-m', 'mlrun.db.httpd']
++    if port:
++        cmd.extend(['--port', str(port)])
++    if env:
++        cmd.extend(['--env', env])
++
++    proc = Popen(cmd, cwd=root)
++    sleep(0.1)
++    url = f'http://localhost:{port}'
++    try:
++        resp = urlopen(url)
++        resp.close()
++    except URLError as err:
++        proc.terminate()
++        proc.wait()
++        msg = f'failed to connect to {url}, got {err.reason}'
++        pytest.fail(msg)
++    return proc, url
++
++
++def create_server(env=None):
++    port = free_port()
++    proc, url = start_server(port, env=env)
++    log_file = Path(mkdtemp()) / 'httpd.log'
++    log_file.touch(exist_ok=True)
++    server = Server(proc, url, log_file, HTTPRunDB())
++    yield server
++    server.conn.disconnect()
++    server.process.terminate()
++    server.process.wait()
++    server.log_file.unlink(missing_ok=True)
++
++
++def wait_for_ready(url, timeout=10):
++    end_time = monotonic() + timeout
++    while monotonic() < end_time:
++        try:
++            resp = urlopen(url)
++            resp.close()
++            break
++        except URLError:
++            sleep(0.1)
++
++
++def bool2str(value):
++    return str(value).lower()
++
++
++def dict_to_json(dct):
++    return '\n'.join('{}:{}'.format(k, v) for k, v in dct.items())
++
++
++def test_artifact(create_server):
++    server: Server = create_server()
++    db = server.conn
++
++    prj, uid, key, body = 'p7', 'u199', 'k800', 'cucumber'
++    artifact = Artifact(key, body).to_dict()
++
++    db.store_artifact(key, artifact, uid, project=prj)
++    # TODO: Need a run file
++    # db.del_artifact(key, project=prj)
++
++
++def test_artifacts(create_server):
++    server: Server = create_server()
++    db = server.conn
++    prj, uid, key, body = 'p9', 'u19', 'k802', 'tomato'
++    artifact = Artifact(key, body).to_dict()
++
++    db.store_artifact(key, artifact, uid, project=prj)
++    artifacts = db.list_artifacts(project=prj)
++    assert len(artifacts) == 1, 'bad number of artifacs'
++
++    db.del_artifacts(project=prj)
++    artifacts = db.list_artifacts(project=prj)
++    assert len(artifacts) == 0, 'bad number of artifacs after del'
++
++
++def test_artifact_tree(create_server):
++    server: Server = create_server()
++    db = server.conn
++    prj, uid, key, body = 'p9', 'u19', 'k802', 'tomato'
++    artifact = Artifact(key, body).to_dict()
++
++    db.store_artifact(key, artifact, uid, project=prj)
++    artifacts = db.list_artifacts(project=prj, key=key)
++    assert len(artifacts) == 1, 'bad number of artifacs'
++
++    db.del_artifacts(project=prj)
++    artifacts = db.list_artifacts(project=prj)
++    assert len(artifacts) == 0, 'bad number of artifacs after del'
++
++
++def test_basic_auth(create_server):
++    user, passwd = 'bugs', 'bunny'
++    env = {
++        'MLRUN_httpdb__user': user,
++        'MLRUN_httpdb__password': passwd,
++    }
++    server: Server = create_server(env)
++
++    db: HTTPRunDB = server.conn
++
++    with pytest.raises(RunDBError):
++        db.list_runs()
++
++    db.user = user
++    db.password = passwd
++    db.list_runs()
+--- /dev/null
++++ b/tests/test_rundb_grader.py
+@@ -0,0 +1,23 @@
++import mlrun
++from conftest import rundb_path, results
++
++
++def get_db():
++    return mlrun.get_run_db(rundb_path).connect()
++
++
++def test_list_artifacts():
++
++    db = get_db()
++    artifacts = db.list_artifacts()
++    assert artifacts, 'empty artifacts result'
++
++    html = artifacts.show(display=False)
++
++    with open('{}/artifacts.html'.format(results), 'w') as fp:
++        fp.write(html)
++
++    assert len(artifacts) == 3

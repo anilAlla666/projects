@@ -1,0 +1,28 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,22 @@
++from freezegun import freeze_time
++import copy
++import pytest
++from pypinfo import core
++from pypinfo.fields import PythonVersion
++
++
++ROWS = [
++    ['python_version', 'percent', 'download_count'],
++    ['2.7', '51.7%', '342250'],
++    ['3.6', '21.1%', '139745'],
++    ['3.5', '17.2%', '114254'],
++    ['3.4', '7.6%', '50584'],
++    ['3.3', '1.0%', '6666'],
++    ['3.7', '0.7%', '4516'],
++    ['2.6', '0.7%', '4451'],
++    ['3.2', '0.0%', '138'],
++    ['None', '0.0%', '13'],
++]
++
++
++@pytest.fixture
++def query_job_mock(mocker):
++    mock = mocker.MagicMock()
++    return mocker.patch.object(core.Client, 'query', return_value=mock)

@@ -1,0 +1,46 @@
+--- /dev/null
++++ b/sunpy_soar/tests/test_sunpy_soar_grader.py
+@@ -0,0 +1,41 @@
++import os
++import astropy.units as u
++import pytest
++import sunpy.map
++from sunpy.net import Fido
++from sunpy.net import attrs as a
++from sunpy.util.exceptions import SunpyDeprecationWarning
++from sunpy_soar.client import SOARClient
++
++
++def test_fetch_path_interpolation():
++    instrument = 'EUI'
++    time = '2021-02-11'
++    level = 1
++    product = 'EUI-FSI174-IMAGE'
++    query = a.Instrument(instrument) & a.Time(time) & a.Level(level) & a.soar.Product(product)
++    res = Fido.search(query)
++    files = Fido.fetch(res, path=f'data/{instrument}/')
++    assert len(files) == 1
++    fname = files[0]
++    assert os.path.basename(fname).startswith('SOA210211T')
++    assert u.allclose(os.path.getsize(fname) * u.byte,
++                      res[0, 0]['Filesize'], atol=1e-3*u.Mbyte)
++    # Smoke test that we can read this into a map
++    sunpy.map.Map(fname)
++
++
++@pytest.mark.parametrize("instrument", ["EUI", "WAV"])
++@pytest.mark.parametrize("time", [
++    "2021-02-11",
++    "2021-02-11 00:00:00",
++    ("2021-02-11 00:00:00", "2021-02-11 23:59:59")
++])
++@pytest.mark.parametrize("level", [1, 2])
++@pytest.mark.parametrize("product", [
++    "EUI-FSI174-IMAGE",
++    "EUI-FSR174-IMAGE"
++])
++def test_fetch_multiple(instrument, time, level, product):
++    query = a.Instrument(instrument) & a.Time(time) & a.Level(level) & a.soar.Product(product)
++    res = Fido.search(query)
++    files = Fido.fetch(res)
++    assert len(files) == len(res)

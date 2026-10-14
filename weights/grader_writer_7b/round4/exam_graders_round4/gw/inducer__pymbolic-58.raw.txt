@@ -1,0 +1,99 @@
+--- /dev/null
++++ b/test/test_pymbolic_grader.py
+@@ -0,0 +1,100 @@
++__copyright__ = "Copyright (C) 2009-2013 Andreas Kloeckner"
++
++
++__license__ = """
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in
++all copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
++THE SOFTWARE.
++"""
++
++
++import pymbolic.primitives as prim
++import pytest
++from pymbolic import parse
++from pytools.lex import ParseError
++from pymbolic.mapper import IdentityMapper
++
++
++try:
++    reduce
++except NameError:
++    from functools import reduce
++
++
++def assert_parsed_same_as_python(expr_str):
++    # makes sure that has only one line
++    assert "\n" not in expr_str
++
++    parsed_expr = parse(expr_str)
++    assert str(parsed_expr) == eval(expr_str).__repr__()
++
++
++def assert_parse_roundtrip(expr_str):
++    assert_parsed_same_as_python(expr_str)
++
++
++class FlopCounter(IdentityMapper):
++    def map_sum(self, expr, **kwargs):
++        return sum(map(self.rec, expr.operands, **kwargs)) + 1
++
++    def map_product(self, expr, **kwargs):
++        return sum(map(self.rec, expr.operands, **kwargs)) + 1
++
++    def map_quotient(self, expr, **kwargs):
++        return sum(map(self.rec, expr.operands, **kwargs)) + 1
++
++    def map_power(self, expr, **kwargs):
++        return sum(map(self.rec, expr.operands, **kwargs)) + 1
++
++    def map_call(self, expr, **kwargs):
++        return sum(map(self.rec, expr.parameters, **kwargs)) + 1
++
++
++class CSEAwareFlopCounter(FlopCounter):
++    def __init__(self):
++        super().__init__()
++        self._seen = set()
++
++    def rec(self, expr, **kwargs):
++        if expr in self._seen:
++            return 0
++        else:
++            self._seen.add(expr)
++            return super().rec(expr, **kwargs)
++
++
++def test_if_else_precedence():
++    assert parse("10 if x or y else 20") == \
++           prim.IfElse(prim.Or(prim.Variable("x"), prim.Variable("y")),
++                       prim.Literal(10),
++                       prim.Literal(20))
++
++
++if __name__ == "__main__":
++    import sys
++    if len(sys.argv) > 1:
++        exec(sys.argv[1])
++    else:
++        from pytest import main
++        main([__file__])
++
++
++# vim: fdm=marker

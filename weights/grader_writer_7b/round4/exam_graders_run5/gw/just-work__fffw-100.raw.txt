@@ -1,0 +1,42 @@
+--- /dev/null
++++ b/tests/test_encoding_grader.py
+@@ -0,0 +1,34 @@
++from dataclasses import dataclass
++from unittest import TestCase
++from fffw.graph import StreamType, VIDEO, AUDIO, video_meta_data
++from fffw.graph import meta
++from fffw.encoding import inputs, outputs, codecs, Upload, VideoCodec, filters
++
++
++class H264Cuda(codecs.VideoCodec):
++    codec = 'h264_nvenc'
++    hardware = 'cuda'
++
++
++class ScaleNPP(filters.Scale):
++    filter = 'scale_npp'
++    hardware = 'cuda'
++
++
++class OutputsTestCase(TestCase):
++    def setUp(self) -> None:
++        self.video_metadata = meta.video_meta_data(
++            width=1920,
++            height=1080,
++            dar=1.777777778,
++            par=1.0,
++            duration=300.0,
++        )
++        self.audio_metadata = meta.audio_meta_data()
++
++        self.source = inputs.Input(
++            input_file='input.mp4',
++            streams=(inputs.Stream(VIDEO, meta=self.video_metadata),
++                     inputs.Stream(AUDIO, meta=self.audio_metadata)))
++        self.output = outputs.Output(
++            output_file='output.mp4',
++            codecs=[H264Cuda(), codecs.AudioCodec('aac')]
++        )
++
++    def test_trim_end_after_eof(self):
++        self.source.video | filters.Trim(end=300.1) > self.output.video

@@ -1,0 +1,19 @@
+diff --git a/systemfixtures/tests/test_filesystem.py b/systemfixtures/tests/test_filesystem.py
+index 0e0b0c4..021000c 100644
+--- a/systemfixtures/tests/test_filesystem.py
++++ b/systemfixtures/tests/test_filesystem.py
+@@ -119,6 +119,14 @@ class FakeFilesystemTest(TestCase):
+         os.symlink("/foo/bar", "/foo/egg")
+         self.assertEqual("/foo/bar", os.readlink("/foo/egg"))
+ 
++    def test_copytree(self):
++        self.fs.add("/foo")
++        os.makedirs("/foo/bar")
++        temp_dir = self.useFixture(TempDir())
++        shutil.copytree("/foo", temp_dir.path)
++        self.assertThat(temp_dir.path, DirExists())
++        self.assertThat(os.path.join(temp_dir.path, "bar"), DirExists())
++
+     def test_rename(self):
+         self.fs.add("/foo")
+         os.makedirs("/foo/bar")

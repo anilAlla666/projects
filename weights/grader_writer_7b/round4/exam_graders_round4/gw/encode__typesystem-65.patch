@@ -1,0 +1,17 @@
+--- /dev/null
++++ b/tests/test_base_grader.py
+@@ -0,0 +1,14 @@
++import typesystem
++
++
++class Example(typesystem.Schema):
++    a = typesystem.String(max_length=10)
++    b = typesystem.Integer(maximum=5)
++
++
++def test_validation_error_hash():
++    result = Example.validate_or_error({"a": "a"})
++    assert hash(result.error) == hash(result.error)
++    assert hash(result.error) != hash(Example.validate_or_error({"a": "a"}).error)
++    assert hash(result.error) != hash(Example.validate_or_error({"a": "b"}).error)
++    assert hash(result.error) != hash(Example.validate_or_error({"c": "a"}).error)

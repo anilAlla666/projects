@@ -1,0 +1,27 @@
+diff --git a/tests/test_is_arn_match.py b/tests/test_is_arn_match.py
+new file mode 100644
+index 0000000..b8c9d1e
+--- /dev/null
++++ b/tests/test_is_arn_match.py
+@@ -0,0 +1,25 @@
++import unittest
++from parliament import is_arn_match
++
++class TestIsArnMatch(unittest.TestCase):
++    def test_redshift_get_cluster_credentials(self):
++        arn_format = "arn:*:redshift:*:*:dbuser:*/*"
++        resource = "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/the_user"
++        self.assertTrue(is_arn_match("cluster", arn_format, resource))
++
++    def test_s3_bucket_with_wildcard(self):
++        arn_format = "arn:*:s3:::*/*"
++        resource = "arn:aws:s3:::personalize/"
++        self.assertTrue(is_arn_match("bucket", arn_format, resource))
++
++    def test_s3_bucket_without_wildcard(self):
++        arn_format = "arn:*:s3:::mybucket"
++        resource = "arn:aws:s3:::mybucket"
++        self.assertTrue(is_arn_match("bucket", arn_format, resource))
++
++if __name__ == '__main__':
++    unittest.main()

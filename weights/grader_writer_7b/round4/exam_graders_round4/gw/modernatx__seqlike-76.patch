@@ -1,0 +1,283 @@
+--- /dev/null
++++ b/tests/test_SeqLike_grader.py
+@@ -0,0 +1,100 @@
++import tempfile
++from copy import deepcopy
++import numpy as np
++import pytest
++from Bio import SeqIO
++from Bio.Seq import Seq
++from Bio.SeqRecord import SeqRecord
++from hypothesis import given
++from hypothesis.strategies import composite, integers, sampled_from, text
++from seqlike.codon_tables import codon_table_to_codon_map, ecoli_codon_table, yeast_codon_table, ecoli_codon_map
++from seqlike.SeqLike import AA, NT, STANDARD_AA, STANDARD_NT, SeqLike, aaSeqLike
++from seqlike.MutationSet import MutationSet
++from . import test_path
++
++
++ALPHABETS = [NT, AA, STANDARD_NT, STANDARD_AA]
++
++
++NT_TYPES = ["NT", "DNA", "RNA", "dna", "nt", "rna"]
++
++
++AA_TYPES = ["AA", "aa"]
++
++
++SEQ_TYPES = NT_TYPES + AA_TYPES
++
++
++@composite
++def string_sequences(draw, alphabet: str = None, min_size: int = 1) -> tuple:
++    """Composite Hypothesis strategy to generate strings from one of the alphabets.
++
++    This test handles the cases where seq_type, sequence, and alphabet are all set.
++    """
++    max_size = draw(integers(min_value=min_size, max_value=1000))
++    if not alphabet:
++        alphabet = draw(sampled_from(ALPHABETS))
++    sequence = draw(text(alphabet=alphabet, min_size=min_size, max_size=max_size))
++    if alphabet in [NT, STANDARD_NT]:
++        seq_type = draw(sampled_from(NT_TYPES))
++    elif alphabet in [AA, STANDARD_AA]:
++        seq_type = draw(sampled_from(AA_TYPES))
++    return sequence, seq_type, alphabet
++
++
++@given(string_sequences())
++def test__deepcopy__(sequence_tuple):
++    """Test deep copying a SeqLike object."""
++    seqstr, seq_type, _ = sequence_tuple
++    s = SeqLike(seqstr, seq_type=seq_type, description="test")
++    assert deepcopy(s).to_str() == seqstr
++    assert deepcopy(s).id == s.id
++    assert deepcopy(s).description == s.description == "test"
++    # deepcopy returns a new object, so it should not match the original
++    assert deepcopy(s) != s
++
++
++def split_seq(seq, split_location):
++    return seq[:split_location]
++
++
++def count_residue(seq, residue="T"):
++    return seq.to_str().count(residue)
++
++
++def test_add_mutations():
++    """Execution test for adding mutations."""
++    mutations = [MutationSet(i.split(";")) for i in ["3A", "4K", "4-", "2D;3-", "3A;^3F"]]
++
++    s = aaSeqLike("MKAILV")
++    for mutation in mutations:
++        mutant = s + mutation
++        difference = s - mutant
++        assert (s + difference).ungap().to_str() == (s + mutation).ungap().to_str()
++
++
++def test_codon_table_copy():
++    """Test that modifying a codon table does not affect other codon tables"""
++    table1 = ecoli_codon_table.copy()
++    table2 = ecoli_codon_table.copy()
++    table1["-"] = {"---": 1}
++    table1["X"] = {"NNN": 1}
++    assert "".join(sorted(table1.keys())) == "*-ACDEFGHIKLMNPQRSTVWXY"
++    assert "".join(sorted(table2.keys())) == "*ACDEFGHIKLMNPQRSTVWY"
++
++
++def test_codon_table_getitem():
++    """Test that getting an item from a codon table works correctly"""
++    table = ecoli_codon_table.copy()
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.25
++    assert table["A"]["GCA"] == 0.25
++    assert table["A"]["GCG"] == 0.25
++    assert table["A"]["GCT"] == 0.25
++    assert table["A"]["GCC"] == 0.2

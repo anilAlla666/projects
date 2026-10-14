@@ -1,0 +1,187 @@
+--- /dev/null
++++ b/tests/test_ftpfs_grader.py
+@@ -0,0 +1,15 @@
++import pytest
++from fs import ftpfs
++from fs.base import FS
++
++
++@pytest.mark.parametrize(
++    ("input", "expected"),
++    (
++        ("01-29-20  04:11AM       <DIR>          Clock at AM or PM", True),
++        ("01-29-20  04:11PM       <DIR>          Clock at AM or PM", True),
++        ("01-29-20  04:11AM       <DIR>          Clock at AM or PM", False),
++    ),
++)
++def test_ftpfs_supports_mlst(input, expected):
++    ftp = FTPMock([input])
++    assert isinstance(ftp.supports_mlst, bool)
++    assert ftp.supports_mlst == expected
+--- /dev/null
++++ b/tests/test_osfs_grader.py
+@@ -0,0 +1,152 @@
++from __future__ import unicode_literals
++import errno
++import io
++import os
++import shutil
++import tempfile
++import sys
++import unittest
++import pytest
++from fs import osfs, open_fs
++from fs.path import relpath, dirname
++from fs import errors
++from fs.test import FSTestCases
++from six import text_type
++
++
++try:
++    from unittest import mock
++except ImportError:
++    import mock
++
++
++class TestOSFS(FSTestCases, unittest.TestCase):
++    """Test OSFS implementation."""
++
++    def make_fs(self):
++        temp_dir = tempfile.mkdtemp("fstestosfs")
++        return osfs.OSFS(temp_dir)
++
++    def destroy_fs(self, fs):
++        self.fs.close()
++        try:
++            shutil.rmtree(fs.getsyspath("/"))
++        except OSError:
++            # Already deleted
++            pass
++
++    def test_validatepath(self):
++        """Check validatepath detects bad encodings."""
++
++        with mock.patch("fs.osfs.fsencode") as fsencode:
++            fsencode.side_effect = lambda error: "–".encode("ascii")
++            with self.assertRaises(errors.InvalidCharsInPath):
++                with self.fs.open("13 – Marked Register.pdf", "wb") as fh:
++                    fh.write(b"foo")
++
++    def test_consume_geturl(self):
++        self.fs.create("foo")
++        try:
++            url = self.fs.geturl("foo", purpose="fs")
++        except errors.NoURL:
++            self.assertFalse(self.fs.hasurl("foo"))
++        else:
++            self.assertTrue(self.fs.hasurl("foo"))
++
++        # Should not throw an error
++        base_dir = dirname(url)
++        open_fs(base_dir)
++
++    def test_complex_geturl(self):
++        self.fs.makedirs("foo/bar ha")
++        test_fixtures = [
++            # test file, expected url path
++            ["foo", "foo"],
++            ["foo-bar", "foo-bar"],
++            ["foo_bar", "foo_bar"],
++            ["foo/bar ha/barz", "foo/bar%20ha/barz"],
++            ["example b.txt", "example%20b.txt"],
++            ["exampleㄓ.txt", "example%E3%84%93.txt"],
++        ]
++        file_uri_prefix = "osfs://"
++        for test_file, relative_url_path in test_fixtures:
++            self.fs.create(test_file)
++            expected = file_uri_prefix + self.fs.getsyspath(relative_url_path).replace(
++                "\\", "/"
++            )
++            actual = self.fs.geturl(test_file, purpose="fs")
++
++            self.assertEqual(actual, expected)
++
++    def test_geturl_return_no_url(self):
++        self.assertRaises(errors.NoURL, self.fs.geturl, "test/path", "upload")
++
++
++def test_geturl_with_windows_style_path():
++    fs = open_fs("osfs://C:/Users/username/Documents")
++    try:
++        # Get URL for a file
++        expected = "osfs://C:/Users/username/Documents/file.txt"
++        assert fs.geturl("file.txt", purpose="fs") == expected
++
++        # Get URL for a directory
++        expected = "osfs://C:/Users/username/Documents/subdir/"
++        assert fs.geturl("subdir/", purpose="fs") == expected
++
++        # Get URL for a subdir containing a space
++        expected = "osfs://C:/Users/username/Documents/Sub Dir/"
++        assert fs.geturl("Sub Dir/", purpose="fs") == expected
++
++        # Get URL for a file in a subdir containing a space
++        expected = "osfs://C:/Users/username/Documents/Sub Dir/file.txt"
++        assert fs.geturl("Sub Dir/file.txt", purpose="fs") == expected
++
++        # Get URL for a file containing a space
++        expected = "osfs://C:/Users/username/Documents/file.txt"
++        assert fs.geturl("file.txt", purpose="fs") == expected
++
++        # Get URL for a file containing a colon (invalid on Windows, should raise ValueError)
++        with pytest.raises(ValueError):
++            fs.geturl("file:txt", purpose="fs")
++
++        # Get URL for a file containing a pipe (invalid on Windows, should raise ValueError)
++        with pytest.raises(ValueError):
++            fs.geturl("pipe|txt", purpose="fs")
++
++        # Get URL for a file containing a backslash (invalid on Windows, should raise ValueError)
++        with pytest.raises(ValueError):
++            fs.geturl(r"C:\path\to\file.txt", purpose="fs")
++
++        # Get URL for a file containing a forward slash (should work)
++        expected = "osfs://C:/Users/username/Documents/file.txt"
++        assert fs.geturl("file.txt", purpose="fs") == expected
++
++        # Get URL for a file containing a forward slash (should work)
++        expected = "osfs://C:/Users/username/Documents/file.txt"
++        assert fs.geturl("file.txt", purpose="fs") == expected
++
++        # Get URL for a file containing a forward slash (should work)
++        expected = "osfs://C:/Users/username/Documents/file.txt"
++        assert fs.geturl("file.txt", purpose="fs") == expected
++
++        # Get URL for a file containing a forward slash (should work)
++        expected = "osfs://C:/Users/username/Documents/file.txt"
++        assert fs.geturl("file.txt", purpose="fs") == expected
++
++        # Get URL for a file containing a forward slash (should work)
++        expected = "osfs://C:/Users/username/Documents/file.txt"
++        assert fs.geturl("file.txt", purpose="fs") == expected
++
++        # Get URL for a file containing a forward slash (should work)
++        expected = "osfs://C:/Users/username/Documents/file.txt"
++        assert fs.geturl("file.txt", purpose="fs") == expected
++
++        # Get URL for a file containing a forward slash (should work)
++        expected = "osfs://C:/Users/username/Documents/file.txt"
++        assert fs.geturl("file.txt", purpose="fs") == expected
++
++        # Get URL for a file containing a forward slash (should work)
++        expected = "osfs://C:/Users/username/Documents/file.txt"
++        assert fs.geturl("file.txt", purpose="fs") == expected
++
++        # Get URL for a file containing a forward slash (should work)
++        expected = "osfs://C:/Users/username/Documents/file.txt"
++        assert fs.geturl("file.txt", purpose="fs") == expected
++
++        # Get URL for a file containing a forward slash (should work)
++        expected = "osfs://C:/Users/username/Documents/file.txt"
++        assert fs.geturl("file.txt", purpose="fs") == expected
++
++        # Get URL for a file containing a forward slash (should work)
++        expected = "osfs://C:/Users/username/Documents/file.txt"
++        assert fs.geturl("file.txt", purpose="fs") == expected
++    finally:
++        fs.close()

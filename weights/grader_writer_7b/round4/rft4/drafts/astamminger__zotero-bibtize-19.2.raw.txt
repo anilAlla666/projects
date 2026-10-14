@@ -1,0 +1,46 @@
+--- /dev/null
++++ b/tests/test_bibtex_parsing_grader.py
+@@ -0,0 +1,36 @@
++from . import bibtex_parsing
++
++
++def test_parse_entry_with_new_line_in_field():
++    """Test parsing of a bibtex entry with new line in a field."""
++    expected_type = "article"
++    expected_key = "test"
++    expected_field_keys = ["title", "author"]
++    expected_field_values = [
++        "a simple title\nwith a new line in it",
++        "the author"
++    ]
++
++    raw_entry = "@article{\ntest,\n    title=\"a simple title\nwith a new line in it\",\n    author=\"the author\"\n}\n"
++    
++    result = bibtex_parsing.BibEntry(raw_entry)
++
++    assert result.type == expected_type
++    assert result.key == expected_key
++    assert len(result.fields.keys()) == len(expected_field_keys)
++    for (key, value) in zip(expected_field_keys, expected_field_values):
++        assert result.fields.get(key) == value
++
++
++def test_parse_entry_with_comma_followed_by_space_in_field():
++    """Test parsing of a bibtex entry with ',' followed by space in a field."""
++    expected_type = "article"
++    expected_key = "test"
++    expected_field_keys = ["title", "author"]
++    expected_field_values = [
++        "a simple title, with a comma and space in it",
++        "the author"
++    ]
++
++    raw_entry = "@article{\ntest,\n    title=\"a simple title, with a comma and space in it\",\n    author=\"the author\"\n}\n"
++    
++    result = bibtex_parsing.BibEntry(raw_entry)
++
++    assert result.type == expected_type
++    assert result.key == expected_key
++    assert len(result.fields.keys()) == len(expected_field_keys)
++    for (key, value) in zip(expected_field_keys, expected_field_values):
++        assert result.fields.get(key) == value

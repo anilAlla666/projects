@@ -1,0 +1,197 @@
+--- /dev/null
++++ b/test/test_mediafile_grader.py
+@@ -0,0 +1,75 @@
++"""Automatically-generated blanket testing for the MediaFile metadata
++layer.
++"""
++
++
++from __future__ import division, absolute_import, print_function
++import os
++import shutil
++import datetime
++import time
++import unittest
++from six import assertCountEqual
++from test import _common
++from mediafile import MediaFile, Image, \
++    ImageType, CoverArtField, UnreadableFileError
++import mutagen
++
++
++class ReadOnlyTagTest(unittest.TestCase, _common.TempDirMixin):
++    def setUp(self):
++        self.create_temp_dir()
++        self.key = "READ_ONLY_TEST"
++        self.field = mediafile.MediaField(
++            mediafile.MP3StorageStyle(self.key, read_only=True),
++            mediafile.MP4StorageStyle(
++                "----:com.apple.iTunes:" + self.key, read_only=True),
++            mediafile.StorageStyle(self.key, read_only=True),
++            mediafile.ASFStorageStyle(self.key, read_only=True),
++        )
++
++        if "read_only_test" not in mediafile.MediaFile.fields():
++            mediafile.MediaFile.add_field("read_only_test", self.field)
++
++    def test_read(self):
++        path = os.path.join(_common.RSRC, b'empty.flac')
++        mf = mediafile.MediaFile(path)
++        mf.mgfile.tags[self.key] = "don't"
++        self.assertEqual("don't", mf.read_only_test)
++
++    def test_none_read(self):
++        path = os.path.join(_common.RSRC, b'empty.flac')
++        mf = mediafile.MediaFile(path)
++        self.assertIsNone(mf.read_only_test)
++
++    def test_write(self):
++        src = os.path.join(_common.RSRC, b'empty.flac')
++        path = os.path.join(self.temp_dir, b'test.flac')
++        shutil.copy(src, path)
++        mf = mediafile.MediaFile(path)
++        mf.read_only_field = "something terrible"
++        mf.save()
++        self.assertNotIn(self.key, mf.mgfile.tags)
++
++    def tearDown(self):
++        self.remove_temp_dir()
++        try:
++            del mediafile.MediaFile.read_only_test
++        except AttributeError:
++            pass
++
++
++def suite():
++    return unittest.TestLoader().loadTestsFromName(__name__)
++
++
++if __name__ == '__main__':
++    unittest.main(defaultTest='suite')
+--- /dev/null
++++ b/test/test_mediafile_edge_grader.py
+@@ -0,0 +1,130 @@
++"""Specific, edge-case tests for the MediaFile metadata layer.
++"""
++
++
++from __future__ import division, absolute_import, print_function
++import os
++import shutil
++import unittest
++import mutagen.id3
++from test import _common
++import mediafile
++import six
++
++
++_sc = mediafile._safe_cast
++
++
++class ListEmptyTagTest(unittest.TestCase, _common.TempDirMixin):
++    def setUp(self):
++        self.create_temp_dir()
++        self.key = "LIST_EMPTY_TEST"
++        self.field = mediafile.ListMediaField(
++            mediafile.MP3StorageStyle(self.key, read_only=False),
++            mediafile.MP4StorageStyle(
++                "----:com.apple.iTunes:" + self.key, read_only=False),
++            mediafile.StorageStyle(self.key, read_only=False),
++            mediafile.ASFStorageStyle(self.key, read_only=False),
++        )
++
++        if "list_empty_test" not in mediafile.MediaFile.fields():
++            mediafile.MediaFile.add_field("list_empty_test", self.field)
++
++    def _delete_test(self):
++        if hasattr(mediafile.MediaFile, "list_empty_test"):
++            del mediafile.MediaFile.list_empty_test
++
++    def test_none(self):
++        src = os.path.join(_common.RSRC, b'empty.flac')
++        path = os.path.join(self.temp_dir, b'test.flac')
++        shutil.copy(src, path)
++        mf = mediafile.MediaFile(path)
++        self.assertIsNone(mf.list_empty_test)
++
++    def test_one(self):
++        src = os.path.join(_common.RSRC, b'empty.flac')
++        path = os.path.join(self.temp_dir, b'test.flac')
++        shutil.copy(src, path)
++        mf = mediafile.MediaFile(path)
++        mf.list_empty_test = ["one"]
++        self.assertEqual(["one"], mf.list_empty_test)
++
++    def test_two(self):
++        src = os.path.join(_common.RSRC, b'empty.flac')
++        path = os.path.join(self.temp_dir, b'test.flac')
++        shutil.copy(src, path)
++        mf = mediafile.MediaFile(path)
++        mf.list_empty_test = ["one", "two"]
++        self.assertEqual(["one", "two"], mf.list_empty_test)
++
++    def test_emptylist(self):
++        src = os.path.join(_common.RSRC, b'empty.flac')
++        path = os.path.join(self.temp_dir, b'test.flac')
++        shutil.copy(src, path)
++        mf = mediafile.MediaFile(path)
++        mf.list_empty_test = []
++        self.assertEqual([], mf.list_empty_test)
++
++    def test_emptystring(self):
++        src = os.path.join(_common.RSRC, b'empty.flac')
++        path = os.path.join(self.temp_dir, b'test.flac')
++        shutil.copy(src, path)
++        mf = mediafile.MediaFile(path)
++        mf.list_empty_test = [""]
++        self.assertEqual([""], mf.list_empty_test)
++
++    def test_emptystringandnone(self):
++        src = os.path.join(_common.RSRC, b'empty.flac')
++        path = os.path.join(self.temp_dir, b'test.flac')
++        shutil.copy(src, path)
++        mf = mediafile.MediaFile(path)
++        mf.list_empty_test = ["", None]
++        self.assertEqual(["", ""], mf.list_empty_test)
++
++    def test_invalidstring(self):
++        src = os.path.join(_common.RSRC, b'empty.flac')
++        path = os.path.join(self.temp_dir, b'test.flac')
++        shutil.copy(src, path)
++        mf = mediafile.MediaFile(path)
++        mf.list_empty_test = "one,two"
++        self.assertEqual(["one", "two"], mf.list_empty_test)
++
++    def test_invalidlist(self):
++        src = os.path.join(_common.RSRC, b'empty.flac')
++        path = os.path.join(self.temp_dir, b'test.flac')
++        shutil.copy(src, path)
++        mf = mediafile.MediaFile(path)
++        mf.list_empty_test = ["one", "two"]
++        self.assertEqual(["one", "two"], mf.list_empty_test)
++
++    def test_delete(self):
++        src = os.path.join(_common.RSRC, b'empty.flac')
++        path = os.path.join(self.temp_dir, b'test.flac')
++        shutil.copy(src, path)
++        mf = mediafile.MediaFile(path)
++        mf.list_empty_test = ["one", "two"]
++        mf.save()
++        self.assertIn(self.key, mf.mgfile.tags)
++        self.assertEqual(["one", "two"],
++                         mf.mgfile.tags[self.key].text)
++        mf.list_empty_test = None
++        mf.save()
++        self.assertNotIn(self.key, mf.mgfile.tags)
++
++    def tearDown(self):
++        self.remove_temp_dir()
++        self._delete_test()
++
++
++def suite():
++    return unittest.TestLoader().loadTestsFromName(__name__)
++
++
++if __name__ == '__main__':
++    unittest.main(defaultTest='suite')

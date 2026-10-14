@@ -1,0 +1,59 @@
+To address the issue of trailing slashes in URLs, we can add a utility function to remove trailing slashes from URLs before making requests. Here's how you can implement this:
+
+1. Add a utility function to remove trailing slashes.
+2. Modify the `Collection` class to use this utility function when constructing the URL.
+
+Here's the updated code:
+
+### taxii2client/utils.py
+```python
+def remove_trailing_slash(url):
+    if url.endswith('/'):
+        return url[:-1]
+    return url
+```
+
+### taxii2client/__init__.py
+```python
+from .utils import remove_trailing_slash
+
+class Collection(_TAXIIEndpoint):
+    """TAXII Collection Resource.
+    
+    This class represents the ``Get Objects`` endpoint (section 4.2) and also
+    contains the information about the Collection Resource (section 4.2.1)
+    
+    """
+    def __init__(self, url, conn=None, user=None, password=None, verify=True):
+        """Create a collection resource endpoint.
+        
+        Args:
+            url (str): URL of a TAXII collection resource endpoint
+            user (str): username for authentication (optional)
+            password (str): password for authentication (optional)
+            conn (_HTTPConnection): reuse connection object, as an alternative
+                to providing username/password
+        
+        """
+        super(Collection, self).__init__(remove_trailing_slash(url), conn, user, password, verify)
+```
+
+### Tests
+To write tests for this fix, we can add a new test case to ensure that the trailing slash is removed correctly. Here's an example using `unittest`:
+
+### tests/test_collection.py
+```python
+import unittest
+from taxii2client import Collection
+
+class TestCollection(unittest.TestCase):
+    def test_remove_trailing_slash(self):
+        url_with_slash = "http://localhost:5000/trustgroup1/collections/91a7b528-80eb-42ed-a74d-c6fbd5a26116/"
+        expected_url = "http://localhost:5000/trustgroup1/collections/91a7b528-80eb-42ed-a74d-c6fbd5a26116"
+        self.assertEqual(Collection.remove_trailing_slash(url_with_slash), expected_url)
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+This test ensures that the `remove_trailing_slash` function correctly removes the trailing slash from the URL. When run, this test should fail with the current implementation and pass after applying the fix.

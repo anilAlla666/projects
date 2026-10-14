@@ -1,0 +1,150 @@
+--- /dev/null
++++ b/particula/tests/test_particle_test_grader.py
+@@ -0,0 +1,100 @@
++"""Test suites for particle class.
++"""
++
++
++import numpy as np
++import pytest
++from particula import environment, particle, u
++
++
++small_particle = particle.Particle(
++    particle_radius=1.0e-9 * u.m,
++    particle_density=1.0 * u.kg / u.m**3,  # need fixing, add e3
++    particle_charge=1,
++)
++
++
++large_particle = particle.Particle(
++    name="large_particle",
++    particle_radius=1.0e-7 * u.m,
++    particle_density=1.8 * u.kg / u.m**3,  # need fixing, add e3
++    particle_charge=1,
++)
++
++
++standard_environment = environment.Environment(
++    temperature=298 * u.K,
++    pressure=101325 * u.Pa,
++)
++
++
++negative_ion = particle.Particle(
++    name="negative_ion",
++    particle_radius=0.5e-9 * u.m,
++    particle_density=1.84e3 * u.kg / u.m**3,
++    particle_charge=-1,
++)
++
++
++positive_particle = particle.Particle(
++    name="positive_particle",
++    particle_radius=3.0e-9 * u.m,
++    particle_density=1.84e3 * u.kg / u.m**3,
++    particle_charge=1,
++)
++
++
++def test_multi_mode_distribution():
++    """ testing multi-mode particle distributions
++    """
++
++    multi_mode = {
++        "mode": [5000e-9, 50e-9, 300e-9],  # coarse, nano, fine mode
++        "nbins": 1000,  # 1000 bins
++        "nparticles": [1e6, 1e9, 1e7],  # 1e4 #
++        "volume": 1e-6,  # per 1e-6 m^3 (or 1 cc)
++        "gsigma": [1.5, 1.2, 1.5],  # 
++        "spacing": "logspace",  # bin spacing, 
++    }
++
++    cond = particle.Particle(**multi_mode)
++
++    assert cond.particle_radius.m.shape == (1000,)
++    assert cond.driving_force().u == u.kg/u.m**3
++    # assert cond.driving_force().m.shape == (1,)
++    assert cond.molecular_enhancement().u == u.dimensionless
++    assert cond.molecular_enhancement().m.shape == (1000,)
++    assert cond.condensation_redmass().u == u.kg/u.mol
++    assert cond.condensation_redmass().m.shape == (1000,)
++    assert cond.vapor_speed().u == u.m/u.s
++    assert cond.vapor_speed().m.shape == (1000,)
++    assert cond.vapor_flux().u == u.kg/u.s
++    assert cond.vapor_flux().m.shape == (1000,)
++    assert cond.particle_growth().u == u.m/u.s
++    assert cond.particle_growth().m.shape == (1000,)
++
++
++def test_single_mode_distribution():
++    """ testing single-mode particle distributions
++    """
++
++    single_mode = {
++        "mode": 200e-9,  # 200 nm median
++        "nbins": 1000,  # 1000 bins
++        "nparticles": 2e6,  # 1e4 #
++        "volume": 1e-6,  # per 1e-6 m^3 (or 1 cc)
++        "gsigma": 1.25,  # relatively narrow
++        "cutoff": .99999,  # let's take it all lol
++        "vapor_radius": 1.6e-9,  # 1.6 nm
++        "vapor_density": 1400,  # 1400 kg/m^3
++        "vapor_concentration": 1,  # 1 ug/m^3
++        "vapor_attachment": 1,  # 1
++        "vapor_molec_wt": 200,  # 200 g/mol
++        "something_something": None
++    }
++
++    cond = particle.Particle(**single_mode)
++
++    assert cond.particle_radius.m.shape == (1000,)
++    assert cond.driving_force().u == u.kg/u.m**3
++    # assert cond.driving_force().m.shape == (1,)
++    assert cond.molecular_enhancement().u == u.dimensionless
++    assert cond.molecular_enhancement().m.shape == (1000,)
++    assert cond.condensation_redmass().u == u.kg/u.mol
++    assert cond.condensation_redmass().m.shape == (1000,)
++    assert cond.vapor_speed().u == u.m/u.s
++    assert cond.vapor_speed().m.shape == (1000,)
++    assert cond.vapor_flux().u == u.kg/u.s
++    assert cond.vapor_flux().m.shape == (1000,)
++    assert cond.particle_growth().u == u.m/u.s
++    assert cond.particle_growth().m.shape == (1000,)
+--- /dev/null
++++ b/particula/util/tests/test_particle_mass_test_grader.py
+@@ -0,0 +1,34 @@
++""" test the particle mass calculation
++"""
++
++
++import numpy as np
++import pytest
++from particula import u
++from particula.util.particle_mass import mass
++
++
++def test_particle_mass():
++    """ Testing the particle mass calculation:
++
++            * check defaults
++            * check raise errors
++            * check output units/mag
++            * ensures radius is mandatory
++    """
++
++    a_radius = 1 * u.m
++    a_density = 1000 * u.kg/u.m**3
++
++    b_radius = a_radius.m
++
++    a_mass = mass(radius=a_radius, density=a_density)
++    b_mass = mass(radius=b_radius)
++
++    assert a_mass.magnitude == 1000 * 4 * np.pi / 3
++    assert a_mass.units == u.kg
++    assert b_mass == a_mass
++
++    assert mass(radius=[1e-9, 1e-8]).m.shape == (2,)
++    assert mass(radius=1-9, density=[1e3, 1e4]).m.shape == (2,)
++    assert mass(radius=[1e-9, 1e-8], density=[1e3, 1e4]).m.shape == (2,)

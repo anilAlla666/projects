@@ -1,0 +1,21 @@
+diff --git a/tests/test_cli.py b/tests/test_cli.py
+index 0e1f3a5..100270c 100644
+--- a/tests/test_cli.py
++++ b/tests/test_cli.py
+@@ -238,6 +238,16 @@ def test_latest(monkeypatch, tmpdir):
+         assert '1.0' == result.output.rstrip()
+ 
+ 
++def test_cves_with_unknown_layer(monkeypatch, tmpdir):
++    response = MagicMock()
++    response.json.return_value = {
++        'Layer': {
++            'Vulnerabilities': [],
++            'Features': []
++        }
++    }
++
++    runner = CliRunner()
+     def test_latest_not_found(monkeypatch, tmpdir):
+         response = MagicMock()
+         response.raise_for_status.side_effect = Exception('FAIL')

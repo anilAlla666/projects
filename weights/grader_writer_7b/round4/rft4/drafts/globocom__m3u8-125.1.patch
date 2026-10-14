@@ -1,0 +1,37 @@
+--- /dev/null
++++ b/tests/test_parser_grader.py
+@@ -0,0 +1,16 @@
++import m3u8
++import playlists
++import pytest
++from m3u8.parser import cast_date_time, ParseError
++
++
++def test_should_parse_closed_caption_without_quotation_marks():
++    data = m3u8.parse(playlists.VARIANT_WITH_CLOSED_CAPTION)
++    assert 'cc' == data['playlists'][0]['stream_info']['closed_captions']
++
++
++def test_should_parse_closed_caption_without_quotation_marks_strict():
++    with pytest.raises(ParseError) as catch:
++        m3u8.parse(playlists.VARIANT_WITH_CLOSED_CAPTION, strict=True)
++    assert str(catch.value) == ('Invalid value "cc" '
++                                'for attribute closed-captions '
++                                'on line 3.')
+--- /dev/null
++++ b/tests/test_variant_m3u8_grader.py
+@@ -0,0 +1,13 @@
++import m3u8, playlists
++
++
++def test_variant_playlist_with_closed_caption():
++    variant_m3u8 = m3u8.M3U8()
++
++    subtitles = m3u8.Media('english_sub.m3u8', 'SUBTITLES', 'subs', 'en',
++                           'English', 'YES', 'YES', 'NO', None)
++    variant_m3u8.add_media(subtitles)
++
++    variant_m3u8.add_playlist(m3u8.Playlist(uri='high.m3u8',
++                                           stream_info={'bandwidth': 3000000,
++                                                         'program_id': 1,
++                                                         'closed_captions': 'CC'}))

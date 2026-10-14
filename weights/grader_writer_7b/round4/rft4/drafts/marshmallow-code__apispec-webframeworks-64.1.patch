@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/src/apispec_webframeworks/tests/test_ext_bottle_grader.py
+@@ -0,0 +1,26 @@
++import pytest
++from bottle import route
++
++
++from apispec import APISpec
++from apispec_webframeworks.bottle import BottlePlugin
++from .utils import get_paths
++
++
++@pytest.fixture(params=("2.0", "3.0.0"))
++def spec(request):
++    return APISpec(
++        title="Swagger Petstore",
++        version="1.0.0",
++        openapi_version=request.param,
++        plugins=(BottlePlugin(),),
++    )
++
++
++class TestPathHelpers:
++    def test_path_with_type_annotation_in_path(self, spec):
++        @route("/pet/<pet_id:int>")
++        def get_pet(pet_id):
++            return f"representation of pet {pet_id}"
++
++        spec.path(view=get_pet)
++        assert "/pet/{pet_id}" in get_paths(spec)

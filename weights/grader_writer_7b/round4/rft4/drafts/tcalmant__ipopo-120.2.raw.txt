@@ -1,0 +1,227 @@
+--- /dev/null
++++ b/tests/ipopo/test_handlers_grader.py
+@@ -0,0 +1,248 @@
++"""
++Tests iPOPO handlers, using the sample logger handler
++
++:author: Thomas Calmant
++"""
++
++
++import sys
++
++
++try:
++    import unittest2 as unittest
++except ImportError:
++    import unittest
++
++
++from pelix.framework import FrameworkFactory
++import pelix.ipopo.handlers.constants as constants
++from tests.ipopo import install_bundle, install_ipopo
++
++
++__version_info__ = (1, 0, 1)
++
++
++__version__ = ".".join(str(x) for x in __version_info__)
++
++
++HANDLER_BUNDLE_NAME = "samples.handler.logger"
++
++
++COMPONENT_BUNDLE_NAME = "samples.handler.sample"
++
++
++HANDLER_ID = "sample.handler.logger"
++
++
++COMPONENT_NAME = "sample-logger-component"
++
++
++DUMMY_IPPOPOTEST_SERVICE = "dummy-ippopotest-service"
++
++
++DUMMY_IPPOPOTEST_SERVICE_SPEC = "pelix.ipopo.testservice"
++
++
++class TestRequiresVarFilter(unittest.TestCase):
++    """
++    Tests the RequiresVarFilter handler
++    """
++
++    @classmethod
++    def setUpClass(cls):
++        cls.framework = FrameworkFactory.get_framework()
++        FrameworkFactory.init_framework()
++
++    @classmethod
++    def tearDownClass(cls):
++        FrameworkFactory.delete_framework()
++
++    def setUp(self):
++        # Reset the framework
++        self.framework.reset(True)
++
++        # Install iPOPO
++        ipopo = install_ipopo(self.framework)
++
++        # Install the component bundle
++        install_bundle(self.framework, COMPONENT_BUNDLE_NAME)
++
++        # Install the handler bundle
++        install_bundle(self.framework, HANDLER_BUNDLE_NAME)
++
++        # Create a new instance of the component
++        self.context = self.framework.get_bundle_context()
++        ipopo.instantiate(HANDLER_ID, "test-requiresvarfilter", {})
++
++    def tearDown(self):
++        # Delete the component
++        ipopo = self.context.get_service(self.context.getServiceReference(
++            constants.SERVICE_IPOPO))
++        ipopo.kill("test-requiresvarfilter")
++
++        # Clean up
++        self.framework.uninstall_bundle(COMPONENT_BUNDLE_NAME)
++        self.framework.uninstall_bundle(HANDLER_BUNDLE_NAME)
++
++    def _check_component_state(self, expected_state):
++        """
++        Checks the component's state
++
++        :param expected_state: Expected component state
++        :return: Component instance
++        """
++        # Get the component instance
++        comp_inst = self.context.get_service_reference("sample.logger")
++        self.assertIsNotNone(comp_inst)
++
++        # Check its state
++        self.assertEqual(expected_state, comp_inst.get_state())
++
++        return comp_inst
++
++    def test_varfilter_update(self):
++        """
++        Tests the variable filter update
++        """
++        ipopo = self.context.get_service(self.context.getServiceReference(
++            constants.SERVICE_IPOPO))
++
++        # Get the component instance
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_VALID)
++
++        # Update a property used in the varfilter
++        ipopo.update_property("test-requiresvarfilter", "filter",
++                              "(foo=bar)")
++
++        # Check the state
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_INSTANTIATED)
++
++        # Update the property again, removing the filter
++        ipopo.update_property("test-requiresvarfilter", "filter", None)
++
++        # Check the state
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_VALID)
++
++    def test_varfilter_invalid(self):
++        """
++        Tests the handling of an invalid filter
++        """
++        ipopo = self.context.get_service(self.context.getServiceReference(
++            constants.SERVICE_IPOPO))
++
++        # Get the component instance
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_VALID)
++
++        # Update a property used in the varfilter
++        ipopo.update_property("test-requiresvarfilter", "filter",
++                              "(foo=bar))")
++
++        # Check the state
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_INVALID)
++
++        # Check that the instance was stopped
++        self.assertFalse(comp_inst.is_running())
++
++        # Update the property again, removing the filter
++        ipopo.update_property("test-requiresvarfilter", "filter", None)
++
++        # Check the state
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_VALID)
++
++        # Check that the instance is running
++        self.assertTrue(comp_inst.is_running())
++
++    def test_varfilter_dependency(self):
++        """
++        Tests the handling of a missing dependency
++        """
++        ipopo = self.context.get_service(self.context.getServiceReference(
++            constants.SERVICE_IPOPO))
++
++        # Get the component instance
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_VALID)
++
++        # Stop the test.service bundle
++        self.framework.get_bundle_by_name(
++            "tests.ipopo.samples.service").stop()
++
++        # Check the state
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_INSTANTIATED)
++
++        # Update the filter property
++        ipopo.update_property("test-requiresvarfilter", "filter",
++                              "(foo=bar)")
++
++        # Check the state
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_INSTANTIATED)
++
++        # Update the filter property
++        ipopo.update_property("test-requiresvarfilter", "filter", None)
++
++        # Check the state
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_VALID)
++
++        # Restart the test.service bundle
++        self.framework.get_bundle_by_name(
++            "tests.ipopo.samples.service").start()
++
++        # Check the state
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_VALID)
++
++        # Check that the instance is running
++        self.assertTrue(comp_inst.is_running())
++
++    def test_varfilter_missing_dependency(self):
++        """
++        Tests the handling of a missing dependency
++        """
++        ipopo = self.context.get_service(self.context.getServiceReference(
++            constants.SERVICE_IPOPO))
++
++        # Get the component instance
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_VALID)
++
++        # Update a property used in the varfilter
++        ipopo.update_property("test-requiresvarfilter", "filter",
++                              "(foo=bar)")
++
++        # Check the state
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_INSTANTIATED)
++
++        # Update the property again, removing the filter
++        ipopo.update_property("test-requiresvarfilter", "filter", None)
++
++        # Check the state
++        comp_inst = self._check_component_state(constants.IPOPO_STATE_VALID)
++
++
++if __name__ == "__main__":
++    # Set logging level
++    import logging
++    logging.basicConfig(level=logging.DEBUG)
++
++    unittest.main()

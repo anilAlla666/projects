@@ -1,0 +1,79 @@
+```diff
+diff --git a/tests/test_copy_fix.py b/tests/test_copy_fix.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_copy_fix.py
+@@ -0,0 +1,100 @@
++from .testing_util import *
++from qastle import *
++import copy
++
++def test_deepcopy_custom_ast():
++    # Create an instance of a custom AST node
++    original_node = Where(source=ast.Name(id='data', ctx=ast.Load()), predicate=ast.Lambda(args=ast.arguments(posonlyargs=[ast.arg(arg='x')]), body=ast.NameConstant(value=True)))
++
++    # Attempt to deepcopy the node
++    copied_node = copy.deepcopy(original_node)
++
++    # Check if the copied node is an instance of the same class
++    assert isinstance(copied_node, Where), "Copied node should be an instance of Where"
++
++    # Check if the fields of the copied node match those of the original node
++    assert copied_node.source.id == 'data', "Copied node's source id should match original"
++    assert isinstance(copied_node.predicate, ast.Lambda), "Copied node's predicate should be an ast.Lambda"
++    assert copied_node.predicate.body.value is True, "Copied node's predicate body value should be True"
++
++def test_copy_custom_ast():
++    # Create an instance of a custom AST node
++    original_node = Where(source=ast.Name(id='data', ctx=ast.Load()), predicate=ast.Lambda(args=ast.arguments(posonlyargs=[ast.arg(arg='x')]), body=ast.NameConstant(value=True)))
++
++    # Attempt to copy the node
++    copied_node = copy.copy(original_node)
++
++    # Check if the copied node is an instance of the same class
++    assert isinstance(copied_node, Where), "Copied node should be an instance of Where"
++
++    # Check if the fields of the copied node match those of the original node
++    assert copied_node.source.id == 'data', "Copied node's source id should match original"
++    assert isinstance(copied_node.predicate, ast.Lambda), "Copied node's predicate should be an ast.Lambda"
++    assert copied_node.predicate.body.value is True, "Copied node's predicate body value should be True"
++
++def test_deepcopy_nested_custom_ast():
++    # Create a nested custom AST node
++    original_node = Where(source=Select(source=ast.Name(id='data', ctx=ast.Load()), selector=ast.Lambda(args=ast.arguments(posonlyargs=[ast.arg(arg='x')]), body=ast.Name(id='x', ctx=ast.Load()))), predicate=ast.Lambda(args=ast.arguments(posonlyargs=[ast.arg(arg='x')]), body=ast.NameConstant(value=True)))
++
++    # Attempt to deepcopy the node
++    copied_node = copy.deepcopy(original_node)
++
++    # Check if the copied node is an instance of the same class
++    assert isinstance(copied_node, Where), "Copied node should be an instance of Where"
++
++    # Check if the fields of the copied node match those of the original node
++    assert isinstance(copied_node.source, Select), "Copied node's source should be an instance of Select"
++    assert copied_node.source.source.id == 'data', "Copied node's source's source id should match original"
++    assert isinstance(copied_node.source.selector, ast.Lambda), "Copied node's source's selector should be an ast.Lambda"
++    assert copied_node.source.selector.body.id == 'x', "Copied node's source's selector body id should match original"
++    assert isinstance(copied_node.predicate, ast.Lambda), "Copied node's predicate should be an ast.Lambda"
++    assert copied_node.predicate.body.value is True, "Copied node's predicate body value should be True"
++
++def test_copy_nested_custom_ast():
++    # Create a nested custom AST node
++    original_node = Where(source=Select(source=ast.Name(id='data', ctx=ast.Load()), selector=ast.Lambda(args=ast.arguments(posonlyargs=[ast.arg(arg='x')]), body=ast.Name(id='x', ctx=ast.Load()))), predicate=ast.Lambda(args=ast.arguments(posonlyargs=[ast.arg(arg='x')]), body=ast.NameConstant(value=True)))
++
++    # Attempt to copy the node
++    copied_node = copy.copy(original_node)
++
++    # Check if the copied node is an instance of the same class
++    assert isinstance(copied_node, Where), "Copied node should be an instance of Where"
++
++    # Check if the fields of the copied node match those of the original node
++    assert isinstance(copied_node.source, Select), "Copied node's source should be an instance of Select"
++    assert copied_node.source.source.id == 'data', "Copied node's source's source id should match original"
++    assert isinstance(copied_node.source.selector, ast.Lambda), "Copied node's source's selector should be an ast.Lambda"
++    assert copied_node.source.selector.body.id == 'x', "Copied node's source's selector body id should match original"
++    assert isinstance(copied_node.predicate, ast.Lambda), "Copied node's predicate should be an ast.Lambda"
++    assert copied_node.predicate.body.value is True, "Copied node's predicate body value should be True"
+```
+
+This patch introduces a new test file `test_copy_fix.py` that includes several tests to verify the correctness of fixing the issue with copying custom AST nodes. These tests ensure that both `copy.copy` and `copy.deepcopy` work as expected on instances of the custom LINQ nodes defined in `qastle/linq_util.py`. The tests cover simple and nested cases to ensure comprehensive coverage.

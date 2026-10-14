@@ -1,0 +1,311 @@
+diff --git a/tests/test_fingerprint_similarity.py b/tests/test_fingerprint_similarity.py
+index 0b0c000..0111508 100644
+--- a/tests/test_fingerprint_similarity.py
++++ b/tests/test_fingerprint_similarity.py
+@@ -1,10 +1,10 @@
+ import numpy
+ import pytest
+-from matchms import Spectrum
++from matchms import Spectrum, calculate_scores
+ from matchms.similarity import FingerprintSimilarity
+ 
+ 
+-@pytest.mark.parametrize("test_method, expected_score", [("cosine", 0.6761234), ("jaccard", 0.5), ("dice", 2/3)])
+-def test_fingerprint_similarity_pair_calculations(test_method, expected_score):
++@pytest.mark.parametrize("test_method, expected_score", [("cosine", 0.6761234),
++                                                         ("jaccard", 0.5),
++                                                         ("dice", 2/3)])
+ def test_fingerprint_similarity_pair_calculations(test_method, expected_score):
+     """Test cosine score pair with two fingerprint."""
+     fingerprint1 = numpy.array([1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0])
+@@ -94,7 +94,7 @@ def test_fingerprint_similarity_parallel_cosine_set_empty_to_0():
+     assert score_matrix == pytest.approx(numpy.array([[0, 0, 0],
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_nan():
+     """Test jaccard score matrix with known values. Set non-existing values to nan."""
+@@ -105,7 +105,7 @@ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_nan():
+                                                       [numpy.nan, 1., 0.84515425],
+                                                       [numpy.nan, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_dice_set_empty_to_nan():
+     """Test dice score matrix with known values. Set non-existing values to nan."""
+@@ -116,7 +116,7 @@ def test_fingerprint_similarity_parallel_dice_set_empty_to_nan():
+                                                       [numpy.nan, 1., 0.84515425],
+                                                       [numpy.nan, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_cosine_set_empty_to_nan():
+     """Test cosine score matrix with known values. Set non-existing values to nan."""
+@@ -127,7 +127,7 @@ def test_fingerprint_similarity_parallel_cosine_set_empty_to_nan():
+                                                       [numpy.nan, 1., 0.84515425],
+                                                       [numpy.nan, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_0():
+     """Test jaccard score matrix with known values. Set non-existing values to 0."""
+@@ -138,7 +138,7 @@ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_dice_set_empty_to_0():
+     """Test dice score matrix with known values. Set non-existing values to 0."""
+@@ -149,7 +149,7 @@ def test_fingerprint_similarity_parallel_dice_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_cosine_set_empty_to_0():
+     """Test cosine score matrix with known values. Set non-existing values to 0."""
+@@ -160,7 +160,7 @@ def test_fingerprint_similarity_parallel_cosine_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_1():
+     """Test jaccard score matrix with known values. Set non-existing values to 1."""
+@@ -171,7 +171,7 @@ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_1():
+                                                       [1, 1., 0.84515425],
+                                                       [1, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_dice_set_empty_to_1():
+     """Test dice score matrix with known values. Set non-existing values to 1."""
+@@ -182,7 +182,7 @@ def test_fingerprint_similarity_parallel_dice_set_empty_to_1():
+                                                       [1, 1., 0.84515425],
+                                                       [1, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_cosine_set_empty_to_1():
+     """Test cosine score matrix with known values. Set non-existing values to 1."""
+@@ -193,7 +193,7 @@ def test_fingerprint_similarity_parallel_cosine_set_empty_to_1():
+                                                       [1, 1., 0.84515425],
+                                                       [1, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_0():
+     """Test jaccard score matrix with known values. Set non-existing values to 0."""
+@@ -204,7 +204,7 @@ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_dice_set_empty_to_0():
+     """Test dice score matrix with known values. Set non-existing values to 0."""
+@@ -215,7 +215,7 @@ def test_fingerprint_similarity_parallel_dice_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_cosine_set_empty_to_0():
+     """Test cosine score matrix with known values. Set non-existing values to 0."""
+@@ -226,7 +226,7 @@ def test_fingerprint_similarity_parallel_cosine_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_nan():
+     """Test jaccard score matrix with known values. Set non-existing values to nan."""
+@@ -237,7 +237,7 @@ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_nan():
+                                                       [numpy.nan, 1., 0.84515425],
+                                                       [numpy.nan, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_dice_set_empty_to_nan():
+     """Test dice score matrix with known values. Set non-existing values to nan."""
+@@ -248,7 +248,7 @@ def test_fingerprint_similarity_parallel_dice_set_empty_to_nan():
+                                                       [numpy.nan, 1., 0.84515425],
+                                                       [numpy.nan, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_cosine_set_empty_to_nan():
+     """Test cosine score matrix with known values. Set non-existing values to nan."""
+@@ -259,7 +259,7 @@ def test_fingerprint_similarity_parallel_cosine_set_empty_to_nan():
+                                                       [numpy.nan, 1., 0.84515425],
+                                                       [numpy.nan, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_0():
+     """Test jaccard score matrix with known values. Set non-existing values to 0."""
+@@ -270,7 +270,7 @@ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_dice_set_empty_to_0():
+     """Test dice score matrix with known values. Set non-existing values to 0."""
+@@ -281,7 +281,7 @@ def test_fingerprint_similarity_parallel_dice_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_cosine_set_empty_to_0():
+     """Test cosine score matrix with known values. Set non-existing values to 0."""
+@@ -292,7 +292,7 @@ def test_fingerprint_similarity_parallel_cosine_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_1():
+     """Test jaccard score matrix with known values. Set non-existing values to 1."""
+@@ -303,7 +303,7 @@ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_1():
+                                                       [1, 1., 0.84515425],
+                                                       [1, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_dice_set_empty_to_1():
+     """Test dice score matrix with known values. Set non-existing values to 1."""
+@@ -314,7 +314,7 @@ def test_fingerprint_similarity_parallel_dice_set_empty_to_1():
+                                                       [1, 1., 0.84515425],
+                                                       [1, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_cosine_set_empty_to_1():
+     """Test cosine score matrix with known values. Set non-existing values to 1."""
+@@ -325,7 +325,7 @@ def test_fingerprint_similarity_parallel_cosine_set_empty_to_1():
+                                                       [1, 1., 0.84515425],
+                                                       [1, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_0():
+     """Test jaccard score matrix with known values. Set non-existing values to 0."""
+@@ -336,7 +336,7 @@ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_dice_set_empty_to_0():
+     """Test dice score matrix with known values. Set non-existing values to 0."""
+@@ -347,7 +347,7 @@ def test_fingerprint_similarity_parallel_dice_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_cosine_set_empty_to_0():
+     """Test cosine score matrix with known values. Set non-existing values to 0."""
+@@ -358,7 +358,7 @@ def test_fingerprint_similarity_parallel_cosine_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_nan():
+     """Test jaccard score matrix with known values. Set non-existing values to nan."""
+@@ -369,7 +369,7 @@ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_nan():
+                                                       [numpy.nan, 1., 0.84515425],
+                                                       [numpy.nan, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_dice_set_empty_to_nan():
+     """Test dice score matrix with known values. Set non-existing values to nan."""
+@@ -380,7 +380,7 @@ def test_fingerprint_similarity_parallel_dice_set_empty_to_nan():
+                                                       [numpy.nan, 1., 0.84515425],
+                                                       [numpy.nan, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_cosine_set_empty_to_nan():
+     """Test cosine score matrix with known values. Set non-existing values to nan."""
+@@ -391,7 +391,7 @@ def test_fingerprint_similarity_parallel_cosine_set_empty_to_nan():
+                                                       [numpy.nan, 1., 0.84515425],
+                                                       [numpy.nan, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_0():
+     """Test jaccard score matrix with known values. Set non-existing values to 0."""
+@@ -402,7 +402,7 @@ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_dice_set_empty_to_0():
+     """Test dice score matrix with known values. Set non-existing values to 0."""
+@@ -413,7 +413,7 @@ def test_fingerprint_similarity_parallel_dice_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_cosine_set_empty_to_0():
+     """Test cosine score matrix with known values. Set non-existing values to 0."""
+@@ -424,7 +424,7 @@ def test_fingerprint_similarity_parallel_cosine_set_empty_to_0():
+                                                       [0, 1., 0.84515425],
+                                                       [0, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_1():
+     """Test jaccard score matrix with known values. Set non-existing values to 1."""
+@@ -435,7 +435,7 @@ def test_fingerprint_similarity_parallel_jaccard_set_empty_to_1():
+                                                       [1, 1., 0.84515425],
+                                                       [1, 0.84515425, 1]]), 0.001), "Expected different values."
+ 
+-
++    
+ 
+ def test_fingerprint_similarity_parallel_dice_set_empty_to_1():
+     """Test dice score matrix with known values. Set non-existing values to 1."""
+@@ -446,7 +446,7 @@ def test_fingerprint_similarity_parallel_dice_set_empty_to_1():
+                                                       [1, 1., 0.84515425],
+                                                       [1, 0.845154

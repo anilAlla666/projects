@@ -1,0 +1,198 @@
+--- /dev/null
++++ b/tests/test_kasserver_grader.py
+@@ -0,0 +1,117 @@
++"""Tests for KasServer"""
++
++
++import json
++import logging
++from unittest import mock
++import pytest
++import zeep
++from kasserver import KasServer
++
++
++LOGGER = logging.getLogger(__name__)
++
++
++USERNAME = "username"
++
++
++PASSWORD = "password"
++
++
++PASSWORD_PLAIN = "password"
++
++
++PASSWORD_SHA1 = "5baa61e4c9b93f3f0682250b6cf8331b7ee68fd8"
++
++
++REQUEST_TYPE = "some request type"
++
++
++REQUEST_PARAMS = {"key": "value"}
++
++
++RESPONSE_RAW = """
++{
++"status":"success",
++"message":"your message here.",
++"data":{
++"value":{
++"item":[
++[{
++"key":"item",
++"value":"item value"
++},
++[{
++"key":"_value_1",
++"value":"item value 1"
++}]
++]}
+]}
+}"""
++
++
++RESPONSE_PARSED = [
++    {
++        "host": "test.example.com",
++        "type": "CNAME",
++        "content": "www.example.com",
++        "ttl": "3600",
++    }
++]
++
++
++@pytest.fixture(name="kasserver", scope="class")
++def fixture_kasserver():
++    """Create a KasServer instance for testing."""
++    with mock.patch("zeep.Client"):
++        yield KasServer()
++
++
++@pytest.fixture(name="kasapi", scope="class")
++def fixture_kasapi():
++    """Patch KasServer requests for testing."""
++    with mock.patch.object(KasServer, "_request", autospec=True) as kasapi:
++        yield kasapi
++
++
++class TestKasServer:
++    """Unit tests for KasServer class"""
++
++    def test_init_netrc(self, kasserver):
++        """Test loading username/password from .netrc file"""
++        with mock.patch("netrc.netrc.authenticators") as authenticators:
++            authenticators.return_value = (None, "foo", "bar")
++            kasserver._get_credentials()
++            assert kasserver._username == "foo"
++            assert kasserver._auth_plain == "bar"
++
++    def test_request(self, kasserver, kasapi):
++        """Test sending a request"""
++        kasapi.return_value = RESPONSE_RAW
++        response = kasserver._request(REQUEST_TYPE, REQUEST_PARAMS)
++        assert response == json.loads(RESPONSE_RAW)["data"]["value"]
++        kasapi.assert_called_with(
++            {
++                "KasUser": USERNAME,
++                "KasAuthType": "plain",
++                "KasAuthData": PASSWORD_PLAIN,
++                "KasRequestType": REQUEST_TYPE,
++                "KasRequestParams": REQUEST_PARAMS,
++            }
++        )
++
++    def test_getdnsrecords(self, kasserver):
++        """Test getting DNS record list"""
++        assert kasserver.get_dns_records("example.com") == self.RESPONSE_PARSED
++
++    def test_getdnsrecord(self, kasserver):
++        """Test getting single DNS record"""
++        assert (
++            kasserver.get_dns_record("www.example.com", "A") == self.RESPONSE_PARSED[0]
++        )
++
++    @staticmethod
++    def test_getdnsrecord_notfound(kasserver, kasapi):
++        """Test getting single DNS record"""
++        kasapi.return_value = ""
++        assert not kasserver.get_dns_record("www.example.com", "MX")
++
++    @staticmethod
++    def test_deletedbsrecord_notfound(kasserver, kasapi):
++        """Test deleting a non existent DNS record"""
++        kasapi.return_value = ""
++        assert not kasserver.delete_dns_record("test.example.com", "MX")
+--- /dev/null
++++ b/tests/test_kasserver_dns_grader.py
+@@ -0,0 +1,74 @@
++"""Tests for kasserver_dns cli"""
++
++
++from unittest import mock
++import click
++import click.testing
++import pytest
++from kasserver.kasserver_dns import cli
++from .test_kasserver import TestKasServer
++
++
++RECORD_FQDN = "new.example.com"
++
++
++RECORD_VALUE = "123456"
++
++
++RECORD_TYPE = "CNAME"
++
++
++RECORD_TTL = "10"
++
++
++@mock.patch("kasserver.KasServer", autospec=True)
++def test_list(kasserver):
++    """Test the list command"""
++    kasserver.return_value.get_dns_records.return_value = TestKasServer.RESPONSE_PARSED
++    result = click.testing.CliRunner().invoke(cli, ["list", "example.com"])
++    assert result.exit_code == 0
++    assert "example.com" in result.output
++
++
++@mock.patch("kasserver.KasServer", autospec=True)
++@pytest.mark.parametrize(
++    "command,expected",
++    [
++        (
++            "add",
++            {
++                "method": "add_dns_record",
++                "params": ["--ttl", RECORD_TTL, RECORD_FQDN, RECORD_TYPE, RECORD_VALUE],
++                "args": [RECORD_FQDN, RECORD_TYPE, RECORD_VALUE, RECORD_TTL],
++            },
++        ),
++        (
++            "remove",
++            {
++                "method": "delete_dns_record",
++                "params": [RECORD_FQDN, RECORD_TYPE],
++                "args": [RECORD_FQDN, RECORD_TYPE],
++            },
++        ),
++    ],
++)
++def test_add_remove(kasserver, command, expected):
++    """Test the add and remove command"""
++    result = click.testing.CliRunner().invoke(cli, [command, *expected["params"]])
++    assert result.exit_code == 0
++    getattr(kasserver.return_value, expected["method"]).assert_any_call(
++        *expected["args"]
++    )
++
++
++@mock.patch("kasserver.KasServer", autospec=True)
++def test_invalid_command(kasserver):
++    """Test invalid command"""
++    result = click.testing.CliRunner().invoke(cli, ["invalid"])
++    assert result.exit_code != 0
++    assert "Invalid command" in result.output

@@ -1,0 +1,35 @@
+Here is a unified diff that adds a new test file `test/test_scan/test_scan_commands.py` to check the fix for the `scan_iter` method:
+
+```diff
+diff --git a/test/test_scan/test_scan_commands.py b/test/test_scan/test_scan_commands.py
+new file mode 100644
+index 0000000..e2b2b2b
+--- /dev/null
++++ b/test/test_scan/test_scan_commands.py
+@@ -0,0 +1,30 @@
++import pytest
++import redis
++
++
++def test_scan_iter_with_type(fakeredis_client):
++    r = fakeredis_client
++    r.zadd("key", {"a": 2})
++    with pytest.raises(AttributeError):
++        for _ in r.scan_iter(match="key", _type="ZSET"):
++            pass
++
++    # Fix the issue
++    r.zadd("key2", {"b": 3})
++    for key in r.scan_iter(match="key*", _type="ZSET"):
++        assert key.decode('utf-8') in ["key", "key2"]
++
++
++@pytest.fixture
++def fakeredis_client():
++    client = redis.StrictRedis(host='localhost', port=6379, db=0)
++    yield client
++    client.flushall()
++    client.close()
+```
+
+This test checks that calling `scan_iter` with `_type` as argument raises an `AttributeError` before the fix, and passes after the fix. The test uses a fixture to create a `fakeredis` client and clean up after each test.

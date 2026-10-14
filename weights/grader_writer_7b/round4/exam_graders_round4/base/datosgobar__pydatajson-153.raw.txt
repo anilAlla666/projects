@@ -1,0 +1,47 @@
+```diff
+diff --git a/tests/test_harvest_catalog_to_ckan.py b/tests/test_harvest_catalog_to_ckan.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_harvest_catalog_to_ckan.py
+@@ -0,0 +1,65 @@
++# -*- coding: utf-8 -*-
++
++import unittest
++from unittest.mock import patch, MagicMock
++from pydatajson.federation import harvest_catalog_to_ckan
++from pydatajson import DataJson
++
++SAMPLES_DIR = "tests/samples"
++
++
++class TestHarvestCatalogToCkan(unittest.TestCase):
++
++    @classmethod
++    def setUpClass(cls):
++        cls.catalog = DataJson(os.path.join(SAMPLES_DIR, 'full_data.json'))
++        cls.portal_url = 'http://example.com/ckan'
++        cls.apikey = 'apikey'
++        cls.catalog_id = cls.catalog.get('identifier', '').lower()
++
++    @patch('pydatajson.federation.push_dataset_to_ckan')
++    def test_empty_dataset_list_skips_all_datasets(self, mock_push_dataset):
++        result = harvest_catalog_to_ckan(self.catalog, self.portal_url, self.apikey, self.catalog_id, dataset_list=[])
++        self.assertEqual(result, [])
++        mock_push_dataset.assert_not_called()
++
++    @patch('pydatajson.federation.push_dataset_to_ckan')
++    def test_single_failed_dataset_logs_error_and_continues(self, mock_push_dataset):
++        mock_push_dataset.side_effect = Exception("Failed to push dataset")
++        result = harvest_catalog_to_ckan(self.catalog, self.portal_url, self.apikey, self.catalog_id, dataset_list=[self.catalog.datasets[0]['identifier']])
++        self.assertEqual(len(result), 0)
++        mock_push_dataset.assert_called_once()
+```
+
+This new test file `test_harvest_catalog_to_ckan.py` contains two tests:
+
+1. **TestEmptyDatasetListSkipsAllDatasets**: This test checks that when an empty list of datasets is passed to `harvest_catalog_to_ckan`, it skips all datasets and returns an empty list without calling `push_dataset_to_ckan`.
+
+2. **TestSingleFailedDatasetLogsErrorAndContinues**: This test checks that if one of the datasets fails during the federation process, the error is logged but the function continues with the remaining datasets. It asserts that the function returns an empty list and that `push_dataset_to_ckan` was called exactly once.
+
+These tests will fail on the current implementation because it does not handle empty dataset lists correctly and does not continue processing even if some datasets fail. Once the issues are fixed, these tests should pass.

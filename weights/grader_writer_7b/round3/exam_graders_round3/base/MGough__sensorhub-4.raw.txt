@@ -1,0 +1,47 @@
+To address the issue where the constructor now requires a positional argument, we need to ensure that the README is updated accordingly and that our tests reflect the correct usage of the `SensorHub` class.
+
+Here's how we can write tests to verify that the fix works:
+
+1. **Test that the constructor still allows passing `None` as the argument**:
+   This ensures that the existing functionality remains intact.
+
+2. **Test that the constructor does not allow passing `None` as the argument**:
+   This verifies that the change correctly enforces the requirement for a non-`None` value.
+
+Let's add these tests to the `test/test_hub.py` file.
+
+```diff
+@@ -157,3 +157,21 @@ def test_brightness_is_returned(error_code, sensor_hub, bus, device_address):
+     assert brightness == 295
+     bus.read_byte_data.assert_has_calls([
+         call(device_address, SensorRegister.LIGHT_HIGH.value),
++        call(device_address, SensorRegister.LIGHT_LOW.value)
++    ])
++
++
++def test_constructor_allows_none_argument(sensor_hub, bus, device_address):
++    """Test that the constructor allows passing None as the argument."""
++    hub = SensorHub(None)
++    assert isinstance(hub, SensorHub)
++    bus.assert_not_called()
++
++
++def test_constructor_raises_on_none_argument(sensor_hub, bus, device_address):
++    """Test that the constructor raises an error when passed None as the argument."""
++    with raises(TypeError):
++        SensorHub(None)
+```
+
+These tests will fail on the current code because the constructor does not enforce the requirement for a non-`None` value. Once the fix is applied, these tests should pass.
+
+### Explanation of the Tests
+
+1. **`test_constructor_allows_none_argument`**:
+   - This test creates an instance of `SensorHub` with `None` as the argument.
+   - It asserts that the instance is created successfully and that the `SMBus` object was not called.
+
+2. **`test_constructor_raises_on_none_argument`**:
+   - This test attempts to create an instance of `SensorHub` with `None` as the argument.
+   - It asserts that a `TypeError` is raised, indicating that the constructor does not accept `None`.
+
+By adding these tests, we ensure that the fix correctly addresses the issue while maintaining the existing functionality.

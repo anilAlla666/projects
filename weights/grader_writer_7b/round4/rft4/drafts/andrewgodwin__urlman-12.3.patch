@@ -1,0 +1,72 @@
+--- /dev/null
++++ b/test_urlman_grader.py
+@@ -0,0 +1,63 @@
++import pytest
++import urlman
++
++
++class Post(object):
++    slug = "hello-world"  # the object-specific attribute to refer to in the URL
++
++    class urls(urlman.Urls):
++        view = "/posts/{self.slug}/"
++        authors = "{view}authors/"
++        admin = "{authors}admin/"
++        broken = "/{does_not_exist}/"
++        recursion = "/{recursion}/"
++
++
++@pytest.fixture
++def post():
++    return Post()
++
++
++class Blog(object):
++    slug = "blog"
++
++    def atom(self):
++        return self.urls.posts + "atom/"
++
++    class urls(urlman.Urls):
++
++        view = "/{self.slug}/"
++
++        def posts(self):
++            assert isinstance(self, Blog)
++            return "{view}posts/"
++
++        def all(self):
++            return "{posts}all/"
++
++        def feed(self):
++            return "{self.atom}"
++
++
++class TestDunderAttributes:
++    def test_dunder_attribute_access_on_urls_object(self):
++        class Foo(object):
++            class urls(urlman.Urls):
++                bar = "/foo/bar/"
++
++        foo = Foo()
++        urls = foo.urls
++
++        with pytest.raises(AttributeError):
++            urls.__qualname__
++
++    def test_dunder_attribute_access_on_urlstring_object(self):
++        url_string = urlman.UrlString("/foo/")
++
++        with pytest.raises(AttributeError):
++            url_string.__qualname__
++
++
++def test_rest_framework_serializer(post):
++    field = urlman.UrlManField(urls=["authors", "admin"])
++    relative_field = urlman.UrlManField(urls=["view"], full=False)
++
++    assert field.to_representation(post) == {
++        "authors": post.urls.authors.full(),
++        "admin": post.urls.admin.full(),
++    }
++    assert relative_field.to_representation(post) == {"view": post.urls.view}

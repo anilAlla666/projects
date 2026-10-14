@@ -1,0 +1,46 @@
+--- /dev/null
++++ b/tests/test_language_detector_grader.py
+@@ -0,0 +1,40 @@
++"""Tests for Simplemma's language detection utilities."""
++
++
++from simplemma import in_target_language, langdetect, LanguageDetector
++from simplemma.strategies import DefaultStrategy
++from .test_token_sampler import CustomTokenSampler
++
++
++def test_proportion_in_each_language() -> None:
++    # sanity checks
++    assert LanguageDetector(
++        lang=("de", "en"), lemmatization_strategy=DefaultStrategy(greedy=True)
++    ).proportion_in_each_language(" aa ") == {"unk": 1}
++    assert langdetect(" aa ", lang=("de", "en"), greedy=True) == [("unk", 1)]
++
++    text = "Test test"
++    assert LanguageDetector(
++        lang=("de", "en"), lemmatization_strategy=DefaultStrategy(greedy=False)
++    ).proportion_in_each_language(text) == {"de": 1.0, "en": 1.0, "unk": 0.0}
++    assert langdetect(text, lang=("de", "en"), greedy=False) == [
++        ("de", 1.0),
++        ("en", 1.0),
++        ("unk", 0.0),
++    ]
++    assert LanguageDetector(
++        lang=("de", "en"), lemmatization_strategy=DefaultStrategy(greedy=True)
++    ).proportion_in_each_language(text) == {"de": 1.0, "en": 1.0, "unk": 0.0}
++    assert langdetect(text, lang=("de", "en"), greedy=True) == [
++        ("de", 1.0),
++        ("en", 1.0),
++        ("unk", 0.0),
++    ]
++
++    lang = ("de", "en")
++    text = "Nztruedg nsüplke deutsches weiter bgfnki gtrpinadsc."
++    assert LanguageDetector(
++        lang=lang, lemmatization_strategy=DefaultStrategy(greedy=False)
++    ).proportion_in_each_language(text) == {"de": 0.5, "en": 0.5, "unk": 0.0}
++    assert langdetect(text, lang=lang, greedy=False) == [
++        ("de", 0.5),
++        ("en", 0.5),
++        ("unk", 0.0),
++    ]

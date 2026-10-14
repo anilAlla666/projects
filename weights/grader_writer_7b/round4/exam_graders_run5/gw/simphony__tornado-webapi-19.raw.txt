@@ -1,0 +1,13 @@
+--- /dev/null
++++ b/tests/test_exceptions_grader.py
+@@ -0,0 +1,11 @@
++from tornado import web
++
++
++def test_bad_representation():
++    exc = web.HTTPError(400, "Bad representation")
++    assert isinstance(exc, web.HTTPError)
++    assert exc.code == 400
++    assert str(exc) == "Bad representation"
++    assert repr(exc) == "<HTTPError 400: Bad representation>"
++    assert exc.log_message == "400 Bad Request: %s"

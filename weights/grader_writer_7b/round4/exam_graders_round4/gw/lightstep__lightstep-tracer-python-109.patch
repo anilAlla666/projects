@@ -1,0 +1,167 @@
+--- /dev/null
++++ b/tests/test_recorder_test_grader.py
+@@ -0,0 +1,110 @@
++import socket
++import sys
++import time
++import lightstep.constants
++import lightstep.recorder
++import lightstep.tracer
++from basictracer.span import BasicSpan
++from basictracer.context import SpanContext
++from opentracing.logs import ERROR_KIND, STACK, ERROR_OBJECT
++import pytest
++from lightstep.crouton import ttypes
++
++
++class MockConnection(object):
++    """MockConnection is used to debug and test Runtime.
++    """
++
++    def __init__(self):
++        self.reports = []
++        self.ready = False
++
++    def open(self):
++        self.ready = True
++
++    def report(self, _, report):
++        """Mimic the Thrift client's report method. Instead of sending report
++            requests save them to a list.
++        """
++        self.reports.append(report)
++        return ttypes.ReportResponse()
++
++    def close(self):
++        pass
++
++    def clear(self):
++        """Delete the current report requests.
++        """
++        self.reports[:] = []
++
++
++def test_sampled():
++    mock_connection = MockConnection()
++    recorder = lightstep.recorder.Recorder(use_http=True)
++    assert recorder.flush(mock_connection)
++    assert len(mock_connection.reports) == 0
++
++    span = BasicSpan(
++        lightstep.tracer._LightstepTracer(False, recorder, None),
++        operation_name="sampled span",
++        context=SpanContext(trace_id=1000, span_id=2000, sampled=True),
++        start_time=time.time() - 100,
++    )
++    span.finish()
++    assert len(recorder._span_records) == 1
++    assert recorder.flush(mock_connection)
++    spans = recorder.converter.get_span_records(mock_connection.reports[0])
++    assert spans[0].trace_id == 1000
++    assert spans[0].span_id == 2000
++    assert spans[0].parent_span_id == 0
++    assert spans[0].operation_name == "sampled span"
++    assert spans[0].start_timestamp == int((time.time() - 100) * 1000000)
++    assert spans[0].duration == int(100 * 1000000)
++    assert spans[0].tags["component"] == "lightstep-recorder-test"
++    assert spans[0].tags["host"] == socket.gethostname()
++    assert spans[0].tags["language"] == "python"
++    assert spans[0].tags["os"] == "linux"
++    assert spans[0].tags["process"] == "test_recorder"
++    assert spans[0].tags["version"] == lightstep.__version__
++    assert spans[0].tags["lightstep.version"] == lightstep.__version__
++    assert spans[0].tags["lightstep.component"] == "recorder"
++    assert spans[0].tags["lightstep.host"] == socket.gethostname()
++    assert spans[0].tags["lightstep.language"] == "python"
++    assert spans[0].tags["lightstep.os"] == "linux"
++    assert spans[0].tags["lightstep.process"] == "test_recorder"
++    assert spans[0].tags["lightstep.sampling.priority"] == 1
++    assert spans[0].tags["lightstep.sampling.reason"] == "explicitly set"
++    assert spans[0].tags["lightstep.sampling.status"] == "sampled"
++    assert spans[0].tags["lightstep.sampling.type"] == "explicit"
++    assert spans[0].tags["lightstep.sampling.weight"] == 1
++    assert spans[0].tags["lightstep.sampling.weighted"] == 1
++    assert spans[0].tags["lightstep.sampling.weighted_priority"] == 1
++    assert spans[0].tags["lightstep.sampling.weighted_reason"] == "explicitly set"
++    assert spans[0].tags["lightstep.sampling.weighted_status"] == "sampled"
++    assert spans[0].tags["lightstep.sampling.weighted_type"] == "explicit"
++
++    span = BasicSpan(
++        lightstep.tracer._LightstepTracer(False, recorder, None),
++        operation_name="unsampled span",
++        context=SpanContext(trace_id=1000, span_id=2000, sampled=False),
++        start_time=time.time() - 100,
++    )
++    span.finish()
++    assert len(recorder._span_records) == 1
++    assert recorder.flush(mock_connection)
++    spans = recorder.converter.get_span_records(mock_connection.reports[1])
++    assert spans[0].trace_id == 1000
++    assert spans[0].span_id == 2000
++    assert spans[0].parent_span_id == 0
++    assert spans[0].operation_name == "unsampled span"
++    assert spans[0].start_timestamp == int((time.time() - 100) * 1000000)
++    assert spans[0].duration == int(100 * 1000000)
++    assert spans[0].tags["component"] == "lightstep-recorder-test"
++    assert spans[0].tags["host"] == socket.gethostname()
++    assert spans[0].tags["language"] == "python"
++    assert spans[0].tags["os"] == "linux"
++    assert spans[0].tags["process"] == "test_recorder"
++    assert spans[0].tags["version"] == lightstep.__version__
++    assert spans[0].tags["lightstep.version"] == lightstep.__version__
++    assert spans[0].tags["lightstep.component"] == "recorder"
++    assert spans[0].tags["lightstep.host"] == socket.gethostname()
++    assert spans[0].tags["lightstep.language"] == "python"
++    assert spans[0].tags["lightstep.os"] == "linux"
++    assert spans[0].tags["lightstep.process"] == "test_recorder"
++    assert spans[0].tags["lightstep.sampling.priority"] == 0
++    assert spans[0].tags["lightstep.sampling.reason"] == "explicitly set"
++    assert spans[0].tags["lightstep.sampling.status"] == "not sampled"
++    assert spans[0].tags["lightstep.sampling.type"] == "explicit"
++    assert spans[0].tags["lightstep.sampling.weight"] == 0
++    assert spans[0].tags["lightstep.sampling.weighted"] == 0
++    assert spans[0].tags["lightstep.sampling.weighted_priority"] == 0
++    assert spans[0].tags["lightstep.sampling.weighted_reason"] == "explicitly set"
++    assert spans[0].tags["lightstep.sampling.weighted_status"] == "not sampled"
++    assert spans[0].tags["lightstep.sampling.weighted_type"] == "explicit"
+--- /dev/null
++++ b/tests/test_lightstep_binary_propagator_test_grader.py
+@@ -0,0 +1,36 @@
++import unittest
++import lightstep
++from lightstep.propagation import LightStepFormat
++
++
++class LightStepBinaryPropagatorTest(unittest.TestCase):
++    def setUp(self):
++        self._tracer = lightstep.Tracer(
++                periodic_flush_seconds=0,
++                collector_host='localhost')
++
++    def tracer(self):
++        return self._tracer
++
++    def tearDown(self):
++        self._tracer.flush()
++
++    def testInjectExtract(self):
++        carrier = bytearray()
++        span = self.tracer().start_span('Sending request')
++        span.set_baggage_item('checked', 'baggage')
++
++        self.tracer().inject(span.context, LightStepFormat.LIGHTSTEP_BINARY, carrier)
++
++        result = self.tracer().extract(LightStepFormat.LIGHTSTEP_BINARY, carrier)
++        self.assertEqual(span.context.span_id, result.span_id)
++        self.assertEqual(span.context.trace_id, result.trace_id)
++        self.assertEqual(span.context.baggage, result.baggage)
++        self.assertEqual(span.context.sampled, result.sampled)
++        self.assertEqual(span.context.weighted, result.weighted)
++        self.assertEqual(span.context.weighted_priority, result.weighted_priority)
++        self.assertEqual(span.context.weighted_reason, result.weighted_reason)
++        self.assertEqual(span.context.weighted_status, result.weighted_status)
++        self.assertEqual(span.context.weighted_type, result.weighted_type)
++
++
++if __name__ == '__main__':
++    unittest.main()

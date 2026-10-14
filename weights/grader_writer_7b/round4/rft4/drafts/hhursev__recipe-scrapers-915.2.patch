@@ -1,0 +1,83 @@
+--- /dev/null
++++ b/tests/test_tastykitchen_grader.py
+@@ -0,0 +1,20 @@
++from recipe_scrapers.tastykitchen import TastyKitchen
++from tests import ScraperTest
++
++
++class TestTastyKitchenScraper(ScraperTest):
++    scraper_class = TastyKitchen
++
++    def test_canonical_url(self):
++        self.assertEqual(
++            "https://www.thepioneerwoman.com/food-cooking/recipes/a11059/restaurant-style-salsa/",
++            self.harvester_class.canonical_url(),
++        )
++
++    def test_total_time(self):
++        self.assertIsNone(self.harvester_class.total_time())
++
++    def test_preparation_time(self):
++        self.assertEqual(5, self.harvester_class.prep_time())
++
++    def test_cooking_time(self):
++        self.assertEqual(5, self.harvester_class.cook_time())
+--- /dev/null
++++ b/tests/library/test_utils_grader.py
+@@ -0,0 +1,33 @@
++import unittest
++from recipe_scrapers._utils import get_minutes
++
++
++class TestUtils(unittest.TestCase):
++    def test_get_minutes_handles_pau_pum(self):
++        text = "Pá-Pum"
++        self.assertEqual(None, get_minutes(text))
++
++    iso8601_fixtures = {
++        "PT1H": 60,
++        "PT20M": 20,
++        "PT2H10M": 130,
++        "PT0H9M30S": 10,
++    }
++
++    def test_get_minutes_handles_iso8601(self):
++        for text, expected_minutes in self.iso8601_fixtures.items():
++            with self.subTest(text=text):
++                self.assertEqual(expected_minutes, get_minutes(text))
++
++    def test_list_public_methods(self):
++        from recipe_scrapers import AbstractScraper
++
++        public_method_names = [
++            method
++            for method in dir(AbstractScraper)
++            if callable(getattr(AbstractScraper, method))
++            if not method.startswith("_") and method not in ["soup", "links", "to_json"]
++        ]
++        self.assertEqual(
++            [
++                "author",
++                "canonical_url",
++                "category",
++                "cook_time",
++                "cuisine",
++                "description",
++                "host",
++                "image",
++                "ingredient_groups",
++                "ingredients",
++                "instructions",
++                "instructions_list",
++                "language",
++                "nutrients",
++                "prep_time",
++                "ratings",
++                "reviews",
++                "site_name",
++                "title",
++                "total_time",
++                "yields",
++            ],
++            public_method_names,
++        )

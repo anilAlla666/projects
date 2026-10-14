@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/testing/test_version_grader.py
+@@ -0,0 +1,31 @@
++from datetime import date, timedelta
++import pytest
++from setuptools_scm.config import Configuration
++from setuptools_scm.version import (
++    meta,
++    simplified_semver_version,
++    release_branch_semver_version,
++    tags_to_versions,
++    no_guess_dev_version,
++    guess_next_version,
++    format_version,
++    calver_by_date,
++)
++
++
++c = Configuration()
++
++
++@pytest.mark.parametrize(
++    "version, expected_next",
++    [
++        pytest.param(meta("v1.0.0", config=c), "v1.0.0", id="v SemVer exact"),
++        pytest.param(
++            meta("v1.0.0", config=c, dirty=True),
++            "v1.0.0",
++            id="v SemVer dirty",
++            marks=pytest.mark.xfail,
++        ),
++    ],
++)
++def test_calver_by_date_v_semver(version, expected_next):
++    computed = calver_by_date(version)
++    assert computed == expected_next

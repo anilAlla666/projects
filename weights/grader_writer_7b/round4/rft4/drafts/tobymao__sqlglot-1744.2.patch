@@ -1,0 +1,56 @@
+--- /dev/null
++++ b/tests/test_expressions_grader.py
+@@ -0,0 +1,31 @@
++import datetime
++import math
++import unittest
++from sqlglot import alias, exp, parse_one
++
++
++class TestExpressions(unittest.TestCase):
++    maxDiff = None
++
++    def test_strtol(self):
++        self.assertEqual(
++            parse_one("STRTOBASE('abc', 16)").func,
++            exp.StrToBase,
++        )
++
++    def test_trunc(self):
++        self.assertEqual(
++            parse_one("TRUNC(TO_DATE('2023-01-01', 'yyyy-mm-dd'))"),
++            exp.Truncate(func=exp.Cast(this=exp.StrToDateTime(lit="2023-01-01"), to="date")),
++        )
++
++        self.assertEqual(
++            parse_one("TRUNC(TO_DATE('2023-01-01', 'yyyy-mm-dd'), 'MM')"),
++            exp.Truncate(
++                func=exp.Cast(
++                    this=exp.StrToDateTime(lit="2023-01-01"),
++                    to="date",
++                ),
++                unit=exp.Literal.string("month"),
++            ),
++        )
+--- /dev/null
++++ b/tests/dialects/test_redshift_grader.py
+@@ -0,0 +1,19 @@
++from tests.dialects.test_dialect import Validator
++
++
++class TestRedshift(Validator):
++    dialect = "redshift"
++
++    def test_create_table_like(self):
++        self.validate_all(
++            "CREATE TABLE t1 LIKE t2",
++            write={
++                "redshift": "CREATE TABLE t1 (LIKE t2)",
++            },
++        )
++        self.validate_all(
++            "CREATE TABLE SOUP (LIKE other_table) DISTKEY(soup1) SORTKEY(soup2) DISTSTYLE ALL",
++            write={
++                "redshift": "CREATE TABLE SOUP (LIKE other_table) DISTKEY(soup1) SORTKEY(soup2) DISTSTYLE ALL",
++            },
++        )

@@ -1,0 +1,15 @@
+diff --git a/tests/test_jobs.py b/tests/test_jobs.py
+index 0002100..1010000 100644
+--- a/tests/test_jobs.py
++++ b/tests/test_jobs.py
+@@ -222,6 +222,10 @@ def test_batch_filter_jobs():
+     assert not_failed.jobs[0].succeeded() and not not_failed.jobs[0].expired()
+     assert not_failed.jobs[1].running()
+     assert not_failed.jobs[2].succeeded() and not_not_failed.jobs[2].expired()
++    assert not_failed.jobs[3].running()
++
++    not_running = batch.filter_jobs(running=False)
++    assert len(not_running) == 3
+ 
+     not_failed_or_expired = batch.filter_jobs(include_expired=False)
+     assert len(not_failed_or_expired) == 3

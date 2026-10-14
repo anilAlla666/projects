@@ -1,0 +1,131 @@
+--- /dev/null
++++ b/tests/test_binary_quadratic_model_grader.py
+@@ -0,0 +1,131 @@
++import unittest
++import random
++import itertools
++import tempfile
++import shutil
++import json
++import collections
++from os import path
++import jsonschema
++import numpy as np
++import dimod
++from dimod.io.json import bqm_json_schema
++
++
++try:
++    import networkx as nx
++    _networkx = True
++except ImportError:
++    _networkx = False
++
++
++try:
++    import pandas as pd
++    _pandas = True
++except ImportError:
++    _pandas = False
++
++
++def assert_bqm_equal(left, right):
++    assert left.linear == right.linear
++    assert left.quadratic == right.quadratic
++    assert left.offset == right.offset
++    assert left.vartype == right.vartype
++
++
++def assert_bqm_almost_equal(left, right, places=None, check_vartype=True):
++    assert abs(left.offset - right.offset) < 1e-5, "offsets differ"
++    assert len(left.linear) == len(right.linear), "linear terms count mismatch"
++    assert len(left.quadratic) == len(right.quadratic), "quadratic terms count mismatch"
++    assert set(left.linear.keys()) == set(right.linear.keys()), "linear term keys mismatch"
++    assert set(left.quadratic.keys()) == set(right.quadratic.keys()), "quadratic term keys mismatch"
++
++    for k, v in left.linear.items():
++        assert abs(v - right.linear[k]) < 1e-5, f"mismatched linear coefficient for {k}"
++
++    for k, v in left.quadratic.items():
++        assert abs(v - right.quadratic[k]) < 1e-5, f"mismatched quadratic coefficient for {k}"
++
++    if check_vartype:
++        assert left.vartype == right.vartype, "vartypes mismatch"
++
++
++class TestBinaryQuadraticModel(unittest.TestCase):
++    def setUp(self):
++        self._BQM = dimod.BinaryQuadraticModel
++    
++    def tearDown(self):
++        del self._BQM
++
++    def test_fix_variables_dict(self):
++        bqm = dimod.BinaryQuadraticModel({'a': -1, 'b': 2, 'c': -3}, {('a', 'b'): -1, ('b', 'c'): 1}, 0.5, dimod.BINARY)
++        bqm.fix_variables({'a': 1})
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'b': 2, 'c': -3}, {('b', 'c'): 1}, 1.5, dimod.BINARY))
++        bqm.fix_variables({'b': 0})
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'c': -3}, {}, 2.5, dimod.BINARY))
++
++    def test_fix_variables_list(self):
++        bqm = dimod.BinaryQuadraticModel({'a': -1, 'b': 2, 'c': -3}, {('a', 'b'): -1, ('b', 'c'): 1}, 0.5, dimod.BINARY)
++        bqm.fix_variables(['a'])
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'b': 2, 'c': -3}, {('b', 'c'): 1}, 1.5, dimod.BINARY))
++        bqm.fix_variables(['b'])
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'c': -3}, {}, 2.5, dimod.BINARY))
++
++    def test_fix_variables_set(self):
++        bqm = dimod.BinaryQuadraticModel({'a': -1, 'b': 2, 'c': -3}, {('a', 'b'): -1, ('b', 'c'): 1}, 0.5, dimod.BINARY)
++        bqm.fix_variables(set(['a']))
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'b': 2, 'c': -3}, {('b', 'c'): 1}, 1.5, dimod.BINARY))
++        bqm.fix_variables(set(['b']))
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'c': -3}, {}, 2.5, dimod.BINARY))
++
++    def test_fix_variables_tuple(self):
++        bqm = dimod.BinaryQuadraticModel({'a': -1, 'b': 2, 'c': -3}, {('a', 'b'): -1, ('b', 'c'): 1}, 0.5, dimod.BINARY)
++        bqm.fix_variables(tuple(['a']))
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'b': 2, 'c': -3}, {('b', 'c'): 1}, 1.5, dimod.BINARY))
++        bqm.fix_variables(tuple(['b']))
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'c': -3}, {}, 2.5, dimod.BINARY))
++
++    def test_fix_variables_iterable(self):
++        bqm = dimod.BinaryQuadraticModel({'a': -1, 'b': 2, 'c': -3}, {('a', 'b'): -1, ('b', 'c'): 1}, 0.5, dimod.BINARY)
++        bqm.fix_variables(iter(['a']))
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'b': 2, 'c': -3}, {('b', 'c'): 1}, 1.5, dimod.BINARY))
++        bqm.fix_variables(iter(['b']))
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'c': -3}, {}, 2.5, dimod.BINARY))
++
++    def test_fix_variables_noniterable(self):
++        bqm = dimod.BinaryQuadraticModel({'a': -1, 'b': 2, 'c': -3}, {('a', 'b'): -1, ('b', 'c'): 1}, 0.5, dimod.BINARY)
++        with self.assertRaises(TypeError):
++            bqm.fix_variables('a')
++
++    def test_fix_variables_nonstring_key(self):
++        bqm = dimod.BinaryQuadraticModel({('a', 'b'): -1, ('b', 'c'): 1}, {}, 0.5, dimod.BINARY)
++        bqm.fix_variables([('a', 'b')])
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({('b', 'c'): 1}, {}, 0.5, dimod.BINARY))
++
++    def test_fix_variables_mixed_keys(self):
++        bqm = dimod.BinaryQuadraticModel({'a': -1, 'b': 2, 'c': -3}, {('a', 'b'): -1, ('b', 'c'): 1}, 0.5, dimod.BINARY)
++        bqm.fix_variables({'a', 'b'})
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'c': -3}, {}, 2.5, dimod.BINARY))
++
++    def test_fix_variables_mixed_types(self):
++        bqm = dimod.BinaryQuadraticModel({'a': -1, 'b': 2, 'c': -3}, {('a', 'b'): -1, ('b', 'c'): 1}, 0.5, dimod.BINARY)
++        bqm.fix_variables({'a', ('b',)})
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'c': -3}, {}, 2.5, dimod.BINARY))
++
++    def test_fix_variables_mixed_invalid_types(self):
++        bqm = dimod.BinaryQuadraticModel({'a': -1, 'b': 2, 'c': -3}, {('a', 'b'): -1, ('b', 'c'): 1}, 0.5, dimod.BINARY)
++        with self.assertRaises(ValueError):
++            bqm.fix_variables([{'a'}, ('b',)])
++
++    def test_fix_variables_repeated_keys(self):
++        bqm = dimod.BinaryQuadraticModel({'a': -1, 'b': 2, 'c': -3}, {('a', 'b'): -1, ('b', 'c'): 1}, 0.5, dimod.BINARY)
++        bqm.fix_variables(['a', 'a', 'b', 'b'])
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'c': -3}, {}, 2.5, dimod.BINARY))
++
++    def test_fix_variables_no_op(self):
++        bqm = dimod.BinaryQuadraticModel({'a': -1, 'b': 2, 'c': -3}, {('a', 'b'): -1, ('b', 'c'): 1}, 0.5, dimod.BINARY)
++        bqm.fix_variables([])
++        assert_bqm_almost_equal(bqm, dimod.BinaryQuadraticModel({'a': -1, 'b': 2, 'c': -3}, {('a', 'b'): -1, ('b', 'c'): 1}, 0.5, dimod.BINARY))

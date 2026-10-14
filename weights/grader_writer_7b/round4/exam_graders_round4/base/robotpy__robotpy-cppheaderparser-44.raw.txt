@@ -1,0 +1,39 @@
+To address the issue, we need to add a test that checks if the `resolve_type` method correctly handles typedefs within methods. The provided example should raise an exception because the `typedefs` key is missing in the `rtnType` dictionary.
+
+Here's the unified diff that adds a new test file `test_regression_4_0_0.py`:
+
+```diff
+diff --git a/test/test_regression_4_0_0.py b/test/test_regression_4_0_0.py
+new file mode 100644
+index 0000000..e6b8c9d
+--- /dev/null
++++ b/test/test_regression_4_0_0.py
+@@ -0,0 +1,34 @@
++# -*- coding: utf-8 -*-
++import unittest
++import CppHeaderParser as CppHeaderParser
++
++class Regression400TestCase(unittest.TestCase):
++    def test_typedef_in_method_return_type(self):
++        h = """
++        typedef C A;
++
++        class B
++        {
++        public:
++           A aMethod();
++        }
++        """
++        try:
++            CppHeaderParser.CppHeader(h, "string")
++            self.fail("Expected KeyError but got no exception")
++        except KeyError as e:
++            self.assertIn("'typedefs'", str(e))
++
++if __name__ == "__main__":
++    unittest.main()
+```
+
+This test case defines a simple C++ header string with a typedef inside a method return type. It then attempts to parse this header using `CppHeaderParser.CppHeader`. Since the `typedefs` key is missing in the `rtnType` dictionary, it should raise a `KeyError`. The test asserts that the error message contains the substring `'typedefs'`, indicating that the expected exception was raised.
+
+When you run this test, it will fail on the current code because the `KeyError` is not caught. Once the fix is applied, the test should pass, confirming that the issue has been resolved.

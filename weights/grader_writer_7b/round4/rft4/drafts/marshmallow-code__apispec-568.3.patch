@@ -1,0 +1,134 @@
+--- /dev/null
++++ b/tests/test_ext_marshmallow_grader.py
+@@ -0,0 +1,138 @@
++import json
++import pytest
++from marshmallow.fields import Field, DateTime, Dict, String, Nested, List
++from marshmallow import Schema
++from apispec import APISpec
++from apispec.ext.marshmallow import MarshmallowPlugin
++from apispec.ext.marshmallow.openapi import MARSHMALLOW_VERSION_INFO
++from apispec.ext.marshmallow import common
++from apispec.exceptions import APISpecError
++from .schemas import (
++    PetSchema,
++    AnalysisSchema,
++    RunSchema,
++    SelfReferencingSchema,
++    OrderedSchema,
++    PatternedObjectSchema,
++    DefaultValuesSchema,
++    AnalysisWithListSchema,
++)
++from .utils import get_schemas, get_parameters, get_responses, get_paths, build_ref
++
++
++@pytest.fixture
++def spec():
++    return APISpec(
++        title="test",
++        version="1.0.0",
++        openapi_version="3.0.0",
++        plugins=(MarshmallowPlugin(),),
++    )
++
++
++class TestNestedFieldWithSchemaRef:
++    class SchemaWithSchemaRef(Schema):
++        nested_field = Schema()
++
++    def test_schema_with_schema_ref(self, spec):
++        spec.components.schema("SchemaWithSchemaRef", schema=self.SchemaWithSchemaRef)
++
++        result = get_schemas(spec)["SchemaWithSchemaRef"]["properties"]["nested_field"]
++        assert result == {"$ref": "#/components/schemas/SchemaWithSchemaRef"}
++
++    def test_schema_with_schema_ref_and_many(self, spec):
++        class SchemaWithSchemaRefAndMany(Schema):
++            nested_field = Schema(many=True)
++
++        spec.components.schema(
++            "SchemaWithSchemaRefAndMany", schema=SchemaWithSchemaRefAndMany
++        )
++
++        result = get_schemas(spec)["SchemaWithSchemaRefAndMany"]["properties"][
++            "nested_field"
++        ]
++        assert result == {"type": "array", "items": {"$ref": "#/components/schemas/"}}[
++            "nested_field"
++        ] == {"$ref": "#/components/schemas/SchemaWithSchemaRef"}
++
++    def test_schema_with_schema_ref_and_dump_only(self, spec):
++        class SchemaWithSchemaRefAndDumpOnly(Schema):
++            nested_field = Schema(dump_only=True)
++
++        spec.components.schema(
++            "SchemaWithSchemaRefAndDumpOnly", schema=SchemaWithSchemaRefAndDumpOnly
++        )
++
++        result = get_schemas(spec)["SchemaWithSchemaRefAndDumpOnly"]["properties"][
++            "nested_field"
++        ]
++        assert result == {"$ref": "#/components/schemas/SchemaWithSchemaRef"}
++
++
++class TestSchemaWithNestedSchemaInstance:
++    class SchemaWithNestedSchemaInstance(Schema):
++        nested_field = PetSchema()
++
++    def test_schema_with_nested_schema_instance(self, spec):
++        spec.components.schema(
++            "SchemaWithNestedSchemaInstance", schema=self.SchemaWithNestedSchemaInstance
++        )
++
++        result = get_schemas(spec)["SchemaWithNestedSchemaInstance"]["properties"][
++            "nested_field"
++        ]
++        assert result == build_ref(spec, "schema", "Pet")
++
++    def test_schema_with_nested_schema_instance_and_many(self, spec):
++        class SchemaWithNestedSchemaInstanceAndMany(Schema):
++            nested_field = PetSchema(many=True)
++
++        spec.components.schema(
++            "SchemaWithNestedSchemaInstanceAndMany",
++            schema=SchemaWithNestedSchemaInstanceAndMany,
++        )
++
++        result = get_schemas(spec)["SchemaWithNestedSchemaInstanceAndMany"][
++            "properties"
++        ]["nested_field"]
++        assert result == {"type": "array", "items": build_ref(spec, "schema", "Pet")}
++
++    def test_schema_with_nested_schema_instance_and_dump_only(self, spec):
++        class SchemaWithNestedSchemaInstanceAndDumpOnly(Schema):
++            nested_field = PetSchema(dump_only=True)
++
++        spec.components.schema(
++            "SchemaWithNestedSchemaInstanceAndDumpOnly",
++            schema=SchemaWithNestedSchemaInstanceAndDumpOnly,
++        )
++
++        result = get_schemas(spec)["SchemaWithNestedSchemaInstanceAndDumpOnly"][
++            "properties"
++        ]["nested_field"]
++        assert result == build_ref(spec, "schema", "Pet")
++
++
++class TestSchemaWithCustomSchemaRefResolver:
++    class SchemaWithCustomSchemaRefResolver(Schema):
++        pass
++
++    def test_schema_with_custom_schema_ref_resolver(self, spec):
++        spec.components.schema(
++            "SchemaWithCustomSchemaRefResolver",
++            schema=self.SchemaWithCustomSchemaRefResolver,
++        )
++
++        result = get_schemas(spec)["SchemaWithCustomSchemaRefResolver"]
++        assert result == {
++            "$schema": "http://json-schema.org/draft-07/schema#",
++            "description": "No description available",
++            "properties": {},
++            "type": "object",
++        }

@@ -1,0 +1,78 @@
+--- /dev/null
++++ b/tests/test_mae_grader.py
+@@ -0,0 +1,71 @@
++import json
++from mock import Mock, patch
++import os
++import requests
++import sys
++import unittest
++
++
++THIS_DIR = os.path.dirname(os.path.abspath(__file__))
++
++
++sys.path.insert(0, os.path.dirname(THIS_DIR))
++
++
++from mae.mae import MesosAppExporter
++
++
++class TestMesosAppExporter(unittest.TestCase):
++    def __readFile(self, filename):
++        with open('{0}/{1}'.format(THIS_DIR, filename)) as file:
++            data = file.read()
++        return data
++
++    def __readJsonFile(self, filename):
++        return json.loads(self.__readFile(filename))
++
++    def __mock_response(self, status=200, content='CONTENT', json_data=None, raise_for_status=None):
++        mock_resp = Mock()
++        mock_resp.raise_for_status = Mock()
++        if raise_for_status:
++            mock_resp.raise_for_status.side_effect = raise_for_status
++        mock_resp.status_code = status
++        mock_resp.content = content
++        mock_resp.text = content
++        if json_data:
++            mock_resp.json = Mock(
++                return_value=json_data
++            )
++        return mock_resp
++
++    def setUp(self):
++        self.exporter = MesosAppExporter('localhost', 5051)
++
++    def tearDown(self):
++        pass
++
++    def test_mae_get_endpoint_3_no_labels_on_any_task(self):
++        """
++        Test if task data without any labels on any task is correctly parsed.
++        """
++        task_data = self.__readJsonFile('fixtures/task_data_3.json')
++        endpoints = self.exporter.get_app_metrics_endpoints(task_data)
++        self.assertEqual(len(endpoints), 0)
++
++    def test_mae_get_endpoint_4_no_labels_on_some_tasks(self):
++        """
++        Test if task data without any labels on some tasks is correctly parsed.
++        """
++        task_data = self.__readJsonFile('fixtures/task_data_4.json')
++        endpoints = self.exporter.get_app_metrics_endpoints(task_data)
++        self.assertEqual(len(endpoints), 1)
++        self.assertEqual(endpoints[0], 'http://localhost:31065/metrics')
++
++    @patch('requests.get')
++    def test_get_metrics_3_no_labels_on_any_app(self, mock_request):
++        """
++        Test if an empty response is returned when no apps have labels.
++        """
++        mock_request.return_value = self.__mock_response(content='')
++        response = self.exporter.get_metrics([])
++        self.assertEqual(response, '')
++
++
++if __name__ == '__main__':
++    unittest.main(verbosity=2, failfast=True)

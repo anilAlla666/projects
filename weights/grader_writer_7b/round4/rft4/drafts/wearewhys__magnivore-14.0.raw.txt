@@ -1,0 +1,20 @@
+--- /dev/null
++++ b/tests/test_Lexicon_grader.py
+@@ -0,0 +1,16 @@
++import pytest
++from magnivore import Lexicon
++
++
++def test_factor_rounding():
++    assert Lexicon.factor({'factor': 1.5}, 10) == 15
++    assert Lexicon.factor({'factor': 1.5}, 10, rounding='down') == 15
++    assert Lexicon.factor({'factor': 1.5}, 10, rounding='up') == 16
++
++
++def test_factor_with_strings():
++    assert Lexicon.factor({'factor': '2'}, '10') == 20
++    assert Lexicon.factor({'factor': '2.5'}, '10') == 25
++    assert Lexicon.factor({'factor': '2.5'}, '10', rounding='down') == 25
++    assert Lexicon.factor({'factor': '2.5'}, '10', rounding='up') == 26
++    with pytest.raises(ValueError):
++        Lexicon.factor({'factor': 'a'}, '10')

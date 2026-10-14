@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/grafanalib/tests/test_core_grader.py
+@@ -0,0 +1,25 @@
++"""Tests for core."""
++
++
++import random
++import grafanalib.core as G
++import pytest
++
++
++def dummy_grid_pos() -> G.GridPos:
++    return G.GridPos(h=1, w=2, x=3, y=4)
++
++
++def dummy_data_link() -> G.DataLink:
++    return G.DataLink(
++        title='dummy title',
++        linkUrl='https://www.dummy-link-url.com',
++        isNewTab=True
++    )
++
++
++def dummy_evaluator() -> G.Evaluator:
++    return G.Evaluator(
++        type=G.EVAL_GT,
++        params=42
++    )
+--- /dev/null
++++ b/grafanalib/tests/test_grafanalib_grader.py
+@@ -0,0 +1,21 @@
++"""Tests for Grafanalib."""
++
++
++import grafanalib.core as G
++from grafanalib import _gen
++import sys
++
++
++if sys.version_info[0] < 3:
++    from io import BytesIO as StringIO
++else:
++    from io import StringIO
++
++
++def test_use_new_alerts_true():
++    dashboard = G.Dashboard(useNewAlerts=True)
++    assert dashboard.to_json_data()['useNewAlerts'] is True
++
++
++def test_use_new_alerts_false():
++    dashboard = G.Dashboard(useNewAlerts=False)
++    assert dashboard.to_json_data()['useNewAlerts'] is False

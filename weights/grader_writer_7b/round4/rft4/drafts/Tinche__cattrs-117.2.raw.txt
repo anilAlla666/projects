@@ -1,0 +1,24 @@
+--- /dev/null
++++ b/tests/test_multistrategy_dispatch_grader.py
+@@ -0,0 +1,23 @@
++from cattr.multistrategy_dispatch import MultiStrategyDispatch
++
++
++class Foo(object):
++    pass
++
++
++class Bar(Foo):
++    pass
++
++
++_fallback = lambda: None
++
++
++_foo_func = lambda: None
++
++
++_foo_cls = lambda: None
++
++
++assert MultiStrategyDispatch(_fallback).dispatch(Bar) == _fallback

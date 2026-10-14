@@ -1,0 +1,39 @@
+--- /dev/null
++++ b/tests/test_cli_grader.py
+@@ -0,0 +1,40 @@
++from __future__ import print_function
++import pytest
++from hlp.cli import autocomplete, complete
++
++
++@pytest.mark.parametrize(
++    "spec,expected",
++    [
++        ("", []),
++        ("os.", ["path"]),
++        ("os.path.", []),
++        ("os.path.join", []),
++        ("os.path.join(", ["ab", "cd"]),
++        ("os.path.join(ab", []),
++        ("os.path.join(ab,", ["cd"]),
++        ("os.path.join(ab, cd", []),
++        ("os.path.join(ab, cd,", ["ef"]),
++        ("os.path.join(ab, cd, ef", []),
++        ("os.path.join(ab, cd, ef,", ["gh"]),
++        ("os.path.join(ab, cd, ef, gh", []),
++        ("os.path.join(ab, cd, ef, gh,", ["ij"]),
++        ("os.path.join(ab, cd, ef, gh, ij", []),
++        ("os.path.join(ab, cd, ef, gh, ij,", ["kl"]),
++        ("os.path.join(ab, cd, ef, gh, ij, kl", []),
++        ("os.path.join(ab, cd, ef, gh, ij, kl,", ["mno"]),
++        ("os.path.join(ab, cd, ef, gh, ij, kl, mno", []),
++        ("os.path.join(ab, cd, ef, gh, ij, kl, mno,", ["pqr"]),
++        ("os.path.join(ab, cd, ef, gh, ij, kl, mno, pqr", []),
++        ("os.path.join(ab, cd, ef, gh, ij, kl, mno, pqr,", ["stu"]),
++        ("os.path.join(ab, cd, ef, gh, ij, kl, mno, pqr, stu", []),
++        ("os.path.join(ab, cd, ef, gh, ij, kl, mno, pqr, stu,", ["vwx"]),
++        ("os.path.join(ab, cd, ef, gh, ij, kl, mno, pqr, stu, vwx", []),
++    ],
++)
++def test_complete(spec, expected):
++    assert sorted(complete(spec)) == sorted(expected)

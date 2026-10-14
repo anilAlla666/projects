@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/tests/test_upgrade_grader.py
+@@ -0,0 +1,36 @@
++import os
++import pytest
++import six
++import subprocess
++
++
++def run_pyupgrade(path):
++    cmd = ['pyupgrade', '--py3-plus', path]
++    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
++    out, err = proc.communicate()
++    return proc.returncode, out.decode(), err.decode()
++
++
++@pytest.mark.parametrize('filename', [
++    'tests/data/raise_from.py',
++    'tests/data/reraise_no_traceback.py',
++])
++def test_pyupgrade_does_not_mangle(filename):
++    # This test is a bit weird because we're trying to check that a change *does
++    # not* happen.
++    rc, out, err = run_pyupgrade(filename)
++    assert rc == 0
++    assert out == ''
++    assert err == ''
++
++
++def test_pyupgrade_does_not_mangle_in_real_code():
++    """Regression test for https://github.com/asottile/pyupgrade/issues/430"""
++    filename = os.path.join(os.path.dirname(__file__), '..', 't.py')
++    rc, out, err = run_pyupgrade(filename)
++    assert rc == 0
++    assert out == 'Rewriting %s\n' % filename
++    assert err == ''

@@ -1,0 +1,21 @@
+diff --git a/tests/test_main.py b/tests/test_main.py
+index 0b0d0a5..f3c3e56 100644
+--- a/tests/test_main.py
++++ b/tests/test_main.py
+@@ -478,6 +478,14 @@ def test_basecommand_include_format_option(config):
+     parser = argparse.ArgumentParser()
+     cmd = MySimpleCommand(config)
+     cmd.include_format_option(parser)
++    # also check that the help message has been updated
++    assert parser.format_help() == textwrap.dedent(
++        """\
++usage: cmdname [-h] [--format FORMAT]
++
++optional arguments:
++  -h, --help            show this help message and exit
++  --format FORMAT       Produce the result formatted as a JSON string
++"""
++    )
+ 
+     (action,) = [action for action in parser._actions if action.dest == "format"]
+     assert action.option_strings == ["--format"]

@@ -1,0 +1,120 @@
+--- /dev/null
++++ b/tests/test_adapter_grader.py
+@@ -0,0 +1,121 @@
++from casbin_sqlalchemy_adapter import Adapter
++from casbin_sqlalchemy_adapter import Base
++from casbin_sqlalchemy_adapter import CasbinRule
++from casbin_sqlalchemy_adapter.adapter import Filter
++from sqlalchemy import create_engine
++from sqlalchemy.orm import sessionmaker
++from unittest import TestCase
++import casbin
++import os
++
++
++def get_fixture(path):
++    dir_path = os.path.split(os.path.realpath(__file__))[0] + "/"
++    return os.path.abspath(dir_path + path)
++
++
++def get_enforcer():
++    engine = create_engine("sqlite://")
++    # engine = create_engine('sqlite:///' + os.path.split(os.path.realpath(__file__))[0] + '/test.db', echo=True)
++    adapter = Adapter(engine)
++
++    session = sessionmaker(bind=engine)
++    Base.metadata.create_all(engine)
++    s = session()
++    s.query(CasbinRule).delete()
++    s.add(CasbinRule(ptype='p', v0='alice', v1='data1', v2='read'))
++    s.add(CasbinRule(ptype='p', v0='bob', v1='data2', v2='write'))
++    s.add(CasbinRule(ptype='p', v0='data2_admin', v1='data2', v2='read'))
++    s.add(CasbinRule(ptype='p', v0='data2_admin', v1='data2', v2='write'))
++    s.add(CasbinRule(ptype='g', v0='alice', v1='data2_admin'))
++    s.commit()
++    s.close()
++
++    return casbin.Enforcer(get_fixture('rbac_model.conf'), adapter)
++
++
++class TestAdapter(TestCase):
++    def setUp(self):
++        engine = create_engine("sqlite://")
++        # engine = create_engine('sqlite:///' + os.path.split(os.path.realpath(__file__))[0] + '/test.db', echo=True)
++        Base.metadata.create_all(engine)
++        session = sessionmaker(bind=engine)
++        s = session()
++        s.query(CasbinRule).delete()
++        s.commit()
++        s.close()
++
++    def test_add_policies(self):
++        adapter = Adapter(create_engine("sqlite://"))
++        s = sessionmaker(bind=create_engine("sqlite://"))()
++        s.query(CasbinRule).delete()
++        s.commit()
++        s.close()
++
++        adapter.add_policy("p", "p", ["alice", "data1", "read"])
++        adapter.add_policy("p", "p", ["bob", "data2", "write"])
++        adapter.add_policy("p", "p", ["data2_admin", "data2", "read"])
++        adapter.add_policy("p", "p", ["data2_admin", "data2", "write"])
++        adapter.add_policy("g", "g", ["alice", "data2_admin"])
++        adapter.save_policy()
++
++        self.assertEqual(s.query(CasbinRule).count(), 5)
++
++        s.query(CasbinRule).delete()
++        s.commit()
++        s.close()
++
++        adapter.add_policies("p", "p", [["alice", "data1", "read"], ["bob", "data2", "write"]])
++        adapter.add_policies("p", "p", [["data2_admin", "data2", "read"], ["data2_admin", "data2", "write"]])
++        adapter.add_policies("g", "g", [["alice", "data2_admin"]])
++        adapter.save_policy()
++
++        self.assertEqual(s.query(CasbinRule).count(), 5)
++
++    def test_remove_policies(self):
++        adapter = Adapter(create_engine("sqlite://"))
++        s = sessionmaker(bind=create_engine("sqlite://"))()
++        s.query(CasbinRule).delete()
++        s.add(CasbinRule(ptype="p", v0="alice", v1="data1", v2="read"))
++        s.add(CasbinRule(ptype="p", v0="bob", v1="data2", v2="write"))
++        s.add(CasbinRule(ptype="p", v0="data2_admin", v1="data2", v2="read"))
++        s.add(CasbinRule(ptype="p", v0="data2_admin", v1="data2", v2="write"))
++        s.add(CasbinRule(ptype="g", v0="alice", v1="data2_admin"))
++        s.commit()
++        s.close()
++
++        adapter.remove_policies("p", "p", [["alice", "data1", "read"], ["bob", "data2", "write"]])
++        adapter.remove_policies("p", "p", [["data2_admin", "data2", "read"], ["data2_admin", "data2", "write"]])
++        adapter.remove_policies("g", "g", [["alice", "data2_admin"]])
++        adapter.save_policy()
++
++        self.assertEqual(s.query(CasbinRule).count(), 0)
++
++    def test_batch_operations(self):
++        adapter = Adapter(create_engine("sqlite://"))
++        s = sessionmaker(bind=create_engine("sqlite://"))()
++        s.query(CasbinRule).delete()
++        s.commit()
++        s.close()
++
++        adapter.add_policy("p", "p", ["alice", "data1", "read"])
++        adapter.add_policy("p", "p", ["bob", "data2", "write"])
++        adapter.add_policy("p", "p", ["data2_admin", "data2", "read"])
++        adapter.add_policy("p", "p", ["data2_admin", "data2", "write"])
++        adapter.add_policy("g", "g", ["alice", "data2_admin"])
++        adapter.save_policy()
++
++        self.assertEqual(s.query(CasbinRule).count(), 5)
++
++        adapter.remove_policy("p", "p", ["alice", "data1", "read"])
++        adapter.remove_policy("p", "p", ["bob", "data2", "write"])
++        adapter.remove_policy("p", "p", ["data2_admin", "data2", "read"])
++        adapter.remove_policy("p", "p", ["data2_admin", "data2", "write"])
++        adapter.remove_policy("g", "g", ["alice", "data2_admin"])
++        adapter.save_policy()
++
++        self.assertEqual(s.query(CasbinRule).count(), 0)

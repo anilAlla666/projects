@@ -1,0 +1,233 @@
+--- /dev/null
++++ b/joblib/test/test_memory_grader.py
+@@ -0,0 +1,103 @@
++"""
++Test the memory module.
++"""
++
++
++import gc
++import shutil
++import os
++import os.path
++import pathlib
++import pickle
++import sys
++import time
++import datetime
++import textwrap
++import pytest
++from joblib.memory import Memory
++from joblib.memory import MemorizedFunc, NotMemorizedFunc
++from joblib.memory import MemorizedResult, NotMemorizedResult
++from joblib.memory import _FUNCTION_HASHES
++from joblib.memory import register_store_backend, _STORE_BACKENDS
++from joblib.memory import _build_func_identifier, _store_backend_factory
++from joblib.memory import JobLibCollisionWarning
++from joblib.parallel import Parallel, delayed
++from joblib._store_backends import StoreBackendBase, FileSystemStoreBackend
++from joblib.test.common import with_numpy, np
++from joblib.test.common import with_multiprocessing
++from joblib.testing import parametrize, raises, warns
++from joblib.hashing import hash
++
++
++def f(x, y=1):
++    """ A simple function to be tested.
++    """
++    return x * y
++
++
++def g(x):
++    """ A function that takes one argument.
++    """
++    return x**2
++
++
++def h(x, y=0, *args, **kwargs):
++    """ A function that takes several arguments, some default.
++    """
++    return x**2
++
++
++def i(x=1):
++    """ A function that has a single default argument.
++    """
++    return x
++
++
++def j(x, y, **kwargs):
++    """ A function that takes arbitrary keyword arguments.
++    """
++    return x**2
++
++
++def k(*args, **kwargs):
++    """ A function that takes arbitrary arguments and keywords.
++    """
++    return args, kwargs
++
++
++def l(a, b=1, c=2):
++    """ A function that has positional-only parameters.
++    """
++    return a, b, c
++
++
++def m(x, y, *, z=1):
++    """ A function that has keyword-only parameters.
++    """
++    return x, y, z
++
++
++def n(x, y, z=1):
++    """ A function that has positional-or-keyword parameters.
++    """
++    return x, y, z
++
++
++def o(x, y=1, z=2):
++    """ A function that has mixed parameters.
++    """
++    return x, y, z
++
++
++def p(*args, **kwargs):
++    """ A function that has mixed parameters.
++    """
++    return args, kwargs
++
++
++def compare(left, right, ignored_attrs=None):
++    if ignored_attrs is None:
++        ignored_attrs = []
++
++    left_vars = vars(left)
++    right_vars = vars(right)
++    assert set(left_vars.keys()) == set(right_vars.keys())
++    for attr in left_vars.keys():
++        if attr in ignored_attrs:
++            continue
++        assert left_vars[attr] == right_vars[attr]
+--- /dev/null
++++ b/joblib/test/test_func_inspect_grader.py
+@@ -0,0 +1,118 @@
++"""
++Test the func_inspect module.
++"""
++
++
++import functools
++from joblib.func_inspect import filter_args, get_func_name, get_func_code
++from joblib.func_inspect import _clean_win_chars, format_signature
++from joblib.memory import Memory
++from joblib.test.common import with_numpy
++from joblib.testing import fixture, parametrize, raises
++
++
++def f(x, y=0):
++    pass
++
++
++def g(x):
++    pass
++
++
++def h(x, y=0, *args, **kwargs):
++    pass
++
++
++def i(x=1):
++    pass
++
++
++def j(x, y, **kwargs):
++    pass
++
++
++def k(*args, **kwargs):
++    pass
++
++
++def l(a, b=1, c=2):
++    pass
++
++
++def m(x, y, *, z=1):
++    pass
++
++
++def n(x, y, z=1):
++    pass
++
++
++def o(x, y=1, z=2):
++    pass
++
++
++def p(*args, **kwargs):
++    pass
++
++
++def _decorator(f):
++    """A decorator that doesn't preserve the signature."""
++    @functools.wraps(f)
++    def decorated(*args, **kwargs):
++        return f(*args, **kwargs)
++    return decorated
++
++
++def _decorated_function():
++    pass
++
++
++_decorated_function = _decorator(_decorated_function)
++
++
++@fixture(scope='module')
++def decorated_func():
++    @Memory(location=".").cache
++    @_decorator
++    def my_func(x, y):
++        pass
++    return my_func
++
++
++@fixture(scope='module')
++def undecorated_func():
++    @Memory(location=".").cache
++    def my_func(x, y):
++        pass
++    return my_func
++
++
++@parametrize('decorated_func,undecorated_func',
++             [('my_func', 'my_func')])
++def test_get_func_name(decorated_func, undecorated_func):
++    """Check that get_func_name returns the name of the undecorated function."""
++    assert get_func_name(decorated_func) == get_func_name(undecorated_func)
++
++
++@parametrize('decorated_func,undecorated_func',
++             [(f, f),
++              (_decorated_function, _decorated_function)])
++def test_get_func_code(decorated_func, undecorated_func):
++    """Check that get_func_code returns the code of the undecorated function."""
++    assert get_func_code(decorated_func) == get_func_code(undecorated_func)
++
++
++def test_filter_args_ignores_decorated_functions():
++    """Regression test for gh-1350."""
++    assert filter_args(_decorated_function, ['x'], args=(1,), kwargs={}) == ((), {})
++
++
++def test_filter_args_ignores_cache_wrapped_functions():
++    """Regression test for gh-1350."""
++    assert filter_args(Memory('.').cache(lambda x: x), ['x'], args=(1,),
++                       kwargs={}) == ((), {})
++
++
++def test_filter_args_preserves_default_values():
++    """Regression test for gh-1350."""
++    assert filter_args(Memory('.').cache(lambda x, y=1: x), [], args=(1,),
++                       kwargs={'y': 2}) == ((1,), {'y': 2})

@@ -1,0 +1,19 @@
+diff --git a/tests/test_model.py b/tests/test_model.py
+index 0e1b0a1..d0c0000 100644
+--- a/tests/test_model.py
++++ b/tests/test_model.py
+@@ -262,6 +262,14 @@ def test_implicit_comment_str():
+     assert str(comment) == "ImplicitComment (line: 1): `myComment`"
+ 
+ 
++def test_entry_setitem():
++    entry = Entry()
++    entry["new_key"] = "new_value"
++    assert entry.fields == [Field("new_key", "new_value")]
++
++    entry["another_key"] = "another_value"
++    assert entry.fields == [Field("new_key", "new_value"), Field("another_key", "another_value")]
++
+ 
+ def test_explicit_comment_str():
+     comment = ExplicitComment("myComment", 1)

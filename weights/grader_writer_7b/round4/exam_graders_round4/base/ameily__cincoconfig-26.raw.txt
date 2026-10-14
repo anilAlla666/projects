@@ -1,0 +1,39 @@
+To address the issue of not encrypting empty strings and treating them as `None` for `SecureField`, we can add a new test file named `test_securefield_empty_string.py`. This test will ensure that an empty string is correctly handled and not encrypted.
+
+Here's the unified diff:
+
+```diff
+diff --git a/tests/test_securefield_empty_string.py b/tests/test_securefield_empty_string.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_securefield_empty_string.py
+@@ -0,0 +1,34 @@
++import unittest
++from cincoconfig import Config, Field, SecureField
++
++class TestSecureFieldEmptyString(unittest.TestCase):
++    def setUp(self):
++        class MyConfig(Config):
++            my_field = SecureField()
++
++        self.config = MyConfig()
++
++    def test_empty_string_to_basic(self):
++        # Test that an empty string is converted to None
++        result = self.config.my_field.to_basic(None, '')
++        self.assertIsNone(result)
++
++    def test_none_to_python(self):
++        # Test that None is returned when loading an empty string
++        result = self.config.my_field.to_python(None, {})
++        self.assertIsNone(result)
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This test file includes two test methods:
+1. `test_empty_string_to_basic`: This method checks that an empty string is correctly converted to `None` when calling the `to_basic` method of `SecureField`.
+2. `test_none_to_python`: This method ensures that `None` is returned when loading an empty string using the `to_python` method of `SecureField`.
+
+These tests will fail on the current code because it does not handle empty strings as specified. Once the fix is applied, these tests should pass.

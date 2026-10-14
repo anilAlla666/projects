@@ -1,0 +1,48 @@
+--- /dev/null
++++ b/test/integration/test_cli_grader.py
+@@ -0,0 +1,41 @@
++import io
++import os
++import pytest
++import flynt
++from flynt.cli import run_flynt_cli
++from flynt.cli_messages import farewell_message
++
++
++valid_snippets = [
++    ("'{}'.format(x) + '{}'.format(y)", "f'{x}' + f'{y}'"),
++    (
++        "['{}={}'.format(key, value) for key, value in x.items()]",
++        "[f'{key}={value}' for key, value in x.items()]",
++    ),
++    (
++        "'{} {} {}'.format(a, b, c)",
++        "f'{a} {b} {c}'",
++    ),
++    ("x[0] + x[1]", "x[0] + x[1]"),
++    ("\"{} {} {}".format(a, b, c)", "f'{a} {b} {c}'",),
++]
++
++
++@pytest.mark.parametrize("code_in, code_out", valid_snippets)
++def test_cli_stdin(monkeypatch, capsys, code_in, code_out):
++    """
++    Tests a stdin/stdout invocation, like:
++        echo snippet | flynt -
++    """
++    monkeypatch.setattr("sys.stdin", io.StringIO(code_in))
++    return_code = run_flynt_cli(["-", "--transform-concats"])
++    assert return_code == 0
++    out, err = capsys.readouterr()
++    assert out.strip() == code_out
++    assert err == ""
++
++
++def test_cli_stdin_with_transform_concats(monkeypatch, capsys):
++    """
++    Tests a stdin/stdout invocation, like:
++        echo snippet | flynt -
++    """
++    monkeypatch.setattr("sys.stdin", io.StringIO('""""""'))
++    return_code = run_flynt_cli(["-", "--transform-concats"])
++    assert return_code == 0

@@ -1,0 +1,28 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,24 @@
++import pytest
++from pathlib import Path
++from nbchkr.utils import (
++    read,
++    remove_cells,
++    write,
++    add_checks,
++    get_tags,
++    get_score,
++    check,
++)
++
++
++def test_get_score():
++    data = {"metadata": {"tags": ["score:2"]}}
++    assert get_score(data) == 2
++
++
++def test_check(tmp_path: Path):
++    tmp_path /= "tmp.ipynb"
++    tmp_path.write_text('{"cells": [{"cell_type": "code"}]}')
++    score, max_score, feedback = check(read(tmp_path), tmp_path)
++    assert score == 0
++    assert max_score == 0
++    assert feedback == ""

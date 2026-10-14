@@ -1,0 +1,17 @@
+--- /dev/null
++++ b/tests/test_processors_grader.py
+@@ -0,0 +1,14 @@
++from __future__ import absolute_import, division, print_function
++
++
++import pytest
++from vermouth.processors.canonicalize_modifications import (
++    CanonicalizeModifications,
++    UnknownModificationError,
++)
++from vermouth.molecule import Molecule
++
++
++def test_canonicalize_unknown_modification():
++    with pytest.raises(UnknownModificationError):
++        CanonicalizeModifications().run(Molecule())

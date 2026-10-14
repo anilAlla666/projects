@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/unit/test_sql_analyser_grader.py
+@@ -0,0 +1,33 @@
++from __future__ import annotations
++import unittest
++from django_migration_linter.sql_analyser import (
++    analyse_sql_statements,
++    get_sql_analyser_class,
++)
++
++
++class SqlAnalyserPostgresTestCase(SqlAnalyserBaseTestCase):
++    database_vendor = "postgresql"
++
++    def test_create_index_concurrently_with_condition(self):
++        sql = [
++            "CREATE INDEX CONCURRENTLY delete_data_after_idx ON models_prediction (delete_data_after) "
++            'WHERE (data_deleted_at IS NULL AND delete_data_after IS NOT NULL);'
++        ]
++        self.assertValidSql(sql)
++
++
++class SqlAnalyserSqliteTestCase(SqlAnalyserBaseTestCase):
++    database_vendor = "sqlite"
++
++    def test_create_index_concurrently_with_condition(self):
++        sql = [
++            "CREATE INDEX CONCURRENTLY delete_data_after_idx ON models_prediction (delete_data_after) "
++            'WHERE (data_deleted_at IS NULL AND delete_data_after IS NOT NULL);'
++        ]
++        self.assertValidSql(sql)
++
++
++if __name__ == "__main__":
++    unittest.main()

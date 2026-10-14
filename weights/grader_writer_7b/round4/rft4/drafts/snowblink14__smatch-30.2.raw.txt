@@ -1,0 +1,59 @@
+--- /dev/null
++++ b/test_amr_grader.py
+@@ -0,0 +1,57 @@
++import unittest
++from amr import *
++
++
++class TestAmr(unittest.TestCase):
++    def setUp(self):
++        pass
++
++    def test_parse_AMR_line(self):
++        """
++        Test that parse_AMR_line parses correctly.
++        """
++        amr_text = "(w / what :ARG0-of (e / event))"
++        expected = AMR(
++            ["w", "e"],
++            ["what", "event"],
++            [[["ARG0-of", "e"]]],
++            [[["TOP", "what"], ["ARG0-of", "e"]]],
++        )
++        self.assertEqual(expected, AMR.parse_AMR_line(amr_text))
++
++    def test_compare(self):
++        """
++        Test that compare() works correctly.
++        """
++        amr_text1 = "(w / what)"
++        amr_text2 = "(w / what)"
++        expected = 1.0
++        self.assertEqual(expected, AMR.compare(AMR.parse_AMR_line(amr_text1), AMR.parse_AMR_line(amr_text2)))
++
++    def test_compare_unequal_attributes(self):
++        """
++        Test that compare() works correctly when attributes are unequal.
++        """
++        amr_text1 = "(w / what :TOP \"top\")"
++        amr_text2 = "(w / what :TOP \"top2\")"
++        expected = 0.5
++        self.assertEqual(expected, AMR.compare(AMR.parse_AMR_line(amr_text1), AMR.parse_AMR_line(amr_text2)))
++
++    def test_compare_unequal_nodes(self):
++        """
++        Test that compare() works correctly when nodes are unequal.
++        """
++        amr_text1 = "(w / what :TOP \"top\")"
++        amr_text2 = "(w / other :TOP \"top\")"
++        expected = 0.5
++        self.assertEqual(expected, AMR.compare(AMR.parse_AMR_line(amr_text1), AMR.parse_AMR_line(amr_text2)))
++
++    def test_compare_with_labels_and_top(self):
++        """
++        Test that compare() works correctly when labels and TOPs are unequal.
++        """
++        amr_text1 = "(w / what :TOP \"top\")"
++        amr_text2 = "(w / what2 :TOP \"top\")"
++        expected = 0.0
++        self.assertEqual(expected, AMR.compare(AMR.parse_AMR_line(amr_text1), AMR.parse_AMR_line(amr_text2)))

@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,23 @@
++import pytest
++import io
++from compress_pickle.utils import _stringyfy_path, _infer_compression_from_path
++
++
++@pytest.mark.usefixtures("valid_extensions")
++def test_set_default_extension(valid_extensions):
++    extension, compression = valid_extensions
++    path = "some_path." + extension
++    new_path = _set_default_extension(path, compression)
++    if extension.endswith(".gz"):
++        assert extension == new_path
++    else:
++        root, current_ext = splitext(path)
++        assert root + "." + get_default_compression_mapping()[compression] == new_path
++
++
++def test_set_default_extension_no_extension():
++    path = "some_path"
++    new_path = _set_default_extension(path, "infer")
++    assert path + "." + get_default_compression_mapping()["infer"] == new_path
++
++
++def test_set_default_extension_invalid_compression():
++    path = "some_path"
++    with pytest.raises(ValueError):
++        _set_default_extension(path, "bogus")

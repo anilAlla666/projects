@@ -1,0 +1,68 @@
+--- /dev/null
++++ b/tests/test_components_grader.py
+@@ -0,0 +1,15 @@
++import unittest
++from universe import components
++
++
++class SpeciesComponentTestCase(unittest.TestCase):
++    def test_serialization(self):
++        data = {
++            'singular_name': 'Gandalf',
++            'plural_name': 'Gandalfs',
++            'growth_rate': 1000,
++        }
++        component = components.SpeciesComponent()
++        self.assertEqual(component.serialize(data),
++                         {'singular_name': 'Gandalf', 'plural_name': 'Gandalfs', 'growth_rate': 1000})
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/tests/test_engine_grader.py
+@@ -0,0 +1,42 @@
++import unittest
++from universe import engine
++
++
++class EngineTestCase(unittest.TestCase):
++    def test_registering_entities_with_component_names_as_fields(self):
++        manager = engine.Manager()
++        manager.register_entity_type('test', [engine.Entity])
++
++        manager.register_entity(0, {'type': 'test', 'x': 123})
++
++        self.assertEqual(manager.get_entities('test')[0].x, 123)
++
++    def test_getting_entity_with_component_names_as_fields(self):
++        manager = engine.Manager()
++        manager.register_entity_type('test', [engine.Entity])
++
++        manager.register_entity(0, {'type': 'test', 'x': 123})
++
++        self.assertEqual(manager.get_entity('test', 0).x, 123)
++
++    def test_setting_entity_with_component_names_as_fields(self):
++        manager = engine.Manager()
++        manager.register_entity_type('test', [engine.Entity])
++
++        manager.register_entity(0, {'type': 'test', 'x': 123})
++
++        manager.set_entity('test', 0, {'x': 456})
++
++        self.assertEqual(manager.get_entity('test', 0).x, 456)
++
++    def test_deleting_entity_with_component_names_as_fields(self):
++        manager = engine.Manager()
++        manager.register_entity_type('test', [engine.Entity])
++
++        manager.register_entity(0, {'type': 'test', 'x': 123})
++
++        manager.set_entity('test', 0, None)
++
++        self.assertNotIn(0, manager.get_entities('test'))
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,81 @@
+--- /dev/null
++++ b/tests/filters/test_rectilinear_grid_grader.py
+@@ -0,0 +1,31 @@
++import numpy as np
++import pytest
++import pyvista as pv
++
++
++@pytest.fixture
++def tiny_rectilinear():
++    xrng = np.linspace(0, 3, 4)
++    yrng = np.linspace(0, 3, 5)
++    zrng = np.linspace(0, 3, 6)
++    return pv.RectilinearGrid(xrng, yrng, zrng)
++
++
++def test_to_tetrahedral_pass_cell_data(tiny_rectilinear):
++    tiny_rectilinear['cell_data'] = range(tiny_rectilinear.n_cells)
++    tet_grid = tiny_rectilinear.to_tetrahedra(pass_cell_data=True)
++    assert 'cell_data' in tet_grid.cell_data
++
++    assert len(tet_grid.cell_data['cell_data']) == tet_grid.n_cells
++
++    # verify data is copied correctly
++    tiny_rectilinear['cell_data'] = range(tiny_rectilinear.n_cells)
++    tet_grid = tiny_rectilinear.to_tetrahedra(pass_cell_data=True)
++    assert 'cell_data' in tet_grid.cell_data
++
++    assert len(tet_grid.cell_data['cell_data']) == tet_grid.n_cells
++
++    tiny_rectilinear['cell_data'][0] = 1000
++    assert tet_grid.cell_data['cell_data'][0] != 1000
+--- /dev/null
++++ b/tests/test_grid_grader.py
+@@ -0,0 +1,49 @@
++import os
++import pathlib
++import weakref
++import numpy as np
++import pytest
++import vtk
++import pyvista
++from pyvista import examples
++from pyvista.errors import AmbiguousDataError, MissingDataError
++from pyvista.plotting import system_supports_plotting
++from pyvista.utilities.misc import PyVistaDeprecationWarning
++
++
++test_path = os.path.dirname(os.path.abspath(__file__))
++
++
++HEXBEAM_CELLS_BOOL = np.ones(40, dtype=bool)  # matches hexbeam.n_cells == 40
++
++
++STRUCTGRID_CELLS_BOOL = np.ones(729, dtype=bool)  # struct_grid.n_cells == 729
++
++
++STRUCTGRID_POINTS_BOOL = np.ones(1000, dtype=bool)  # struct_grid.n_points == 1000
++
++
++pointsetmark = pytest.mark.skipif(
++    pyvista.vtk_version_info < (9, 1, 0), reason="Requires VTK>=9.1.0 for a concrete PointSet class"
++)
++
++
++def test_copy_no_copy_wrap_object(datasets):
++    for dataset in datasets:
++        # different dataset types have different copy behavior for points
++        # use point data which is common
++        dataset["data"] = np.ones(dataset.n_points)
++        new_dataset = type(dataset)(dataset)
++        new_dataset["data"] += 1
++        assert np.array_equal(new_dataset["data"], dataset["data"])
++
++    for dataset in datasets:
++        # different dataset types have different copy behavior for points
++        # use point data which is common
++        dataset["data"] = np.ones(dataset.n_points)
++        new_dataset = type(dataset)(dataset, deep=True)
++        new_dataset["data"] += 1
++        assert not np.any(new_dataset["data"] == dataset["data"])

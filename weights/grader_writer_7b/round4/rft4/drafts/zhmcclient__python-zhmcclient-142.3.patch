@@ -1,0 +1,48 @@
+--- /dev/null
++++ b/tests/test_manager_grader.py
+@@ -0,0 +1,47 @@
++import pytest
++
++
++def test_findall_empty():
++    class FakeResource(object):
++        def __init__(self, manager, uri, name):
++            self.manager = manager
++            self.uri = uri
++            self.name = name
++
++        @property
++        def properties(self):
++            return {'name': self.name}
++
++    class FakeManager(BaseManager):
++        resource_class = FakeResource
++
++    fake_mgr = FakeManager(session=None, parent=None, uri='fake-uri')
++
++    assert fake_mgr.findall() == []
++    assert fake_mgr.findall(properties={'name': 'non-existing-name'}) == []
++    assert fake_mgr.findall(properties={'not-a-property': 'value'}) == []
++
++
++def test_findall_one():
++    class FakeResource(object):
++        def __init__(self, manager, uri, name):
++            self.manager = manager
++            self.uri = uri
++            self.name = name
++
++        @property
++        def properties(self):
++            return {'name': self.name}
++
++    class FakeManager(BaseManager):
++        resource_class = FakeResource
++
++    fake_mgr = FakeManager(session=None, parent=None, uri='fake-uri')
++
++    fake_obj = FakeResource(fake_mgr, 'fake-uri', 'fake-name')
++    fake_mgr.add(fake_obj)
++
++    assert fake_mgr.findall() == [fake_obj]
++    assert fake_mgr.findall(properties={'name': 'fake-name'}) == [fake_obj]

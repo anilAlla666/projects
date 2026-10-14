@@ -1,0 +1,35 @@
+diff --git a/tests/test_qrbill_additional_info.py b/tests/test_qrbill_additional_info.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_qrbill_additional_info.py
+@@ -0,0 +1,45 @@
++import unittest
++from qrbill import QRBill
++
++class TestAdditionalInfo(unittest.TestCase):
++    def test_additional_info_with_newline(self):
++        bill = QRBill(
++            creditor_name="Jane Doe",
++            creditor_postalcode="1000",
++            creditor_city="Lausanne",
++            account="CH 53 8000 5000 0102 83664",
++            additional_information="Line 1\nLine 2"
++        )
++        qr_data = bill.qr_data()
++        self.assertIn("Line 1", qr_data)
++        self.assertIn("Line 2", qr_data)
++
++    def test_additional_info_without_newline(self):
++        bill = QRBill(
++            creditor_name="Jane Doe",
++            creditor_postalcode="1000",
++            creditor_city="Lausanne",
++            account="CH 53 8000 5000 0102 83664",
++            additional_information="Line 1 Line 2"
++        )
++        qr_data = bill.qr_data()
++        self.assertIn("Line 1 Line 2", qr_data)
++
++if __name__ == '__main__':
++    unittest.main()

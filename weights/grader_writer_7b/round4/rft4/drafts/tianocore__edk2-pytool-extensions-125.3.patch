@@ -1,0 +1,138 @@
+--- /dev/null
++++ b/edk2toolext/tests/test_git_dependency_grader.py
+@@ -0,0 +1,141 @@
++## @file test_git_dependency.py
++# Unit test suite for the GitDependency class.
++#
++##
++
++
++import os
++import unittest
++import logging
++import shutil
++import stat
++import tempfile
++import copy
++from edk2toolext.environment import environment_descriptor_files as EDF
++from edk2toolext.environment.extdeptypes.git_dependency import GitDependency
++from edk2toolext.environment import shell_environment
++
++
++test_dir = None
++
++
++uptodate_version = "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d"
++
++
++behind_one_version = "762941318ee16e59dabbacb1b4049eec22f0d303"
++
++
++invalid_version = "762941318ee16e59d123456789049eec22f0d303"
++
++
++hw_json_template = '''
++{
++  "scope": "global",
++  "type": "git",
++  "name": "HelloWorld",
++  "source": "https://github.com/octocat/Hello-World.git",
++  "version": "%s",
++  "flags": []
++}
++'''
++
++
++def prep_workspace():
++    global test_dir
++    # if test temp dir doesn't exist
++    if test_dir is None or not os.path.isdir(test_dir):
++        test_dir = tempfile.mkdtemp()
++    else:
++        # otherwise just clear out the old workspace
++        shutil.rmtree(test_dir)
++        os.mkdir(test_dir)
++
++
++class TestGitDependencyFetch(unittest.TestCase):
++    TEST_DESCRIPTOR = {
++        "type": "git",
++        "name": "HelloWorld",
++        "source": "https://github.com/octocat/Hello-World.git",
++        "version": "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
++        "flags": []
++    }
++
++    def setUp(self):
++        # Setup a temporary workspace
++        self.workspace = tempfile.mkdtemp(prefix="TestGitDependencyFetch_")
++        self.test_desc = copy.deepcopy(TestGitDependencyFetch.TEST_DESCRIPTOR)
++        self.test_desc["contents"] = self.workspace
++
++    def tearDown(self):
++        # Cleanup the temporary workspace
++        shutil.rmtree(self.workspace)
++
++    def test_fetch_when_directory_exists_but_is_not_a_repo_raises_error(self):
++        # Create a directory but don't initialize it as a git repo
++        os.mkdir(os.path.join(self.workspace, "some_dir"))
++
++        # Create the GitDependency object
++        git_dep = GitDependency(self.test_desc)
++
++        # Fetch should raise an error
++        with self.assertRaises(RuntimeError) as err:
++            git_dep.fetch()
++
++        # Verify the error message
++        self.assertEqual(str(err.exception),
++                         "Cannot initialize git repo at '"
++                         + os.path.join(self.workspace, "some_dir") +
++                         "'. The directory already exists.")
++
++    def test_fetch_when_directory_exists_and_is_a_repo_with_correct_commit(self):
++        # Initialize a git repo with the correct commit
++        os.chdir(self.workspace)
++        os.system("git init")
++        os.system("git config user.email 'test@example.com'")
++        os.system("git config user.name 'Test'")
++        os.system("git remote add origin https://github.com/octocat/Hello-World.git")
++        os.system("git fetch origin")
++        os.system(f"git checkout {uptodate_version}")
++        os.system("git branch --set-upstream-to=origin/master master")
++        os.chdir("..")
++
++        # Create the GitDependency object
++        git_dep = GitDependency(self.test_desc)
++
++        # Fetch should succeed without doing anything
++        git_dep.fetch()
++
++    def test_fetch_when_directory_exists_and_is_a_repo_with_different_commit(self):
++        # Initialize a git repo with a different commit
++        os.chdir(self.workspace)
++        os.system("git init")
++        os.system("git config user.email 'test@example.com'")
++        os.system("git config user.name 'Test'")
++        os.system("git remote add origin https://github.com/octocat/Hello-World.git")
++        os.system("git fetch origin")
++        os.system(f"git checkout {behind_one_version}")
++        os.system("git branch --set-upstream-to=origin/master master")
++        os.chdir("..")
++
++        # Create the GitDependency object
++        git_dep = GitDependency(self.test_desc)
++
++        # Fetch should fail
++        with self.assertRaises(RuntimeError) as err:
++            git_dep.fetch()
++
++        # Verify the error message
++        self.assertEqual(str(err.exception),
++                         "Cannot initialize git repo at '"
++                         + os.path.join(self.workspace, "HelloWorld") +
++                         "'. The directory already exists but the commit does not match.")
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,15 @@
+--- /dev/null
++++ b/tests/test_inject_grader.py
+@@ -0,0 +1,11 @@
++import pytest
++from ioccontainer import Container, inject
++
++
++def test_override_none_with_provider():
++    @inject(None)
++    def foo(bar):
++        assert bar is None
++
++    container = Container()
++    container.register_service('bar', lambda: None)
++    foo()

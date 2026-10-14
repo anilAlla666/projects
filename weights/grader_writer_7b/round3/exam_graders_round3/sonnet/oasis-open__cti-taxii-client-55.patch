@@ -1,0 +1,96 @@
+--- /dev/null
++++ b/taxii2client/test/test_trailing_slash.py
+@@ -0,0 +1,95 @@
++import pytest
++import responses
++
++from taxii2client import Collection
++
++TAXII_TYPE = "application/vnd.oasis.taxii+json; version=2.0"
++STIX_TYPE = "application/vnd.oasis.stix+json; version=2.0"
++
++BASE = "http://localhost:5000/trustgroup1/collections/91a7b528-80eb-42ed-a74d-c6fbd5a26116"
++OBJ_ID = "indicator--252c7c11-daf2-42bd-843b-be65edca9f61"
++
++COLLECTION_INFO = """{
++    "id": "91a7b528-80eb-42ed-a74d-c6fbd5a26116",
++    "title": "Test collection",
++    "can_read": true,
++    "can_write": true,
++    "media_types": ["application/vnd.oasis.stix+json; version=2.0"]
++}"""
++
++
++def _register_collection_info():
++    for u in (BASE, BASE + "/"):
++        responses.add(responses.GET, u, body=COLLECTION_INFO, status=200,
++                      content_type=TAXII_TYPE)
++
++
++def _requested_urls():
++    return [c.request.url.split("?")[0] for c in responses.calls]
++
++
++@pytest.mark.parametrize("base", [BASE, BASE + "/"])
++@responses.activate
++def test_get_object_url(base):
++    _register_collection_info()
++    expected = BASE + "/objects/" + OBJ_ID + "/"
++    responses.add(responses.GET, expected, body='{"objects": []}',
++                  status=200, content_type=STIX_TYPE)
++
++    coll = Collection(base, user="user1", password="Password1")
++    coll.get_object(OBJ_ID)
++
++    urls = _requested_urls()
++    assert expected in urls
++    assert not any("//objects" in u.replace("http://", "") for u in urls)
++    assert not any("91a7b528-80eb-42ed-a74d-c6fbd5a26116objects" in u
++                   for u in urls)
++
++
++@pytest.mark.parametrize("base", [BASE, BASE + "/"])
++@responses.activate
++def test_get_objects_url(base):
++    _register_collection_info()
++    expected = BASE + "/objects/"
++    responses.add(responses.GET, expected, body='{"objects": []}',
++                  status=200, content_type=STIX_TYPE)
++
++    coll = Collection(base, user="user1", password="Password1")
++    coll.get_objects()
++
++    assert expected in _requested_urls()
++
++
++@pytest.mark.parametrize("base", [BASE, BASE + "/"])
++@responses.activate
++def test_get_manifest_url(base):
++    _register_collection_info()
++    expected = BASE + "/manifest/"
++    responses.add(responses.GET, expected, body='{"objects": []}',
++                  status=200, content_type=TAXII_TYPE)
++
++    coll = Collection(base, user="user1", password="Password1")
++    coll.get_manifest()
++
++    assert expected in _requested_urls()
++
++
++@pytest.mark.parametrize("base", [BASE, BASE + "/"])
++@responses.activate
++def test_add_objects_url(base):
++    _register_collection_info()
++    expected = BASE + "/objects/"
++    responses.add(responses.POST, expected, status=202,
++                  body='{"id": "s1", "status": "pending", "total_count": 0,'
++                       ' "success_count": 0, "failure_count": 0,'
++                       ' "pending_count": 0}',
++                  content_type=TAXII_TYPE)
++
++    coll = Collection(base, user="user1", password="Password1")
++    coll.add_objects('{"type": "bundle", "id": "bundle--1", "spec_version": "2.0", "objects": []}')
++
++    posts = [c.request.url for c in responses.calls
++             if c.request.method == "POST"]
++    assert posts and posts[0].split("?")[0] == expected

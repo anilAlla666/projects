@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/test_parsers_validation_grader.py
+@@ -0,0 +1,33 @@
++from unittest import TestCase
++import pytest
++from spdx.parsers import validations
++from spdx import utils
++
++
++class TestValidations(TestCase):
++    maxDiff = None
++
++    def test_validate_pkg_cr_text_raises_exception_on_invalid_type(self):
++        with pytest.raises(ValueError) as e:
++            validations.validate_pkg_cr_text("foo")
++        assert str(e.value) == (
++            "Unexpected type <class 'str'> for PackageCopyrightText."
++            " Expected <class 'spdx.utils.SPDXNone'> or <class 'spdx.utils.NoAssert'>."
++        )
++
++    def test_validate_file_cpyright_raises_exception_on_invalid_type(self):
++        with pytest.raises(ValueError) as e:
++            validations.validate_file_cpyright("foo")
++        assert str(e.value) == (
++            "Unexpected type <class 'str'> for FileCopyrightText."
++            " Expected <class 'spdx.utils.SPDXNone'> or <class 'spdx.utils.NoAssert'>."
++        )
++
++    def test_validate_anno_ref_raises_exception_on_invalid_type(self):
++        with pytest.raises(ValueError) as e:
++            validations.validate_anno_ref("foo")
++        assert str(e.value) == (
++            "Unexpected type <class 'str'> for AnnotationSPDXElement."
++            " Expected <class 'spdx.utils.SPDXNone'> or <class 'spdx.utils.NoAssert'>."
++        )

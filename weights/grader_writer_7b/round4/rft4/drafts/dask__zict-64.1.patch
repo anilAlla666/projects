@@ -1,0 +1,47 @@
+--- /dev/null
++++ b/tests/test_file_grader.py
+@@ -0,0 +1,45 @@
++import pickle
++from io import BytesIO
++from pathlib import Path
++
++import pytest
++from zict.common import func_wrapper
++from zict.file import File
++
++
++@pytest.mark.parametrize("size", [0, 1, 10])
++def test_buffered(tmp_path, size):
++    file = File(str(tmp_path))
++    buffered = func_wrapper(file, lambda x: (x, BytesIO()), buffer_size=size)
++
++    # Writing
++    assert list(buffered.keys()) == []
++    buffered["a"] = 1
++    buffered["b"] = 2
++    assert list(buffered.keys()) == ["a", "b"]
++
++    # Reading
++    assert buffered["a"] == 1
++    assert buffered["b"] == 2
++
++    # Deleting
++    del buffered["a"]
++    assert list(buffered.keys()) == ["b"]
++
++    # Updating
++    buffered.update({"c": 3, "d": 4})
++    assert list(buffered.keys()) == ["b", "c", "d"]
++
++    # Closing
++    buffered.close()
++
++
++def test_write_and_close_on_pickling_error(tmp_path):
++    file = File(str(tmp_path))
++    buffered = func_wrapper(file, lambda x: (x, BytesIO()))
++    buffered["a"] = 1
++    with pytest.raises(ValueError, match="error"):
++        buffered["b"] = 2
++    assert list(file.keys()) == ["a"]
++    assert list(buffered.keys()) == ["a"]

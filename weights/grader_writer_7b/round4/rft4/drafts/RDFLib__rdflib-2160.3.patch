@@ -1,0 +1,86 @@
+--- /dev/null
++++ b/test/test_trig_grader.py
+@@ -0,0 +1,21 @@
++import re
++import pytest
++import rdflib
++
++
++TRIPLE = (
++    rdflib.URIRef("http://example.com/s"),
++    rdflib.RDFS.label,
++    rdflib.Literal("example 1"),
++)
++
++
++def test_no_unnamed_prefix():
++    ds = rdflib.Dataset()
++    ds.add((rdflib.BNode(), rdflib.RDF.type, rdflib.DCTerms.Title))
++    ds.serialize(encoding=None)
++
++    serialized = ds.serialize(encoding=None)
++    assert 'rdf:"' in serialized
++    assert "urn:x-rdflib:" not in serialized
++    assert '<http://purl.org/dc/terms/>' in serialized
+--- /dev/null
++++ b/test/test_w3c_spec/test_trig_w3c_grader.py
+@@ -0,0 +1,61 @@
++"""Runs the tests for the W3C RDF Working Group's TriG test suite.
++
++"""
++
++
++import logging
++from contextlib import ExitStack
++from test.data import TEST_DATA_DIR
++from test.utils import BNodeHandling, GraphHelper, ensure_suffix
++from test.utils.dawg_manifest import ManifestEntry, params_from_sources
++from test.utils.iri import URIMapper
++from test.utils.namespace import RDFT
++from typing import Optional
++import pytest
++from rdflib.graph import Dataset
++
++
++logger = logging.getLogger(__name__)
++
++
++REMOTE_BASE_IRI = "http://www.w3.org/2013/TriGTests/"
++
++
++LOCAL_BASE_DIR = TEST_DATA_DIR / "suites/w3c/trig/"
++
++
++ENCODING = "utf-8"
++
++
++MAPPER = URIMapper.from_mappings(
++    (REMOTE_BASE_IRI, ensure_suffix(LOCAL_BASE_DIR.as_uri(), "/"))
++)
++
++
++VALID_TYPES = {
++    RDFT.TestTrigEval,
++    RDFT.TestTrigPositiveSyntax,
++    RDFT.TestTrigNegativeSyntax,
++    RDFT.TestTrigNegativeEval,
++}
++
++
++# NOTE: `rdft:TestTrigNegativeEval` entries does not have `mf:result` as suggested
++# by <https://www.w3.org/TR/rdf11-testcases/#evaluation-tests>, instead they seem
++# to be regular `rdft:TestTrigNegativeSyntax`. For example, see `trig-eval-bad-01`
++# <https://www.w3.org/2013/TrigTests/manifest.ttl>
++
++
++MARK_DICT = {
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-struct-16": pytest.mark.xfail(
++        reason="accepts BNode as predicate"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-struct-17": pytest.mark.xfail(
++        reason="accepts BNode as predicate"
++    ),
++    f"{REMOTE_BASE_IRI}#trig-syntax-bad-ln-dash-start": pytest.mark.xfail(
++        reason="accepts dash in start of local name"
++    ),
++}

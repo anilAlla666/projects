@@ -1,0 +1,37 @@
+--- /dev/null
++++ b/tests/test_InfluxDBClient_grader.py
+@@ -0,0 +1,32 @@
++import http.server
++import json
++import os
++import threading
++import unittest
++from influxdb_client import InfluxDBClient
++
++
++class InfluxDBClientTest(unittest.TestCase):
++    def tearDown(self) -> None:
++        if self.client:
++            self.client.close()
++        if hasattr(self, 'httpd'):
++            self.httpd.shutdown()
++        if hasattr(self, 'httpd_thread'):
++            self.httpd_thread.join()
++
++    def test_init_from_config_file_quotation_marks(self):
++        self.client = InfluxDBClient.from_config_file(f'{os.path.dirname(__file__)}/config.ini')
++
++        self.assertEqual('http://localhost:8086', self.client.api_client.configuration.host)
++        self.assertEqual('my-token', self.client.api_client.configuration.api_key['token'])
++        self.assertEqual('my-org', self.client.api_client.configuration.api_key['org'])
++        self.assertEqual(None, self.client.api_client.configuration.ssl_ca_cert)
++        self.assertTrue(self.client.api_client.configuration.verify_ssl)
++
++    def _start_http_server(self):
++        import http.server
++        import ssl
++        # Disable unverified HTTPS requests
++        import urllib3
++        urllib3.disable_warnings()
++        # Configure HTTP server
++        self.httpd = http.server.HTTPServer(('localhost', 0), ServerWithSelfSingedSSL)

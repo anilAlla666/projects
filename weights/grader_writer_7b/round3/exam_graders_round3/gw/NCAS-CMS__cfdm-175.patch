@@ -1,0 +1,54 @@
+diff --git a/cfdm/test/test_Domain.py b/cfdm/test/test_Domain.py
+index 0b0d0e1a..01000000 100644
+--- a/cfdm/test/test_Domain.py
++++ b/cfdm/test/test_Domain.py
+@@ -131,6 +131,11 @@ class DomainTest(unittest.TestCase):
+         d.nc_set_variable("qwerty")
+         d.set_property("cf_role", "qwerty")
+         d.set_property("long_name", "qwerty")
++        d.set_property("standard_name", "qwerty")
++
++        self.assertEqual(
++            d.identities(),
++            ["cf_role=qwerty", "long_name=qwerty", "standard_name=qwerty", "ncvar%qwerty"],
+         )
+ 
+         self.assertEqual(
+diff --git a/cfdm/test/test_DomainAxis.py b/cfdm/test/test_DomainAxis.py
+index 01000000..0b0d0e1a 100644
+--- a/cfdm/test/test_DomainAxis.py
++++ b/cfdm/test/test_DomainAxis.py
+@@ -1,10 +1,10 @@
+ import datetime
+ import faulthandler
+-import unittest
++import unittest.mock
+ 
+ faulthandler.enable()  # to debug seg faults and timeouts
+ 
+-import cfdm
++from cfdm.test import TestCase
+ 
+ 
+ class DomainAxisTest(unittest.TestCase):
+@@ -82,3 +82,14 @@ class DomainAxisTest(unittest.TestCase):
+         self.assertFalse(d.nc_is_unlimited())
+ 
+ 
+-if __name__ == "__main__":
+-    print("Run date:", datetime.datetime.now())
+-    cfdm.environment()
+-    print()
+-    unittest.main(verbosity=2)
++if __name__ == "__main__":
++    print("Run date:", datetime.datetime.now())
++    cfdm.environment()
++    print()
++    unittest.main(verbosity=2)
++
++
++class Test(TestCase):
++    def test_DomainAxis__repr__str_(self):
++        d = cfdm.DomainAxis()
++        self.assertRegex(repr(d), r"^DomainAxis\(<unknown>\)$")
++        self.assertRegex(str(d), r"^DomainAxis\(<unknown>\)$")

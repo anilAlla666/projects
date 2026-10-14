@@ -1,0 +1,30 @@
+To ensure that the fix resolves the issue, we need to add a test that specifically checks the behavior of `shutil.copytree` when copying to an overlayed directory. This test should fail with the current implementation and pass after applying the proposed fix.
+
+Here's a new test case that can be added to `test_filesystem.py`:
+
+```diff
++import tempfile
++
++class TestCopyTreeWithOverlay(FakeFilesystemTest):
++    def test_copytree_to_overlayed_dir(self):
++        # Create a temporary directory to use as the source
++        with tempfile.TemporaryDirectory() as temp_dir:
++            # Add a subdirectory to the fake filesystem
++            self.fs.add(f"{temp_dir}/source")
++            os.makedirs(f"{temp_dir}/source/subdir")
++
++            # Attempt to copy the source directory to an overlayed directory
++            try:
++                shutil.copytree(temp_dir, self.fs.root.path)
++                self.fail("Expected shutil.copytree to raise an error")
++            except Exception as e:
++                self.assertIn("is already part of the filesystem", str(e))
++
++        # Verify that the source directory was copied correctly
++        self.assertTrue(os.path.exists(f"{self.fs.root.path}/source"))
++        self.assertTrue(os.path.exists(f"{self.fs.root.path}/source/subdir"))
+```
+
+This test creates a temporary directory as the source and adds a subdirectory to the fake filesystem. It then attempts to copy the source directory to the root of the fake filesystem, which should trigger the error because the destination is already part of the filesystem. The test asserts that the expected error message is raised and verifies that the source directory was copied correctly to the fake filesystem.
+
+By adding this test, we can verify that the proposed fix resolves the issue and does not introduce any new problems.

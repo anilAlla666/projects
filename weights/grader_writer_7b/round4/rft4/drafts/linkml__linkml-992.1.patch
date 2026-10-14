@@ -1,0 +1,49 @@
+--- /dev/null
++++ b/tests/test_linter/test_cli_grader.py
+@@ -0,0 +1,44 @@
++import unittest
++from pathlib import Path
++from click.testing import CliRunner
++from linkml.linter.cli import main
++
++
++SCHEMA_FILE = "schema.yaml"
++
++
++def write_schema_file() -> None:
++    with open(SCHEMA_FILE, "w") as f:
++        f.write(
++            """
++id: http://example.org/test
++name: test
++
++slots:
++  age_in_years:
++    range: integer
++    minimum_value: 0
++    maximum_value: 999
++
++classes:
++  person:
++    description: a person
++    slots:
++      - age_in_years
++    
++  Adult:
++    is_a: person
++    slot_usage:
++      age_in_yeas:
++        minimum_value: 18
++"""
++        )
++
++
++class LinterCliTestCase(unittest.TestCase):
++    runner = CliRunner()
++
++    def test_verbose_output(self):
++        with self.runner.isolated_filesystem():
++            write_schema_file()
++            result = self.runner.invoke(main, [SCHEMA_FILE, "-v"])
++            self.assertEqual(result.exit_code, 1)
++            self.assertIn("Schema has name 'test'", result.stdout)

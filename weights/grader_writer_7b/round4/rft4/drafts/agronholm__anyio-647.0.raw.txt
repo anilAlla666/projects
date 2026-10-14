@@ -1,0 +1,130 @@
+--- /dev/null
++++ b/tests/test_backends_grader.py
+@@ -0,0 +1,128 @@
++import asyncio
++import platform
++from unittest.mock import patch
++import pytest
++import anyio
++
++
++@pytest.mark.parametrize("backend", ("asyncio", "trio"))
++def test_backend_options(backend):
++    async def main():
++        assert isinstance(anyio.get_current_task(), anyio._backends._base.Task)
++        assert isinstance(anyio.get_running_backend(), anyio.Backend)
++
++    options = {"foo": 42}
++    with patch.dict("anyio._backends.__dict__", {f"options_{backend}": options}):
++        anyio.run(main, backend=backend)
++
++
++@pytest.mark.skipif(platform.system() != "Linux", reason="only works on Linux")
++@pytest.mark.parametrize("backend", ("asyncio", "trio"))
++@pytest.mark.parametrize(
++    "name,expected",
++    [
++        ("default_tcp_socket_family", anyio.SocketFamily.AF_INET),
++        ("default_tcp_socket_type", anyio.SocketType.SOCK_STREAM),
++        ("default_tcp_socket_proto", 0),
++        ("default_udp_socket_family", anyio.SocketFamily.AF_INET),
++        ("default_udp_socket_type", anyio.SocketType.SOCK_DGRAM),
++        ("default_udp_socket_proto", 0),
++        ("use_uvloop", False),
++        ("uvloop_debug", True),
++        ("use_trio_lowlevel", True),
++        ("trio_lowlevel_debug", True),
++        ("trio_lowlevel_check_sync_io", True),
++        ("trio_lowlevel_enable_sys_exit_hook", True),
++        ("trio_lowlevel_prevent_event_loop_finalization", True),
++        ("trio_lowlevel_enable_gil_hack", True),
++    ],
++)
++def test_backend_options(name, expected, backend):
++    async def main():
++        assert isinstance(anyio.get_current_task(), anyio._backends._base.Task)
++        assert isinstance(anyio.get_running_backend(), anyio.Backend)
++
++    options = {
++        f"default_tcp_socket_{key}": value
++        for key, value in {"family", "type", "proto"}.intersection(
++            name.split("_")[1:]
++        )
++    }
++    if name.startswith("use_"):
++        options[name] = True
++    elif name.startswith("trio_lowlevel_"):
++        options[name] = True
++    elif name.startswith("uvloop"):
++        options[name] = False
++    else:
++        pytest.fail(f"Unexpected option: {name}")
++
++    with patch.dict("anyio._backends.__dict__", {f"options_{backend}": options}):
++        anyio.run(main, backend=backend)
++
++
++@pytest.mark.parametrize("backend", ("asyncio", "trio"))
++@pytest.mark.parametrize(
++    "name,value",
++    [
++        ("default_tcp_socket_family", anyio.SocketFamily.AF_INET6),
++        ("default_tcp_socket_type", anyio.SocketType.SOCK_DGRAM),
++        ("default_tcp_socket_proto", 1),
++        ("default_udp_socket_family", anyio.SocketFamily.AF_INET6),
++        ("default_udp_socket_type", anyio.SocketType.SOCK_RAW),
++        ("default_udp_socket_proto", 2),
++        ("use_uvloop", True),
++        ("uvloop_debug", False),
++        ("use_trio_lowlevel", False),
++        ("trio_lowlevel_debug", False),
++        ("trio_lowlevel_check_sync_io", False),
++        ("trio_lowlevel_enable_sys_exit_hook", False),
++        ("trio_lowlevel_prevent_event_loop_finalization", False),
++        ("trio_lowlevel_enable_gil_hack", False),
++    ],
++)
++def test_invalid_option_name(name, value, backend):
++    options = {}
++    setattr(options, name, value)
++    with patch.dict("anyio._backends.__dict__", {f"options_{backend}": options}):
++        with pytest.raises(ValueError, match=name):
++            anyio.run(lambda: (), backend=backend)
++
++
++@pytest.mark.parametrize("backend", ("asyncio", "trio"))
++@pytest.mark.parametrize(
++    "name,value",
++    [
++        ("default_tcp_socket_family", anyio.SocketFamily(AF=1)),
++        ("default_tcp_socket_type", anyio.SocketType(type=1)),
++        ("default_tcp_socket_proto", 1j),
++        ("default_udp_socket_family", anyio.SocketFamily(AF=1)),
++        ("default_udp_socket_type", anyio.SocketType(type=1)),
++        ("default_udp_socket_proto", 1j),
++        ("use_uvloop", 1j),
++        ("uvloop_debug", "foo"),
++        ("use_trio_lowlevel", "foo"),
++        ("trio_lowlevel_debug", 1j),
++        ("trio_lowlevel_check_sync_io", "foo"),
++        ("trio_lowlevel_enable_sys_exit_hook", "foo"),
++        ("trio_lowlevel_prevent_event_loop_finalization", "foo"),
++        ("trio_lowlevel_enable_gil_hack", "foo"),
++    ],
++)
++def test_invalid_option_value(name, value, backend):
++    options = {}
++    setattr(options, name, value)
++    with patch.dict("anyio._backends.__dict__", {f"options_{backend}": options}):
++        with pytest.raises(TypeError, match=f"{name}.*{value}.*not allowed"):
++            anyio.run(lambda: (), backend=backend)
++
++
++@pytest.mark.parametrize("backend", ("asyncio", "trio"))
++@pytest.mark.parametrize("name", ["default_tcp_socket_family", "use_uvloop"])
++def test_missing_option_value(name, backend):
++    options = {}
++    setattr(options, name, ...)
++    with patch.dict("anyio._backends.__dict__", {f"options_{backend}": options}):
++        with pytest.raises(ValueError, match=name):
++            anyio.run(lambda: (), backend=backend)

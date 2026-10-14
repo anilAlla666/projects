@@ -1,0 +1,70 @@
+--- /dev/null
++++ b/tests/sampling_test.py
+@@ -0,0 +1,57 @@
++import time
++
++import lightstep.recorder
++import lightstep.tracer
++from basictracer.span import BasicSpan
++from basictracer.context import SpanContext
++
++from lightstep.crouton import ttypes
++
++
++class MockConnection(object):
++    def __init__(self):
++        self.reports = []
++        self.ready = False
++
++    def open(self):
++        self.ready = True
++
++    def report(self, _, report):
++        self.reports.append(report)
++        return ttypes.ReportResponse()
++
++    def close(self):
++        pass
++
++
++def _make_recorder():
++    return lightstep.recorder.Recorder(
++        component_name='sampling_test',
++        periodic_flush_seconds=0,
++        collector_host='localhost')
++
++
++def _finish_span(recorder, sampled):
++    span = BasicSpan(
++        lightstep.tracer._LightstepTracer(False, recorder, None),
++        operation_name='op',
++        context=SpanContext(trace_id=1000, span_id=2000, sampled=sampled),
++        start_time=time.time() - 10,
++    )
++    span.finish()
++
++
++def test_unsampled_span_not_recorded():
++    recorder = _make_recorder()
++    _finish_span(recorder, False)
++    assert len(recorder._span_records) == 0
++
++    # Flushing must not report any spans either.
++    conn = MockConnection()
++    recorder.flush(conn)
++    for report in conn.reports:
++        assert len(recorder.converter.get_span_records(report)) == 0
++
++
++def test_sampled_span_recorded():
++    recorder = _make_recorder()
++    _finish_span(recorder, True)
++    assert len(recorder._span_records) == 1
++
++
++def test_mixed_sampling():
++    recorder = _make_recorder()
++    _finish_span(recorder, True)
++    _finish_span(recorder, False)
++    _finish_span(recorder, True)
++    assert len(recorder._span_records) == 2

@@ -1,0 +1,219 @@
+--- /dev/null
++++ b/tests/test_entry_test_grader.py
+@@ -0,0 +1,110 @@
++import os
++from pathlib import Path
++from py_range_parse import Range
++from container_app_conf.entry.bool import BoolConfigEntry
++from container_app_conf.entry.date import DateConfigEntry
++from container_app_conf.entry.file import FileConfigEntry, DirectoryConfigEntry
++from container_app_conf.entry.float import FloatConfigEntry
++from container_app_conf.entry.int import IntConfigEntry
++from container_app_conf.entry.range import RangeConfigEntry
++from container_app_conf.entry.timedelta import TimeDeltaConfigEntry
++from tests import EntryTestBase
++
++
++class EntryTest(EntryTestBase):
++    @staticmethod
++    def test_file_entry():
++        config_entry = FileConfigEntry(yaml_path=["file"])
++        input_output = [
++            ("/tmp/test", Path("/tmp/test")),
++            ("./test", Path(os.path.abspath("./test"))),
++            ("/something/", AssertionError),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = FileConfigEntry(yaml_path=["file"],
++                                       check_existence=True)
++        input_output = [
++            ("/tmp/test", FileNotFoundError),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++    @staticmethod
++    def test_directory_entry():
++        config_entry = DirectoryConfigEntry(yaml_path=["directory"])
++        input_output = [
++            ("/tmp", Path("/tmp")),
++            ("./test", Path(os.path.abspath("./test"))),
++            ("/something/", Path("/something")),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++        config_entry = DirectoryConfigEntry(yaml_path=["directory"],
++                                            check_existence=True)
++
++        input_output = [
++            ("./", Path(os.path.abspath("./"))),
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++
++if __name__ == '__main__':
++    EntryTest.main()
+--- /dev/null
++++ b/tests/test_list_entry_test_grader.py
+@@ -0,0 +1,110 @@
++import os
++from datetime import datetime
++from datetime import timedelta
++from dateutil.tz import tzutc
++from container_app_conf.entry.date import DateConfigEntry
++from container_app_conf.entry.file import FileConfigEntry
++from container_app_conf.entry.float import FloatConfigEntry
++from container_app_conf.entry.int import IntConfigEntry
++from container_app_conf.entry.list import ListConfigEntry
++from container_app_conf.entry.timedelta import TimeDeltaConfigEntry
++from tests import EntryTestBase
++
++
++class ListEntryTest(EntryTestBase):
++    @staticmethod
++    def test_file_entry():
++        config_entry = ListConfigEntry(item_type=FileConfigEntry,
++                                       item_args={
++                                           "check_existence": False
++                                       },
++                                       yaml_path=["file_list"])
++        example1 = Path("/tmp/file")
++        example2 = Path("./file")
++        example3 = [example1, example2]
++        input_output = [
++            (None, None),
++            ([example1, example2], example3),
++            (",".join([str(example1), str(example2)]), example3),
++            ("", [])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++    @staticmethod
++    def test_directory_entry():
++        config_entry = ListConfigEntry(item_type=DirectoryConfigEntry,
++                                       item_args={
++                                           "check_existence": False
++                                       },
++                                       yaml_path=["directory_list"])
++        example1 = Path("/tmp/directory")
++        example2 = Path("./directory")
++        example3 = [example1, example2]
++        input_output = [
++            (None, None),
++            ([example1, example2], example3),
++            (",".join([str(example1), str(example2)]), example3),
++            ("", [])
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++    @staticmethod
++    def test_timedelta_entry():
++        config_entry = ListConfigEntry(item_type=TimeDeltaConfigEntry,
++                                       yaml_path=["timedelta_list"])
++        input_output = [
++            (None, None),
++            (
++                ["20:56:35", "32m", "4h0m3s", "4h3s", "4:13"],
++                [timedelta(hours=20, minutes=56, seconds=35),
++                 timedelta(minutes=32),
++                 timedelta(hours=4, minutes=0, seconds=3),
++                 timedelta(hours=4, minutes=0, seconds=3),
++                 timedelta(hours=0, minutes=4, seconds=13)]
++            )
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++
++if __name__ == '__main__':
++    ListEntryTest.main()
+--- /dev/null
++++ b/tests/test_map_entry_test_grader.py
+@@ -0,0 +1,110 @@
++import os
++from datetime import datetime
++from datetime import timedelta
++from dateutil.tz import tzutc
++from container_app_conf.entry.date import DateConfigEntry
++from container_app_conf.entry.file import FileConfigEntry
++from container_app_conf.entry.float import FloatConfigEntry
++from container_app_conf.entry.int import IntConfigEntry
++from container_app_conf.entry.map import MapConfigEntry
++from container_app_conf.entry.timedelta import TimeDeltaConfigEntry
++from tests import EntryTestBase
++
++
++class MapEntryTest(EntryTestBase):
++    @staticmethod
++    def test_file_entry():
++        config_entry = MapConfigEntry(key_type=IntConfigEntry,
++                                      item_type=FileConfigEntry,
++                                      item_args={
++                                          "check_existence": False
++                                      },
++                                      yaml_path=["file_map"])
++        example1 = Path("/tmp/file")
++        example2 = Path("./file")
++        example3 = {1: example1, 2: example2}
++        input_output = [
++            (None, None),
++            ({1: example1, 2: example2}, example3),
++            (f"{1}:{example1},{2}:{example2}", example3),
++            ("", {})
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++    @staticmethod
++    def test_directory_entry():
++        config_entry = MapConfigEntry(key_type=IntConfigEntry,
++                                      item_type=DirectoryConfigEntry,
++                                      item_args={
++                                          "check_existence": False
++                                      },
++                                      yaml_path=["directory_map"])
++        example1 = Path("/tmp/directory")
++        example2 = Path("./directory")
++        example3 = {1: example1, 2: example2}
++        input_output = [
++            (None, None),
++            ({1: example1, 2: example2}, example3),
++            (f"{1}:{example1},{2}:{example2}", example3),
++            ("", {})
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++    @staticmethod
++    def test_timedelta_entry():
++        config_entry = MapConfigEntry(key_type=IntConfigEntry,
++                                      item_type=TimeDeltaConfigEntry,
++                                      yaml_path=["timedelta_map"])
++        input_output = [
++            (None, None),
++            ({
++                1: timedelta(hours=20, minutes=56, seconds=35),
++                2: timedelta(minutes=32),
++                3: timedelta(hours=4, minutes=0, seconds=3),
++                4: timedelta(hours=4, minutes=0, seconds=3),
++                5: timedelta(hours=0, minutes=4, seconds=13)
++            }, {
++                1: timedelta(hours=20, minutes=56, seconds=35),
++                2: timedelta(minutes=32),
++                3: timedelta(hours=4, minutes=0, seconds=3),
++                4: timedelta(hours=4, minutes=0, seconds=3),
++                5: timedelta(hours=0, minutes=4, seconds=13)
++            })
++        ]
++
++        EntryTestBase.assert_input_output(config_entry, input_output)
++
++
++if __name__ == '__main__':
++    MapEntryTest.main()

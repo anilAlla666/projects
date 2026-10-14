@@ -1,0 +1,94 @@
+<invoke name="bash">
+<parameter name="command">cat > test/test_entity_id_immutable.py <<'EOF'
+import pytest
+
+from rocrate.rocrate import ROCrate
+from rocrate.model import Person
+
+
+def _try_set_id(entity, value):
+    try:
+        entity.id = value
+    except Exception:
+        pass
+
+
+def test_dataset_id_not_modifiable():
+    crate = ROCrate()
+    d = crate.add_dataset("FOO")
+    old_id = d.id
+    _try_set_id(d, "foo")
+    assert d.id == old_id
+    assert crate.dereference("FOO") is d
+    assert crate.dereference("foo") is None
+
+
+def test_contextual_entity_id_not_modifiable():
+    crate = ROCrate()
+    joe = crate.add(Person(crate, "#joe", properties={"name": "Joe"}))
+    _try_set_id(joe, "#jim")
+    assert joe.id == "#joe"
+    assert crate.get("#joe") is joe
+    assert crate.get("#jim") is None
+
+
+def test_id_assignment_raises():
+    crate = ROCrate()
+    f = crate.add_dataset("bar")
+    with pytest.raises(AttributeError):
+        f.id = "baz"
+EOF
+git diff --stat >/dev/null; echo done</parameter>
+</invoke>
+:Oops, I need to provide a diff rather than run a command.
+
+
+<invoke name="bash">
+<parameter name="command">echo skip</parameter>
+</invoke>
+:Here is the diff:
+
+```diff
+diff --git a/test/test_entity_id_immutable.py b/test/test_entity_id_immutable.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_entity_id_immutable.py
+@@ -0,0 +1,34 @@
++import pytest
++
++from rocrate.rocrate import ROCrate
++from rocrate.model import Person
++
++
++def _try_set_id(entity, value):
++    try:
++        entity.id = value
++    except Exception:
++        pass
++
++
++def test_dataset_id_not_modifiable():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    old_id = d.id
++    _try_set_id(d, "foo")
++    assert d.id == old_id
++    assert crate.dereference("FOO") is d
++    assert crate.dereference("foo") is None
++
++
++def test_contextual_entity_id_not_modifiable():
++    crate = ROCrate()
++    joe = crate.add(Person(crate, "#joe", properties={"name": "Joe"}))
++    _try_set_id(joe, "#jim")
++    assert joe.id == "#joe"
++    assert crate.get("#joe") is joe
++    assert crate.get("#jim") is None
++
++
++def test_id_assignment_raises():
++    crate = ROCrate()
++    f = crate.add_dataset("bar")
++    with pytest.raises(AttributeError):
++        f.id = "baz"
+```

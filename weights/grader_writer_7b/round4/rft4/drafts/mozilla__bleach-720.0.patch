@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/tests/test_linkifier_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++
++
++@pytest.mark.parametrize(
++    ("input",),
++    (
++        ('<a href="/">Some&nbsp;entity&rsquo;s</a>',),
++        ('<a href="/">Some&nbsp;entity&rsquo;s</a>More&nbsp;entity&rsquo;s',),
++        ('<a href="/">Some&nbsp;entity&rsquo;s</a>More&nbsp;entity&rsquo;sMore',),
++    ),
++)
++def test_linkify_around_entities(input):
++    assert input == "<a href='/' rel='nofollow'>%s</a>" % input

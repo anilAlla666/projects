@@ -1,0 +1,82 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,81 @@
++import itertools
++import datetime
++import pytest
++from marshmallow import Schema, post_load, pre_load, class_registry, validates_schema
++from werkzeug.datastructures import MultiDict as WerkMultiDict
++from django.utils.datastructures import MultiValueDict as DjMultiDict
++from bottle import MultiDict as BotMultiDict
++from webargs import fields, ValidationError
++from webargs.core import (
++    Parser,
++    dict2schema,
++    is_json,
++    get_mimetype,
++    MARSHMALLOW_VERSION_INFO,
++)
++from webargs.multidictproxy import MultiDictProxy
++
++
++try:
++    # Python 3.5
++    import mock
++except ImportError:
++    # Python 3.6+
++    from unittest import mock
++
++
++strict_kwargs = {"strict": True} if MARSHMALLOW_VERSION_INFO[0] < 3 else {}
++
++
++class MockHTTPError(Exception):
++    def __init__(self, status_code, headers):
++        self.status_code = status_code
++        self.headers = headers
++        super().__init__(self, "HTTP Error occurred")
++
++
++class MockRequestParser(Parser):
++    """A minimal parser implementation that parses mock requests."""
++
++    def __init__(self, *args, **kwargs):
++        super().__init__(*args, **kwargs)
++        self.req = None
++
++    def get_default_request(self):
++        return self.req
++
++    def _load_location_data(self, *args, **kwargs):
++        return self.req.json
++
++
++def test_parse_with_error_handler_does_not_re_raise(web_request):
++    parser = MockRequestParserWithErrorHandler()
++    web_request.json = {"foo": 42}
++    args = {"foo": fields.Field(validate=lambda x: False)}
++    with pytest.raises(NotImplementedError) as excinfo:
++        parser.parse(
++            args, web_request, error_status_code=418, error_headers={"X-Foo": "bar"}
++        )
++    assert "does not raise an exception" in str(excinfo.value)
++
++
++class MockRequestParserWithRaisingErrorHandler(MockRequestParser):
++    def handle_error(self, error, req, schema, *, error_status_code, error_headers):
++        assert isinstance(error, ValidationError)
++        assert isinstance(schema, Schema)
++        raise MockHTTPError(error_status_code, error_headers)
++
++
++def test_parse_with_error_handler_raises_exception(web_request):
++    parser = MockRequestParserWithRaisingErrorHandler()
++    web_request.json = {"foo": 42}
++    args = {"foo": fields.Field(validate=lambda x: False)}
++    with pytest.raises(MockHTTPError) as excinfo:
++        parser.parse(
++            args, web_request, error_status_code=418, error_headers={"X-Foo": "bar"}
++        )
++    error = excinfo.value
++    assert error.status_code == 418
++    assert error.headers == {"X-Foo": "bar"}

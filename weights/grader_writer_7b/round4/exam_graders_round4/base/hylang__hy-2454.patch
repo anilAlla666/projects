@@ -1,0 +1,29 @@
+diff --git a/tests/test_reader_symbol_error.py b/tests/test_reader_symbol_error.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_reader_symbol_error.py
+@@ -0,0 +1,25 @@
++import pytest
++
++from hy.models import Symbol
++from hy.reader import read_many
++from hy.reader.exceptions import LexException
++
++
++def lexe():
++    return pytest.raises(LexException)
++
++
++def test_symbol_with_hash():
++    """Test that '#foo' raises a LexException when trying to parse as a symbol."""
++    with lexe() as exc_info:
++        read_many("#foo")
++    assert str(exc_info.value) == "The parts of a dotted identifier must be symbols"
++
++
++def test_symbol_with_hash_in_dotted_ident():
++    """Test that '#foo.bar' raises a LexException when trying to parse as a symbol."""
++    with lexe() as exc_info:
++        read_many("#foo.bar")
++    assert str(exc_info.value) == "The parts of a dotted identifier must be symbols"

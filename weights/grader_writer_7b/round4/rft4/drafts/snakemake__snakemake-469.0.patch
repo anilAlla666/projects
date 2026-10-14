@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/tests/test_io_grader.py
+@@ -0,0 +1,52 @@
++from pathlib import Path
++from snakemake.io import _wildcard_regex, expand
++from snakemake.exceptions import WildcardError
++
++
++def test_expand_pathlib():
++    wildcards = {"a": [1, 2], "b": [3, 4], "c": [5]}
++
++    # check that we can use Path objects as well
++    assert sorted(expand(Path("file.{a}.{b}.txt"), **wildcards)) == sorted(
++        ["file.1.3.txt", "file.1.4.txt", "file.2.3.txt", "file.2.4.txt"]
++    )
++
++    # check that we can use mixed types
++    assert sorted(expand(["file.{a}.{b}.txt", "{c}"], **wildcards)) == sorted(
++        [
++            "file.1.3.txt",
++            "file.1.4.txt",
++            "file.2.3.txt",
++            "file.2.4.txt",
++            "5",
++        ]
++    )
++
++
++def test_expand_mixed_types():
++    wildcards = {"a": [1, 2], "b": [3, 4], "c": [5]}
++
++    # check that we can mix string and Path objects
++    assert sorted(expand(["file.{a}.{b}.txt", Path("{c}")], **wildcards)) == sorted(
++        [
++            "file.1.3.txt",
++            "file.1.4.txt",
++            "file.2.3.txt",
++            "file.2.4.txt",
++            "5",
++        ]
++    )
++
++
++def test_expand_mixed_types_invalid():
++    wildcards = {"a": [1, 2], "b": [3, 4], "c": [5]}
++
++    # check that mixing Path objects raises an exception
++    try:
++        expand(["file.{a}.{b}.txt", Path("{c}")], **wildcards)
++        assert False
++    except TypeError:
++        pass

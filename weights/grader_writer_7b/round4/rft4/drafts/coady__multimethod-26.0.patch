@@ -1,0 +1,40 @@
+--- /dev/null
++++ b/tests/test_multimethod_grader.py
+@@ -0,0 +1,37 @@
++import unittest
++from multimethod import multimethod
++
++
++class TestMultimethod(unittest.TestCase):
++    def test_metaclass_hint(self):
++        """
++        Check that multimethods can handle metaclass hints without raising errors.
++
++        Regression test for issue #25.
++        """
++
++        class Meta(type):
++            pass
++
++        @multimethod
++        def foo(x: Meta):
++            return True
++
++        self.assertTrue(foo(Meta))
++
++    def test_builtin_hint(self):
++        """
++        Check that multimethods can handle built-in hints without raising errors.
++
++        Regression test for issue #25.
++        """
++
++        @multimethod
++        def bar(x: type):
++            return True
++
++        self.assertTrue(bar(str))
++
++
++if __name__ == '__main__':
++    unittest.main()

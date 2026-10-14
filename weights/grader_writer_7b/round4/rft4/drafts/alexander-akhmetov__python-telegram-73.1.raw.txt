@@ -1,0 +1,79 @@
+--- /dev/null
++++ b/tests/test_telegram_methods_grader.py
+@@ -0,0 +1,81 @@
++import pytest
++from unittest.mock import patch
++from telegram import VERSION
++from telegram.utils import AsyncResult
++from telegram.client import Telegram, MESSAGE_HANDLER_TYPE
++
++
++API_ID = 1
++
++
++API_HASH = 'hash'
++
++
++PHONE = '+71234567890'
++
++
++LIBRARY_PATH = '/lib/'
++
++
++DATABASE_ENCRYPTION_KEY = 'changeme1234'
++
++
++class MockUpdateHandler:
++    def __init__(self, name):
++        self.name = name
++
++    def handle(self, *args, **kwargs):
++        pass
++
++
++class TestTelegram:
++    def test_remove_handler(self, telegram):
++        handler_name = 'test_handler'
++        handler = MockUpdateHandler(handler_name)
++
++        telegram.add_message_handler(handler)
++        assert handler in telegram._handlers[MESSAGE_HANDLER_TYPE]
++
++        telegram.remove_handler(handler_name)
++        assert handler not in telegram._handlers[MESSAGE_HANDLER_TYPE]
++
++    def test_remove_handler_not_found(self, telegram):
++        handler_name = 'test_handler'
++
++        with pytest.warns(UserWarning):
++            telegram.remove_handler(handler_name)
++
++    def test_remove_all_handlers(self, telegram):
++        handler_names = ['test_handler_1', 'test_handler_2']
++        handlers = [MockUpdateHandler(name) for name in handler_names]
++
++        for handler in handlers:
++            telegram.add_message_handler(handler)
++        assert all(handler in telegram._handlers[MESSAGE_HANDLER_TYPE] for handler in handlers)
++
++        telegram.remove_all_handlers()
++        assert all(handler not in telegram._handlers[MESSAGE_HANDLER_TYPE] for handler in handlers)
++
++    def test_add_and_remove_all_handlers(self, telegram):
++        handler_names = ['test_handler_1', 'test_handler_2']
++        handlers = [MockUpdateHandler(name) for name in handler_names]
++
++        for handler in handlers:
++            telegram.add_message_handler(handler)
++        assert all(handler in telegram._handlers[MESSAGE_HANDLER_TYPE] for handler in handlers)
++
++        telegram.remove_all_handlers()
++        assert all(handler not in telegram._handlers[MESSAGE_HANDLER_TYPE] for handler in handlers)
++
++        for handler in handlers:
++            telegram.add_message_handler(handler)
++        assert all(handler in telegram._handlers[MESSAGE_HANDLER_TYPE] for handler in handlers)
++
++        telegram.remove_handler(handler_names[0])
++        assert handlers[0] not in telegram._handlers[MESSAGE_HANDLER_TYPE]
++        assert handlers[1] in telegram._handlers[MESSAGE_HANDLER_TYPE]

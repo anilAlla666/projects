@@ -1,0 +1,48 @@
+```diff
+diff --git a/tests/test_signing_byte_strings.py b/tests/test_signing_byte_strings.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_signing_byte_strings.py
+@@ -0,0 +1,45 @@
++#!/usr/bin/env python
++# -*- coding: utf-8 -*-
++from __future__ import absolute_import, print_function
++
++import unittest
++from six.moves.urllib.parse import parse_qs
++
++from laterpay import signing
++
++
++class TestByteStringHandling(unittest.TestCase):
++
++    def test_create_message_with_byte_strings(self):
++        params = {'parĄm1': b'value1'}
++        url = b'https://endpoint.com/ąpi'
++
++        msg = signing.create_base_message(params, url)
++
++        self.assertEqual(
++            msg,
++            'POST&https%3A%2F%2Fendpoint.com%2F%C4%85pi&'
++            'par%25C4%2584m1%3Dbvalue1',
++        )
++
++    def test_verify_with_byte_strings(self):
++        secret = b'secret'
++        data = {'parĄm1': b'value1'}
++        base_url = b'https://endpoint.com/ąpi'
++        method = 'POST'
++
++        signature = signing.sign(secret, data, base_url, method)
++
++        self.assertTrue(signing.verify(signature, secret, data, base_url, method))
++
++        # Changing the value in the params
++        false_data = {'parĄm1': b'value2'}
++        self.assertFalse(signing.verify(signature, secret, false_data, base_url, method))
++
++if __name__ == '__main__':
++    unittest.main()
+```

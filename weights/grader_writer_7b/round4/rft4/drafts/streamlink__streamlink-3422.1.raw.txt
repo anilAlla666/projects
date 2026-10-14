@@ -1,0 +1,68 @@
+--- /dev/null
++++ b/tests/test_cache_grader.py
+@@ -0,0 +1,35 @@
++import datetime
++import os.path
++import tempfile
++import unittest
++from shutil import rmtree
++from unittest.mock import patch
++import streamlink.cache
++
++
++class TestCache(unittest.TestCase):
++    def setUp(self):
++        self.tmp_dir = tempfile.mkdtemp("streamlink-test")
++
++        streamlink.cache.cache_dir = self.tmp_dir
++        self.cache = streamlink.cache.Cache("cache.json")
++
++    def tearDown(self):
++        rmtree(self.tmp_dir)
++
++    def test_put_get_datetime(self):
++        dt = datetime.datetime.now().replace(microsecond=0)
++        self.cache.set("value", 1, expires_at=dt)
++        self.assertEqual(dt.timestamp(), self.cache.get("value").timestamp())
++
++    def test_put_get_none(self):
++        self.cache.set("value", 1, expires_at=None)
++        self.assertIsNone(self.cache.get("value"))
++
++    def test_create_directory(self):
++        try:
++            streamlink.cache.cache_dir = os.path.join(tempfile.gettempdir(), "streamlink-test")
++            cache = streamlink.cache.Cache("cache.json")
++            self.assertFalse(os.path.exists(cache.filename))
++            cache.set("value", 10)
++            self.assertTrue(os.path.exists(cache.filename))
++        finally:
++            rmtree(streamlink.cache.cache_dir, ignore_errors=True)
+--- /dev/null
++++ b/tests/test_streamlink_api_grader.py
+@@ -0,0 +1,23 @@
++import os.path
++import unittest
++from unittest.mock import patch
++from streamlink import Streamlink
++from streamlink.api import streams
++
++
++PluginPath = os.path.join(os.path.dirname(__file__), "plugin")
++
++
++def get_session():
++    s = Streamlink()
++    s.load_plugins(PluginPath)
++    return s
++
++
++class TestStreamlinkAPI(unittest.TestCase):
++    @patch('streamlink.api.Streamlink', side_effect=get_session)
++    def test_stream_type_filter(self, session):
++        stream_types = ["rtmp", "hls"]
++        available_streams = streams("test.se", stream_types=stream_types)
++        self.assertTrue("rtmp" in available_streams)
++        self.assertTrue("hls" in available_streams)
++        self.assertTrue("test" not in available_streams)
++        self.assertTrue("http" not in available_streams)

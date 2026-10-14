@@ -1,0 +1,12 @@
+--- /dev/null
++++ b/tests/test_ext_grader.py
+@@ -0,0 +1,10 @@
++from sphinx_click.ext import _get_help_record
++
++
++def test_show_default_none():
++    record = _get_help_record(click.Option(['--foo'], show_default='bar'))
++    assert record[1].endswith(':default: bar\n')
++
++    record = _get_help_record(click.Option(['--foo'], show_default=None))
++    assert record[1].endswith(':default: none\n')

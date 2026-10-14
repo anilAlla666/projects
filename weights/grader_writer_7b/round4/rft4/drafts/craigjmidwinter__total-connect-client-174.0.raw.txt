@@ -1,0 +1,134 @@
+--- /dev/null
++++ b/tests/test_location_grader.py
+@@ -0,0 +1,123 @@
++"""Test total_connect_client location."""
++
++
++import unittest
++from copy import deepcopy
++from unittest.mock import Mock, patch
++import pytest
++from const import (
++    LOCATION_INFO_BASIC_NORMAL,
++    METADATA_DISARMED_LOW_BATTERY,
++    RESPONSE_DISARMED,
++    RESPONSE_GET_ZONE_DETAILS_SUCCESS,
++)
++from total_connect_client.exceptions import PartialResponseError, TotalConnectError
++from total_connect_client.location import DEFAULT_USERCODE, TotalConnectLocation
++
++
++class TestTotalConnectLocation(unittest.TestCase):
++    """Test TotalConnectLocation."""
++
++    def setUp(self):
++        """Set up for location testing."""
++        self.auto_bypass_low_battery = False
++        self.location_normal = TotalConnectLocation(LOCATION_INFO_BASIC_NORMAL, self)
++        self.location_normal._update_status(deepcopy(RESPONSE_DISARMED))
++        self.location_normal._update_partitions(deepcopy(RESPONSE_DISARMED))
++        self.location_normal._update_zones(deepcopy(RESPONSE_DISARMED))
++
++    def tearDown(self):
++        """Tear down."""
++        self.location_normal = None
++
++    def tests_unknown_arming_state(self):
++        """Test unknown arming state."""
++
++        mock_client = Mock()
++
++        loc = TotalConnectLocation(LOCATION_INFO_BASIC_NORMAL, mock_client)
++
++        # should start with default usercode
++        assert loc.usercode == DEFAULT_USERCODE
++
++        # now set it with an invalid code
++        mock_client.validate_usercode.return_value = False
++        assert loc.set_usercode("0000") is False
++        assert loc.usercode == DEFAULT_USERCODE
++        assert mock_client.validate_usercode.call_count == 1
++
++        # now set it with a valid code
++        mock_client.validate_usercode.return_value = True
++        assert loc.set_usercode("1234") is True
++        assert loc.usercode == "1234"
++        assert mock_client.validate_usercode.call_count == 2
++
++        # update with unknown state
++        response = deepcopy(RESPONSE_DISARMED)
++        response["PanelMetadataAndStatus"] = {
++            "ArmingState": 999999999,
++            "IsInACLoss": False,
++            "IsInLowBattery": False,
++            "IsCoverTampered": False,
++            "LastUpdatedTimestampTicks": 1648929389568,
++            "ConfigurationSequenceNumber": 15,
++        }
++        # should log warning
++        with patch("logging.Logger.warning") as warn_mock:
++            loc._update_status(response)
++            assert warn_mock.called
++            assert (
++                warn_mock.call_args[0][0]
++                == f"unknown ArmingState 999999999 in {response}: report at {PROJECT_URL}/issues"
++            )
++
++        # update with unknown state but already logged
++        response["PanelMetadataAndStatus"] = {
++            "ArmingState": 999999999,
++            "IsInACLoss": False,
++            "IsInLowBattery": False,
++            "IsCoverTampered": False,
++            "LastUpdatedTimestampTicks": 1648929389568,
++            "ConfigurationSequenceNumber": 15,
++        }
++        # should not log warning
++        with patch("logging.Logger.warning") as warn_mock:
++            loc._update_status(response)
++            assert not warn_mock.called
++
++
++if __name__ == "__main__":
++    unittest.main()
+--- /dev/null
++++ b/tests/test_partition_grader.py
+@@ -0,0 +1,38 @@
++"""Test TotalConnectDevice."""
++
++
++from copy import deepcopy
++from unittest.mock import Mock
++import pytest
++from const import PARTITION_DETAILS_1, PARTITION_DISARMED
++from total_connect_client.client import ArmingHelper
++from total_connect_client.exceptions import PartialResponseError, TotalConnectError
++from total_connect_client.partition import TotalConnectPartition
++
++
++def tests_partition():
++    """Test __init__()."""
++    test_partition = TotalConnectPartition(PARTITION_DETAILS_1, None)
++    assert test_partition.partitionid == 1
++
++    test_partition._update(PARTITION_DISARMED)
++    assert test_partition.arming_state.value == PARTITION_DISARMED["ArmingState"]
++
++    unknown = deepcopy(PARTITION_DISARMED)
++    unknown["ArmingState"] = "999999999"
++    with pytest.raises(TotalConnectError):
++        test_partition._update(unknown)
++
++    # remove ArmingState
++    data = deepcopy(PARTITION_DETAILS_1)
++    del data["ArmingState"]
++    with pytest.raises(PartialResponseError):
++        test_partition._update(data)
++
++    # no info
++    with pytest.raises(PartialResponseError):
++        test_partition._update(None)
++
++
++if __name__ == "__main__":
++    unittest.main()

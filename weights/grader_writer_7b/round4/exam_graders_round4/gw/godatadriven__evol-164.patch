@@ -1,0 +1,145 @@
+--- /dev/null
++++ b/tests/test_evolution_grader.py
+@@ -0,0 +1,24 @@
++from pytest import mark
++from evol import Evolution, Population
++from evol.helpers.groups import group_random, group_duplicate, group_stratified
++from evol.helpers.pickers import pick_random
++
++
++class TestPopulationEvolve:
++    @mark.parametrize('n_groups', [2, 4, 5])
++    @mark.parametrize('grouping_function', [group_stratified, group_duplicate, group_random])
++    def test_repeat_step_grouped(self, n_groups, grouping_function):
++        calls = []
++
++        def callback(pop):
++            calls.append(len(pop))
++
++        sub_evo = (
++            Evolution()
++            .survive(fraction=0.5)
++            .breed(parent_picker=pick_random,
++                   combiner=lambda x, y: x + y)
++            .callback(callback_function=callback)
++        )
++
++        pop = Population([0 for _ in range(100)], lambda x: x)
++        evo = (
++            Evolution()
++            .evaluate(lazy=True)
++            .repeat(sub_evo, grouping_function=grouping_function, n_groups=n_groups)
++        )
+--- /dev/null
++++ b/tests/test_population_grader.py
+@@ -0,0 +1,101 @@
++from time import sleep, time
++import os
++from copy import copy
++from pytest import raises, mark
++from random import random, choices, seed
++from evol import Population, ContestPopulation
++from evol.helpers.groups import group_duplicate, group_stratified
++from evol.helpers.pickers import pick_random
++from evol.population import Contest
++
++
++class TestPopulationSimple:
++    def test_mutate_elitist(self, simple_population, simple_mutation_function):
++        # Mutate without elitism
++        pop = copy(simple_population)
++        pop.mutate(mutation_function=simple_mutation_function, elitist=False)
++        assert len(pop) == len(simple_population)
++        assert pop.current_best is None
++        # Mutate with elitism
++        pop = copy(simple_population)
++        pop.mutate(mutation_function=simple_mutation_function, elitist=True)
++        assert len(pop) == len(simple_population)
++        assert pop.current_best is not None
++        # Mutate with elitism and no change
++        pop = copy(simple_population)
++        pop.mutate(mutation_function=simple_mutation_function, elitist=True, probability=0.0)
++        assert len(pop) == len(simple_population)
++        assert pop.current_best is not None
++
++    def test_mutate(self, simple_population, simple_mutation_function):
++        # Mutate without elitism
++        pop = copy(simple_population)
++        pop.mutate(mutation_function=simple_mutation_function, elitist=False)
++        assert len(pop) == len(simple_population)
++        assert pop.current_best is None
++        # Mutate with elitism
++        pop = copy(simple_population)
++        pop.mutate(mutation_function=simple_mutation_function, elitist=True)
++        assert len(pop) == len(simple_population)
++        assert pop.current_best is not None
++        # Mutate with elitism and no change
++        pop = copy(simple_population)
++        pop.mutate(mutation_function=simple_mutation_function, elitist=True, probability=0.0)
++        assert len(pop) == len(simple_population)
++        assert pop.current_best is not None
++
++
++class TestContestPopulation:
++    def test_init(self):
++        cp = ContestPopulation([0, 1, 2], lambda x: x, contests_per_round=15, individuals_per_contest=15)
++        assert cp.contests_per_round == 15
++        assert cp.individuals_per_contest == 15
++
++    def test_mutate(self, simple_contest_population, simple_mutation_function):
++        # Mutate without elitism
++        cp = copy(simple_contest_population)
++        cp.mutate(mutation_function=simple_mutation_function, elitist=False)
++        assert len(cp) == len(simple_contest_population)
++        assert cp.current_best is None
++        # Mutate with elitism
++        cp = copy(simple_contest_population)
++        cp.mutate(mutation_function=simple_mutation_function, elitist=True)
++        assert len(cp) == len(simple_contest_population)
++        assert cp.current_best is not None
++        # Mutate with elitism and no change
++        cp = copy(simple_contest_population)
++        cp.mutate(mutation_function=simple_mutation_function, elitist=True, probability=0.0)
++        assert len(cp) == len(simple_contest_population)
++        assert cp.current_best is not None
++
++
++class TestContestPopulationBest:
++    def test_no_documented(self):
++        pop = ContestPopulation([0, 1, 2], lambda x, y: [0, 0], contests_per_round=100, individuals_per_contest=2)
++        pop.evaluate()
++        assert pop.documented_best is None
++        # with concurrency
++        pop = ContestPopulation([0, 1, 2], lambda x, y: [0, 0], contests_per_round=100, individuals_per_contest=2,
++                                concurrent_workers=3)
++        pop.evaluate()
++        assert pop.documented_best is None
++        pop = ContestPopulation([0, 1, 2],
++                                lambda x, y: [x, y],
++                                contests_per_round=100, individuals_per_contest=2)
++        pop.evaluate()
++        assert pop.documented_best is not None
++
++    def test_documented(self):
++        pop = ContestPopulation([0, 1, 2], lambda x, y: [x, y], contests_per_round=100, individuals_per_contest=2)
++        pop.evaluate()
++        assert pop.documented_best is not None
++        # with concurrency
++        pop = ContestPopulation([0, 1, 2], lambda x, y: [x, y], contests_per_round=100, individuals_per_contest=2,
++                                concurrent_workers=3)
++        pop.evaluate()
++        assert pop.documented_best is not None
++
++    def test_documented_with_concurrency(self):
++        pop = ContestPopulation([0, 1, 2], lambda x, y: [x, y], contests_per_round=100, individuals_per_contest=2,
++                                concurrent_workers=3)
++        pop.evaluate()
++        assert pop.documented_best is not None
++
++    def test_documented_with_concurrency_and_repeated_evaluation(self):
++        pop = ContestPopulation([0, 1, 2], lambda x, y: [x, y], contests_per_round=100, individuals_per_contest=2,
++                                concurrent_workers=3)
++        pop.evaluate()
++        assert pop.documented_best is not None
++        pop.evaluate()
++        assert pop.documented_best is not None

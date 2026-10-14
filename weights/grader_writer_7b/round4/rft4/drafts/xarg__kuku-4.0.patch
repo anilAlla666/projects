@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/tests/test_dump_grader.py
+@@ -0,0 +1,23 @@
++import pytest
++from kuku.dump import dump
++
++
++class TestDump:
++    @pytest.mark.parametrize("input, expected", [(None, ""), ("foo", "foo\n")])
++    def test_dump_with_none_or_string_returns_string(self, input, expected):
++        """
++        Test dump returns empty string when called with None.
++        """
++        assert dump({"/path/to/template": [input]}) == expected
++
++    def test_dump_with_k8s_object_returns_yaml(self):
++        """
++        Test dump returns YAML representation of the K8s object.
++        """
++        from kubernetes.client.models.v1_pod_spec import V1PodSpec
++        from kubernetes.client.models.v1_container import V1Container
++        from kubernetes.client.models.v1_pod_template_spec import V1PodTemplateSpec
++        from kubernetes.client.models.v1_object_meta import V1ObjectMeta
++        from kubernetes.client.models.v1_deployment import V1Deployment
++
++        deployment = V1Deployment(
++            metadata=V1ObjectMeta(name="test-deployment"), spec=V1PodSpec(containers=[V1Container(image="nginx")])
++        )
++        assert dump({"/path/to/template": [deployment]}) != ""

@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/test_rules_grader.py
+@@ -0,0 +1,30 @@
++from __future__ import print_function
++
++
++import sys
++import unittest
++from . import rules
++
++
++class TestRules(unittest.TestCase):
++    def test_all_rules_have_a_minimum_python_version(self):
++        for rule_name, versions in rules.RULES.items():
++            if versions[0] is None:
++                self.fail('Rule "%s" has no defined minimum Python version' % rule_name)
++
++    def test_all_rules_have_an_undefined_maximum_python_version(self):
++        for rule_name, versions in rules.RULES.items():
++            if versions[1] is not None:
++                self.fail('Rule "%s" has a defined maximum Python version' % rule_name)
++
++    def test_all_rules_are_named_with_the_module_name_and_attribute(self):
++        for rule_name, versions in rules.RULES.items():
++            if '.' not in rule_name:
++                self.fail('Rule "%s" does not follow naming convention' % rule_name)
++
++    def test_all_rules_have_no_spaces_in_names(self):
++        for rule_name, versions in rules.RULES.items():
++            if ' ' in rule_name:
++                self.fail('Rule "%s" contains spaces in its name' % rule_name)
++
++
++if __name__ == '__main__':
++    unittest.main()

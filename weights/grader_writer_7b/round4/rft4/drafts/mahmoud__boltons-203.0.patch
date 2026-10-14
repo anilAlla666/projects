@@ -1,0 +1,50 @@
+--- /dev/null
++++ b/tests/test_funcutils_grader.py
+@@ -0,0 +1,27 @@
++import functools
++from boltons.funcutils import copy_function, total_ordering, InstancePartial, CachedInstancePartial
++
++
++class Greeter(object):
++    def __init__(self, greeting):
++        self.greeting = greeting
++
++    def greet(self, excitement='.'):
++        return self.greeting.capitalize() + excitement
++
++    partial_greet = InstancePartial(greet, excitement='!')
++    cached_partial_greet = CachedInstancePartial(greet, excitement='...')
++
++    def native_greet(self):
++        return self.greet(';')
++
++
++class SubGreeter(Greeter):
++    pass
++
++
++def test_total_ordering():
++    @total_ordering
++    class Number(object):
++        def __init__(self, val):
++            self.val = int(val)
++
++        def __gt__(self, other):
++            return self.val > other
+--- /dev/null
++++ b/tests/test_funcutils_fb_grader.py
+@@ -0,0 +1,12 @@
++import sys
++import pytest
++from boltons.funcutils import wraps, FunctionBuilder
++
++
++def pita_wrap(flag=False):
++
++    def cedar_dec(func):
++        @wraps(func)
++        def cedar_wrapper(*a, **kw):
++            return (flag, func.__name__, func(*a, **kw))
++        return cedar_wrapper
++
++    return cedar_dec

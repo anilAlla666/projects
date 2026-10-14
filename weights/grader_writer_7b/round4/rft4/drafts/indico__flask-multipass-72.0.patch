@@ -1,0 +1,111 @@
+--- /dev/null
++++ b/tests/test_util_grader.py
+@@ -0,0 +1,35 @@
++from importlib.metadata import EntryPoint
++import pytest
++from flask import Flask
++from flask_multipass import Multipass
++from flask_multipass.auth import AuthProvider
++from flask_multipass.core import _MultipassState
++from flask_multipass.exceptions import AuthenticationFailed
++from flask_multipass.identity import IdentityProvider
++from flask_multipass.util import (classproperty, get_state, resolve_provider_type, convert_provider_data, login_view,
++                                  get_canonical_provider_map, validate_provider_map, SupportsMeta, get_provider_base,
++                                  convert_app_data)
++
++
++def test_resolve_provider_type_importlib_metadata(tmp_path):
++    # create a fake entrypoint
++    (tmp_path / 'test').mkdir()
++    with (tmp_path / 'test' / 'test_provider.py').open('w') as f:
++        f.write("""
++from flask_multipass import IdentityProvider
++
++class Test(IdentityProvider):
++    identifier = 'test'
++""")
++    # add the path to sys.path
++    import sys
++    sys.path.append(str(tmp_path))
++
++    # register an entry point
++    entrypoint = EntryPoint(name='test', value='test_provider.Test', group='flask_multipass.identity_providers')
++    with (tmp_path / 'test' / 'entrypoints.txt').open('w') as f:
++        f.write(entrypoint.to_str())
++
++    # check that we can resolve the provider
++    resolve_provider_type(IdentityProvider, 'test')
+--- /dev/null
++++ b/tests/providers/ldap/test_util_grader.py
+@@ -0,0 +1,69 @@
++from collections import OrderedDict
++from unittest.mock import MagicMock, call
++from urllib.parse import urlsplit
++import ldap
++import pytest
++from flask_multipass.exceptions import MultipassException
++from flask_multipass.providers.ldap.globals import current_ldap
++from flask_multipass.providers.ldap.util import LDAPContext, build_search_filter, find_one, ldap_context, to_unicode
++from flask_multipass.util import convert_app_data
++
++
++@pytest.fixture
++def ldap_settings():
++    return {
++        'uri': 'ldaps://ldap.example.com:636',
++        'bind_dn': 'uid=admin,DC=example,DC=com',
++        'bind_password': 'LemotdepassedeLDAP',
++        'verify_cert': True,
++        'cert_file': '/etc/ssl/certs/ca-certificates.crt',
++        'starttls': True
++    }
++
++
++@pytest.mark.parametrize(('method', 'triggered_exception', 'caught_exception', 'message'), (
++    ('search_s', ldap.INVALID_DN_SYNTAX, ValueError, 'Invalid DN syntax'),
++    ('search_s', ldap.UNAVAILABLE_CRITICAL_EXTENSION, MultipassException,
++     'The LDAP server does not support some critical extensions'),
++    ('search_s', ldap.NO_SUCH_OBJECT, MultipassException, 'No such object found'),
++    ('search_s', ldap.LOOP_DETECT, MultipassException, 'A loop was detected in the DN'),
++    ('search_s', ldap.NAMING_VIOLATION, MultipassException, 'Naming violation'),
++    ('search_s', ldap.INVALID_FILTER, ValueError, 'Invalid search filter'),
++    ('search_s', ldap.OBJECT_CLASS_VIOLATION, MultipassException, 'Object class violation'),
++    ('search_s', ldap.NOT_ALLOWED_ON_NONLEAF, MultipassException, 'Not allowed on non-leaf'),
++    ('search_s', ldap.NOT_ALLOWED_ON_RDN, MultipassException, 'Not allowed on RDN'),
++    ('search_s', ldap.CANNOT_MODIFY_RDN, MultipassException, 'Cannot modify RDN'),
++    ('search_s', ldap.INVALID_DIT_STATEMENT, MultipassException, 'Invalid DIT statement'),
++    ('search_s', ldap.INVALID_ROLE_OCCUPANT, MultipassException, 'Invalid role occupant'),
++    ('search_s', ldap.UNDEFINED_TYPE, MultipassException, 'Undefined attribute type'),
++    ('search_s', ldap.INAPPROPRIATE_MATCHING, MultipassException, 'Inappropriate matching'),
++    ('search_s', ldap.CONSTRAINT_VIOLATION, MultipassException, 'Constraint violation'),
++    ('search_s', ldap.AFFECTS_MULTIPLE_DSAS, MultipassException, 'Affects multiple DSAs'),
++    ('search_s', ldap.UNWILLING_TO_PERFORM, MultipassException, 'Unwilling to perform'),
++    ('search_s', ldap.INSUFFICIENT_ACCESS, MultipassException, 'Insufficient access'),
++    ('search_s', ldap.BUSY, MultipassException, 'The LDAP server is busy'),
++    ('search_s', ldap.UNAVAILABILITY, MultipassException, 'The LDAP server is unavailable'),
++    ('search_s', ldap.UNWILLING_TO_PERFORM, MultipassException, 'Unwilling to perform'),
++    ('search_s', ldap.UNAVAILABLE_CRITICAL_EXTENSION, MultipassException,
++     'The LDAP server does not support some critical extensions'),
++    ('search_s', ldap.SIZE_LIMIT_EXCEEDED, MultipassException,
++     'Size limit exceeded (try setting a smaller page size)'),
++    ('search_s', ldap.TIME_LIMIT_EXCEEDED, MultipassException,
++     'The time limit for the operation has been exceeded.'),
++    ('search_s', ldap.ADMINLIMIT_EXCEEDED, MultipassException, 'Administrative limit exceeded'),
++    ('search_s', ldap.VALIDITY_VIOLATION, MultipassException, 'Validity violation'),
++    ('search_s', ldap.CLIENT_LOOP, MultipassException, 'Client loop detected'),
++    ('search_s', ldap.LOCAL_ERROR, MultipassException, 'Local error'),
++    ('search_s', ldap.TOOMANYREFERRALS, MultipassException, 'Too many referrals'),
++    ('search_s', ldap.NOT_SUPPORTED, MultipassException, 'Operation not supported'),
++    ('search_s', ldap.AUTH_UNKNOWN, MultipassException, 'Unknown authentication mechanism'),
++    ('search_s', ldap.CONNECT_ERROR, MultipassException, 'Connection error'),
++    ('search_s', ldap.ADMINLIMIT_EXCEEDED, MultipassException, 'Administrative limit exceeded'),
++    ('search_s', ldap.SIZELIMIT_EXCEEDED, MultipassException,
++     'Size limit exceeded (try setting a smaller page size)'),
++    ('search_s', ldap.TIMEOUT, MultipassException, 'The operation timed out.'),
++    ('search_s', ldap.OTHER, MultipassException, 'Other error occurred'),
++))
++def test_ldap_context_invalid_credentials(mocker, method, triggered_exception, caught_exception, message):
++    with pytest.raises(caught_exception) as excinfo:
++        with ldap_context(ldap_settings):
++            getattr(current_ldap.connection, method)('dc=example,dc=com', ldap.SCOPE_SUBTREE)
++    assert str(excinfo.value) == message

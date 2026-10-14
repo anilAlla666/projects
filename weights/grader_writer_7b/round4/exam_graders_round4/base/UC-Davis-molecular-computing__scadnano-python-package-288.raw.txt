@@ -1,0 +1,36 @@
+To address the issue of exporting DNA sequences from extensions and loopouts, we need to ensure that the `vendor_dna_sequence` method is properly defined for all domain types, including `Extension` and `Loopout`. Below is a unified diff that includes a new test file `tests/test_vendor_dna_sequence.py` to verify the correctness of the fix.
+
+```diff
+diff --git a/tests/test_vendor_dna_sequence.py b/tests/test_vendor_dna_sequence.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_vendor_dna_sequence.py
+@@ -0,0 +1,60 @@
++import unittest
++from scadnano import Design, Helix, Strand, Extension, Loopout
++
++class TestVendorDnaSequence(unittest.TestCase):
++    def test_extension_dna_sequence(self):
++        design = Design(helices=[Helix(max_offset=100)])
++        strand = design.draw_strand(0, 0).extension_5p(3).move(5).with_sequence('TTT' + 'AAAAA')
++        contents = design.to_idt_bulk_input_format()
++        expected_sequence = 'TTTAAAAA'
++        self.assertIn(expected_sequence, contents)
++
++    def test_loopout_dna_sequence(self):
++        design = Design(helices=[Helix(max_offset=100), Helix(max_offset=100)])
++        strand = design.draw_strand(0, 0).move(5).loopout(1, 3).move(-5).with_sequence('AAAAA' + 'TTT' + 'AAAAA')
++        contents = design.to_idt_bulk_input_format()
++        expected_sequence = 'AAAAATTTAAAAA'
++        self.assertIn(expected_sequence, contents)
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This test file includes two test cases:
+
+1. `test_extension_dna_sequence`: This test creates a strand with an extension and checks if the DNA sequence is correctly exported.
+2. `test_loopout_dna_sequence`: This test creates a strand with a loopout and checks if the DNA sequence is correctly exported.
+
+These tests will fail on the current code because the `Extension` and `Loopout` classes do not have a `vendor_dna_sequence` method. Once the fix is applied, these tests should pass, ensuring that the DNA sequences from extensions and loopouts are correctly handled.

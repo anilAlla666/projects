@@ -1,0 +1,17 @@
+diff --git a/tests/test_filtering.py b/tests/test_filtering.py
+new file mode 100644
+index 0000000..0000000
+--- /dev/null
++++ b/tests/test_filtering.py
+@@ -0,0 +1,10 @@
++import unittest
++
++from mbed_greentea_cli import create_filtered_test_list
++
++
++class TestFiltering(unittest.TestCase):
++    def test_create_filtered_test_list(self):
++        test_cases = {'foo': 'bar', 'baz': 'qux'}
++        self.assertEqual(create_filtered_test_list(test_cases, 'foo'), {'foo': 'bar'})
++        self.assertEqual(create_filtered_test_list(test_cases, 'foo*'), {'foo': 'bar'})
++        self.assertEqual(create_filtered_test_list(test_cases, '*oo'), {'foo': 'bar'})

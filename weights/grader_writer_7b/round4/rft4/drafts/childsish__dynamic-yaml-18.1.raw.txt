@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/tests/test_dynamic_yaml_grader.py
+@@ -0,0 +1,28 @@
++from argparse import ArgumentParser
++from unittest import TestCase, main
++from dynamic_yaml import load
++
++
++class TestDynamicYaml(TestCase):
++    def test_list_resolution(self):
++        config = '''
++        - a
++        - b
++        - '{root[0]}'
++        '''
++        res = load(config)
++        self.assertEqual('a', res[0])
++        self.assertEqual('b', res[1])
++        self.assertEqual('a', res[2])
++
++    def test_list_methods(self):
++        config = '''
++        - a
++        - b
++        - '{root[0]}'
++        '''
++        res = load(config)
++        self.assertEqual(['a', 'b', 'a'], list(res))
++        self.assertSetEqual({'a', 'b'}, set(res))
++        self.assertEqual(['a', 'b', 'a'], res.to_list())
++        self.assertSetEqual({'a', 'b'}, res.to_set())
++
++
++if __name__ == '__main__':
++    import sys
++    sys.exit(main())

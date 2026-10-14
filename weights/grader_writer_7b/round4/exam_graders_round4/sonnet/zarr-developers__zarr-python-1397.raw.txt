@@ -1,0 +1,52 @@
+I couldn't run this, so I haven't confirmed it fails on the current code. If the installed numpy returns `False` for a structured scalar compared to `0` without warning, the test would pass on the current code too. Under the older numpy from the issue, the `fill_value == 0` check emits a `FutureWarning`, which the test turns into an error.
+
+```diff
+--- /dev/null
++++ b/zarr/tests/test_fill_value_warning.py
+@@ -0,0 +1,45 @@
++import warnings
++
++import numpy as np
++
++import zarr
++from zarr.util import normalize_fill_value
++
++
++STRUCT_DTYPE = np.dtype([('a', int), ('b', int)])
++
++
++def test_normalize_fill_value_structured_no_warning():
++    fill = np.zeros((), dtype=STRUCT_DTYPE)[()]
++    with warnings.catch_warnings():
++        warnings.simplefilter('error')
++        result = normalize_fill_value(fill, dtype=STRUCT_DTYPE)
++    assert result.dtype == STRUCT_DTYPE
++    assert result['a'] == 0 and result['b'] == 0
++
++
++def test_normalize_fill_value_structured_nonzero_no_warning():
++    fill = np.array((1, 2), dtype=STRUCT_DTYPE)[()]
++    with warnings.catch_warnings():
++        warnings.simplefilter('error')
++        result = normalize_fill_value(fill, dtype=STRUCT_DTYPE)
++    assert result['a'] == 1 and result['b'] == 2
++
++
++def test_normalize_fill_value_zero_structured():
++    with warnings.catch_warnings():
++        warnings.simplefilter('error')
++        result = normalize_fill_value(0, dtype=STRUCT_DTYPE)
++    assert result['a'] == 0 and result['b'] == 0
++
++
++def test_group_create_structured_fill_value_no_warning():
++    group = zarr.group()
++    fill = np.zeros((), dtype=STRUCT_DTYPE)[()]
++    with warnings.catch_warnings():
++        warnings.simplefilter('error')
++        arr = group.create('foo', dtype=STRUCT_DTYPE, fill_value=fill,
++                           shape=(10, 10))
++    assert arr.dtype == STRUCT_DTYPE
++    assert arr.fill_value['a'] == 0
++    assert arr.fill_value['b'] == 0
+```

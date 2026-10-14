@@ -1,0 +1,18 @@
+--- /dev/null
++++ b/tests/test_codicefiscale_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++
++
++@pytest.mark.parametrize(
++    ("birth_date", "expected"),
++    [
++        ("1963-12-03", "53E16"),
++        ("1963-12-13", "53E17"),
++        ("1963-12-23", "53E18"),
++        ("1963-12-33", "53E19"),
++    ],
++)
++def test_inactive_municipality_decoding(birth_date, expected):
++    decoded = decode(birth_date=birth_date, birthplace="San Martino di Sessano")
++    assert decoded.birthplace == expected

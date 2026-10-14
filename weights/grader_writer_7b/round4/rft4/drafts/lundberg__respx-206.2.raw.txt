@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/tests/test_patterns_grader.py
+@@ -0,0 +1,31 @@
++import re
++from unittest.mock import ANY
++import httpx
++import pytest
++from respx.patterns import (
++    JSON,
++    URL,
++    Content,
++    Cookies,
++    Data,
++    Headers,
++    Host,
++    Lookup,
++    M,
++    Method,
++    Params,
++    Path,
++    Pattern,
++    Port,
++    Scheme,
++    merge_patterns,
++    parse_url_patterns,
++)
++
++
++def test_empty_params():
++    """
++    Regression test for https://github.com/lundberg/respx/issues/116.
++    """
++    pattern = Method("GET").params(params={}, lookup=Lookup.EQUAL)
++    request = httpx.Request("GET", "https://foo.bar/baz")
++    match = pattern.match(request)
++    assert match

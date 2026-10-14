@@ -1,0 +1,84 @@
+--- /dev/null
++++ b/tests/test_bugbear_grader.py
+@@ -0,0 +1,101 @@
++import ast
++import os
++from pathlib import Path
++import site
++import subprocess
++import sys
++import unittest
++from hypothesis import HealthCheck, given, settings
++from hypothesmith import from_grammar
++from bugbear import BugBearChecker, BugBearVisitor
++from bugbear import (
++    B001,
++    B002,
++    B003,
++    B004,
++    B005,
++    B006,
++    B007,
++    B008,
++    B009,
++    B010,
++    B011,
++    B012,
++    B013,
++    B014,
++    B015,
++    B016,
++    B301,
++    B302,
++    B303,
++    B304,
++    B305,
++    B306,
++    B901,
++    B902,
++    B903,
++    B950,
++)
++
++
++class TestBugbear(unittest.TestCase):
++    def setUp(self):
++        self.filename = Path(__file__).absolute().parent / "dummy.py"
++
++    def errors(self, *args):
++        return args
++
++    def test_expandable_exception_types_in_except_handler(self):
++        filename = Path(__file__).absolute().parent / "expandable_exceptions.py"
++        bbc = BugBearChecker(filename=str(filename))
++        errors = list(bbc.run())
++        self.assertEqual(errors, [])
++
++
++def _make_checker(file_contents, options=None):
++    """Make a checker with default options."""
++    filename = "<string>"
++    if options is not None:
++        filename = str(Path(__file__).absolute().parent / "dummy.py")
++    return BugBearChecker(
++        contents=file_contents, filename=filename, options=options
++    )
++
++
++def _check(contents, errors):
++    checker = _make_checker(contents)
++    result = list(checker.run())
++    assert len(result) == len(errors)
++    for err, expected_err in zip(result, errors):
++        assert err.message() == expected_err.message(), f"{err} != {expected_err}"
++        assert err.args == expected_err.args, f"{err.args} != {expected_err.args}"
++
++
++def _check_no_errors(contents):
++    checker = _make_checker(contents)
++    result = list(checker.run())
++    assert len(result) == 0
++
++
++if __name__ == "__main__":
++    unittest.main()

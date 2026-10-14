@@ -1,0 +1,72 @@
+I can't see the current tests for `_get_system_details`, so I'm writing a new self-contained test file that exercises it directly.
+
+The issue's example output is `CHARMCRAFT_AUTH='<hidden>'`. The exact placeholder is left open ("something like"), so the tests do not assert on it. They check the following:
+- When `CHARMCRAFT_AUTH` is set, its name appears in the output.
+- The secret value never appears in the output.
+- When `CHARMCRAFT_AUTH` is not set, the output does not mention it.
+- Other `CHARMCRAFT_*` variables are still logged with their values.
+
+`ALTERNATE_AUTH_ENV_VAR` is imported from `charmcraft.commands.store.client`, as the existing tests do.
+
+On the current code, the first test fails because the variable name is not logged at all.
+
+<br>
+
+```diff
+--- /dev/null
++++ b/tests/test_system_details_auth.py
+@@ -0,0 +1,56 @@
++# Copyright 2022 Canonical Ltd.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++# http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++# For further info, check https://github.com/canonical/charmcraft
++
++import os
++from unittest.mock import patch
++
++from charmcraft.commands.store.client import ALTERNATE_AUTH_ENV_VAR
++from charmcraft.main import _get_system_details
++
++
++def _clean_environ(extra):
++    base = {k: v for k, v in os.environ.items() if not k.startswith("CHARMCRAFT")}
++    base.update(extra)
++    return base
++
++
++def test_auth_presence_logged_without_value():
++    secret = "super-secret-credentials-value"
++    env = _clean_environ({ALTERNATE_AUTH_ENV_VAR: secret})
++    with patch.dict(os.environ, env, clear=True):
++        result = _get_system_details()
++    assert ALTERNATE_AUTH_ENV_VAR in result
++    assert secret not in result
++
++
++def test_auth_absent_not_logged():
++    env = _clean_environ({})
++    with patch.dict(os.environ, env, clear=True):
++        result = _get_system_details()
++    assert ALTERNATE_AUTH_ENV_VAR not in result
++
++
++def test_other_charmcraft_vars_still_logged_with_auth():
++    secret = "super-secret-credentials-value"
++    env = _clean_environ({ALTERNATE_AUTH_ENV_VAR: secret, "CHARMCRAFT_OTHER": "visible"})
++    with patch.dict(os.environ, env, clear=True):
++        result = _get_system_details()
++    assert "CHARMCRAFT_OTHER='visible'" in result
++    assert ALTERNATE_AUTH_ENV_VAR in result
++    assert secret not in result
+```

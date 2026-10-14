@@ -1,0 +1,79 @@
+To address the issue where printing a field/domain fails when a dimension coordinate has no data, we need to add tests that ensure the fix works correctly. These tests should fail with the current implementation and pass after applying the fix.
+
+Here's a unified diff that adds two new test files:
+
+```diff
+diff --git a/cfdm/test/test_Field.py b/cfdm/test/test_Field.py
+new file mode 100644
+index 0000000..e2b8a3d
+--- /dev/null
++++ b/cfdm/test/test_Field.py
+@@ -0,0 +1,45 @@
++import unittest
++import cfdm
++
++class FieldTest(unittest.TestCase):
++    """Unit test for the Field class."""
++
++    def test_Field_print_with_missing_dimension_coordinate_data(self):
++        """Test printing a field with a missing dimension coordinate data."""
++        f = cfdm.example_field(2)
++        t = f.construct('time')
++        t.del_data()
++
++        with self.assertLogs(level='ERROR') as cm:
++            print(f)
++
++        error_message = "DimensionCoordinate has no data"
++        self.assertIn(error_message, cm.output[0])
++
++if __name__ == "__main__":
++    print("Run date:", datetime.datetime.now())
++    cfdm.environment()
++    print("")
++    unittest.main(verbosity=2)
++
+diff --git a/cfdm/test/test_Domain.py b/cfdm/test/test_Domain.py
+index 160e2b8..e2b8a3d 100644
+--- a/cfdm/test/test_Domain.py
++++ b/cfdm/test/test_Domain.py
+@@ -100,6 +100,45 @@ class DomainTest(unittest.TestCase):
+ 
+     def test_Domain_climatological_time_axes(self):
+         """Test the `climatological_time_axes` Domain method."""
++        f = cfdm.example_field(2)
++        t = f.construct('time')
++        t.del_data()
++
++        with self.assertLogs(level='ERROR') as cm:
++            print(f)
++
++        error_message = "DimensionCoordinate has no data"
++        self.assertIn(error_message, cm.output[0])
++
++    def test_Domain_print_with_missing_dimension_coordinate_data(self):
++        """Test printing a domain with a missing dimension coordinate data."""
++        f = cfdm.example_field(2)
++        t = f.construct('time')
++        t.del_data()
++
++        with self.assertLogs(level='ERROR') as cm:
++            print(f.domain)
++
++        error_message = "DimensionCoordinate has no data"
++        self.assertIn(error_message, cm.output[0])
++
++    def test_Domain_print_with_missing_auxiliary_coordinate_data(self):
++        """Test printing a domain with a missing auxiliary coordinate data."""
++        f = cfdm.example_field(2)
++        a = f.construct('latitude')
++        a.del_data()
++
++        with self.assertLogs(level='ERROR') as cm:
++            print(f.domain)
++
++        error_message = "AuxiliaryCoordinate has no data"
++        self.assertIn(error_message, cm.output[0])
+```
+
+These tests check that printing a field or domain with missing data in dimension or auxiliary coordinates results in an appropriate error message being logged. The `assertLogs` context manager is used to capture the logs and verify that the specific error message is present. This ensures that the fix addresses the issue correctly.

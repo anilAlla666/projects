@@ -1,0 +1,45 @@
+diff --git a/tests/test_nodebookcore.py b/tests/test_nodebookcore.py
+index 3f4e5d6..b7c8d9e 100644
+--- a/tests/test_nodebookcore.py
++++ b/tests/test_nodebookcore.py
+@@ -1,5 +1,6 @@
+ from __future__ import absolute_import
+ import pandas as pd
++from nodebook.nodebookcore import ReferenceFinder
+ import pytest
+ from nodebook.nodebookcore import ReferenceFinder, Nodebook, Node
+ from nodebook.pickledict import PickleDict
+@@ -10,6 +11,7 @@ import ast
+ 
+ 
+ class TestReferenceFinder(object):
++    @pytest.fixture()
+     @pytest.fixture()
+     def rf(self):
+         return ReferenceFinder()
+@@ -100,6 +102,24 @@ class TestReferenceFinder(object):
+         assert rf.inputs == {'x'}
+         assert rf.imports == {'pandas'}
+         assert rf.locals == {'pd', 'y'}
++
++    def test_function_def(self, rf):
++        code_tree = ast.parse("""
++def add(a, b):
++    return a + b
++""")
++        rf.visit(code_tree)
++        assert rf.inputs == set()
++        assert rf.imports == set()
++        assert rf.locals == {'add', 'a', 'b'}
++
++    def test_function_call(self, rf):
++        code_tree = ast.parse("""
++x = add(1, 2)
++""")
++        rf.visit(code_tree)
++        assert rf.inputs == {'add'}
++        assert rf.imports == set()
++        assert rf.locals == {'x', 'add', 'a', 'b'}
+ 
+ 
+ class TestNodebook(object):

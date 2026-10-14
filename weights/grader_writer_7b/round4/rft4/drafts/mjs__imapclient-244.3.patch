@@ -1,0 +1,114 @@
+--- /dev/null
++++ b/imapclient/test/test_imapclient_grader.py
+@@ -0,0 +1,111 @@
++from __future__ import unicode_literals
++import itertools
++import socket
++import sys
++from datetime import datetime
++import six
++from imapclient.fixed_offset import FixedOffset
++from .testable_imapclient import TestableIMAPClient as IMAPClient
++from .imapclient_test import IMAPClientTest
++from .util import patch, sentinel, Mock
++
++
++class TestCommandBuilder(IMAPClientTest):
++
++    def check(self, command, args, expected):
++        typ, data = self.client._raw_command(command, args)
++        self.assertEqual(typ, 'OK')
++        self.assertEqual(data, ['done'])
++        self.assertEqual(self.client._imap.sent, expected)
++
++    def test_multiple_literals(self):
++        self.check(b'search', [b'TEXT', b'\xfe\xff', b'TEXT', b'\xcc', b'TEXT', b'foo'],
++                   b'tag UID SEARCH TEXT {2}\r\n'
++                   b'\xfe\xff TEXT {1}\r\n'
++                   b'\xcc TEXT foo\r\n'
++                   )
++
++    def test_invalid_input_type(self):
++        self.assertRaises(ValueError, self.client._raw_command, 'foo', [])
++        self.assertRaises(ValueError, self.client._raw_command, u'foo', ['foo'])
++
++    def test_failed_continuation_wait(self):
++        self.client._imap._get_response.return_value = b'blah'
++        self.client._imap.tagged_commands['tag'] = ('NO', ['go away'])
++
++        expected_error = "unexpected response while waiting for continuation response: \(u?'NO', \[u?'go away'\]\)"
++        with self.assertRaisesRegex(IMAPClient.AbortError, expected_error):
++            self.client._raw_command(b'FOO', [b'\xff'])
++
++
++class TestParseHeader(IMAPClientTest):
++    def test_parse_header(self):
++        header = (
++            b'(FLAGS (# \\Deleted \\Seen) '
++            b'INTERNALDATE "21-Jan-2011 00:27:49 +0000" '
++            b'SIZE 299 '
++            b'ENVELOPE '
++            b'((\\Seen) '
++            b'"From me <me@example.com>" '
++            b'"To you <you@example.net>" '
++            b'"Subject: hello world" '
++            b'"Wed, 20 Jan 2011 23:27:49 +0000" '
++            b'"(\"Foo Bar\")" '
++            b'"(\"Baz\")" '
++            b'"(\"Spam\" \"Ham\")") '
++            b'BODYSTRUCTURE '
++            b'(TEXT PLAIN (CHARSET UTF-8) NIL NIL "base64" 299 299))'
++        )
++
++        result = self.client._parse_header(header)
++
++        self.assertIsInstance(result, dict)
++        self.assertEqual(result['flags'], ('\\Seen', '\\Deleted'))
++        self.assertEqual(result['internaldate'], datetime(2011, 1, 21, 0, 27, 49, tzinfo=FixedOffset()))
++        self.assertEqual(result['size'], 299)
++        self.assertEqual(result['envelope'], {
++            'date': datetime(2011, 1, 20, 23, 27, 49, tzinfo=FixedOffset()),
++            'subject': 'hello world',
++            'to': ('Foo Bar',),
++            'cc': (),
++            'bcc': ('Baz',),
++            'in_reply_to': (),
++            'message_id': '',
++            'sender': [],
++            'reply_to': []
++        })
++        self.assertEqual(result['bodystructure'], {
++            'type': 'text',
++            'subtype': 'plain',
++            'parameters': {'charset': 'UTF-8'},
++            'encoding': 'base64',
++            'octets': 299,
++            'lines': 299,
++            'mdn_needed': False,
++            'disposition': None,
++            'dnt': None,
++            'language': None,
++            'extensions': {},
++            'parts': ()
++        })
++
++    def test_no_envelope(self):
++        header = (
++            b'(FLAGS (# \\Deleted \\Seen) '
++            b'INTERNALDATE "21-Jan-2011 00:27:49 +0000" '
++            b'SIZE 299 '
++            b'ENVELOPE NIL '
++            b'NIL '
++            b'NIL '
++            b'NIL '
++            b'NIL '
++            b'NIL '
++            b'NIL '
++            b'NIL '
++            b'NIL)'
++        )
++
++        result = self.client._parse_header(header)
++
++        self.assertIsInstance(result, dict)
++        self.assertEqual(result['envelope'], {})

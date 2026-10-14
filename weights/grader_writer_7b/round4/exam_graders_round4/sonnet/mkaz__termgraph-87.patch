@@ -1,0 +1,68 @@
+--- /dev/null
++++ b/tests/test_zero_data.py
+@@ -0,0 +1,59 @@
++from io import StringIO
++from unittest.mock import patch
++
++from termgraph import termgraph as tg
++
++
++def _args(**overrides):
++    args = {
++        "filename": "-",
++        "title": None,
++        "width": 100,
++        "format": "{:,}",
++        "suffix": "",
++        "no_labels": False,
++        "no_values": False,
++        "color": None,
++        "vertical": False,
++        "stacked": False,
++        "histogram": False,
++        "different_scale": False,
++        "calendar": False,
++        "start_dt": None,
++        "custom_tick": "",
++        "delim": "",
++        "verbose": False,
++        "label_before": False,
++        "version": False,
++        "bins": 5,
++    }
++    args.update(overrides)
++    return args
++
++
++def test_normalize_all_zeros_does_not_raise():
++    result = tg.normalize([[0], [0]], 100)
++    assert len(result) == 2
++    assert all(len(row) == 1 for row in result)
++    assert all(v == 0 for row in result for v in row)
++
++
++def test_normalize_all_zeros_multiple_columns():
++    result = tg.normalize([[0, 0], [0, 0], [0, 0]], 50)
++    assert len(result) == 3
++    assert all(len(row) == 2 for row in result)
++    assert all(v == 0 for row in result for v in row)
++
++
++def test_chart_all_zeros_does_not_raise():
++    with patch("sys.stdout", new=StringIO()):
++        tg.chart(
++            colors=None,
++            data=[[0], [0]],
++            args=_args(),
++            labels=["iOS", "Android"],
++        )
++
++
++def test_chart_all_zeros_multiple_series_does_not_raise():
++    with patch("sys.stdout", new=StringIO()):
++        tg.chart(
++            colors=[],
++            data=[[0, 0], [0, 0]],
++            args=_args(),
++            labels=["iOS", "Android"],
++        )

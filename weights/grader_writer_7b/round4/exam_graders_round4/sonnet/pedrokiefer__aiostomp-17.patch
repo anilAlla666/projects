@@ -1,0 +1,95 @@
+diff --git a/tests/test_protocol_partial_command.py b/tests/test_protocol_partial_command.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_protocol_partial_command.py
+@@ -0,0 +1,95 @@
++import unittest
++
++from aiostomp.protocol import StompProtocol
++
++
++def make_protocol():
++    last = None
++    for args in ((None, '1.1'), (None,), ()):
++        try:
++            return StompProtocol(*args)
++        except TypeError as e:
++            last = e
++    raise last
++
++
++def as_text(value):
++    if isinstance(value, bytes):
++        return value.decode('utf-8')
++    return value
++
++
++class TestPartialCommand(unittest.TestCase):
++
++    FRAME = (b'MESSAGE\nsubscription:1\nmessage-id:42\n'
++             b'destination:/queue/test\n\nhello world\x00')
++
++    def check(self, frames):
++        self.assertEqual(len(frames), 1)
++        frame = frames[0]
++        self.assertEqual(frame.command, 'MESSAGE')
++        self.assertEqual(frame.headers['message-id'], '42')
++        self.assertEqual(frame.headers['destination'], '/queue/test')
++        self.assertEqual(as_text(frame.body), 'hello world')
++
++    def test_whole_frame(self):
++        p = make_protocol()
++        p.feed_data(self.FRAME)
++        self.check(p._frames_ready)
++
++    def test_command_split_in_middle(self):
++        p = make_protocol()
++        p.feed_data(b'MES')
++        p.feed_data(self.FRAME[3:])
++        self.check(p._frames_ready)
++
++    def test_command_without_newline_then_rest(self):
++        p = make_protocol()
++        p.feed_data(b'MESSAGE')
++        self.assertEqual(len(p._frames_ready), 0)
++        p.feed_data(self.FRAME[len(b'MESSAGE'):])
++        self.check(p._frames_ready)
++
++    def test_byte_by_byte(self):
++        p = make_protocol()
++        for i in range(len(self.FRAME)):
++            p.feed_data(self.FRAME[i:i + 1])
++        self.check(p._frames_ready)
++
++    def test_partial_command_then_two_frames(self):
++        p = make_protocol()
++        p.feed_data(b'MESS')
++        p.feed_data(self.FRAME[4:] + self.FRAME)
++        frames = p._frames_ready
++        self.assertEqual(len(frames), 2)
++        for f in frames:
++            self.assertEqual(f.command, 'MESSAGE')
++            self.assertEqual(as_text(f.body), 'hello world')
++
++    def test_partial_connected_command(self):
++        p = make_protocol()
++        p.feed_data(b'CONNEC')
++        p.feed_data(b'TED\nversion:1.1\n\n\x00')
++        frames = p._frames_ready
++        self.assertEqual(len(frames), 1)
++        self.assertEqual(frames[0].command, 'CONNECTED')
++        self.assertEqual(frames[0].headers['version'], '1.1')
++
++    def test_partial_after_heartbeat(self):
++        p = make_protocol()
++        p.feed_data(b'\nMES')
++        p.feed_data(self.FRAME[3:])
++        frames = p._frames_ready
++        self.assertEqual(len(frames), 2)
++        self.assertEqual(frames[0].command, 'HEARTBEAT')
++        self.assertEqual(frames[1].command, 'MESSAGE')
++        self.assertEqual(as_text(frames[1].body), 'hello world')
++
++
++if __name__ == '__main__':
++    unittest.main()

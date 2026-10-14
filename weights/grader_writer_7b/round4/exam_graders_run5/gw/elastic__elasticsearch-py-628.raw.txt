@@ -1,0 +1,34 @@
+--- /dev/null
++++ b/test_elasticsearch/test_helpers_grader.py
+@@ -0,0 +1,14 @@
++import mock
++import time
++import threading
++from elasticsearch import helpers, Elasticsearch
++from elasticsearch.serializer import JSONSerializer
++from .test_cases import TestCase
++
++
++class TestEscape(TestCase):
++    def test_bytes_are_not_encoded(self):
++        self.assertEqual(b'celery-task-meta-c4f1201f-eb7b-41d5-9318-a75a8cfbdaa0',
++                         helpers._escape(b'celery-task-meta-c4f1201f-eb7b-41d5-9318-a75a8cfbdaa0'))
+--- /dev/null
++++ b/test_elasticsearch/test_transport_grader.py
+@@ -0,0 +1,14 @@
++from __future__ import unicode_literals
++import time
++from elasticsearch.transport import Transport, get_host_info
++from elasticsearch.connection import Connection
++from elasticsearch.connection_pool import DummyConnectionPool
++from elasticsearch.exceptions import ConnectionError, ImproperlyConfigured
++from .test_cases import TestCase
++
++
++class DummyConnection(Connection):
++    def __init__(self, **kwargs):
++        self.exception = kwargs.pop('exception', None)
++        self.status, self.data = kwargs.pop('status', 200), kwargs.pop('data', '{}')
++        self.headers = kwargs.pop('headers', {})
++        self.calls = []
++        super(DummyConnection, self).__init__(**kwargs)

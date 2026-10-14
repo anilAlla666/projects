@@ -1,0 +1,72 @@
+--- /dev/null
++++ b/tests/test_dbt_parsers_grader.py
+@@ -0,0 +1,77 @@
++import logging
++import unittest
++from dbtmetabase.models.interface import DbtInterface
++from dbtmetabase.models.metabase import ModelType, NullValue
++from dbtmetabase.parsers.dbt_folder import (
++    MetabaseModel,
++    MetabaseColumn,
++)
++
++
++class TestDbtFolderReader(unittest.TestCase):
++    def setUp(self):
++        """Must specify dbt root dir"""
++        self.interface = DbtInterface(
++            database="test",
++            schema="public",
++            path="tests/fixtures/sample_project/",
++        )
++        logging.getLogger(__name__)
++        logging.basicConfig(level=logging.DEBUG)
++
++    def test_read_models(self):
++        models = self.interface.parser.read_models()[0]
++        expectation = [
++            MetabaseModel(
++                name="customers",
++                display_name="clients",
++                schema="PUBLIC",
++                description="This table has basic information about a customer, as well as some derived facts based on a customer's orders",
++                model_type=ModelType.nodes,
++                dbt_name=None,
++                source=None,
++                unique_id=None,
++                columns=[
++                    MetabaseColumn(
++                        name="customer_id",
++                        description="This is a unique identifier for a customer",
++                        meta_fields={
++                            "id": {"description": "Unique ID"},
++                            "email": {"description": "Email address"},
++                        },
++                        semantic_type=None,
++                        visibility_type=None,
++                        fk_target_table=None,
++                        fk_target_field=None,
++                    ),
++                    MetabaseColumn(
++                        name="first_order_date",
++                        description="First order date",
++                        meta_fields={},
++                        semantic_type=None,
++                        visibility_type=None,
++                        fk_target_table=None,
++                        fk_target_field=None,
++                    ),
++                    MetabaseColumn(
++                        name="number_of_orders",
++                        description="Number of orders",
++                        meta_fields={},
++                        semantic_type=None,
++                        visibility_type=None,
++                        fk_target_table=None,
++                        fk_target_field=None,
++                    ),
++                ],
++            ),
++        ]
++        self.assertEqual(models, expectation)
++        logging.info("Done")

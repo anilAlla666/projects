@@ -1,0 +1,54 @@
+diff --git a/tests/test_create_filtered_test_list.py b/tests/test_create_filtered_test_list.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_create_filtered_test_list.py
+@@ -0,0 +1,100 @@
++import unittest
++from mbed_greentea_cli import create_filtered_test_list
++
++class TestCreateFilteredTestList(unittest.TestCase):
++    def setUp(self):
++        self.test_cases = {
++            'TESTS-mbed_drivers_timer': {'path': 'tests/mbed_drivers/timer'},
++            'TESTS-mbed_drivers_analogin': {'path': 'tests/mbed_drivers/analogin'},
++            'TESTS-mbed_drivers_uart': {'path': 'tests/mbed_drivers/uart'},
++            'TESTS-mbed_drivers_spi': {'path': 'tests/mbed_drivers/spi'},
++            'TESTS-mbed_drivers_i2c': {'path': 'tests/mbed_drivers/i2c'}
++        }
++
++    def test_filter_by_prefix(self):
++        filtered_list = create_filtered_test_list(self.test_cases, ['TESTS-mbed_drivers'], False)
++        expected = {
++            'TESTS-mbed_drivers_timer': {'path': 'tests/mbed_drivers/timer'},
++            'TESTS-mbed_drivers_analogin': {'path': 'tests/mbed_drivers/analogin'},
++            'TESTS-mbed_drivers_uart': {'path': 'tests/mbed_drivers/uart'},
++            'TESTS-mbed_drivers_spi': {'path': 'tests/mbed_drivers/spi'},
++            'TESTS-mbed_drivers_i2c': {'path': 'tests/mbed_drivers/i2c'}
++        }
++        self.assertEqual(filtered_list, expected)
++
++    def test_filter_by_suffix(self):
++        filtered_list = create_filtered_test_list(self.test_cases, ['*timer'], False)
++        expected = {
++            'TESTS-mbed_drivers_timer': {'path': 'tests/mbed_drivers/timer'}
++        }
++        self.assertEqual(filtered_list, expected)
++
++    def test_filter_by_prefix_and_suffix(self):
++        filtered_list = create_filtered_test_list(self.test_cases, ['TESTS-mbed_drivers_*'], False)
++        expected = {
++            'TESTS-mbed_drivers_timer': {'path': 'tests/mbed_drivers/timer'},
++            'TESTS-mbed_drivers_analogin': {'path': 'tests/mbed_drivers/analogin'},
++            'TESTS-mbed_drivers_uart': {'path': 'tests/mbed_drivers/uart'},
++            'TESTS-mbed_drivers_spi': {'path': 'tests/mbed_drivers/spi'},
++            'TESTS-mbed_drivers_i2c': {'path': 'tests/mbed_drivers/i2c'}
++        }
++        self.assertEqual(filtered_list, expected)
++
++    def test_invalid_test_names(self):
++        filtered_list = create_filtered_test_list(self.test_cases, ['TESTS-invalid', '*invalid'], False)
++        expected = {}
++        self.assertEqual(filtered_list, expected)
++
++if __name__ == '__main__':
++    unittest.main()

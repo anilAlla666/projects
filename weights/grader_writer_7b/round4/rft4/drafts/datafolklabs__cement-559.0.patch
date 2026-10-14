@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/tests/ext/test_ext_configparser_grader.py
+@@ -0,0 +1,27 @@
++import os
++from cement.core.foundation import TestApp
++from cement.ext.ext_configparser import ConfigParserConfigHandler
++
++
++def test_get_boolean():
++    with TestApp() as app:
++        app.config.set('testapp', 'validator_metrics', 'true')
++        assert app.config.getboolean('testapp', 'validator_metrics') == True
++
++        app.config.set('testapp', 'validator_metrics', 'false')
++        assert app.config.getboolean('testapp', 'validator_metrics') == False
++
++        app.config.set('testapp', 'validator_metrics', 'True')
++        assert app.config.getboolean('testapp', 'validator_metrics') == True
++
++        app.config.set('testapp', 'validator_metrics', 'False')
++        assert app.config.getboolean('testapp', 'validator_metrics') == False
++
++        app.config.set('testapp', 'validator_metrics', 'yes')
++        assert app.config.getboolean('testapp', 'validator_metrics') == True
++
++        app.config.set('testapp', 'validator_metrics', 'no')
++        assert app.config.getboolean('testapp', 'validator_metrics') == False
++
++        app.config.set('testapp', 'validator_metrics', '1')
++        assert app.config.getboolean('testapp', 'validator_metrics') == True
+--- /dev/null
++++ b/tests/ext/test_ext_json_grader.py
+@@ -0,0 +1,19 @@
++import os
++import json
++from unittest.mock import patch
++from cement.utils.test import TestApp
++from cement.utils import fs
++
++
++CONFIG_PARSED = dict(
++    section=dict(
++        subsection=dict(
++            list=['item1', 'item2', 'item3', 'item4'],
++            key='value'),
++        key1='ok1',
++        key2='ok2',
++    ),
++)
++
++
++CONFIG = fs.join(os.path.dirname(__file__), '..', 'data', 'config', 'config.json')

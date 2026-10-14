@@ -1,0 +1,21 @@
+--- /dev/null
++++ b/tests/test_core_grader.py
+@@ -0,0 +1,17 @@
++from unittest import TestCase
++
++
++class TestCore(TestCase):
++    def setUp(self):
++        self.parser = lambda x: None
++
++    def test_empty_sql(self):
++        parser = LineageParser("")
++        self.assertEqual(0, len(parser.statements))
++
++    def test_sql_with_comment(self):
++        parser = LineageParser("SELECT 1; -- SELECT 2;")
++        self.assertEqual(1, len(parser.statements))
++
++    def test_multiple_statements(self):
++        parser = LineageParser("SELECT 1; SELECT 2")
++        self.assertEqual(2, len(parser.statements))

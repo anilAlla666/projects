@@ -1,0 +1,55 @@
+I've added one test file covering the issue's example, nested keys, a prefix, and a dot in a key. I haven't run these tests against the current code.
+
+The tests avoid details the issue leaves open: they don't test hyphens in the prefix or how other special characters are handled. They also assume `YAMLDict.traverse` recurses into nested dicts and accepts a `None` leaf as a placeholder, as the issue's own example does.
+
+```diff
+diff --git a/tests/test_update_from_env_nonvar_chars.py b/tests/test_update_from_env_nonvar_chars.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_update_from_env_nonvar_chars.py
+@@ -0,0 +1,45 @@
++import os
++
++try:
++    from unittest import mock
++except ImportError:  # pragma: no cover
++    import mock
++
++import yamlsettings
++from yamlsettings.yamldict import YAMLDict
++
++
++def test_hyphen_key_replaced_with_underscore():
++    with mock.patch.dict(os.environ, {'FOO_BAR': 'barbaz'}):
++        settings = YAMLDict({'foo-bar': None})
++        yamlsettings.update_from_env(settings)
++    assert settings['foo-bar'] == 'barbaz'
++
++
++def test_nested_hyphen_keys():
++    with mock.patch.dict(os.environ, {'FOO_BAR_BAZ_QUX': 'val'}):
++        settings = YAMLDict({'foo-bar': {'baz-qux': None}})
++        yamlsettings.update_from_env(settings)
++    assert settings['foo-bar']['baz-qux'] == 'val'
++
++
++def test_hyphen_key_with_prefix():
++    with mock.patch.dict(os.environ, {'APP_FOO_BAR': 'xyz'}):
++        settings = YAMLDict({'foo-bar': None})
++        yamlsettings.update_from_env(settings, 'app')
++    assert settings['foo-bar'] == 'xyz'
++
++
++def test_dot_in_key_replaced_with_underscore():
++    with mock.patch.dict(os.environ, {'FOO_BAR': 'dotted'}):
++        settings = YAMLDict({'foo.bar': None})
++        yamlsettings.update_from_env(settings)
++    assert settings['foo.bar'] == 'dotted'
++
++
++def test_plain_key_still_works():
++    with mock.patch.dict(os.environ, {'FOO_BAR': 'plain'}):
++        settings = YAMLDict({'foo_bar': None})
++        yamlsettings.update_from_env(settings)
++    assert settings['foo_bar'] == 'plain'
+```

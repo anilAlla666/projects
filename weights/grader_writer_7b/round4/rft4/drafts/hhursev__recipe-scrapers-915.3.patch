@@ -1,0 +1,44 @@
+--- /dev/null
++++ b/tests/test_tastykitchen_grader.py
+@@ -0,0 +1,18 @@
++from recipe_scrapers.tastykitchen import TastyKitchen
++from tests import ScraperTest
++
++
++class TestTastyKitchenScraper(ScraperTest):
++    scraper_class = TastyKitchen
++
++    def test_total_time(self):
++        self.assertEqual(10, self.harvester_class.total_time())
++
++    def test_prep_time(self):
++        self.assertEqual(5, self.harvester_class.prep_time())
++
++    def test_cook_time(self):
++        self.assertEqual(5, self.harvester_class.cook_time())
++
++    def test_total_time_returns_none_when_empty(self):
++        self.assertIsNone(self.harvester_class.total_time())
+--- /dev/null
++++ b/tests/library/test_utils_grader.py
+@@ -0,0 +1,21 @@
++import unittest
++from recipe_scrapers._utils import get_minutes
++
++
++class TestUtils(unittest.TestCase):
++    def test_get_minutes_handles_pá_pum(self):
++        text = "Pá-Pum"
++        self.assertIsNone(get_minutes(text))
++
++    iso8601_fixtures = {
++        "PT1H": 60,
++        "PT20M": 20,
++        "PT2H10M": 130,
++        "PT0H9M30S": 10,
++    }
++
++    def test_get_minutes_handles_iso8601(self):
++        for text, expected_minutes in self.iso8601_fixtures.items():
++            with self.subTest(text=text):
++                self.assertEqual(expected_minutes, get_minutes(text))

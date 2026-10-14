@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/tests/test_exceptions_grader.py
+@@ -0,0 +1,27 @@
++import pandas as pd
++from evidently._exceptions import OnlyOneCategoryError
++
++
++def test_only_one_category_error():
++    """Test that an error is raised when the input column only contains one unique value."""
++    data = {"col": [1]}
++    df = pd.DataFrame(data)
++    column = df["col"]
++    try:
++        OnlyOneCategoryError(column)
++    except OnlyOneCategoryError as e:
++        assert str(e) == "Column col has only one value: '1'."
++
++
++def test_only_one_category_nan_error():
++    """Test that an error is raised when the input column only contains one unique value including nan"""
++    data = {"col": [1, 1, float("nan"), 1]}
++    df = pd.DataFrame(data)
++    column = df["col"]
++    try:
++        OnlyOneCategoryError(column)
++    except OnlyOneCategoryError as e:
++        assert str(e) == "Column col has only one value: '1'."

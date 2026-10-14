@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/tests/test_functions_grader.py
+@@ -0,0 +1,14 @@
++import pytest
++import numpy as np
++import rowan
++
++
++def test_to_axis_angle():
++    """Test that to_axis_angle works properly"""
++    q = [[1, 0, 0, 0],
++         [0.707, 0, 0, 0.707]]
++    expected_angles = np.array([[0],
++                                [np.pi/2]])
++    expected_axes = np.array([[0, 0, 0],
++                              [0, 1, 0]])
++    axes, angles = rowan.to_axis_angle(q)
++    assert np.allclose(expected_angles, angles)
++    assert np.allclose(expected_axes, axes)

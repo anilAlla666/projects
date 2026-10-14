@@ -1,0 +1,41 @@
+--- /dev/null
++++ b/tests/test_rules_grader.py
+@@ -0,0 +1,35 @@
++from __future__ import print_function
++
++
++import os.path
++import sys
++import unittest
++from .rules import Rules
++from .utils import TestUtil
++
++
++class TestRules(unittest.TestCase):
++    def setUp(self):
++        self.rules = Rules()
++
++    def test_pathlib(self):
++        if sys.version_info >= (3, 4):
++            expected = {2.6}
++        else:
++            expected = set()
++
++        # Pathlib can be used from Python 3.4.
++        self.assertEqual(expected, self.rules.find("pathlib"))
++
++        # Pathlib cannot be used from Python 3.3.
++        self.assertEqual({3}, self.rules.find("pathlib", min=sys.version_info))
++
++    def test_future_functools_lru_cache(self):
++        if sys.version_info >= (3, 2):
++            expected = {2.7}
++        else:
++            expected = set()
++
++        # The functools.lru_cache decorator can be used from Python 3.2.
++        self.assertEqual(expected, self.rules.find("functools.lru_cache"))
++
++
++if __name__ == '__main__':
++    unittest.main()

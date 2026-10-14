@@ -1,0 +1,41 @@
+--- /dev/null
++++ b/tests/test_multimethod_grader.py
+@@ -0,0 +1,39 @@
++import inspect
++from collections import namedtuple
++from multimethod import multimethod
++
++
++def test_metaclass():
++    class A(type):
++        pass
++
++    class B(A):
++        pass
++
++    class C(B):
++        pass
++
++    assert C.__mro__ == (C, B, A, type, object)
++
++    class M(type):
++        pass
++
++    class N(M):
++        pass
++
++    class O(N):
++        pass
++
++    assert O.__mro__ == (O, N, M, type, object)
++
++
++def test_get_type_with_metaclass():
++    class MetaClass(type):
++        pass
++
++    class SubClass(metaclass=MetaClass):
++        pass
++
++    assert inspect.isclass(SubClass)
++    assert inspect.getmro(SubClass) == (SubClass, MetaClass, type, object)

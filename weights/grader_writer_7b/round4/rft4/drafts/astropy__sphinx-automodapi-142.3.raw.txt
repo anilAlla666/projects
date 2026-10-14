@@ -1,0 +1,109 @@
+--- /dev/null
++++ b/sphinx_automodapi/tests/test_automodapi_grader.py
+@@ -0,0 +1,96 @@
++import sys
++from copy import copy
++import pytest
++from docutils.parsers.rst import directives, roles
++from . import cython_testpackage  # noqa
++from .helpers import run_sphinx_in_tmpdir
++
++
++if sys.version_info[0] == 2:
++    from io import open as io_open
++else:
++    io_open = open
++
++
++def setup_function(func):
++    # This can be replaced with the docutils_namespace context manager once
++    # it is in a stable release of Sphinx
++    func._directives = copy(directives._directives)
++    func._roles = copy(roles._roles)
++
++
++def teardown_function(func):
++    directives._directives = func._directives
++    roles._roles = func._roles
++
++
++am_replacer_str = """
++This comes before
++
++.. automodapi:: sphinx_automodapi.tests.example_module.mixed
++{options}
++
++This comes after
++"""
++
++
++am_replacer_stdlib_expected = """
++This comes before
++
++sphinx_automodapi.tests.example_module.stdlib Module
++---------------------------------------------------
++
++.. automodule:: sphinx_automodapi.tests.example_module.stdlib
++
++Functions
++^^^^^^^^^
++
++.. automodsumm:: sphinx_automodapi.tests.example_module.stdlib
++    :functions-only:
++    :toctree: api
++
++This comes after
++""".format(empty='')
++
++
++def test_am_replacer_stdlib(tmpdir, cython_testpackage):  # noqa
++    """
++    Tests replacing an ".. automodapi::" for a stdlib module.
++    """
++
++    with open(tmpdir.join('index.rst').strpath, 'w') as f:
++        f.write(am_replacer_str.format(options=''))
++
++    run_sphinx_in_tmpdir(tmpdir)
++
++    with open(tmpdir.join('index.rst.automodapi').strpath) as f:
++        result = f.read()
++
++    assert result == am_replacer_stdlib_expected
++
++
++am_replacer_skip_stdlib_expected = """
++This comes before
++
++sphinx_automodapi.tests.example_module.stdlib Module
++---------------------------------------------------
++
++.. automodule:: sphinx_automodapi.tests.example_module.stdlib
++
++Classes
++^^^^^^^
++
++.. autoclass:: MyStdlibClass
++    :members:
++    :inherited-members:
++    :undoc-members:
++    :show-inheritance:
++
++This comes after
++""".format(empty='')
++
++
++def test_am_replacer_skip_stdlib(tmpdir, cython_testpackage):  # noqa
++    """
++    Tests skipping stdlib modules.
++    """
++
++    with open(tmpdir.join('index.rst').strpath, 'w') as f:
++        f.write(am_replacer_str.format(options=':skip: time,Path:'))
++
++    run_sphinx_in_tmpdir(tmpdir)
++
++    with open(tmpdir.join('index.rst.automodapi').strpath) as f:
++        result = f.read()
++
++    assert result == am_replacer_skip_stdlib_expected

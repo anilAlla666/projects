@@ -1,0 +1,138 @@
+--- /dev/null
++++ b/tests/test_processors_grader.py
+@@ -0,0 +1,125 @@
++import pytest
++from rdkit import Chem
++from rdkit.Chem import AllChem
++from rdkit.Chem import rdchem
++from vermouth.molecule import Molecule
++from vermouth.processors.canonicalize_modifications import (
++    allowed_ptms,
++    identify_ptms,
++    CanonicalizeModifications,
++)
++
++
++def test_allowed_ptms():
++    """Test allowed_ptms()"""
++    # A simple example
++    m = Molecule()
++    m.add_atom({
++        '_resid': 'A',
++        '_resname': 'ALA',
++        'atomid': 1,
++        'atomname': 'N',
++    })
++    m.add_atom({
++        '_resid': 'A',
++        '_resname': 'ALA',
++        'atomid': 2,
++        'atomname': 'CA',
++    })
++    m.add_atom({
++        '_resid': 'A',
++        '_resname': 'ALA',
++        'atomid': 3,
++        'atomname': 'C',
++    })
++    m.add_atom({
++        '_resid': 'A',
++        '_resname': 'ALA',
++        'atomid': 4,
++        'atomname': 'O',
++    })
++    m.add_atom({
++        '_resid': 'B',
++        '_resname': 'SER',
++        'atomid': 5,
++        'atomname': 'CB',
++    })
++    m.add_atom({
++        '_resid': 'B',
++        '_resname': 'SER',
++        'atomid': 6,
++        'atomname': 'OG',
++    })
++
++    assert allowed_ptms(
++        m,
++        [[[[1]]], [[[2]]], [[[3]]], [[[4]]]],
++        [{'ALA': 4}],
++    ) == [
++        {rdchem.MolFromSmiles('C(=O)OC')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')}
++    ]
++
++    # Add a second chain
++    m.add_chain()
++    m.add_residue({'_chain': 'B'})
++    m.add_atom({
++        '_resid': 'B',
++        '_resname': 'PRO',
++        'atomid': 7,
++        'atomname': 'N',
++    })
++    m.add_atom({
++        '_resid': 'B',
++        '_resname': 'PRO',
++        'atomid': 8,
++        'atomname': 'CA',
++    })
++    m.add_atom({
++        '_resid': 'B',
++        '_resname': 'PRO',
++        'atomid': 9,
++        'atomname': 'C',
++    })
++    m.add_atom({
++        '_resid': 'B',
++        '_resname': 'PRO',
++        'atomid': 10,
++        'atomname': 'O',
++    })
++
++    assert allowed_ptms(
++        m,
++        [[[[1]]], [[[2]]], [[[3]]], [[[4]]]],
++         [[[7]]], [[[8]]], [[[9]]], [[[10]]]],
++        [{'ALA': 4}, {'PRO': 4}],
++    ) == [
++        {rdchem.MolFromSmiles('C(=O)OC'), rdchem.MolFromSmiles('CC')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')}
++    ]
++
++    # Add a third chain with an unknown atom
++    m.add_chain()
++    m.add_residue({'_chain': 'C'})
++    m.add_atom({
++        '_resid': 'C',
++        '_resname': 'UNK',
++        'atomid': 11,
++        'atomname': 'X',
++    })
++
++    assert allowed_ptms(
++        m,
++        [[[[1]]], [[[2]]], [[[3]]], [[[4]]]],
++         [[[7]]], [[[8]]], [[[9]]], [[[10]]]],
++         [[[11]]],
++        [{'ALA': 4}, {'PRO': 4}, {'UNK': 1}],
++    ) == [
++        {rdchem.MolFromSmiles('C(=O)OC'), rdchem.MolFromSmiles('CC')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')},
++        {rdchem.MolFromSmiles('[H]')},
++        {},
++    ]

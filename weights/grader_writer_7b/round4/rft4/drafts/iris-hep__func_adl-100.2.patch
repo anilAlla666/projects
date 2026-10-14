@@ -1,0 +1,136 @@
+--- /dev/null
++++ b/tests/test_util_ast_grader.py
+@@ -0,0 +1,124 @@
++import ast
++import sys
++from typing import Callable, cast
++import pytest
++from func_adl.util_ast import (
++    _realign_indent,
++    as_ast,
++    function_call,
++    lambda_args,
++    lambda_body_replace,
++    lambda_build,
++    lambda_call,
++    lambda_is_identity,
++    lambda_is_true,
++    lambda_test,
++    lambda_unwrap,
++    parse_as_ast,
++    rewrite_func_as_lambda,
++    scan_for_metadata,
++)
++
++
++def test_parse_continues_one_line():
++    "Make sure we do not let our confusion confuse the user - bomb correctly here"
++    found = []
++
++    class my_obj:
++        def do_it(self, x: Callable):
++            found.append(parse_as_ast(x))
++            return self
++
++    with pytest.raises(Exception) as e:
++        my_obj().do_it(lambda x: x + 1).do_it(lambda x: x * 2)
++
++    assert "two" in str(e.value)
++
++
++def test_realign_no_indent():
++    assert _realign_indent("test") == "test"
++
++
++def test_realign_indent_sp():
++    assert _realign_indent("    test") == "test"
++
++
++def test_realign_indent_tab():
++    assert _realign_indent("\ttest") == "test"
++
++
++def test_realign_indent_2lines():
++    assert _realign_indent("    test()\n    dude()") == "test()\ndude()"
++
++
++def test_realign_indent_2lines_uneven():
++    assert _realign_indent("    test()\n        dude()") == "test()\n    dude()"
++
++
++class my_call_vcatcher(FuncADLNodeVisitor):
++    def __init__(self):
++        self.count = 0
++        self.args = []
++        self.call_order = []
++
++    def generic_visit(self, node):
++        pass
++
++    def visit_Call(self, node):
++        self.count += 1
++        self.args += node.args
++        for n in node.keywords:
++            self.args += [n.value]
++
++
++def test_lambda_rewrite_global_prefer_local():
++    def outer_f(x):
++        y = 10
++
++        def inner_f(z):
++            return x + z + y
++
++        return inner_f
++
++    f = parse_as_ast(outer_f)
++    assert len(f.body.args.args) == 1
++    assert f.body.args.args[0].arg == "x"
++
++    body = lambda_unwrap(f.body)
++    assert isinstance(body, ast.Lambda)
++    assert len(body.args.args) == 2
++    assert body.args.args[0].arg == "z"
++    assert body.args.args[1].arg == "y"
++
++
++class my_ast_catcher(FuncADLNodeTransformer):
++    def __init__(self):
++        self.count = 0
++        self.node = None
++
++    def visit_Num(self, node):
++        self.count += 1
++        self.node = node
++        return node
++
++
++def test_parse_as_ast_lambda_with_nonlocal_variables():
++    """Test that non-local variables are correctly handled when converting a lambda to an AST."""
++    def outer_f(x):
++        y = 10
++        def inner_f(z):
++            return x + z + y
++        return inner_f
++
++    # Parse the outer function
++    parsed_outer = parse_as_ast(outer_f)
++
++    # Ensure the lambda body was captured correctly
++    lambda_body = lambda_unwrap(parsed_outer.body)
++    assert isinstance(lambda_body, ast.Lambda)
++    assert len(lambda_body.args.args) == 2
++    assert lambda_body.args.args[0].arg == "z"
++    assert lambda_body.args.args[1].arg == "y"
++
++    # Check that the nonlocal variable 'y' is present in the closure
++    closure = lambda_body.closure
++    assert closure is not None
++    assert len(closure.cells) == 1
++    assert closure.cells[0].cell_contents == 10
++
++    # Check that the lambda is now bound to the closure
++    assert lambda_body.is_bound
++
++    # Check that the original lambda's body matches the parsed version
++    assert ast.unparse(outer_f(0).__code__.co_consts[-1]) == ast.unparse(lambda_body.body)

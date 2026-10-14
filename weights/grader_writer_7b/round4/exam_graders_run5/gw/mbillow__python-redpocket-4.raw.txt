@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/tests/test_api_grader.py
+@@ -0,0 +1,24 @@
++import pytest
++import responses
++from unittest.mock import MagicMock
++from datetime import date, datetime
++from redpocket import (
++    RedPocket,
++    RedPocketAuthError,
++    RedPocketException,
++    RedPocketAPIError,
++)
++from redpocket.api import _today, RedPocketPhone, RedPocketLine, RedPocketLineDetails
++
++
++@responses.activate
++def test_get_line_details_with_type_api(mock_line_details: dict):
++    responses.add(
++        responses.GET,
++        "https://www.redpocket.com/account/get-details?id=AAA1BBB2&type=api",
++        status=200,
++        json={"return_code": 1, "return_data": mock_line_details},
++    )
++    rp = RedPocket(username="fake", password="password")
++    details = rp.get_line_details(account_hash="AAA1BBB2")
++    assert details.number == 1234567890

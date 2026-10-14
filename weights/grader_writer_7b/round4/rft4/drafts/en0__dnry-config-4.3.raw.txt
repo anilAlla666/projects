@@ -1,0 +1,38 @@
+--- /dev/null
++++ b/tests/test_yaml_source_grader.py
+@@ -0,0 +1,33 @@
++import unittest
++from dnry.config.yaml.source import YamlSource
++
++
++class TestYamlSource(unittest.TestCase):
++    def test_load_with_optional_file_not_found(self):
++        """
++        If a file does not exist and it is marked as optional then it should not
++        raise an exception.
++        """
++        # Arrange
++        src = YamlSource('non_existent.yaml', False)
++
++        # Act
++        result = src.load(None, None)
++
++        # Assert
++        self.assertEqual(result, {})
++
++
++    def test_load_with_required_file_not_found(self):
++        """
++        If a file does not exist and it is marked as required then it should raise
++        a ValueError
++        """
++        # Arrange
++        src = YamlSource('non_existent.yaml')
++
++        # Act & Assert
++        with self.assertRaises(ValueError):
++            src.load(None, None)
++
++
++if __name__ == '__main__':
++    unittest.main()

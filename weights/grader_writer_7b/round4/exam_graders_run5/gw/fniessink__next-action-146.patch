@@ -1,0 +1,44 @@
+--- /dev/null
++++ b/tests/unittests/arguments/test_parser_grader.py
+@@ -0,0 +1,41 @@
++""" Unit tests for the argument parsing classes. """
++
++
++import datetime
++import os
++import sys
++import textwrap
++import unittest
++from unittest.mock import call, mock_open, patch
++from next_action.arguments import config, parse_arguments
++
++
++USAGE_MESSAGE = textwrap.fill(
++    "Usage: next-action [-h] [--version] [-c [<config.cfg>] | -w] [-f <todo.txt> ...] [-r <ref>] [-s [<style>]] "
++    "[-a | -n <number>] [-d [<due date>] | -o] [-p [<priority>]] [--] [<context|project> ...]", 120) + "\n"
++
++
++class FilterTest(ParserTestCase):
++    """ Unit tests for the filter options. """
++
++    @patch.object(sys, "argv", ["next-action", "-@context", "-+project"])
++    def test_unrecognised_argument(self):
++        """ Test that the argument parser does not exit if an unrecognised argument is passed. """
++        self.assertEqual({"-@context"}, parse_arguments()[1].excluded_contexts)
++        self.assertEqual({"-+project"}, parse_arguments()[1].excluded_projects)
++
++    @patch.object(sys, "argv", ["next-action", "-@context", "-+project", "+project"])
++    def test_conflicting_project(self):
++        """ Test that the argument parser exits if a conflicting project is passed. """
++        self.assertRaises(SystemExit, parse_arguments)
++
++    @patch.object(sys, "argv", ["next-action", "-@context", "-+project", "-+project"])
++    def test_duplicate_project(self):
++        """ Test that the argument parser does not exit if a duplicate project is passed. """
++        self.assertEqual({"-@context"}, parse_arguments()[1].excluded_contexts)
++        self.assertEqual({"-+project"}, parse_arguments()[1].excluded_projects)
++
++    @patch.object(sys, "argv", ["next-action", "-@context", "-+project", "-@context"])
++    def test_conflicting_context(self):
++        """ Test that the argument parser exits if a conflicting context is passed. """
++        self.assertRaises(SystemExit, parse_arguments)

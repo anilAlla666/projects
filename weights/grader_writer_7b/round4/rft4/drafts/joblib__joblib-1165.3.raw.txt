@@ -1,0 +1,264 @@
+--- /dev/null
++++ b/joblib/test/test_memory_grader.py
+@@ -0,0 +1,120 @@
++"""
++Test the memory module.
++"""
++
++
++import gc
++import shutil
++import os
++import os.path
++import pathlib
++import pickle
++import sys
++import time
++import datetime
++import textwrap
++import pytest
++from joblib.memory import Memory
++from joblib.memory import MemorizedFunc, NotMemorizedFunc
++from joblib.memory import MemorizedResult, NotMemorizedResult
++from joblib.memory import _FUNCTION_HASHES
++from joblib.memory import register_store_backend, _STORE_BACKENDS
++from joblib.memory import _build_func_identifier, _store_backend_factory
++from joblib.memory import JobLibCollisionWarning
++from joblib.parallel import Parallel, delayed
++from joblib._store_backends import StoreBackendBase, FileSystemStoreBackend
++from joblib.test.common import with_numpy, np
++from joblib.test.common import with_multiprocessing
++from joblib.testing import parametrize, raises, warns
++from joblib.hashing import hash
++
++
++def f(x, y=1):
++    return x+y
++
++
++def f_docstring(x, y=1):
++    """Docstring docstring docstring docstring docstring."""
++    return x+y
++
++
++def g(x):
++    return x**2
++
++
++def h(x, y=0, *args, **kwargs):
++    return x+y
++
++
++def i(x=1):
++    return x
++
++
++def j(x, y, **kwargs):
++    return x+y
++
++
++def k(*args, **kwargs):
++    return args, kwargs
++
++
++def l(x, y):
++    """Function l with two mandatory arguments."""
++    return x+y
++
++
++def m(x=0):
++    """Function m with one default argument."""
++    return x
++
++
++def n(x, y, z=1):
++    """Function n with one default argument and two mandatory ones."""
++    return x+y+z
++
++
++def o(x, y, z=1, w=2):
++    """Function o with two default arguments and two mandatory ones."""
++    return x+y+z+w
++
++
++def p(x, y=0, *args, **kwargs):
++    """Function p with non-default and default arguments."""
++    return x+y
++
++
++def q(x, y, z=1, w=2, *args, **kwargs):
++    """Function q with default, non-default, and variable arguments."""
++    return x+y+z+w
++
++
++def r(x, y, z=1, w=2, *args, **kwargs):
++    """Function r with default, non-default, and variable arguments."""
++    return x+y+z+w
++
++
++def s(x, y, z=1, w=2, *, a, b=1, c=2, **kwargs):
++    """Function s with default, non-default, and variable arguments."""
++    return x+y+z+w+a+b+c
++
++
++def t(x, y, z=1, w=2, *, a, b=1, c=2, **kwargs):
++    """Function t with default, non-default, and variable arguments."""
++    return x+y+z+w+a+b+c
++
++
++def u(x, y, z=1, w=2, *, a, b=1, c=2, **kwargs):
++    """Function u with default, non-default, and variable arguments."""
++    return x+y+z+w+a+b+c
++
++
++def compare(left, right, ignored_attrs=None):
++    if ignored_attrs is None:
++        ignored_attrs = []
++
++    left_vars = vars(left)
++    right_vars = vars(right)
++    assert set(left_vars.keys()) == set(right_vars.keys())
++    for attr in left_vars.keys():
++        if attr in ignored_attrs:
++            continue
++        assert left_vars[attr] == right_vars[attr]
++
++
++def _get_code():
++    from joblib.test.test_func_inspect_special_encoding import big5_f
++    return get_func_code(big5_f)[0]
++
++
++def test_memory_pickle_round_trip(tmpdir):
++    memory = Memory(location=tmpdir.strpath, verbose=0)
++    func_cached = memory.cache(f)
++    memorized_result = func_cached.call_and_shelve(1)
++    memorized_result_pickle = pickle.dumps(memorized_result)
++    memorized_result_loads = pickle.loads(memorized_result_pickle)
++
++    assert memorized_result.store_backend.location == \
++        memorized_result_loads.store_backend.location
++    assert memorized_result.func == memorized_result_loads.func
++    assert memorized_result.args_id == memorized_result_loads.args_id
++    assert str(memorized_result) == str(memorized_result_loads)
+--- /dev/null
++++ b/joblib/test/test_func_inspect_grader.py
+@@ -0,0 +1,113 @@
++"""
++Test the func_inspect module.
++"""
++
++
++import functools
++from joblib.func_inspect import filter_args, get_func_name, get_func_code
++from joblib.func_inspect import _clean_win_chars, format_signature
++from joblib.memory import Memory
++from joblib.test.common import with_numpy
++from joblib.testing import fixture, parametrize, raises
++
++
++def f(x, y=0):
++    pass
++
++
++def g(x):
++    pass
++
++
++def h(x, y=0, *args, **kwargs):
++    pass
++
++
++def i(x=1):
++    pass
++
++
++def j(x, y, **kwargs):
++    pass
++
++
++def k(*args, **kwargs):
++    pass
++
++
++def l(x, y):
++    """Function l with two mandatory arguments."""
++    return x+y
++
++
++def m(x=0):
++    """Function m with one default argument."""
++    return x
++
++
++def n(x, y, z=1):
++    """Function n with one default argument and two mandatory ones."""
++    return x+y+z
++
++
++def o(x, y, z=1, w=2):
++    """Function o with two default arguments and two mandatory ones."""
++    return x+y+z+w
++
++
++def p(x, y=0, *args, **kwargs):
++    """Function p with non-default and default arguments."""
++    return x+y
++
++
++def q(x, y, z=1, w=2, *args, **kwargs):
++    """Function q with default, non-default, and variable arguments."""
++    return x+y+z+w
++
++
++def r(x, y, z=1, w=2, *args, **kwargs):
++    """Function r with default, non-default, and variable arguments."""
++    return x+y+z+w
++
++
++def s(x, y, z=1, w=2, *, a, b=1, c=2, **kwargs):
++    """Function s with default, non-default, and variable arguments."""
++    return x+y+z+w+a+b+c
++
++
++def t(x, y, z=1, w=2, *, a, b=1, c=2, **kwargs):
++    """Function t with default, non-default, and variable arguments."""
++    return x+y+z+w+a+b+c
++
++
++def u(x, y, z=1, w=2, *, a, b=1, c=2, **kwargs):
++    """Function u with default, non-default, and variable arguments."""
++    return x+y+z+w+a+b+c
++
++
++def _get_code():
++    from joblib.test.test_func_inspect_special_encoding import big5_f
++    return get_func_code(big5_f)[0]
++
++
++@with_numpy
++def test_format_signature_numpy():
++    """ Test the format signature formatting with numpy.
++    """
++    from numpy.lib.arraysetops import isin
++    _, sig = format_signature(isin)
++    assert 'isin' in sig
++    assert 'array_like' in sig
++    assert 'array_like' in sig
++    assert 'assume_unique' in sig
++
++
++def test_signature_with_decorated_function():
++    def dec(f):
++        @functools.wraps(f)
++        def wrapper(*args, **kwargs):
++            return f(*args, **kwargs)
++        return wrapper
++
++    @dec
++    def foo(a, b):
++        pass
++
++    _, sig = format_signature(foo)
++    assert 'a' in sig
++    assert 'b' in sig

@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/tests/test_aws_grader.py
+@@ -0,0 +1,24 @@
++from unittest.mock import MagicMock
++from senza.aws import (get_security_group, resolve_security_groups,
++                       get_account_id, get_account_alias, list_kms_keys,
++                       encrypt, get_vpc_attribute, resolve_referenced_resource,
++                       parse_time, get_required_capabilities, StackReference,
++                       resolve_topic_arn, matches_any, get_tag)
++
++
++def test_get_security_group_by_name(monkeypatch):
++    ec2 = MagicMock()
++    ec2.security_groups.filter = MagicMock(side_effect=[
++        [MagicMock(Name='app-test', Id='sg-test')],
++        [MagicMock(Name='physical-resource-id', Id='sg-resource')]])
++
++    def my_resource(rtype, *args):
++        if rtype == 'ec2':
++            return ec2
++        else:
++            return MagicMock()
++
++    monkeypatch.setattr('boto3.resource', my_resource)
++
++    assert 'sg-test' == get_security_group('myregion', 'app-test').id
++    assert 'sg-resource' == get_security_group('myregion', 'physical-resource-id').id

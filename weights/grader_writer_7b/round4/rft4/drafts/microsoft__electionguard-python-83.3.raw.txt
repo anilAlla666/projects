@@ -1,0 +1,45 @@
+--- /dev/null
++++ b/tests/test_tracker_grader.py
+@@ -0,0 +1,42 @@
++from unittest import TestCase
++from electionguard.encrypt import EncryptionDevice
++from electionguard.group import ZERO_MOD_Q, ONE_MOD_Q, TWO_MOD_Q
++from electionguard.tracker import (
++    tracker_hash_to_words,
++    tracker_words_to_hash,
++    get_rotating_tracker_hash,
++    get_hash_for_device,
++)
++
++
++class TestTracker(TestCase):
++    def test_tracker_handles_invalid_input(self):
++        # Arrange
++        device = EncryptionDevice("Location")
++        device_hash = get_hash_for_device(device.uuid, device.location)
++        ballot_hash = ONE_MOD_Q
++        ballot_hash_different = TWO_MOD_Q
++        timestamp = 1000
++        tracker_hash = get_rotating_tracker_hash(device_hash, timestamp, ballot_hash)
++        tracker_hash_different = get_rotating_tracker_hash(
++            device_hash, timestamp, ballot_hash_different
++        )
++
++        # Act & Assert
++        self.assertRaises(TypeError, tracker_hash_to_words, None)
++        self.assertRaises(TypeError, tracker_hash_to_words, "")
++        self.assertRaises(ValueError, tracker_hash_to_words, "abcd")
++        self.assertRaises(ValueError, tracker_hash_to_words, "abcd-efgh-ijkl-mnop")
++        self.assertRaises(ValueError, tracker_hash_to_words, "abcd-efgh-ijkl")
++        self.assertRaises(ValueError, tracker_hash_to_words, "abcd-efgh-ijkl-mnop-qrs")
++
++        self.assertRaises(TypeError, tracker_words_to_hash, None)
++        self.assertRaises(TypeError, tracker_words_to_hash, "")
++        self.assertRaises(ValueError, tracker_words_to_hash, "abcd")
++        self.assertRaises(ValueError, tracker_words_to_hash, "abcd-efgh-ijkl-mnop")
++        self.assertRaises(ValueError, tracker_words_to_hash, "abcd-efgh-ijkl")
++        self.assertRaises(ValueError, tracker_words_to_hash, "abcd-efgh-ijkl-mnop-qrs")
++
++        self.assertRaises(TypeError, get_rotating_tracker_hash, None, 1000, ONE_MOD_Q)
++        self.assertRaises(TypeError, get_rotating_tracker_hash, ONE_MOD_Q, None, ONE_MOD_Q)
++        self.assertRaises(TypeError, get_rotating_tracker_hash, ONE_MOD_Q, 1000, None)

@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/tests/test_abjadext_nauert_gracehandlers_test.py
+@@ -0,0 +1,25 @@
++import pytest
++from abjad import *
++from abjadext.nauert import *
++
++
++def test_concatenatinggracehandler_01():
++    durations = [1000, 1, 999]
++    pitches = [0, None, 0]
++    q_event_sequence = QEventSequence.from_millisecond_pitch_pairs(
++        tuple(zip(durations, pitches))
++    )
++    quantizer = Quantizer()
++    grace_handler = ConcatenatingGraceHandler(discard_grace_rest=False)
++    result = quantizer(q_event_sequence, grace_handler=grace_handler)
++    assert format(result) == abjad.String.normalize(
++        r"""
++        \new Voice
++        {
++            {
++                \tempo 4=60
++                %%% \time 4/4 %%%
++                c'4
++                \grace {
++                    r16
++                }
++                c'4
++                r4
++                r4
++            }
++        }
++        """
++    )

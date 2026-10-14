@@ -1,0 +1,71 @@
+--- /dev/null
++++ b/tests/test__eventloop_grader.py
+@@ -0,0 +1,64 @@
++from crochet import _eventloop
++import logging
++
++
++class FakeReactor(object):
++    """
++    A fake reactor that can be stopped.
++    """
++
++    def stop(self):
++        """
++        This is a real method.
++        """
++        pass
++
++    def callLater(self, delay, f, *args, **kwargs):
++        """
++        Not a real method.
++        """
++        pass
++
++
++def test_stop_logging_with_observer():
++    """
++    Test that stop_logging_with_observer stops the logging observer's reactor.
++    """
++    observer = _eventloop.PythonLoggingObserver()
++    log_observer = _eventloop.ThreadLogObserver(observer)
++    _eventloop.stop_logging_with_observer(log_observer)
++    assert not log_observer._logWritingReactor.running
++
++
++def test_stop_logging_with_observer_exception_in_handler():
++    """
++    If an exception occurs in a handler, it does not prevent cleanup.
++    """
++    observer = _eventloop.PythonLoggingObserver()
++    log_observer = _eventloop.ThreadLogObserver(observer)
++
++    class BrokenHandler(logging.Handler):
++        def emit(self, record):
++            raise ValueError("Kaboom")
++
++    log = logging.getLogger("crochet.test")
++    log.setLevel(logging.DEBUG)
++    log.addHandler(BrokenHandler())
++
++    _eventloop.stop_logging_with_observer(log_observer)
++
++
++def test_stop_logging_with_observer_repeatedly():
++    """
++    Calling stop_logging_with_observer twice is safe.
++    """
++    observer = _eventloop.PythonLoggingObserver()
++    log_observer = _eventloop.ThreadLogObserver(observer)
++    _eventloop.stop_logging_with_observer(log_observer)
++    _eventloop.stop_logging_with_observer(log_observer)
++
++
++def test_stop_logging_with_observer_already_stopped():
++    """
++    Calling stop_logging_with_observer on already-stopped observer is safe.
++    """
++    observer = _eventloop.PythonLoggingObserver()
++    log_observer = _eventloop.ThreadLogObserver(observer)
++    _eventloop.stop_logging_with_observer(log_observer)
++    _eventloop.stop_logging_with_observer(log_observer)

@@ -1,0 +1,115 @@
+--- /dev/null
++++ b/tests/test_enochecker_grader.py
+@@ -0,0 +1,113 @@
++import functools
++import sys
++import tempfile
++import time
++from logging import DEBUG
++import enochecker
++import pytest
++from enochecker import (
++    CHECKER_METHODS,
++    BaseChecker,
++    BrokenServiceException,
++    OfflineException,
++    Result,
++    assert_equals,
++    assert_in,
++    ensure_bytes,
++    ensure_unicode,
++    parse_args,
++    run,
++    serve_once,
++    snake_caseify,
++)
++
++
++STORAGE_DIR: str = "/tmp/enochecker_test"
++
++
++def temp_storage_dir(func):
++    @functools.wraps(func)
++    def wrapper(*args, **kwargs):
++        global STORAGE_DIR
++        try:
++            with tempfile.TemporaryDirectory() as tmpdirname:
++                STORAGE_DIR = tmpdirname
++                return func(*args, **kwargs)
++        finally:
++            STORAGE_DIR = "/tmp/enochecker_test"
++
++    return wrapper
++
++
++class CheckerExampleImpl(BaseChecker):
++    def run(self) -> None:
++        self.log(f"Running checker with config {self.config}")
++        self.info(f"Info level logging for {self.service_name}!")
++
++        if self.method == "putflag":
++            self.store_flag(self.flag)
++        elif self.method == "getflag":
++            self.get_flag(self.flag)
++        elif self.method == "putnoise":
++            self.store_noise(self.flag)
++        elif self.method == "getnoise":
++            self.get_noise(self.flag)
++        elif self.method == "havoc":
++            self.havoc()
++        elif self.method == "offline":
++            raise OfflineException("simulated offline state")
++        elif self.method == "broken":
++            raise BrokenServiceException("simulated broken service")
++
++        self.debug("Debug message")
++        self.info("Info message")
++        self.warning("Warning message")
++        self.error("Error message")
++
++        self.log("Custom message")
++
++    def havoc(self) -> None:
++        self.log("Simulating havoc...")
++        self.putflag("ENOFLAG")
++        self.getflag("ENOFLAG")
++        self.putnoise("NOISE")
++        self.getnoise("NOISE")
++        self.havoc()
++        self.offline()
++        self.broken()
++
++    def get_flag(self, flag: str) -> None:
++        assert_equals(flag, self.flag)
++
++    def get_noise(self, noise: str) -> None:
++        assert_equals(noise, self.flag)
++
++
++@pytest.mark.parametrize("method", CHECKER_METHODS)
++def test_checker(method):
++    flag = "ENOFLAG"
++    noise = "buzzzz! :)"
++
++    CheckerExampleImpl(method=method).run()
++
++    if method == "putflag":
++        assert CheckerExampleImpl().team_db["flag"] == flag
++    elif method == "getflag":
++        CheckerExampleImpl(method=method, flag=flag).run()
++
++    if method == "putnoise":
++        assert CheckerExampleImpl().team_db["noise"] == noise
++    elif method == "getnoise":
++        CheckerExampleImpl(method=method, flag=noise).run()
++
++    if method == "havoc":
++        assert CheckerExampleImpl(method=method).run().result == Result.OFFLINE
++
++
++def main():
++    pytest.main(sys.argv)
++
++
++if __name__ == "__main__":
++    main()

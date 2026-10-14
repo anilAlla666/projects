@@ -1,0 +1,29 @@
+diff --git a/tests/test_unit_tools.py b/tests/test_unit_tools.py
+index 0d0e100..010210c 100644
+--- a/tests/test_unit_tools.py
++++ b/tests/test_unit_tools.py
+@@ -425,6 +425,24 @@ def test_dependency_handler_handle_dependencies_with_platform_specific_package(
+     assert "All dependencies provided!" in caplog.text
+ 
+ 
++@pytest.mark.parametrize(('url', 'expected'), [
++    ('http://example.com/foo/bar', 'http://example.com/foo/bar'),
++    ('http://example.com/foo.bar', 'http://example.com/foo.bar'),
++    ('http://example.com/foo.bar.baz', 'http://example.com/foo.bar.baz'),
++])
++def test_brew_url(url, expected):
++    assert tools.get_brew_artifact_url('md5sum', url) == expected
++
++
++@pytest.mark.parametrize(('url', 'expected'), [
++    ('http://example.com/foo/bar', 'http://example.com/foo/bar'),
++    ('http://example.com/foo.bar', 'http://example.com/foo%2Ebar'),
++    ('http://example.com/foo.bar.baz', 'http://example.com/foo%2Ebar%2Ebaz'),
++])
++def test_brew_url_encoded(url, expected):
++    assert tools.get_brew_artifact_url('md5sum', url, encoded=True) == expected
++
++
+ def test_dependency_handler_check_for_executable_with_executable_only(mocker, caplog, monkeypatch):
+     caplog.set_level(logging.DEBUG, logger="cekit")
+ 

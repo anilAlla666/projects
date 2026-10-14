@@ -1,0 +1,51 @@
+To address the issue of not encrypting empty strings and treating them as `None` for `SecureField`, we need to add tests that ensure:
+
+1. Empty strings are correctly handled and not encrypted.
+2. Non-empty strings are encrypted as expected.
+
+Here's a unified diff that includes a new test file `tests/test_securefield.py` to cover these scenarios:
+
+```diff
+diff --git a/tests/test_securefield.py b/tests/test_securefield.py
+new file mode 100644
+index 0000000..b8a9d2f
+--- /dev/null
++++ b/tests/test_securefield.py
+@@ -0,0 +1,45 @@
++import unittest
++from cincoconfig import Config, Field, SecureField
++
++class TestSecureField(unittest.TestCase):
++    def setUp(self):
++        self.config = Config()
++        self.field = SecureField(name='test_field')
++
++    def test_empty_string_handling(self):
++        # Test that an empty string is handled correctly
++        result = self.field.to_python(self.config, '')
++        self.assertIsNone(result)
++
++    def test_non_empty_string_encryption(self):
++        # Test that a non-empty string is encrypted correctly
++        value = 'secret_value'
++        result = self.field.to_python(self.config, value)
++        self.assertIsInstance(result, str)
++        self.assertNotEqual(result, value)
++
++    def test_decryption_of_encrypted_value(self):
++        # Test that the encrypted value can be decrypted back to its original form
++        value = 'secret_value'
++        encrypted = self.field.to_basic(self.config, value)
++        decrypted = self.field.to_python(self.config, encrypted)
++        self.assertEqual(decrypted, value)
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+This test file includes three test cases:
+1. `test_empty_string_handling`: Ensures that an empty string is correctly handled and returned as `None`.
+2. `test_non_empty_string_encryption`: Ensures that a non-empty string is encrypted correctly and does not match the original value.
+3. `test_decryption_of_encrypted_value`: Ensures that the encrypted value can be decrypted back to its original form.
+
+These tests will fail on the current code because it does not handle empty strings as specified. Once the fix is applied, these tests should pass.

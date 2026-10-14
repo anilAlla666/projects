@@ -1,0 +1,42 @@
+--- /dev/null
++++ b/tests/test_finder_grader.py
+@@ -0,0 +1,17 @@
++from changelogs.finder import contains_project_name
++
++
++def test_find_repo_urls():
++    from requests.sessions import Session
++    with patch.object(Session, "get") as mock_get:
++        # returns None when the status code isn't 200
++        mock_get.return_value = type("", (), {"status_code": 404})
++        result = list(changelogs.finder.find_repo_urls(
++            Session(),
++            "foo",
++            ["http://bar.com"]
++        ))
++        assert len(result) == 0
++
++        # raises ConnectionError when the status code is 200 but there's an exception
++        mock_get.side_effect = ConnectionError()
++        result = list(changelogs.finder.find_repo_urls(
++            Session(),
++            "foo",
++            ["http://bar.com"]
++        ))
+--- /dev/null
++++ b/tests/test_changelogs_grader.py
+@@ -0,0 +1,13 @@
++import pytest
++import changelogs
++
++
++@pytest.fixture(autouse=True)
++@pytest.mark.usefixtures('betamax_session')
++def record(monkeypatch, betamax_session):
++    def session():
++        return betamax_session
++    monkeypatch.setattr("changelogs.changelogs.Session", session)
++
++
++def test_gxc_online():
++    assert "https://github.com/gxc-online/gxconline" in changelogs.get("gxc_online")

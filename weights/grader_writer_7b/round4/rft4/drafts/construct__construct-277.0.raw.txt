@@ -1,0 +1,14 @@
+--- /dev/null
++++ b/tests/test_expr_grader.py
+@@ -0,0 +1,11 @@
++import pytest
++from construct import *
++
++
++def test_path_getitem():
++    c = Struct(
++        "x"/Byte,
++        "y"/Byte,
++    )
++    assert c.parse(b"\x01\x02").x.y == 2
++    assert c.parse(b"\x01\x02")["x"]["y"] == 2

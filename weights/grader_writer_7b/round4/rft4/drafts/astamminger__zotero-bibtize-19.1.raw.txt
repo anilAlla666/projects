@@ -1,0 +1,22 @@
+--- /dev/null
++++ b/tests/test_bibtize_grader.py
+@@ -0,0 +1,21 @@
++import pytest
++
++
++def test_field_parsing_with_newlines():
++    """Test parsing of BibTeX entries with field values containing commas.
++
++    This is a regression test for issue #20.
++    """
++    entry_text = r'@article{foo, title={Foo}, author={John Doe}, year={1999}, journal={Journal of Foo}, volume={10}, pages={1-2, 5}}'
++    expected_result = {'title': 'Foo', 'author': 'John Doe', 'year': '1999', 'journal': 'Journal of Foo', 'volume': '10', 'pages': '1-2, 5'}
++    result = BibEntry(entry_text).fields
++    assert(result == expected_result)
++
++
++if __name__ == "__main__":
++    pytest.main(["--verbose", "--tb=native"])
++
++
++from zotero_bibtize.zotero_bibtize import BibEntry

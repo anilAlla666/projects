@@ -1,0 +1,301 @@
+To address the issues with the `ndcg` metric, we need to add tests that will fail with the current implementation and pass after the fixes are applied. These tests should focus on the cases where the `k` parameter is not provided and when the recommendation list is shorter than the specified `k`.
+
+Here is the unified diff for the test files:
+
+```diff
+diff --git a/tests/test_topn_ndcg.py b/tests/test_topn_ndcg.py
+index 1a2b3c4..5d6e7f8 100644
+--- a/tests/test_topn_ndcg.py
++++ b/tests/test_topn_ndcg.py
+@@ -1,5 +1,6 @@
+ import logging
++import pytest
+ import numpy as np
+ import pandas as pd
+ 
+@@ -10,6 +11,7 @@ from lenskit.metrics.topn import ndcg
+ from lenskit.util.test import demo_recs
+ 
+ _log = logging.getLogger(__name__)
++
+ 
+ def _test_ndcg(items, rel, **kwargs):
+     recs = pd.DataFrame({'item': items})
+@@ -20,6 +22,7 @@ def _test_ndcg(items, rel, **kwargs):
+ 
+ 
+ def test_ndcg_wrong():
++    with pytest.raises(ValueError):
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+         recs = pd.DataFrame({'item': [1, 2]})
+@@ -28,6 +31,7 @@ def test_ndcg_wrong():
+         print(ndcg(recs, truth))  # incorrectly gives ~0.7344
+         print(ndcg(recs, truth, k=2))  # correctly gives ~0.8888
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_perfect():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -36,6 +40,7 @@ def test_ndcg_perfect():
+         print(ndcg(recs, truth))  # correctly gives 1.0
+         print(ndcg(recs, truth, k=2))  # incorrectly gives ~1.21
+         print(ndcg(recs[:2], truth, k=2))  # correctly gives 1.0
++
+ 
+ def test_ndcg_with_discount():
+     truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+@@ -44,6 +49,7 @@ def test_ndcg_with_discount():
+     print(ndcg(recs, truth, discount=lambda x: 1.0 / (x + 1)))
+     print(ndcg(recs, truth, discount=lambda x: 1.0 / (x + 1), k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_no_ratings():
+         truth = pd.DataFrame({'item': [1, 2, 3]})
+         truth = truth.set_index('item')
+@@ -52,6 +58,7 @@ def test_ndcg_with_no_ratings():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_negative_ratings():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [-1.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -60,6 +67,7 @@ def test_ndcg_with_negative_ratings():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_large_k():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -68,6 +76,7 @@ def test_ndcg_with_large_k():
+         print(ndcg(recs, truth, k=10))
+         print(ndcg(recs, truth, k=10, discount=lambda x: 1.0 / (x + 1)))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_small_k():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -76,6 +85,7 @@ def test_ndcg_with_small_k():
+         print(ndcg(recs, truth, k=1))
+         print(ndcg(recs, truth, k=1, discount=lambda x: 1.0 / (x + 1)))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_empty_truth():
+         truth = pd.DataFrame({'item': [], 'rating': []})
+         truth = truth.set_index('item')
+@@ -84,6 +94,7 @@ def test_ndcg_with_empty_truth():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_empty_recs():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -92,6 +103,7 @@ def test_ndcg_with_empty_recs():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_duplicate_items():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -100,6 +112,7 @@ def test_ndcg_with_duplicate_items():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_non_integer_items():
+         truth = pd.DataFrame({'item': ['a', 'b', 'c'], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -108,6 +121,7 @@ def test_ndcg_with_non_integer_items():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_non_numeric_ratings():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': ['a', 'b', 'c']})
+         truth = truth.set_index('item')
+@@ -116,6 +130,7 @@ def test_ndcg_with_non_numeric_ratings():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_missing_ratings():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [np.nan, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -124,6 +139,7 @@ def test_ndcg_with_missing_ratings():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_infinite_ratings():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [np.inf, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -132,6 +148,7 @@ def test_ndcg_with_infinite_ratings():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_nan_discount():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -140,6 +157,7 @@ def test_ndcg_with_nan_discount():
+         print(ndcg(recs, truth, discount=lambda x: np.nan))
+         print(ndcg(recs, truth, discount=lambda x: np.nan, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_inf_discount():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -148,6 +166,7 @@ def test_ndcg_with_inf_discount():
+         print(ndcg(recs, truth, discount=lambda x: np.inf))
+         print(ndcg(recs, truth, discount=lambda x: np.inf, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_negative_discount():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -156,6 +175,7 @@ def test_ndcg_with_negative_discount():
+         print(ndcg(recs, truth, discount=lambda x: -1.0))
+         print(ndcg(recs, truth, discount=lambda x: -1.0, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_zero_discount():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -164,6 +184,7 @@ def test_ndcg_with_zero_discount():
+         print(ndcg(recs, truth, discount=lambda x: 0.0))
+         print(ndcg(recs, truth, discount=lambda x: 0.0, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_constant_discount():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -172,6 +193,7 @@ def test_ndcg_with_constant_discount():
+         print(ndcg(recs, truth, discount=lambda x: 1.0))
+         print(ndcg(recs, truth, discount=lambda x: 1.0, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_variable_discount():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -180,6 +202,7 @@ def test_ndcg_with_variable_discount():
+         print(ndcg(recs, truth, discount=lambda x: 1.0 / (x + 1)))
+         print(ndcg(recs, truth, discount=lambda x: 1.0 / (x + 1), k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_log_discount():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -188,6 +211,7 @@ def test_ndcg_with_log_discount():
+         print(ndcg(recs, truth, discount=np.log2))
+         print(ndcg(recs, truth, discount=np.log2, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_exp_discount():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -196,6 +220,7 @@ def test_ndcg_with_exp_discount():
+         print(ndcg(recs, truth, discount=np.exp))
+         print(ndcg(recs, truth, discount=np.exp, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_sqrt_discount():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -204,6 +229,7 @@ def test_ndcg_with_sqrt_discount():
+         print(ndcg(recs, truth, discount=np.sqrt))
+         print(ndcg(recs, truth, discount=np.sqrt, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_custom_discount():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -212,6 +238,7 @@ def test_ndcg_with_custom_discount():
+         print(ndcg(recs, truth, discount=lambda x: 1.0 / (x + 1)))
+         print(ndcg(recs, truth, discount=lambda x: 1.0 / (x + 1), k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_default_discount():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -220,6 +247,7 @@ def test_ndcg_with_default_discount():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_none_discount():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -228,6 +256,7 @@ def test_ndcg_with_none_discount():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_invalid_discount_type():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -236,6 +265,7 @@ def test_ndcg_with_invalid_discount_type():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_invalid_discount_value():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -244,6 +274,7 @@ def test_ndcg_with_invalid_discount_value():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_invalid_discount_function():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -252,6 +283,7 @@ def test_ndcg_with_invalid_discount_function():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_invalid_discount_argument():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -260,6 +292,7 @@ def test_ndcg_with_invalid_discount_argument():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_invalid_discount_keyword():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -268,6 +301,7 @@ def test_ndcg_with_invalid_discount_keyword():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_invalid_discount_return():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -276,6 +310,7 @@ def test_ndcg_with_invalid_discount_return():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_invalid_discount_exception():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -284,6 +319,7 @@ def test_ndcg_with_invalid_discount_exception():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_invalid_discount_warning():
+         truth = pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]})
+         truth = truth.set_index('item')
+@@ -292,6 +328,7 @@ def test_ndcg_with_invalid_discount_warning():
+         print(ndcg(recs, truth))
+         print(ndcg(recs, truth, k=2))
+ 
++    with pytest.raises(ValueError):
+     def test_ndcg_with_invalid_discount

@@ -1,0 +1,445 @@
+diff --git a/tests/test_inject.py b/tests/test_inject.py
+index 0e1f0a5..d0b0c3c 100644
+--- a/tests/test_inject.py
++++ b/tests/test_inject.py
+@@ -1,10 +1,12 @@
+ import pytest
+ 
++from ioccontainer import Container
+ from ioccontainer.exceptions import ParameterError
+ from ioccontainer.inject import inject_decorator
+ 
+ 
+-def test_inject_decorator_with_no_arguments():
+-    @inject_decorator(None)
++def test_inject_decorator_with_none_as_provider():
++    container = Container()
++
++    @inject_decorator(container)
+     def foo(bar):
+         assert bar == "bar"
+ 
+@@ -12,10 +14,12 @@ def test_inject_decorator_with_no_arguments():
+ 
+ 
+ def test_inject_decorator_with_arguments():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar, baz):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -23,10 +27,12 @@ def test_inject_decorator_with_arguments():
+ 
+ 
+ def test_inject_decorator_with_default_parameters():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -34,10 +40,12 @@ def test_inject_decorator_with_default_parameters():
+ 
+ 
+ def test_inject_decorator_with_mixed_arguments_and_defaults():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar, baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+ 
+-    @inject_decorator("foo", "qux")
++    @inject_decorator(container, "foo", "qux")
+     def foo(bar, baz="baz", qux="qux"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -45,10 +53,12 @@ def test_inject_decorator_with_mixed_arguments_and_defaults():
+ 
+ 
+ def test_inject_decorator_with_unhandled_parameter_type():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar, baz):
+         assert bar == "bar"
+         assert baz == "baz"
+ 
+-    @inject_decorator("foo", "qux")
++    @inject_decorator(container, "foo", "qux")
+     def foo(bar, baz, qux):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -56,10 +66,12 @@ def test_inject_decorator_with_unhandled_parameter_type():
+ 
+ 
+ def test_inject_decorator_with_invalid_parameter_name():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar, baz):
+         assert bar == "bar"
+         assert baz == "baz"
+ 
+-    @inject_decorator("foo", "qux")
++    @inject_decorator(container, "foo", "qux")
+     def foo(bar, baz, qux):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -67,10 +79,12 @@ def test_inject_decorator_with_invalid_parameter_name():
+ 
+ 
+ def test_inject_decorator_with_invalid_parameter_annotation():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar, baz):
+         assert bar == "bar"
+         assert baz == "baz"
+ 
+-    @inject_decorator("foo", "qux")
++    @inject_decorator(container, "foo", "qux")
+     def foo(bar, baz, qux):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -78,10 +92,12 @@ def test_inject_decorator_with_invalid_parameter_annotation():
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar, baz):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -89,10 +105,12 @@ def test_inject_decorator_with_multiple_decorators():
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_same_function():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar, baz):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -100,10 +118,12 @@ def test_inject_decorator_with_multiple_decorators_on_same_function():
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar, baz):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -111,10 +131,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions():
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar, baz):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -122,10 +144,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_annotations():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar, baz):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -133,10 +157,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar, baz):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -144,10 +170,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -155,10 +183,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -166,10 +196,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments_and_keywords():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -177,10 +209,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments_and_keywords_and_varargs():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -188,10 +222,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments_and_keywords_and_varargs_and_kwargs():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -199,10 +235,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments_and_keywords_and_varargs_and_kwargs_and_kwonlyargs():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -210,10 +248,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments_and_keywords_and_varargs_and_kwargs_and_kwonlyargs_and_kwonlydefaults():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -221,10 +261,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments_and_keywords_and_varargs_and_kwargs_and_kwonlyargs_and_kwonlydefaults_and_kwonlyvarargs():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -232,10 +274,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments_and_keywords_and_varargs_and_kwargs_and_kwonlyargs_and_kwonlydefaults_and_kwonlyvarargs_and_kwonlyvarargdefaults():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -243,10 +287,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments_and_keywords_and_varargs_and_kwargs_and_kwonlyargs_and_kwonlydefaults_and_kwonlyvarargs_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -254,10 +300,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments_and_keywords_and_varargs_and_kwargs_and_kwonlyargs_and_kwonlydefaults_and_kwonlyvarargs_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -265,10 +313,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments_and_keywords_and_varargs_and_kwargs_and_kwonlyargs_and_kwonlydefaults_and_kwonlyvarargs_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -276,10 +326,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments_and_keywords_and_varargs_and_kwargs_and_kwonlyargs_and_kwonlydefaults_and_kwonlyvarargs_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -287,10 +339,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments_and_keywords_and_varargs_and_kwargs_and_kwonlyargs_and_kwonlydefaults_and_kwonlyvarargs_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults_and_kwonlyvarargdefaults():
+-    @inject_decorator("foo")
++    container = Container()
++
++    @inject_decorator(container, "foo")
+     def foo(bar="bar"):
+         assert bar == "bar"
+ 
+-    @inject_decorator("foo", "baz")
++    @inject_decorator(container, "foo", "baz")
+     def foo(bar="bar", baz="baz"):
+         assert bar == "bar"
+         assert baz == "baz"
+@@ -298,10 +352,12 @@ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_co
+ 
+ 
+ def test_inject_decorator_with_multiple_decorators_on_different_functions_with_conflicting_names_and_annotations_and_defaults_and_arguments_and_keywords_and_varargs_and_kwargs_and_kwonlyargs_and_kwonlydefaults_and_kwonlyvarargs_and_kwonlyvarargdefaults_and_kwonlyvararg

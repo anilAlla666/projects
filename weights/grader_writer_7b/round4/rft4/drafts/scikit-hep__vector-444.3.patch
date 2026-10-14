@@ -1,0 +1,194 @@
+--- /dev/null
++++ b/tests/backends/test_object_grader.py
+@@ -0,0 +1,48 @@
++from __future__ import annotations
++import numpy
++import pytest
++import vector
++
++
++def test_array_casting():
++    obj = vector.obj(x=1, y=1)
++    assert isinstance(obj, vector.VectorObject2D)
++    assert isinstance(numpy.asanyarray(obj), vector.VectorNumpy2D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    obj = vector.obj(px=1, py=1)
++    assert isinstance(obj, vector.MomentumObject2D)
++    assert isinstance(numpy.asanyarray(obj), vector.MomentumNumpy2D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    obj = vector.obj(x=1, y=1, z=1)
++    assert isinstance(obj, vector.VectorObject3D)
++    assert isinstance(numpy.asanyarray(obj), vector.VectorNumpy3D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    obj = vector.obj(px=1, py=1, pz=1)
++    assert isinstance(obj, vector.MomentumObject3D)
++    assert isinstance(numpy.asanyarray(obj), vector.MomentumNumpy3D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    obj = vector.obj(x=1, y=1, z=1, t=1)
++    assert isinstance(obj, vector.VectorObject4D)
++    assert isinstance(numpy.asanyarray(obj), vector.VectorNumpy4D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    obj = vector.obj(px=1, py=1, pz=1, E=1)
++    assert isinstance(obj, vector.MomentumObject4D)
++    assert isinstance(numpy.asanyarray(obj), vector.MomentumNumpy4D)
++    assert numpy.asanyarray(obj).shape == ()
++
++    with pytest.raises(TypeError):
++        vector.obj(x=1, y=[1, 2])
++
++    with pytest.raises(TypeError):
++        vector.obj(x=1, y=complex(1, 2))
++
++    with pytest.raises(TypeError):
++        vector.obj(x=1, y=False)
++
++    with pytest.raises(TypeError):
++        vector.obj(x=[1, 2], y=2)
+--- /dev/null
++++ b/tests/backends/test_numba_object_grader.py
+@@ -0,0 +1,125 @@
++from __future__ import annotations
++import sys
++import numpy
++import pytest
++import vector
++import vector.backends.object
++
++
++numba = pytest.importorskip("numba")
++
++
++import vector.backends._numba_object  # noqa: E402
++
++
++pytestmark = pytest.mark.numba
++
++
++@numba.njit
++def get_magnitude_squared(v):
++    return v.magnitude_squared
++
++
++@numba.njit
++def get_mass2(v):
++    return v.mass2
++
++
++@numba.njit
++def get_magnitude(v):
++    return v.magnitude
++
++
++@numba.njit
++def get_mass(v):
++    return v.mass
++
++
++@numba.njit
++def get_rhophi(v):
++    return v.rhophi
++
++
++@numba.njit
++def get_xy(v):
++    return v.xy
++
++
++@numba.njit
++def get_z(t):
++    return t.z
++
++
++@numba.njit
++def get_t(t):
++    return t.t
++
++
++@numba.njit
++def get_rhophiz(t):
++    return t.rhophiz
++
++
++@numba.njit
++def get_xyz(t):
++    return t.xyz
++
++
++@numba.njit
++def get_rhophit(t):
++    return t.rhophit
++
++
++@numba.njit
++def get_xyzt(t):
++    return t.xyzt
++
++
++@numba.njit
++def get_pt(v):
++    return v.pt
++
++
++@numba.njit
++def get_perp(v):
++    return v.perp
++
++
++@numba.njit
++def get_eta(v):
++    return v.eta
++
++
++@numba.njit
++def get_phi(v):
++    return v.phi
++
++
++@numba.njit
++def get_theta(v):
++    return v.theta
++
++
++@numba.njit
++def get_r(v):
++    return v.r
++
++
++@numba.njit
++def get_rho(v):
++    return v.rho
++
++
++@numba.njit
++def get_scale2D(v, factor):
++    return v.scale2D(factor)
++
++
++@numba.njit
++def get_neg2D(v):
++    return v.neg2D
++
++
++@numba.njit
++def get_scale3D(v, factor):
++    return v.scale3D(factor)
++
++
++@numba.njit
++def get_neg3D(v):
++    return v.neg3D
++
++
++@numba.njit
++def get_scale4D(v, factor):
++    return v.scale4D(factor)
++
++
++@numba.njit
++def get_neg4D(v):
++    return v.neg4D

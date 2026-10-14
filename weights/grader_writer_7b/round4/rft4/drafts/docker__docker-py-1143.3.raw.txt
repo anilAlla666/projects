@@ -1,0 +1,102 @@
+--- /dev/null
++++ b/tests/unit/test_utils_test_grader.py
+@@ -0,0 +1,85 @@
++import base64
++import json
++import os
++import os.path
++import shutil
++import sys
++import tarfile
++import tempfile
++import pytest
++import six
++from docker.client import Client
++from docker.constants import DEFAULT_DOCKER_API_VERSION
++from docker.errors import DockerException, InvalidVersion
++from docker.utils import (
++    parse_repository_tag, parse_host, convert_filters, kwargs_from_env,
++    create_host_config, Ulimit, LogConfig, parse_bytes, parse_env_file,
++    exclude_paths, convert_volume_binds, decode_json_header, tar,
++    split_command, create_ipam_config, create_ipam_pool, parse_devices,
++)
++from docker.utils.utils import create_endpoint_config
++from docker.utils.ports import build_port_bindings, split_port
++from .. import base
++from ..helpers import make_tree
++
++
++TEST_CERT_DIR = os.path.join(
++    os.path.dirname(__file__),
++    'testdata/certs',
++)
++
++
++class UtilsTest(base.BaseTestCase):
++    @pytest.mark.parametrize('addr,expected', [
++        ('unix:///var/run/docker.sock', 'http+unix:///var/run/docker.sock'),
++        ('tcp://localhost:2375', 'http://localhost:2375'),
++        ('tcp://localhost:2375/', 'http://localhost:2375/'),
++        ('tcp://localhost:2375/path', 'http://localhost:2375/path'),
++        ('http://localhost:2375', 'http://localhost:2375'),
++        ('http://localhost:2375/', 'http://localhost:2375/'),
++        ('http://localhost:2375/path', 'http://localhost:2375/path'),
++        ('https://localhost:2375', 'https://localhost:2375'),
++        ('https://localhost:2375/', 'https://localhost:2375/'),
++        ('https://localhost:2375/path', 'https://localhost:2375/path'),
++        ('npipe://localhost', 'npipe://localhost'),
++        ('fd://', 'fd://'),
++        ('', ''),
++        ('path/to/socket', 'http+unix:///path/to/socket'),
++        ('/path/to/socket', 'http+unix:///path/to/socket'),
++        ('//path/to/socket', 'http+unix:///path/to/socket'),
++        ('::ffff:127.0.0.1', 'http://[::ffff:127.0.0.1]:2375'),
++        ('::ffff:127.0.0.1:', 'http://[::ffff:127.0.0.1]:2375'),
++        ('::ffff:127.0.0.1:8080', 'http://[::ffff:127.0.0.1]:8080'),
++        ('[::ffff:127.0.0.1]:8080', 'http://[::ffff:127.0.0.1]:8080'),
++        ('[::ffff:127.0.0.1]', 'http://[::ffff:127.0.0.1]:2375'),
++        ('[::ffff:127.0.0.1]:', 'http://[::ffff:127.0.0.1]:2375'),
++        ('[::ffff:127.0.0.1]:/path', 'http://[::ffff:127.0.0.1]:2375/path'),
++        ('[::ffff:127.0.0.1]:/path/', 'http://[::ffff:127.0.0.1]:2375/path/'),
++        ('[::ffff:127.0.0.1]:/path/file', 'http://[::ffff:127.0.0.1]:2375/path/file'),
++        ('[::ffff:127.0.0.1]:/path/file/', 'http://[::ffff:127.0.0.1]:2375/path/file/'),
++        ('[::ffff:127.0.0.1]/path', 'http://[::ffff:127.0.0.1]:2375/path'),
++        ('[::ffff:127.0.0.1]/path/', 'http://[::ffff:127.0.0.1]:2375/path/'),
++        ('[::ffff:127.0.0.1]/path/file', 'http://[::ffff:127.0.0.1]:2375/path/file'),
++        ('[::ffff:127.0.0.1]/path/file/', 'http://[::ffff:127.0.0.1]:2375/path/file/'),
++    ])
++    def test_parse_host(self, addr, expected):
++        result = parse_host(addr)
++        assert result == expected
++
++    @pytest.mark.parametrize('addr,expected', [
++        ('unix:///var/run/docker.sock', 'http+unix:///var/run/docker.sock'),
++        ('tcp://localhost:2375', 'http://localhost:2375'),
++        ('tcp://localhost:2375/', 'http://localhost:2375/'),
++        ('tcp://localhost:2375/path', 'http://localhost:2375/path'),
++        ('http://localhost:2375', 'http://localhost:2375'),
++        ('http://localhost:2375/', 'http://localhost:2375/'),
++        ('http://localhost:2375/path', 'http://localhost:2375/path'),
++        ('https://localhost:2375', 'https://localhost:2375'),
++        ('https://localhost:2375/', 'https://localhost:2375/'),
++        ('https://localhost:2375/path', 'https://localhost:2375/path'),
++        ('npipe://localhost', 'npipe://localhost'),
++        ('fd://', 'fd://'),
++        ('', ''),
++        ('path/to/socket', 'http+unix:///path/to/socket'),
++        ('/path/to/socket', 'http+unix:///path/to/socket'),
++        ('//path/to/socket', 'http+unix:///path/to/socket'),
++        ('[::ffff:127.0.0.1]:8080', 'http://[::ffff:127.0.0.1]:8080'),
++        ('[::ffff:127.0.0.1]:', 'http://[::ffff:127.0.0.1]:2375'),
++        ('[::ffff:127.0.0.1]:/path', 'http://[::ffff:127.0.0.1]:2375/path'),
++        ('[::ffff:127.0.0.1]:/path/', 'http://[::ffff:127.0.0.1]:2375/path/'),
++        ('[::ffff:127.0.0.1]:/path/file', 'http://[::ffff:127.0.0.1]:2375/path/file'),
++        ('[::ffff:127.0.0.1]:/path/file/', 'http://[::ffff:127.0.0.1]:2375/path/file/'),
++        ('[::ffff:127.0.0.1]/path', 'http://[::ffff:127.0.0.1]:2375/path'),
++        ('[::ffff:127.0.0.1]/path/', 'http://[::ffff:127.0.0.1]:2375/path/'),
++        ('[::ffff:127.0.0.1]/path/file', 'http://[::ffff:127.0.0.1]:2375/path/file'),
++        ('[::ffff:127.0.0.1]/path/file/', 'http://[::ffff:127.0.0.1]:2375/path/file/'),
++    ])
++    def test_parse_host_ipv6(self, addr, expected):
++        result = parse_host(addr, True)
++        assert result == expected

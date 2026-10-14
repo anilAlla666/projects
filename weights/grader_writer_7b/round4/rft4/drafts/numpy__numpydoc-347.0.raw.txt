@@ -1,0 +1,302 @@
+--- /dev/null
++++ b/numpydoc/tests/test_numpydoc_grader.py
+@@ -0,0 +1,70 @@
++import pytest
++from io import StringIO
++from copy import deepcopy
++from numpydoc.numpydoc import (
++    mangle_docstrings, _clean_text_signature, update_config
++)
++from numpydoc.xref import DEFAULT_LINKS
++from sphinx.ext.autodoc import ALL
++from sphinx.util import logging
++
++
++class MockConfig():
++    numpydoc_use_plots = False
++    numpydoc_use_blockquotes = True
++    numpydoc_show_class_members = True
++    numpydoc_show_inherited_class_members = True
++    numpydoc_class_members_toctree = True
++    numpydoc_xref_param_type = False
++    numpydoc_xref_aliases = {}
++    numpydoc_xref_aliases_complete = deepcopy(DEFAULT_LINKS)
++    numpydoc_xref_ignore = set()
++    templates_path = []
++    numpydoc_edit_link = False
++    numpydoc_citation_re = '[a-z0-9_.-]+'
++    numpydoc_attributes_as_param_list = True
++    numpydoc_validation_checks = set()
++    numpydoc_validation_exclude = set()
++
++
++class MockBuilder():
++    config = MockConfig()
++
++
++class MockApp():
++    config = MockConfig()
++    builder = MockBuilder()
++    translator = None
++
++    def __init__(self):
++        pass
++
++
++@pytest.fixture(scope="module")
++def mock_app():
++    return MockApp()
++
++
++def _get_mock_docstring(name):
++    """Return the mock docstring corresponding to the given name."""
++    return {
++        "one_liner": "This is a docstring.",
++        "plot": """Generate a plot.
+
++Render the data in the Series as a matplotlib plot of the specified kind.
+
++Parameters
++----------
++kind : str
++    Kind of matplotlib plot, e.g.:
+
++    * 'bar' or 'barh' for Bar Plots
++    * 'line' for Line Plot
++    * 'pie' for Pie Chart
++
++color : str
++    Color of the plot""",
++    }.get(name, "")
++
++
++if __name__ == "__main__":
++    import pytest
++    pytest.main()
+--- /dev/null
++++ b/numpydoc/tests/test_validate_grader.py
+@@ -0,0 +1,203 @@
++import pytest
++import numpydoc.validate
++import numpydoc.tests
++
++
++validate_one = numpydoc.validate.validate
++
++
++class GoodDocStrings:
++    """
++    Collection of good doc strings.
++
++    This class contains a lot of docstrings that should pass the validation
++    script without any errors.
++
++    See Also
++    --------
++    AnotherClass : With its description.
++
++    Examples
++    --------
++    >>> result = 1 + 1
++    """
++
++    def one_liner(self):
++        """Allow one liner docstrings (including quotes)."""
++        # This should fail, but not because of the position of the quotes
++        pass
++
++    def plot(self, kind, color="blue", **kwargs):
++        """
++        Generate a plot.
++
++        Render the data in the Series as a matplotlib plot of the specified
++        kind.
++
++        Parameters
++        ----------
++        kind : str
++            Kind of matplotlib plot, e.g.:
++
++            * 'bar' or 'barh' for Bar Plots
++            * 'line' for Line Plot
++            * 'pie' for Pie Chart
++
++        color : str
++            Color of the plot
++
++        Returns
++        -------
++        matplotlib.axes.Axes
++            The Axes object with the plot drawn onto it.
++
++        Notes
++        -----
++        This method uses ``matplotlib.pyplot`` to create plots.
++
++        Warnings
++        --------
++        Using a pie chart might make your data look bad!
++
++        Raises
++        ------
++        ValueError
++            If the kind of plot is unsupported.
++
++        See Also
++        --------
++        pandas.Series.plot.line
++
++        Examples
++        --------
++        .. plot::
++           :context: close-figs
++
++           >>> s.plot(kind='bar')
++        """
++        pass
++
++    def two_plot(self, kind, color="blue", **kwargs):
++        """
++        Two different kinds of plots.
++
++        Parameters
++        ----------
++        kind : {'bar', 'line'}
++            Kind of matplotlib plot.
++        """
++        pass
++
++    def seealso(self):
++        """
++        See Also
++        --------
++        AnotherFunction : For a nice description.
++        """
++        pass
++
++    def seealso_tuple(self):
++        """
++        See Also
++        --------
++        ('AnotherFunction',)
++        """
++        pass
++
++    def seealso_dict(self):
++        """
++        See Also
++        --------
++        {'another_function': 'For another description.'}
++        """
++        pass
++
++    def returns_none(self):
++        """
++        Return nothing
++
++        Returns
++        -------
++        Nothing.
++        """
++        pass
++
++    def yield_integers(self):
++        """
++        Yield integers
++
++        Yields
++        ------
++        int
++            An integer.
++        """
++        pass
++
++    def raises_value_error(self):
++        """
++        Raise an exception
++
++        Raises
++        ------
++        ValueError
++            If something goes wrong
++        """
++        pass
++
++
++class BadDocStrings(GoodDocStrings):
++    def missing_return_type(self):
++        """
++        Missing return type
++
++        Returns
++        -------
++        Something
++        """
++        pass
++
++    def missing_return_description(self):
++        """
++        Missing return description
++
++        Returns
++        -------
++        int
++        """
++        pass
++
++
++class ValidatorTest(numpydoc.tests.TestDocString):
++    @pytest.mark.parametrize(
++        "klass, func, msgs",
++        [
++            (
++                "GoodDocStrings",
++                "one_liner",
++                (),
++            ),
++            (
++                "GoodDocStrings",
++                "plot",
++                (),
++            ),
++            (
++                "GoodDocStrings",
++                "two_plot",
++                (),
++            ),
++            (
++                "GoodDocStrings",
++                "seealso",
++                (),
++            ),
++            (
++                "GoodDocStrings",
++                "seealso_tuple",
++                (),
++            ),
++            (
++                "GoodDocStrings",
++                "seealso_dict",
++                (),
++            ),
++            (
++                "GoodDocStrings",
++                "returns_none",
++                (),
++            ),
++            (
++                "GoodDocStrings",
++                "yield_integers",
++                (),
++            ),
++            (
++                "GoodDocStrings",
++                "raises_value_error",
++                (),
++            ),
++        ],
++    )
++    def test_good_docstrings(self, klass, func, msgs):
++        result = validate_one(self._import_path(klass=klass, func=func))
++        for msg in msgs:
++            assert msg in " ".join(err[1] for err in result["errors"])

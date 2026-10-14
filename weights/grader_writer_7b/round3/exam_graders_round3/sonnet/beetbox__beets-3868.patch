@@ -1,0 +1,31 @@
+--- a/test/test_web.py
++++ b/test/test_web.py
+@@ -166,6 +166,28 @@
+         self.assertEqual(res_json['items'][0]['album'],
+                          u'other album')
+         self.assertEqual(res_json['items'][0]['id'], 1)
+ 
++    def test_get_album_artpath_included_with_include_paths(self):
++        self.lib.add(Album(album=u'art album', artpath=b'/art_path_3'))
++        web.app.config['INCLUDE_PATHS'] = True
++
++        response = self.client.get('/album/3')
++        res_json = json.loads(response.data.decode('utf-8'))
++
++        self.assertEqual(response.status_code, 200)
++        self.assertEqual(res_json['id'], 3)
++        self.assertEqual(res_json['artpath'], u'/art_path_3')
++
++    def test_get_album_artpath_hidden_without_include_paths(self):
++        self.lib.add(Album(album=u'art album', artpath=b'/art_path_3'))
++        web.app.config['INCLUDE_PATHS'] = False
++
++        response = self.client.get('/album/3')
++        res_json = json.loads(response.data.decode('utf-8'))
++
++        self.assertEqual(response.status_code, 200)
++        self.assertNotIn('artpath', res_json)
++
+     def test_get_stats(self):
+         response = self.client.get('/stats')
+         res_json = json.loads(response.data.decode('utf-8'))

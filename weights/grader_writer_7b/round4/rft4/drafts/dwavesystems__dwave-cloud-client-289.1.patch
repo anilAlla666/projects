@@ -1,0 +1,196 @@
+--- /dev/null
++++ b/tests/test_client_grader.py
+@@ -0,0 +1,157 @@
++"""
++Tests the ability to connect to the SAPI server with the `dwave.cloud.qpu.Client`.
++
++test_mock_solver_loading.py duplicates some of these tests against a mock server.
++"""
++
++
++from __future__ import absolute_import
++import json
++import unittest
++import warnings
++import requests.exceptions
++from plucky import merge
++from dwave.cloud.config import load_config
++from dwave.cloud.client import Client
++from dwave.cloud.solver import Solver
++from dwave.cloud.exceptions import (
++    SolverAuthenticationError, SolverError, SolverNotFoundError)
++from dwave.cloud.testing import mock
++import dwave.cloud
++from tests import config
++
++
++@mock.patch('dwave.cloud.client.load_config')
++@mock.patch('dwave.cloud.client.Session.post')
++class TestClient(unittest.TestCase):
++    def setUp(self):
++        self.solver1 = Solver({'id': 'solver1', 'parameters': {'num_reads': []}, 'properties': {'num_qubits': 2}})
++        self.solver2 = Solver({'id': 'solver2', 'parameters': {'num_reads': []}, 'properties': {'num_qubits': 4}})
++        self.solver3 = Solver({'id': 'solver3', 'parameters': {'num_reads': []}, 'properties': {'num_qubits': 4}})
++        self.solvers = [self.solver1, self.solver2, self.solver3]
++
++        self.session = mock.MagicMock(spec=dwave.cloud.client.Session)
++        self.post = self.session.post
++        self.config = {}
++        self.endpoint = 'http://localhost'
++
++    @property
++    def client(self):
++        return Client(endpoint=self.endpoint, session=self.session, config=self.config)
++
++    def test_filter_by_property_with_none_values(self):
++        # filter by Solver inferred properties
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc__eq=True), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc__eq=False), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc__eq=None), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc__eq=[True, False, None]), [self.solver1, self.solver2, self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc__in=True), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc__in=False), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc__in=None), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc__in=[True, False, None]), [self.solver1, self.solver2, self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc__regex='foo|bar'), [])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc__regex='^foo|bar$'), [self.solver1, self.solver2, self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc__regex='^foo$'), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc__regex='^bar$'), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc__regex='^foobar$'), [self.solver3])
++
++        # filter by solver property
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc=True), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc=False), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc=None), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc=[True, False, None]), [self.solver1, self.solver2, self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc_in=True), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc_in=False), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc_in=None), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc_in=[True, False, None]), [self.solver1, self.solver2, self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc_regex='foo|bar'), [])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc_regex='^foo|bar$'), [self.solver1, self.solver2, self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc_regex='^foo$'), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc_regex='^bar$'), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(properties__vfyc_regex='^foobar$'), [self.solver3])
++
++        # filter by Solver parameter
++        self.assertEqual(
++            self.client.get_solvers(parameters__num_reads=1), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(parameters__num_reads=2), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(parameters__num_reads=3), [self.solver3])
++
++        # filter by solver parameter
++        self.assertEqual(
++            self.client.get_solvers(num_reads=1), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(num_reads=2), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(num_reads=3), [self.solver3])
++
++        # filter by Solver derived feature
++        self.assertEqual(
++            self.client.get_solvers(is_qpu=True), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(is_qpu=False), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(is_qpu=None), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(is_qpu=[True, False, None]), [self.solver1, self.solver2, self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(is_online=True), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(is_online=False), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(is_online=None), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(is_online=[True, False, None]), [self.solver1, self.solver2, self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(is_software=True), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(is_software=False), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(is_software=None), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(is_software=[True, False, None]), [self.solver1, self.solver2, self.solver3])
++
++        # filter by solver derived feature
++        self.assertEqual(
++            self.client.get_solvers(qpu=True), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(qpu=False), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(qpu=None), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(qpu=[True, False, None]), [self.solver1, self.solver2, self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(software=True), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(software=False), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(software=None), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(software=[True, False, None]), [self.solver1, self.solver2, self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(online=True), [self.solver1])
++        self.assertEqual(
++            self.client.get_solvers(online=False), [self.solver2])
++        self.assertEqual(
++            self.client.get_solvers(online=None), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(online=[True, False, None]), [self.solver1, self.solver2, self.solver3])
++
++        # filter by Solver property range
++        self.assertEqual(
++            self.client.get_solvers(properties__num_reads_range__gte=(0, 0)), self.solvers)
++        self.assertEqual(
++            self.client.get_solvers(properties__num_reads_range__gte=(1, 0)), self.solvers)
++        self.assertEqual(
++            self.client.get_solvers(properties__num_reads_range__gte=(2, 0)), self.solvers)
++        self.assertEqual(
++            self.client.get_solvers(properties__num_reads_range__gte=(3, 0)), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(properties__num_reads_range__gte=(4, 0)), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(properties__num_reads_range__gte=(5, 0)), [self.solver3])
++
++        # filter by solver property range
++        self.assertEqual(
++            self.client.get_solvers(num_reads_range__gte=(0, 0)), self.solvers)
++        self.assertEqual(
++            self.client.get_solvers(num_reads_range__gte=(1, 0)), self.solvers)
++        self.assertEqual(
++            self.client.get_solvers(num_reads_range__gte=(2, 0)), self.solvers)
++        self.assertEqual(
++            self.client.get_solvers(num_reads_range__gte=(3, 0)), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(num_reads_range__gte=(4, 0)), [self.solver3])
++        self.assertEqual(
++            self.client.get_solvers(num_reads_range__gte=(5, 0)), [self.solver3])

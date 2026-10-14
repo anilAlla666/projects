@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/tests/test_functions_grader.py
+@@ -0,0 +1,25 @@
++import numpy as np
++import pytest
++import rowan
++
++
++def test_multiple_quats():
++    q = rowan.normalize(
++        [[0.707, 0, 0, 0.707],
++         [0, 0, 0, 1]]
++    )
++
++    result = rowan.to_axis_angle(q)
++    assert isinstance(result, tuple)
++    assert len(result) == 2
++    assert all(isinstance(item, np.ndarray) for item in result)
++    assert result[0].shape == (2, 3)
++    assert result[1].shape == (2,)
++
++    expected_axes = np.array([
++        [0, 0, 1],
++        [0, 0, 0]
++    ])
++
++    expected_angles = np.array([np.pi/4, 0])
++    np.testing.assert_allclose(result[0], expected_axes)
++    np.testing.assert_allclose(result[1], expected_angles)

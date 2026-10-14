@@ -1,0 +1,102 @@
+--- /dev/null
++++ b/tests/providers/test_person_grader.py
+@@ -0,0 +1,101 @@
++import datetime
++import re
++import unittest
++from unittest import mock
++from faker import Faker
++from faker.providers.person.ar_AA import Provider as ArProvider
++from faker.providers.person.cs_CZ import Provider as CsCZProvider
++from faker.providers.person.fi_FI import Provider as FiProvider
++from faker.providers.person.hy_AM import Provider as HyAmProvider
++from faker.providers.person.ne_NP import Provider as NeProvider
++from faker.providers.person.pl_PL import Provider as PlPLProvider
++from faker.providers.person.pl_PL import checksum_identity_card_number as pl_checksum_identity_card_number
++from faker.providers.person.ru_RU import Provider as RuProvider
++from faker.providers.person.ru_RU import translit
++from faker.providers.person.sv_SE import Provider as SvSEProvider
++from faker.providers.person.ta_IN import Provider as TaINProvider
++from faker.providers.person.zh_CN import Provider as ZhCNProvider
++from faker.providers.person.zh_TW import Provider as ZhTWProvider
++
++
++class TestRuRU(unittest.TestCase):
++    """ Tests person in the ru_RU locale """
++
++    def setUp(self):
++        self.fake = Faker('ru_RU')
++        Faker.seed(0)
++
++    def test_language_name(self):
++        lang = self.fake.language_name()
++        assert lang in RuProvider.languages
++
++
++class TestZhCN(unittest.TestCase):
++    """ Tests person in the zh_CN locale """
++
++    def setUp(self):
++        self.fake = Faker('zh_CN')
++        Faker.seed(0)
++
++    def test_middle_name(self):
++        name = self.fake.middle_name()
++        assert name in ZhCNProvider.middle_names
++
++    def test_middle_name_male(self):
++        name = self.fake.middle_name_male()
++        assert name in ZhCNProvider.middle_names_male
++
++    def test_middle_name_female(self):
++        name = self.fake.middle_name_female()
++        assert name in ZhCNProvider.middle_names_female
++
++
++class TestZhTW(unittest.TestCase):
++    """ Tests person in the zh_TW locale """
++
++    def setUp(self):
++        self.fake = Faker('zh_TW')
++        Faker.seed(0)
++
++    def test_middle_name(self):
++        name = self.fake.middle_name()
++        assert name in ZhTWProvider.middle_names
++
++    def test_middle_name_male(self):
++        name = self.fake.middle_name_male()
++        assert name in ZhTWProvider.middle_names_male
++
++    def test_middle_name_female(self):
++        name = self.fake.middle_name_female()
++        assert name in ZhTWProvider.middle_names_female
++
++
++class TestSvSE(unittest.TestCase):
++    """ Tests person in the sv_SE locale """
++
++    def setUp(self):
++        self.fake = Faker('sv_SE')
++        Faker.seed(0)
++
++    def test_prefix(self):
++        name = self.fake.prefix()
++        assert name in SvSEProvider.prefixes
++
++    def test_suffix(self):
++        name = self.fake.suffix()
++        assert name in SvSEProvider.suffixes
++
++
++class TestPlPL(unittest.TestCase):
++    """ Tests person in the pl_PL locale """
++
++    def setUp(self):
++        self.fake = Faker('pl_PL')
++        Faker.seed(0)
++
++    def test_identification_card_number(self):
++        id_num = self.fake.identity_card_number()
++        assert len(id_num) == 11
++        assert pl_checksum_identity_card_number(id_num)

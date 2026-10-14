@@ -1,0 +1,55 @@
+--- /dev/null
++++ b/tests/test_show_versions_grader.py
+@@ -0,0 +1,47 @@
++from __future__ import absolute_import, division, print_function
++
++
++try:
++    from unittest.mock import patch
++except ImportError:
++    from mock import patch
++
++
++import pytest
++import skhep.utils._show_versions as sv
++
++
++def test_get_sys_info():
++    info = sv._get_sys_info()
++    assert isinstance(info, dict)
++    assert "python" in info
++    assert "executable" in info
++    assert "machine" in info
++
++
++@patch("platform.platform")
++def test_get_sys_info_mock(plat_patch):
++    plat_patch.return_value = "Test"
++
++    info = sv._get_sys_info()
++    assert isinstance(info, dict)
++    assert info["machine"] == "Test"
++
++
++@pytest.mark.skipif(
++    hasattr(sys, "implementation") and sys.implementation.name == "pypy",
++    reason="PyPy does not have __package__.",
++)
++def test_get_deps_info_skhep_deps():
++    info = sv._get_deps_info(sv.skhep_deps)
++    assert isinstance(info, dict)
++    assert len(info.keys()) > 0
++    for key in sv.skhep_deps:
++        assert key in info
++
++
++@pytest.mark.skipif(
++    hasattr(sys, "implementation") and sys.implementation.name == "pypy",
++    reason="PyPy does not have __package__.",
++)
++def test_get_deps_info_scipy_deps():
++    info = sv._get_deps_info(sv.scipy_deps)
++    assert isinstance(info, dict)
++    assert len(info.keys()) > 0
++    for key in sv.scipy_deps:
++        assert key in info

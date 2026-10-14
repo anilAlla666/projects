@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/tests/test_env_grader.py
+@@ -0,0 +1,24 @@
++from __future__ import absolute_import
++from __future__ import unicode_literals
++import pytest
++from .compat import Mock
++from django.utils.encoding import force_text
++
++
++def test_custom_db_scheme(env):
++    env.read_env()
++
++    class CustomBackend(Mock):
++        pass
++
++    env.db('DATABASE_URL', engine=CustomBackend)
++
++    assert env.str('DATABASE_URL') == 'custombackend://localhost/dbname'
++
++    config = env.db_url_config('custombackend://localhost/dbname')
++    assert config['ENGINE'] == CustomBackend
++    assert config['NAME'] == 'dbname'
++
++    config = env.db_url_config('custombackend://localhost/dbname', engine='django.db.backends.sqlite3')
++    assert config['ENGINE'] == 'django.db.backends.sqlite3'
++    assert config['NAME'] == 'dbname'

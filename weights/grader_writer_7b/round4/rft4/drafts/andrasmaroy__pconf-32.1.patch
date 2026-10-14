@@ -1,0 +1,143 @@
+--- /dev/null
++++ b/tests/test_pconf_grader.py
+@@ -0,0 +1,141 @@
++from unittest import TestCase
++from mock import patch, MagicMock
++import pconf
++from pconf import Pconf
++from pconf.store.file import File
++from pconf.store.env import Env
++from pconf.store.memory import Memory
++from pconf.store.argv import Argv
++
++
++TEST_FILE_PATH = "test"
++
++
++TEST_FILE_RESULT = {"file": "result"}
++
++
++TEST_ENV_RESULT = {"env": "result"}
++
++
++TEST_DEFAULTS = {"defaults": "result"}
++
++
++TEST_OVERRIDES = {"overrides": "result"}
++
++
++TEST_ARGV = {"name": "test", "short_name": "t", "type": str, "help": "help text"}
++
++
++TEST_ARGV_RESULT = {"test": True, "argv": "result"}
++
++
++class TestPconf(TestCase):
++    def setUp(self):
++        Pconf.clear()
++
++    @patch("pconf.store.memory.Memory", new=MagicMock(), spec=Memory)
++    def test_overrides(self):
++        Pconf.overrides(TEST_OVERRIDES)
++
++        pconf.store.memory.Memory.assert_called_once_with(TEST_OVERRIDES)
++        self.assertEqual(len(Pconf._Pconf__hierarchy), 1)
++
++    def test_overrides_get(self):
++        Pconf.defaults(TEST_OVERRIDES)
++        self.assertEqual(Pconf.get(), TEST_OVERRIDES)
++
++    @patch("pconf.store.argv.Argv", new=MagicMock(), spec=Argv)
++    def test_argv(self):
++        arg_name = TEST_ARGV["name"]
++        Pconf.argv(arg_name)
++
++        pconf.store.argv.Argv.assert_called_once_with(arg_name, None, None, None)
++        self.assertEqual(len(Pconf._Pconf__hierarchy), 1)
++
++    @patch("pconf.store.argv.Argv", new=MagicMock(), spec=Argv)
++    def test_argv_type_optional(self):
++        arg_name = TEST_ARGV["name"]
++        arg_short_name = TEST_ARGV["short_name"]
++        arg_type = TEST_ARGV["type"]
++        arg_help = TEST_ARGV["help"]
++        Pconf.argv(arg_name, arg_short_name, arg_type, arg_help)
++
++        pconf.store.argv.Argv.assert_called_once_with(
++            arg_name, arg_short_name, arg_type, arg_help
++        )
++        self.assertEqual(len(Pconf._Pconf__hierarchy), 1)
++
++    @patch("pconf.store.argv.Argv")
++    def test_argv_get(self, mock_argv):
++        mocked_argv = MagicMock()
++        mocked_argv.get.return_value = TEST_ARGV_RESULT
++        mock_argv.return_value = mocked_argv
++
++        arg_name = TEST_ARGV["name"]
++        Pconf.argv(arg_name)
++        results = Pconf.get()
++
++        for key in TEST_ARGV_RESULT:
++            self.assertTrue(key in results)
++            self.assertEqual(results[key], TEST_ARGV_RESULT[key])
++
++    @patch("pconf.Pconf")
++    def test_multiple_gets_dont_flip_order(self, mock_Pconf):
++        mock_Pconf._Pconf__hierarchy = [Env()]
++        Pconf.env()
++
++        mock_Pconf._Pconf__hierarchy = [Memory({"key": "value"})]
++        Pconf.defaults({"key": "value"})
++
++        mock_Pconf._Pconf__hierarchy = [Memory({"key": "value"})]
++        Pconf.overrides({"key": "value"})
++
++        mock_Pconf._Pconf__hierarchy = [
++            Memory({"key": "value"}),
++            Env(),
++            Memory({"key": "value"}),
++            Env(),
++        ]
++        Pconf.argv("arg")
++
++        # This will break if the hierarchy gets reversed
++        self.assertEqual(len(mock_Pconf._Pconf__hierarchy), 4)
++
++        results = Pconf.get()
++        self.assertIn("key", results)
++        self.assertEqual(results["key"], "value")
++
++        # Check if the hierarchy was reversed
++        for i in range(1, len(mock_Pconf._Pconf__hierarchy)):
++            self.assertNotEqual(mock_Pconf._Pconf__hierarchy[i - 1], mock_Pconf._Pconf__hierarchy[i])
++
++    @patch("pconf.Pconf")
++    def test_multiple_gets_dont_reverse_hierarchy(self, mock_Pconf):
++        mock_Pconf._Pconf__hierarchy = [Env()]
++        Pconf.env()
++
++        mock_Pconf._Pconf__hierarchy = [Memory({"key": "value"})]
++        Pconf.defaults({"key": "value"})
++
++        mock_Pconf._Pconf__hierarchy = [Memory({"key": "value"})]
++        Pconf.overrides({"key": "value"})
++
++        mock_Pconf._Pconf__hierarchy = [
++            Memory({"key": "value"}),
++            Env(),
++            Memory({"key": "value"}),
++            Env(),
++        ]
++        Pconf.argv("arg")
++
++        # This will break if the hierarchy gets reversed
++        self.assertEqual(len(mock_Pconf._Pconf__hierarchy), 4)
++
++        results = Pconf.get()
++        self.assertIn("key", results)
++        self.assertEqual(results["key"], "value")
++
++        # Check if the hierarchy was reversed
++        for i in range(1, len(mock_Pconf._Pconf__hierarchy)):
++            self.assertNotEqual(mock_Pconf._Pconf__hierarchy[i - 1], mock_Pconf._Pconf__hierarchy[i])

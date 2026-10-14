@@ -1,0 +1,165 @@
+--- /dev/null
++++ b/tests/test_handler_grader.py
+@@ -0,0 +1,154 @@
++import asyncio
++import datetime
++import pytest
++from aiohttp import web
++from aiohttp_xmlrpc import handler
++from aiohttp_xmlrpc.exceptions import ApplicationError
++from lxml import etree
++from lxml.builder import E
++
++
++pytest_plugins = (
++    "aiohttp.pytest_plugin",
++    "aiohttp_xmlrpc.pytest_plugin",
++)
++
++
++class XMLRPCMain(handler.XMLRPCView):
++    def rpc_test(self):
++        return None
++
++    def rpc_args(self, *args):
++        return len(args)
++
++    def rpc_kwargs(self, **kwargs):
++        return len(kwargs)
++
++    def rpc_args_kwargs(self, *args, **kwargs):
++        return len(args) + len(kwargs)
++
++    def rpc_exception(self):
++        raise Exception("YEEEEEE!!!")
++
++    def rpc_strings(self, s1, s2):
++        return s1 == s2
++
++    def rpc_datetime(self, test_datetime_1, test_datetime_2):
++        return test_datetime_1, test_datetime_2
++
++    def rpc_future(self):
++        return 42
++
++
++async def create_app():
++    app = web.Application()
++    app.router.add_route("*", "/", XMLRPCMain)
++    return app
++
++
++@pytest.fixture
++async def client(test_client):
++    client = await test_client(create_app)
++    yield client
++
++
++async def test_5_args_kwargs(test_client):
++    request = E.methodCall(
++        E.methodName("args_kwargs"),
++        E.params(
++            E.param(
++                E.value(E.int(100)),
++            ),
++            E.param(
++                E.value(E.int(200)),
++            ),
++            E.param(
++                E.value(
++                    E.struct(
++                        E.member(
++                            E.name("key1"),
++                            E.value(E.int(1)),
++                        ),
++                        E.member(
++                            E.name("key2"),
++                            E.value(E.int(2)),
++                        ),
++                    ),
++                ),
++            ),
++        ),
++    )
++    client = await test_client(create_app)
++
++    async with client.post(
++        "/",
++        data=etree.tostring(request, xml_declaration=True, pretty_print=True),
++        headers={"Content-Type": "text/xml"},
++    ) as resp:
++        assert resp.status == 200
++
++        root = etree.fromstring((await resp.read()))
++    assert root.xpath("//value/int/text()")[0] == "3"
++
++
++async def test_5_args_kwargs_with_no_args(test_client):
++    request = E.methodCall(
++        E.methodName("args_kwargs"),
++        E.params(),
++    )
++    client = await test_client(create_app)
++
++    async with client.post(
++        "/",
++        data=etree.tostring(request, xml_declaration=True, pretty_print=True),
++        headers={"Content-Type": "text/xml"},
++    ) as resp:
++        assert resp.status == 200
++
++        root = etree.fromstring((await resp.read()))
++    assert root.xpath("//value/int/text()")[0] == "0"
++
++
++async def test_5_args_kwargs_with_no_kwargs(test_client):
++    request = E.methodCall(
++        E.methodName("args_kwargs"),
++        E.params(
++            E.param(
++                E.value(E.int(100)),
++            ),
++            E.param(
++                E.value(E.int(200)),
++            ),
++        ),
++    )
++    client = await test_client(create_app)
++
++    async with client.post(
++        "/",
++        data=etree.tostring(request, xml_declaration=True, pretty_print=True),
++        headers={"Content-Type": "text/xml"},
++    ) as resp:
++        assert resp.status == 200
++
++        root = etree.fromstring((await resp.read()))
++    assert root.xpath("//value/int/text()")[0] == "2"
++
++
++async def test_5_args_kwargs_with_extra_arg(test_client):
++    request = E.methodCall(
++        E.methodName("args_kwargs"),
++        E.params(
++            E.param(
++                E.value(E.int(100)),
++            ),
++            E.param(
++                E.value(E.int(200)),
++            ),
++            E.param(
++                E.value(E.string("extra")),
++            ),
++        ),
++    )
++    client = await test_client(create_app)
++
++    async with client.post(
++        "/",
++        data=etree.tostring(request, xml_declaration=True, pretty_print=True),
++        headers={"Content-Type": "text/xml"},
++    ) as resp:
++        assert resp.status == 200
++
++        root = etree.fromstring((await resp.read()))
++    assert root.xpath("//value/int/text()")[0] == "2"

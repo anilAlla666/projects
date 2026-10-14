@@ -1,0 +1,68 @@
+--- /dev/null
++++ b/tests/test_plot_grader.py
+@@ -0,0 +1,68 @@
++import numpy as np
++import pytest
++from hist import Hist
++
++
++@pytest.fixture
++def h():
++    h = Hist.new.Regular(10, 0, 1, name="x").StrCategory(["a", "b"], name="y").Int64()
++    x = np.random.rand(1000)
++    y = np.random.choice(["a", "b"], 1000)
++    h.fill(x=x, y=y)
++    return h
++
++
++@pytest.mark.parametrize(
++    ("overlay", "expected_labels"),
++    (
++        (None, ["a", "b"]),
++        ("x", ["a", "b"]),
++        ("y", list(range(10))),
++    ),
++)
++def test_overlay(h, overlay, expected_labels):
++    fig, ax = h.plot(overlay=overlay)
++    assert len(ax.patches) == len(expected_labels)
++    labels = [p.get_label() for p in ax.patches]
++    assert labels == expected_labels
++
++
++@pytest.mark.parametrize(
++    ("overlay", "expected_nbins"),
++    (
++        (None, 10),
++        ("x", 10),
++        ("y", 2),
++    ),
++)
++def test_nbins(h, overlay, expected_nbins):
++    _, ax = h.plot(overlay=overlay)
++    assert len(ax.patches) == expected_nbins
++
++
++@pytest.mark.parametrize(
++    ("overlay", "expected_title"),
++    (
++        (None, "x"),
++        ("x", "x"),
++        ("y", "y"),
++    ),
++)
++def test_titles(h, overlay, expected_title):
++    _, ax = h.plot(overlay=overlay)
++    assert ax.get_xlabel() == expected_title
++
++
++def test_invalid_overlay():
++    h = Hist.new.Regular(10, 0, 1, name="x").Regular(2, 0, 1, name="y").Int64()
++    with pytest.raises(ValueError):
++        h.plot(overlay="z")
++
++
++def test_no_overlay():
++    h = Hist.new.Regular(10, 0, 1, name="x").Regular(2, 0, 1, name="y").Int64()
++    with pytest.warns(UserWarning):
++        h.plot()

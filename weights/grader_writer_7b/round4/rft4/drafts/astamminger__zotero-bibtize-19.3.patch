@@ -1,0 +1,34 @@
+--- /dev/null
++++ b/tests/test_zotero_bibtize_grader.py
+@@ -0,0 +1,32 @@
++import pytest
++
++
++from zotero_bibtize import BibEntry
++
++
++def test_field_splitting_abstract_with_comma():
++    """Test field splitting when abstract contains ','.
++
++    Abstract is often used to store long descriptions and it is common for these
++    to contain commas. We have to make sure that the BibEntry parser correctly
++    handles such cases.
++    """
++    bibtex_input = '@article{example,\
++        title={My Paper},\
++        journal={Journal Name},\
++        year={2017},\
++        volume={12},\
++        number={3},\
++        pages={45--67},\
++        abstract={This is my paper, I think!},\
++        author={Me}}'
++    bibtex_entry = BibEntry(bibtex_input)
++    assert bibtex_entry.fields['abstract'] == ('This is my paper, I think!')
++
++
++if __name__ == '__main__':
++    pytest.main()
++
++
++pytest.main([__file__])

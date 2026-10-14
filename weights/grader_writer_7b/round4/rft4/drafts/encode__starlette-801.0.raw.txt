@@ -1,0 +1,41 @@
+--- /dev/null
++++ b/tests/middleware/test_cors_grader.py
+@@ -0,0 +1,36 @@
++from starlette.applications import Starlette
++from starlette.middleware.cors import CORSMiddleware
++from starlette.responses import PlainTextResponse
++from starlette.testclient import TestClient
++
++
++def test_cors_allowed_origin_does_not_leak_between_credentialed_requests():
++    app = Starlette()
++    app.add_middleware(
++        CORSMiddleware, allow_origins=["*"], allow_headers=["*"], allow_methods=["*"]
++    )
++
++    @app.route("/")
++    def homepage(request):
++        return PlainTextResponse("Homepage", status_code=200)
++
++    client = TestClient(app)
++    response = client.get("/", headers={"Origin": "https://someplace.org"})
++    assert response.headers["access-control-allow-origin"] == "*"
++
++    response = client.get(
++        "/", headers={"Cookie": "foo=bar", "Origin": "https://someplace.org"}
++    )
++    assert response.headers["access-control-allow-origin"] == "https://someplace.org"
++
++    response = client.get("/", headers={"Origin": "https://someplace.org"})
++    assert response.headers["access-control-allow-origin"] == "*"
++
++    # Regression test for #814
++    # Ensure that regex origins aren't leaking between requests.
++    response = client.get(
++        "/",
++        headers={
++            "Origin": "https://someplace.org",
++            "Referer": "https://evil.example.com",
++        },
++    )
++    assert response.headers["access-control-allow-origin"] == "*"

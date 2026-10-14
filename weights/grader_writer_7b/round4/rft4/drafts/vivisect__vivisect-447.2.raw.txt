@@ -1,0 +1,38 @@
+--- /dev/null
++++ b/envi/tests/test_arch_i386_grader.py
+@@ -0,0 +1,33 @@
++import binascii
++import unittest
++import envi
++import envi.memcanvas as e_memcanvas
++import vivisect
++
++
++i386SingleByteOpcodes = [
++    ('add', '0001', 0x40, 'add byte [ecx],al', 'add byte [ecx],al'),
++    ('adc', '83D306', 0x40, 'adc ebx,6', 'adc ebx,6'),
++    ('jg', '7faa', 0x400, 'jg 0x000003ac', 'jg 0x000003ac'),
++    ('mov al', 'b0aa', 0x40, 'mov al,170', 'mov al,170'),
++    ('mov ebx', 'b8aaaa4040', 0x40, 'mov eax,0x4040aaaa', 'mov eax,0x4040aaaa'),
++    ('inc ebx', '43', 0x40, 'inc ebx', 'inc ebx'),
++    ('call ebx', 'ffd3', 0x40, 'call ebx', 'call ebx'),
++    ('call lit', 'e801010101', 0x40, 'call 0x01010146', 'call 0x01010146'),
++    ('mov dword', '89aa41414141', 0x40, 'mov dword [edx + 1094795585],ebp', 'mov dword [edx + 1094795585],ebp'),
++    ('imul 1', 'f6aaaaaaaaaa', 0x40, 'imul byte [edx - 1431655766]', 'imul byte [edx - 1431655766]'),
++    ('imul 2', 'f7aaaaaaaaaa', 0x40, 'imul dword [edx - 1431655766]', 'imul dword [edx - 1431655766]'),
++    ('push', 'fff0', 0x40, 'push eax', 'push eax'),
++    ('push 2', '6aff', 0x40, 'push 0xffffffff', 'push 0xffffffff'),
++    ('push 3', '68ffffffff', 0x40, 'push 0xffffffff', 'push 0xffffffff'),
++    ('nop 1', '90', 0x40, 'nop ', 'nop '),
++    ('nop 2', '0f1fc0', 0x40, 'nop eax', 'nop eax'),
++    ('nop 3', 'f30f1fc0', 0x40, 'rep: nop eax', 'rep: nop eax'),
++    ('pop', '8ff0', 0x40, 'pop eax', 'pop eax'),
++    ('pop', '8ffb', 0x40, 'pop ebx', 'pop ebx'),
++    ('BSWAP (eax)', '0fc8', 0x40, 'bswap eax', 'bswap eax'),
++    ('BSWAP (ebx)', '0fcb', 0x40, 'bswap ebx', 'bswap ebx'),
++    ('BSWAP (eax)', 'f30fc8', 0x40, 'rep: bswap eax', 'rep: bswap eax'),
++    ('BSWAP (ebx)', 'f30fcb', 0x40, 'rep: bswap ebx', 'rep: bswap ebx')]
++
++
++class I386TestCase(unittest.TestCase):
++    pass

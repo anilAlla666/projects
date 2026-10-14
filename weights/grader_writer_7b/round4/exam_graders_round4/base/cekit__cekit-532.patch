@@ -1,0 +1,49 @@
+diff --git a/tests/test_brew_artifact_url.py b/tests/test_brew_artifact_url.py
+new file mode 100644
+index 0000000..e2d3f4b
+--- /dev/null
++++ b/tests/test_brew_artifact_url.py
+@@ -0,0 +1,60 @@
++import unittest
++from unittest.mock import patch, MagicMock
++
++from cekit.tools import generate_fetch_artifacts_url
++
++class TestBrewArtifactURL(unittest.TestCase):
++    @patch('cekit.tools.subprocess.check_output')
++    def test_generate_fetch_artifacts_url_with_dot_in_filename(self, mock_subprocess):
++        # Mock the output of the subprocess call
++        mock_subprocess.return_value = b"""
++[{
++  "build_id": 410568,
++  "version": "1.0.4",
++  "type_name": "jar",
++  "artifact_id": "javax.json",
++  "type_id": 1,
++  "checksum": "569870f975deeeb6691fcb9bc02a9555",
++  "extra": null,
++  "filename": "javax.json-1.0.4.jar",
++  "type_description": "Jar file",
++  "metadata_only": false,
++  "type_extensions": "jar war rar ear sar kar jdocbook jdocbook-style plugin",
++  "btype": "maven",
++  "checksum_type": 0,
++  "btype_id": 2,
++  "group_id": "org.glassfish",
++  "buildroot_id": null,
++  "id": 863130,
++  "size": 85147
++}]
++""".strip()
++
++        # Call the function with a filename containing a dot
++        url = generate_fetch_artifacts_url('569870f975deeeb6691fcb9bc02a9555', 'javax.json-1.0.4.jar')
++
++        # Expected URL should preserve the dot in the filename
++        expected_url = 'http://download.devel.redhat.com/brewroot/packages/org/glassfish/javax.json/1.0.4/_/maven/org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar'
++
++        # Assert that the generated URL matches the expected URL
++        self.assertEqual(url, expected_url)
++
++if __name__ == '__main__':
++    unittest.main()

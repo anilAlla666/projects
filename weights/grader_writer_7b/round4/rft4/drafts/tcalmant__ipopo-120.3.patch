@@ -1,0 +1,115 @@
+--- /dev/null
++++ b/tests/ipopo/test_handlers_grader.py
+@@ -0,0 +1,113 @@
++"""
++Tests iPOPO handlers, using the sample logger handler
++
++:author: Thomas Calmant
++"""
++
++
++import sys
++
++
++try:
++    import unittest2 as unittest
++except ImportError:
++    import unittest
++
++
++from pelix.framework import FrameworkFactory
++import pelix.ipopo.handlers.constants as constants
++from tests.ipopo import install_bundle, install_ipopo
++
++
++__version_info__ = (1, 0, 1)
++
++
++__version__ = ".".join(str(x) for x in __version_info__)
++
++
++HANDLER_BUNDLE_NAME = "samples.handler.logger"
++
++
++COMPONENT_BUNDLE_NAME = "samples.handler.sample"
++
++
++HANDLER_ID = "sample.handler.logger"
++
++
++COMPONENT_NAME = "sample-logger-component"
++
++
++class TestRequiresVarFilter(unittest.TestCase):
++    """
++    Tests the RequiresVarFilter handler
++    """
++
++    def setUp(self):
++        """
++        Prepares the framework
++        """
++        # Create the framework
++        self.framework = FrameworkFactory.get_framework(["tests.ipopo"])
++
++        # Add the handler
++        install_bundle(self.framework, HANDLER_BUNDLE_NAME)
++
++        # Start the framework
++        self.framework.start()
++
++        # Get the IPoPo service
++        self.context = self.framework.get_bundle_context()
++        self.ipopo = self.context.get_service_reference(constants.SVC_IPopo)
++
++        # Clear logs
++        SampleLogger.clear_logs()
++
++    def tearDown(self):
++        """
++        Cleans up the framework
++        """
++        FrameworkFactory.delete_framework()
++
++    def test_requires_var_filter_update(self):
++        """
++        Tests that changing the property used in the filter updates the component
++        """
++        # Instantiate the component
++        self.ipopo.instantiate(HANDLER_ID, COMPONENT_NAME)
++
++        # Check initial log
++        self.assertEqual(1, len(SampleLogger.logs), "Initial log count wrong")
++        self.assertIn("start", SampleLogger.logs[0],
++                      "Unexpected initial log content")
++
++        # Update the filter property
++        self.context.update_service_properties(self.ipopo,
++                                               {"filter": "(foo=bar)"})
++
++        # Wait for the component to be stopped
++        SampleLogger.wait_log("stop")
++
++        # Log should be empty now
++        self.assertEqual(2, len(SampleLogger.logs), "Log count wrong")
++        self.assertIn("stop", SampleLogger.logs[1], "Unexpected stop log")
++
++        # Change the property again
++        self.context.update_service_properties(self.ipopo,
++                                               {"filter": "(foo=baz)"})
++
++        # Wait for the component to be started again
++        SampleLogger.wait_log("start")
++
++        # Check final log
++        self.assertEqual(3, len(SampleLogger.logs), "Final log count wrong")
++        self.assertIn("start", SampleLogger.logs[2],
++                      "Unexpected final log content")
++
++
++if __name__ == "__main__":
++    # Set logging level
++    import logging
++    logging.basicConfig(level=logging.DEBUG)
++
++    unittest.main()

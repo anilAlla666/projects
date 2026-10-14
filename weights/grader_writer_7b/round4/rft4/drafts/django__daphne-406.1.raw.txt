@@ -1,0 +1,30 @@
+--- /dev/null
++++ b/tests/test_http_protocol_grader.py
+@@ -0,0 +1,25 @@
++from twisted.internet import defer
++import pytest
++from twisted.web.http_headers import Headers
++from daphne.http_protocol import WebRequest
++
++
++class DummyRequest:
++    headers = Headers({})
++
++
++@pytest.fixture
++def request():
++    return WebRequest(DummyRequest(), channel_layer=None)
++
++
++@pytest.mark.asyncio
++async def test_process(request):
++    """Test that the request.process method completes successfully."""
++    await request.process()
++    assert isinstance(request.client_addr, list)
++    assert len(request.client_addr) == 2
++    assert isinstance(request.client_addr[0], str)
++    assert isinstance(request.client_addr[1], int)
++    assert isinstance(request.server_addr, list)
++    assert len(request.server_addr) == 2
++    assert isinstance(request.server_addr[0], str)
++    assert isinstance(request.server_addr[1], int)

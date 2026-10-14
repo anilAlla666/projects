@@ -1,0 +1,44 @@
+--- /dev/null
++++ b/tests/test_utils_grader.py
+@@ -0,0 +1,25 @@
++import datetime as dt
++from collections import namedtuple
++from functools import partial
++from copy import copy, deepcopy
++import pytest
++from marshmallow import utils
++from tests.base import (
++    assert_datetime_equal,
++    central,
++    assert_time_equal,
++    assert_date_equal,
++)
++
++
++def test_from_iso_datetime_with_z():
++    d = dt.datetime.now(tz=central)
++    formatted = d.isoformat() + 'Z'
++    result = utils.from_iso(formatted)
++    assert type(result) == dt.datetime
++    assert_datetime_equal(result, d)
++
++
++@pytest.fixture(scope='module')
++def now_millisec():
++    return dt.datetime.now(tz=dt.timezone.utc).replace(microsecond=123456)
++
++    # TODO: Add tests for from_iso_datetime_with_microseconds when we add support for milliseconds
+--- /dev/null
++++ b/tests/test_py3/test_utils_grader.py
+@@ -0,0 +1,11 @@
++from marshmallow import fields, Schema
++
++
++def test_function_field_using_type_annotation():
++    def get_split_words(value: str):
++        return value.split(';')
++
++    class MySchema(Schema):
++        friends = fields.Function(deserialize=get_split_words)
++
++    data = {'name': 'Bruce Wayne', 'friends': 'Clark;Alfred;Robin'}

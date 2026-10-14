@@ -1,0 +1,62 @@
+diff --git a/test/test_reads.py b/test/test_reads.py
+index 0b0f3e0..0101128 100644
+--- a/test/test_reads.py
++++ b/test/test_reads.py
+@@ -3427,6 +3427,24 @@ class TestSitesMatching(TestCase):
+         set of sites when we pass any_=False.
+         """
+         reads = Reads()
++        reads.add(Read('id1', 'aaaga'))
++        reads.add(Read('id2', 'caaga'))
++        result = reads.sitesMatching({'c', 'g'}, matchCase=False, any_=False)
++        self.assertEqual({3}, result)
++
++    def testIgnoreCaseMixedCase(self):
++        """
++        If multiple reads are given, sitesMatching must return the expected
++        set of sites when we pass any_=False and there are mixed case letters
++        in the sequences.
++        """
++        reads = Reads()
++        reads.add(Read('id1', 'aaAgA'))
++        reads.add(Read('id2', 'CaAGa'))
++        result = reads.sitesMatching({'C', 'G'}, matchCase=False, any_=False)
++        self.assertEqual({3}, result)
++
++    def testIgnoreCaseMixedCaseWithLowerCaseTarget(self):
++        """
++        If multiple reads are given, sitesMatching must return the expected
+         set of sites when we pass any_=False and there are mixed case letters
+         in the sequences.
+         """
+diff --git a/test/test_analyze_reads.py b/test/test_analyze_reads.py
+index 011000c..041000c 100644
+--- a/test/test_analyze_reads.py
++++ b/test/test_analyze_reads.py
+@@ -95,6 +95,24 @@ class TestTrimReads(TestCase):
+                          list(map(str, tuple(test_result))))
+ 
+     def testPrefixSuffix(self):
++        seq = '>hey\nagtccgatcg'
++        trimmed_seq = '>hey\nccga'
++        result = trimReads(3, 3, StringIO(seq))
++        test_result = list(SeqIO.parse(StringIO(trimmed_seq), 'fasta'))
++        self.assertEqual(list(map(str, tuple(result))),
++                         list(map(str, tuple(test_result))))
++
++    def testPrefixSuffixMixedCase(self):
++        seq = '>hey\nagtCCGATCG'
++        trimmed_seq = '>hey\nCCGA'
++        result = trimReads(3, 3, StringIO(seq))
++        test_result = list(SeqIO.parse(StringIO(trimmed_seq), 'fasta'))
++        self.assertEqual(list(map(str, tuple(result))),
++                         list(map(str, tuple(test_result))))
++
++    def testPrefixSuffixMixedCaseWithLowerCaseTarget(self):
++        seq = '>hey\nagtCCGATCG'
++        trimmed_seq = '>hey\nCCGA'
++        result = trimReads(3, 3, StringIO(seq))
++        test_result = list(SeqIO.parse(StringIO(trimmed_seq), 'fasta'))
+         seq = '>hey\nagtccgatcg'
+         trimmed_seq = '>hey\nccga'
+         result = trimReads(3, 3, StringIO(seq))

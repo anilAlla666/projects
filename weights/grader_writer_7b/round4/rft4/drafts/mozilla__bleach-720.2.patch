@@ -1,0 +1,47 @@
+--- /dev/null
++++ b/tests/test_linkifier_grader.py
+@@ -0,0 +1,44 @@
++from unittest import TestCase
++
++
++class TestLinkify(TestCase):
++    def setUp(self):
++        from bleach.linkifier import LinkifyFilter
++
++        self.filter = LinkifyFilter()
++
++    def test_linkify_escaped_entity_in_anchor_text(self):
++        """
++        Tests that linkifying content containing an escaped HTML entity in the
++        anchor text doesn't escape the ampersand of the entity.
++
++        See issue #739.
++        """
++
++        # This is a minimal reproduction of issue #739
++        text = "<p><a href=''>Some&nbsp;entity&rsquo;s</a></p>"
++        expected = (
++            "<p><a href='' rel='nofollow' title=''>Some&nbsp;"
++            'entity&rsquo;s</a></p>'
++        )
++        result = self.filter(text)
++        self.assertEqual(result, expected)
++
++        # This is a more complex example that also reproduces the problem.
++        text = "<p><a href=''>Some&nbsp;entity&rsquo;s</a>More&nbsp;entity&rsquo;s</p>"
++        expected = (
++            "<p><a href='' rel='nofollow' title=''>Some&nbsp;"
++            'entity&rsquo;s</a>More&nbsp;entity&rsquo;s</p>'
++        )
++        result = self.filter(text)
++        self.assertEqual(result, expected)
++
++    def test_linkify_escaped_entity_in_other_text(self):
++        """
++        Tests that linkifying content containing an escaped HTML entity in other
++        text doesn't escape the ampersand of the entity.
++        """
++        text = "<p><a href=''>Some&nbsp;entity&rsquo;s</a></p>"
++        expected = "<p><a href='' rel='nofollow'>Some&nbsp;entity&rsquo;s</a></p>"
++        result = self.filter(text, parse_email=False)
++        self.assertEqual(result, expected)

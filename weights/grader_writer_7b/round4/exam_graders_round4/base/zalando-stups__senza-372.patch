@@ -1,0 +1,79 @@
+diff --git a/tests/test_aws_lookup_by_name.py b/tests/test_aws_lookup_by_name.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/tests/test_aws_lookup_by_name.py
+@@ -0,0 +1,100 @@
++from unittest.mock import MagicMock
++import pytest
++
++from senza.aws import get_security_group, resolve_referenced_resource
++
++
++def test_get_security_group_by_name(monkeypatch):
++    ec2 = MagicMock()
++    ec2.security_groups.filter = MagicMock(side_effect=[
++        [MagicMock(group_name='app-test', id='sg-test')],
++        [MagicMock(group_name='physical-resource-id', id='sg-resource')]])
++
++    def my_resource(rtype, *args):
++        if rtype == 'ec2':
++            return ec2
++        else:
++            return MagicMock()
++
++    monkeypatch.setattr('boto3.resource', my_resource)
++
++    sg = get_security_group('myregion', 'app-test')
++    assert sg.id == 'sg-test'
++
++    sg = get_security_group('myregion', 'physical-resource-id')
++    assert sg.id == 'sg-resource'
++
++
++def test_get_security_group_not_found(monkeypatch):
++    ec2 = MagicMock()
++    ec2.security_groups.filter = MagicMock(return_value=[])
++
++    def my_resource(rtype, *args):
++        if rtype == 'ec2':
++            return ec2
++        else:
++            return MagicMock()
++
++    monkeypatch.setattr('boto3.resource', my_resource)
++
++    sg = get_security_group('myregion', 'inexistant-group')
++    assert sg is None
++
++
++def test_resolve_referenced_resource_by_name(monkeypatch):
++    ec2 = MagicMock()
++    ec2.security_groups.filter = MagicMock(side_effect=[
++        [MagicMock(group_name='app-test', id='sg-test')],
++        [MagicMock(group_name='physical-resource-id', id='sg-resource')]])
++
++    def my_resource(rtype, *args):
++        if rtype == 'ec2':
++            return ec2
++        else:
++            return MagicMock()
++
++    def my_client(rtype, *args):
++        if rtype == 'cloudformation':
++            cf = MagicMock()
++            resource = {
++                'StackResourceDetail': {'ResourceStatus': 'CREATE_COMPLETE',
++                                        'ResourceType': 'AWS::EC2::SecurityGroup',
++                                        'PhysicalResourceId': 'physical-resource-id'}}
++            cf.describe_stack_resource.return_value = resource
++            return cf
++        else:
++            return MagicMock()
++
++    monkeypatch.setattr('boto3.resource', my_resource)
++    monkeypatch.setattr('boto3.client', my_client)
++
++    ref = {'Stack': 'stack', 'LogicalId': 'SecurityGroup'}
++    sg_id = resolve_referenced_resource(ref, 'any-region')
++    assert sg_id == 'sg-resource'

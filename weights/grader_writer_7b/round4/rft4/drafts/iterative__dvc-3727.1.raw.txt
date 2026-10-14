@@ -1,0 +1,88 @@
+--- /dev/null
++++ b/tests/func/test_diff_grader.py
+@@ -0,0 +1,37 @@
++import hashlib
++import os
++import pytest
++from funcy import first
++from dvc.compat import fspath
++from dvc.utils.fs import remove
++from dvc.exceptions import DvcException
++
++
++def digest(text):
++    return hashlib.md5(bytes(text, "utf-8")).hexdigest()
++
++
++def test_empty_diff_json(tmp_dir, scm, dvc):
++    tmp_dir.dvc_gen("file", "text")
++
++    assert dvc.diff() == ""
++
++    assert dvc.diff("--show-json") == "{}\n"
++
++
++@pytest.mark.parametrize(
++    "cmd_args", [([], None), (["--show-json"], '{"a":"b"}'), ([], '{"a":"b"}')]
++)
++def test_diff_with_metric(cmd_args, tmp_dir, dvc):
++    tmp_dir.dvc_gen("metric.txt", "text")
++
++    assert dvc.diff(*cmd_args) == """
++--- /dev/null
+++++ b/metric.txt
++@@ -0,0 +1 @@
+++text
++""".strip()
++
++    assert dvc.diff(*cmd_args, metrics_only=True) == ""
++
++    assert dvc.metrics.diff(*cmd_args) == """
++--- /dev/null
+++++ b/metric.txt
++@@ -0,0 +1 @@
+++text
++""".strip()
+--- /dev/null
++++ b/tests/func/test_repo_grader.py
+@@ -0,0 +1,36 @@
++import os
++from dvc.cache import Cache
++from dvc.repo import Repo
++from dvc.system import System
++from dvc.compat import fspath
++
++
++def test_stages(tmp_dir, dvc):
++    def stages():
++        return set(stage.relpath for stage in Repo(fspath(tmp_dir)).stages)
++
++    tmp_dir.dvc_gen({"file": "a", "dir/file": "b", "dir/subdir/file": "c"})
++
++    assert stages() == {
++        "file.dvc",
++        os.path.join("dir", "file.dvc"),
++        os.path.join("dir", "subdir", "file.dvc"),
++    }
++
++    tmp_dir.gen(".dvcignore", "dir")
++
++    assert stages() == {"file.dvc"}
++
++    tmp_dir.dvc_gen({"metrics.json": "a"}, commit="init")
++    assert stages() == {"metrics.json.dvc", "file.dvc"}
++
++    tmp_dir.dvc_gen({"params.yaml": "a"}, commit="init")
++    assert stages() == {
++        "metrics.json.dvc",
++        "params.yaml.dvc",
++        "file.dvc",
++    }
++
++    tmp_dir.dvc_gen({"code.py": "a"}, commit="init")
++    assert stages() == {
++        "metrics.json.dvc",
++        "params.yaml.dvc",
++        "code.py.dvc",
++        "file.dvc",
++    }

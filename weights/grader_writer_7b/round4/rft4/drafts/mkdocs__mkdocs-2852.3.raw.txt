@@ -1,0 +1,31 @@
+--- /dev/null
++++ b/tests/test_structure_grader.py
+@@ -0,0 +1,27 @@
++import os
++from unittest import mock
++import pytest
++
++
++def test_get_files(tmpdir):
++    with tmpdir.as_cwd():
++        os.makedirs('sub')
++        with open('index.md', 'w') as f:
++            f.write('# Index')
++        with open('README.md', 'w') as f:
++            f.write('# Readme')
++        with open('sub/index.md', 'w') as f:
++            f.write('# Sub Index')
++        with open('sub/README.md', 'w') as f:
++            f.write('# Sub Readme')
++        assert len(list(mock.call_args[0][0].iter_pages())) == 3
++        assert len(list(mock.call_args[0][0].iter_pages(root=''))) == 2
++        assert len(list(mock.call_args[0][0].iter_pages(root='sub/'))) == 1
++        assert list(mock.call_args[0][0].iter_pages())[0].rel_url == 'index.html'
++        assert list(mock.call_args[0][0].iter_pages())[1].rel_url == 'sub/index.html'
++        assert list(mock.call_args[0][0].iter_pages(root=''))[0].rel_url == 'index.html'
++        assert list(mock.call_args[0][0].iter_pages(root=''))[1].rel_url == 'sub/index.html'
++        assert list(mock.call_args[0][0].iter_pages(root='sub/'))[0].rel_url == 'index.html'
++        assert list(mock.call_args[0][0].iter_pages())[0].page.meta == {}
++        assert list(mock.call_args[0][0].iter_pages())[1].page.meta == {}
++        assert list(mock.call_args[0][0].iter_pages(root=''))[0].page.meta == {}
++        assert list(mock.call_args[0][0].iter_pages(root=''))[1].page.meta == {}

@@ -1,0 +1,141 @@
+--- /dev/null
++++ b/tests/test_keycache_grader.py
+@@ -0,0 +1,89 @@
++"""
++Test the keycache
++"""
++
++
++import os, stat
++import sys
++import tempfile
++import shutil
++import unittest
++from unittest import mock
++from scitokens.utils.keycache import KeyCache
++from scitokens.utils.errors import UnableToCreateCache
++from cryptography.hazmat.primitives.asymmetric.rsa import generate_private_key
++from cryptography.hazmat.backends import default_backend
++from cryptography.hazmat.primitives import serialization
++
++
++try:
++    from urllib.error import URLError
++except ImportError:
++    from urllib2 import URLError
++
++
++import create_webserver
++
++
++class TestKeyCache(unittest.TestCase):
++    """
++    Test the creation of a simple SciToken
++    """
++
++    def setUp(self):
++
++        # Force the keycache to create a cache in a new directory
++        self.tmp_dir = tempfile.mkdtemp()
++        self.old_xdg = os.environ.get('XDG_CACHE_HOME', None)
++        os.environ['XDG_CACHE_HOME'] = self.tmp_dir
++        # Clear the cache
++        self.keycache = KeyCache()
++
++    def tearDown(self):
++        # Clean up after ourselves
++        shutil.rmtree(self.tmp_dir)
++        if self.old_xdg is None:
++            del os.environ['XDG_CACHE_HOME']
++        else:
++            os.environ['XDG_CACHE_HOME'] = self.old_xdg
++
++    def test_invalid_next_update(self):
++        """
++        Test that we can't set next_update to a negative number.
++        """
++        private_key = generate_private_key(
++            public_exponent=65537,
++            key_size=2048,
++            backend=default_backend()
++        )
++        public_numbers = private_key.public_key().public_numbers()
++        test_id = "thisisatestid"
++        with self.assertRaises(ValueError):
++            self.keycache.addkeyinfo("http://localhost/", test_id, private_key.public_key(), next_update=-1)
++
++    @mock.patch('scitokens.utils.keycache.urlopen')
++    def test_http_request_error(self, urlopen_mock):
++        """
++        Test what happens when there's an error making an HTTP request.
++        """
++        private_key = generate_private_key(
++            public_exponent=65537,
++            key_size=2048,
++            backend=default_backend()
++        )
++        public_numbers = private_key.public_key().public_numbers()
++        test_id = "thisisatestid"
++        urlopen_mock.side_effect = URLError("Failed to connect.")
++        with self.assertRaises(URLError):
++            self.keycache.addkeyinfo("http://localhost/", test_id, private_key.public_key())
++
++    @mock.patch('scitokens.utils.keycache.urlopen')
++    def test_http_response_error(self, urlopen_mock):
++        """
++        Test what happens when the response has an error.
++        """
++        private_key = generate_private_key(
++            public_exponent=65537,
++            key_size=2048,
++            backend=default_backend()
++        )
++        public_numbers = private_key.public_key().public_numbers()
++        test_id = "thisisatestid"
++        urlopen_mock.return_value.status = 404
++        with self.assertRaises(KeyError):
++            self.keycache.addkeyinfo("http://localhost/", test_id, private_key.public_key())
++
++
++if __name__ == '__main__':
++    unittest.main()
+--- /dev/null
++++ b/tests/test_urltools_grader.py
+@@ -0,0 +1,33 @@
++"""
++Unit coverage tests for the urltools sub-package
++"""
++
++
++from scitokens.urltools import unquote, normalize_path
++import os
++import sys
++import unittest
++
++
++if os.path.exists("src"):
++    sys.path.append("src")
++if os.path.exists("../src"):
++    sys.path.append("../src")
++
++
++class TestUrltools(unittest.TestCase):
++    """
++    Test various helper functions copied over from the urltools library.
++    """
++
++    def test_unquote(self):
++        """
++        Run through the logic of the unquote function.
++        """
++        self.assertEqual(unquote('foo%23bar'), 'foo#bar')
++        self.assertEqual(unquote('foo%23bar', ['#']), 'foo%23bar')
++        with self.assertRaises(TypeError):
++            unquote(None)
++        self.assertEqual(unquote(""), "")
++        self.assertEqual(unquote("abc123"), "abc123")
++        self.assertEqual(unquote('[ANY]'), '[ANY]')
++
++
++if __name__ == '__main__':
++    unittest.main()

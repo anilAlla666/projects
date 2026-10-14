@@ -1,0 +1,38 @@
+--- /dev/null
++++ b/pyflakes/test/test_checker_grader.py
+@@ -0,0 +1,31 @@
++import ast
++import sys
++from pyflakes import checker
++from pyflakes.test.harness import TestCase, skipIf
++
++
++class CheckerTest(TestCase):
++    """
++    Tests for L{Checker}.
++    """
++
++    def check_source(self, source, *messages):
++        """
++        Check that the source triggers exactly the provided messages.
++        """
++        tree = ast.parse(source)
++        w = []
++        c = checker.Checker(tree, w)
++        c.check()
++        self.assertEqual(len(w), len(messages))
++        for warning, message in zip(w, messages):
++            self.assertEqual(str(message.message_id), warning.code)
++            self.assertEqual((warning.filename, warning.lineno),
++                             (message.filename, message.lineno))
++
++    def test_issue_602(self):
++        """
++        Test that type comment errors are reported on the correct lines.
++        """
++        self.check_source("""
++x = 1
++y = 2  # type: int
++z = 3
++w = 4  # type: int
++""", messages.Message(0, 'syntax error in type comment'))

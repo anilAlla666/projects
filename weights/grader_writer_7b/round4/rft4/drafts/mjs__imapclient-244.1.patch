@@ -1,0 +1,122 @@
+--- /dev/null
++++ b/imapclient/test/test_imapclient_grader.py
+@@ -0,0 +1,131 @@
++from __future__ import unicode_literals
++import itertools
++import socket
++import sys
++from datetime import datetime
++import six
++from imapclient.fixed_offset import FixedOffset
++from .testable_imapclient import TestableIMAPClient as IMAPClient
++from .imapclient_test import IMAPClientTest
++from .util import patch, sentinel, Mock
++
++
++class TestSearch(IMAPClientTest):
++    def check(self, command, args, expected):
++        typ, data = self.client._raw_command(command, args)
++        self.assertEqual(typ, 'OK')
++        self.assertEqual(data, ['done'])
++        self.assertEqual(self.client._imap.sent, expected)
++
++    def test_plain(self):
++        self.check(b'search', [b'ALL'],
++                   b'tag UID SEARCH ALL\r\n',
++                   )
++
++    def test_not_uid(self):
++        self.client.use_uid = False
++        self.check(b'search', [b'ALL'],
++                   b'tag SEARCH ALL\r\n',
++                   )
++
++    def test_literal_at_end(self):
++        self.check(b'search', [b'TEXT', b'\xfe\xff'],
++                   b'tag UID SEARCH TEXT {2}\r\n'
++                   b'\xfe\xff\r\n'
++                   )
++
++    def test_embedded_literal(self):
++        self.check(b'search', [b'TEXT', b'\xfe\xff', b'DELETED'],
++                   b'tag UID SEARCH TEXT {2}\r\n'
++                   b'\xfe\xff DELETED\r\n'
++                   )
++
++    def test_multiple_literals(self):
++        self.check(b'search', [b'TEXT', b'\xfe\xff', b'TEXT', b'\xcc', b'TEXT', b'foo'],
++                   b'tag UID SEARCH TEXT {2}\r\n'
++                   b'\xfe\xff TEXT {1}\r\n'
++                   b'\xcc TEXT foo\r\n'
++                   )
++
++    def test_complex(self):
++        self.check(b'search', [b'FLAGGED', b'TEXT', b'\xfe\xff', b'TEXT', b'\xcc', b'TEXT', b'foo'],
++                   b'tag UID SEARCH FLAGGED TEXT {2}\r\n'
++                   b'\xfe\xff TEXT {1}\r\n'
++                   b'\xcc TEXT foo\r\n'
++                   )
++
++    def test_invalid_input_type(self):
++        self.assertRaises(ValueError, self.client._raw_command, 'foo', [])
++        self.assertRaises(ValueError, self.client._raw_command, u'foo', ['foo'])
++
++    def test_failed_continuation_wait(self):
++        self.client._imap._get_response.return_value = b'blah'
++        self.client._imap.tagged_commands['tag'] = ('NO', ['go away'])
++
++        expected_error = "unexpected response while waiting for continuation response: \(u?'NO', \[u?'go away'\]\)"
++        with self.assertRaisesRegex(IMAPClient.AbortError, expected_error):
++            self.client._raw_command(b'FOO', [b'\xff'])
++
++
++class TestResponseTypes(IMAPClientTest):
++    def test_address_str(self):
++        addr = self.client.Address(u'Foo Bar', u'foo.bar', u'example.com')
++        self.assertEqual(str(addr), u'Foo Bar <foo.bar@example.com>')
++
++        addr = self.client.Address(None, u'foo.bar', u'example.com')
++        self.assertEqual(str(addr), u'<foo.bar@example.com>')
++
++        addr = self.client.Address(u'Foo Bar', None, u'example.com')
++        self.assertEqual(str(addr), u'Foo Bar <foo.bar@example.com>')
++
++        addr = self.client.Address(u'Foo Bar', u'foo.bar', None)
++        self.assertEqual(str(addr), u'Foo Bar <foo.bar>')
++
++        addr = self.client.Address(None, None, u'example.com')
++        self.assertEqual(str(addr), u'<foo.bar@example.com>')
++
++        addr = self.client.Address(None, u'foo.bar', None)
++        self.assertEqual(str(addr), u'<foo.bar>')
++
++        addr = self.client.Address(u'Foo Bar', None, None)
++        self.assertEqual(str(addr), u'Foo Bar')
++
++        addr = self.client.Address(None, None, None)
++        self.assertEqual(str(addr), '')
++
++
++class FakeImapClient(object):
++    def __init__(self):
++        self.envelope = None
++        self.message_data = {}
++
++    def fetch(self, keys, names):
++        return self.message_data[keys]
++
++    def _process_envelopes(self, envelopes):
++        self.envelope = envelopes
++
++    def envelope(self, key):
++        self._process_envelopes(self.message_data[key][1])
++
++    def uid(self, cmd, *args):
++        return self._uid(cmd, *args)
++
++    def _uid(self, cmd, *args):
++        return getattr(self, cmd)(*args)
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,52 @@
+diff --git a/test_protocol.py b/test_protocol.py
+new file mode 100644
+index 0000000..e69de29
+--- /dev/null
++++ b/test_protocol.py
+@@ -0,0 +1,60 @@
++import unittest
++from aiostomp.protocol import Protocol, Frame
++
++class TestProtocol(unittest.TestCase):
++    def setUp(self):
++        self.protocol = Protocol()
++
++    def test_parse_data_incomplete_message(self):
++        # Simulate receiving an incomplete message
++        data = b'MESSAGE'
++        result, extra = self.protocol._parse_data(data)
++        self.assertIsNone(result)
++        self.assertEqual(extra, data)
++
++    def test_parse_data_partial_message(self):
++        # Simulate receiving a partial message
++        data = b'MESSAGE\n\n'
++        result, extra = self.protocol._parse_data(data)
++        self.assertIsInstance(result, Frame)
++        self.assertEqual(result.command, 'MESSAGE')
++        self.assertEqual(result.headers, {})
++        self.assertEqual(result.body, None)
++        self.assertIsNone(extra)
++
++    def test_parse_data_complete_message_with_body(self):
++        # Simulate receiving a complete message with a body
++        data = b'MESSAGE\n\nHello, World!'
++        result, extra = self.protocol._parse_data(data)
++        self.assertIsInstance(result, Frame)
++        self.assertEqual(result.command, 'MESSAGE')
++        self.assertEqual(result.headers, {})
++        self.assertEqual(result.body, b'Hello, World!')
++        self.assertIsNone(extra)
++
++    def test_parse_data_multiple_messages(self):
++        # Simulate receiving multiple messages
++        data = b'MESSAGE\n\nHello, World!\n\nMESSAGE\n\nGoodbye, World!'
++        result, extra = self.protocol._parse_data(data)
++        self.assertIsInstance(result, Frame)
++        self.assertEqual(result.command, 'MESSAGE')
++        self.assertEqual(result.headers, {})
++        self.assertEqual(result.body, b'Hello, World!')
++        self.assertNotEqual(extra, b'')
++
++if __name__ == '__main__':
++    unittest.main()

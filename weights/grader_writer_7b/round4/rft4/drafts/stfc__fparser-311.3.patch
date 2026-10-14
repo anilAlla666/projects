@@ -1,0 +1,109 @@
+--- /dev/null
++++ b/src/fparser/two/tests/test_fortran2003_grader.py
+@@ -0,0 +1,108 @@
++import pytest
++from fparser.two import Fortran2003
++from fparser.two.utils import StringOnlyNoNewLinesReader, NoMatchError
++
++
++def check_match(tclass, input_code, expected):
++    reader = StringOnlyNoNewLinesReader(input_code)
++    if expected is None:
++        with pytest.raises(NoMatchError):
++            tclass(reader)
++    else:
++        obj = tclass(reader)
++        assert isinstance(obj, tclass)
++        assert str(obj) == expected
++
++
++def test_type_declaration_stmt_empty_string():
++    """
++    Tests that the class can handle an empty string.
++    """
++    check_match(Fortran2003.Type_Declaration_Stmt, "", None)
++
++
++def test_type_declaration_stmt_single_character_variable():
++    """
++    Tests that a simple single character variable is correctly parsed.
++    """
++    check_match(Fortran2003.Type_Declaration_Stmt, "a", "INTEGER :: a")
++
++
++def test_type_declaration_stmt_single_integer_variable():
++    """
++    Tests that a simple single integer variable is correctly parsed.
++    """
++    check_match(Fortran2003.Type_Declaration_Stmt, "integer a", "INTEGER :: a")
++
++
++def test_type_declaration_stmt_double_integer_variable():
++    """
++    Tests that a double precision variable is correctly parsed.
++    """
++    check_match(Fortran2003.Type_Declaration_Stmt,
++                 "real*8 a",
++                 "REAL(kind=kind(0.d0)) :: a")
++
++
++def test_type_declaration_stmt_double_complex_variable():
++    """
++    Tests that a double complex variable is correctly parsed.
++    """
++    check_match(Fortran2003.Type_Declaration_Stmt,
++                 "complex*16 a",
++                 "COMPLEX(kind=kind((1.0d0,1.0d0))) :: a")
++
++
++def test_type_declaration_stmt_double_precision_constant():
++    """
++    Tests that a double precision constant is correctly parsed.
++    """
++    check_match(Fortran2003.Type_Declaration_Stmt,
++                 "parameter(a=1.0D+0)",
++                 "PARAMETER :: a=1.0D+0")
++
++
++def test_type_declaration_stmt_multiple_variables():
++    """
++    Tests that multiple variables are correctly parsed.
++    """
++    check_match(Fortran2003.Type_Declaration_Stmt,
++                 "real a,b,c",
++                 "REAL :: a,b,c")
++
++
++def test_type_declaration_stmt_multiple_constants():
++    """
++    Tests that multiple constants are correctly parsed.
++    """
++    check_match(Fortran2003.Type_Declaration_Stmt,
++                 "parameter(a=1,b=2,c=3)",
++                 "PARAMETER :: a=1,b=2,c=3")
++
++
++def test_type_declaration_stmt_with_attribute_spec():
++    """
++    Tests that attributes are correctly parsed.
++    """
++    check_match(Fortran2003.Type_Declaration_Stmt,
++                 "intent(in) a",
++                 "INTEGER, INTENT(IN) :: a")
++
++
++def test_type_declaration_stmt_with_attribute_spec_and_initialization():
++    """
++    Tests that attributes are correctly parsed when followed by
++    initialization.
++    """
++    check_match(Fortran2003.Type_Declaration_Stmt,
++                 "intent(in) a=0",
++                 "INTEGER, INTENT(IN) :: a=0")
++
++
++def test_type_declaration_stmt_invalid_input():
++    """
++    Tests that invalid input raises a NoMatchError exception.
++    """
++    check_match(Fortran2003.Type_Declaration_Stmt, "invalid input", None)

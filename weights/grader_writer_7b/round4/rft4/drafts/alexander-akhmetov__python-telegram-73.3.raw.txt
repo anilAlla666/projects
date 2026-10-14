@@ -1,0 +1,46 @@
+--- /dev/null
++++ b/tests/test_telegram_methods_grader.py
+@@ -0,0 +1,45 @@
++import pytest
++from unittest.mock import patch
++from telegram import VERSION
++from telegram.utils import AsyncResult
++from telegram.client import Telegram, MESSAGE_HANDLER_TYPE
++
++
++API_ID = 1
++
++
++API_HASH = 'hash'
++
++
++PHONE = '+71234567890'
++
++
++LIBRARY_PATH = '/lib/'
++
++
++DATABASE_ENCRYPTION_KEY = 'changeme1234'
++
++
++class TestTelegram__add_remove_handler:
++    def test_add_remove_handler(self, telegram):
++        def handler(update):
++            pass
++
++        telegram.add_message_handler(handler)
++
++        assert len(telegram._update_handlers[MESSAGE_HANDLER_TYPE]) == 1
++
++        telegram.remove_handler(handler)
++
++        assert len(telegram._update_handlers[MESSAGE_HANDLER_TYPE]) == 0
++
++    def test_add_same_handler_twice(self, telegram):
++        def handler(update):
++            pass
++
++        telegram.add_message_handler(handler)
++        telegram.add_message_handler(handler)
++
++        assert len(telegram._update_handlers[MESSAGE_HANDLER_TYPE]) == 1

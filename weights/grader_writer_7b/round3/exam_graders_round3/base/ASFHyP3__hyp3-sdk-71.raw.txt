@@ -1,0 +1,43 @@
+To address the issue where the `Batch` object is not iterable, we need to ensure that the `Batch` class implements the `__iter__` method. This will allow us to iterate over the `Batch` object as expected.
+
+Here's the updated `hyp3_sdk/jobs.py` file with the necessary changes:
+
+```diff
+@@ -125,6 +125,7 @@ class Batch:
+     def __repr__(self):
+         return str([job.to_dict() for job in self.jobs])
+ 
++    def __iter__(self):
++        yield from self.jobs
+ 
+     def complete(self) -> bool:
+         """
+```
+
+Now, let's write the tests to verify that this fix works correctly. We'll add a new test function to `tests/test_jobs.py`.
+
+```diff
+@@ -251,6 +251,25 @@ def test_batch_filter_jobs():
+     assert len(everything) == len(batch)
+     for ii, job in enumerate(everything.jobs):
+         assert job.status_code == batch.jobs[ii].status_code
++        if job.succeeded():
++            assert job.expired() == batch.jobs[ii].expired()
++
++def test_batch_iterable():
++    job1 = Job.from_dict(SUCCEEDED_JOB)
++    job1.expiration_time = datetime.now(tz.UTC) + timedelta(days=7)
++
++    job2 = Job.from_dict(SUCCEEDED_JOB)
++    job2.expiration_time = datetime.now(tz.UTC) - timedelta(days=7)
++
++    batch = Batch([job1, job2])
++
++    for job in batch:
++        assert isinstance(job, Job)
++        assert job.job_id in {job1.job_id, job2.job_id}
++
++    assert len(list(batch)) == 2
+```
+
+These tests will fail on the current code because the `Batch` object is not iterable. After applying the fix, these tests should pass, ensuring that the `Batch` object can now be iterated over correctly.

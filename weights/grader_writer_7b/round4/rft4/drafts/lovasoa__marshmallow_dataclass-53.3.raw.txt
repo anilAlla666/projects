@@ -1,0 +1,54 @@
+--- /dev/null
++++ b/tests/test_marshmallow_dataclass_grader.py
+@@ -0,0 +1,60 @@
++import unittest
++from marshmallow import Schema, post_dump
++from marshmallow_dataclass import dataclass
++
++
++class TestNested(unittest.TestCase):
++    def test_nested_schema_inherited_from_base_schema(self):
++        class BaseSchema(Schema):
++            @post_dump
++            def double(self, data, **kwargs):
++                return dict(double=data["number"] * 2)
++
++        @dataclass(base_schema=BaseSchema)
++        class A:
++            number: int
++
++        @dataclass
++        class B:
++            a: A
++
++        print('is A.Schema correct?', issubclass(A.Schema, BaseSchema))
++        print('is B.a.Schema correct?', isinstance(B.Schema._declared_fields['a'].schema, BaseSchema))
++        print()
++
++        print('expected:')
++        print("    {'a': {'double': 2}}")
++        print('actual:')
++        print('   ', B.Schema().dump(B(A(1))))
++
++        self.assertTrue(issubclass(A.Schema, BaseSchema))
++        self.assertIsInstance(B.Schema._declared_fields['a'].schema, BaseSchema)
++        self.assertEqual({"a": {"double": 2}}, B.Schema().dump(B(A(1))))
++
++    def test_nested_schema_is_overriden_by_custom_field(self):
++        class CustomField(marshmallow.fields.Int):
++            def __init__(self, **kwargs):
++                super().__init__(**kwargs)
++
++            @marshmallow.pre_load
++            def triple(self, data, **kwargs):
++                return data * 3
++
++        @dataclass
++        class A:
++            number: int
++
++        @dataclass
++        class B:
++            a: A = dataclasses.field(metadata={"marshmallow_field": CustomField()})
++
++        self.assertEqual({"a": {"number": 3}}, B.Schema().load({"a": 1}))

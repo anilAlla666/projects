@@ -1,0 +1,53 @@
+To address the issue where `ValidationError` cannot be shown with `traceback.print_exc()` in Python 3.6 due to its lack of `__hash__` method, we need to ensure that `ValidationError` is hashable. This will allow it to be used in contexts where hashing is required, such as in exception handling.
+
+Here's how you can write tests to verify that the fix works:
+
+1. **Test that `ValidationError` is hashable**: This ensures that `ValidationError` can be added to sets or used as dictionary keys.
+2. **Test that `ValidationError` can be printed using `traceback.print_exc()`**: This ensures that the exception can be properly displayed in a traceback.
+
+Let's create a new test file named `test_hashability_and_traceback.py` next to the existing `tests/test_base.py`.
+
+```diff
+diff --git a/tests/test_hashability_and_traceback.py b/tests/test_hashability_and_traceback.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_hashability_and_traceback.py
+@@ -0,0 +1,45 @@
++import unittest
++import traceback
++from typesystem.base import ValidationError, Message
++
++class TestHashabilityAndTraceback(unittest.TestCase):
++    def test_validation_error_is_hashable(self):
++        error = ValidationError([
++            Message(text="Invalid input", code="invalid_input")
++        ])
++
++        # Check if ValidationError is hashable
++        hash_value = hash(error)
++        self.assertIsNotNone(hash_value)
++
++        # Check if ValidationError can be added to a set
++        errors_set = {error}
++        self.assertIn(error, errors_set)
++
++        # Check if ValidationError can be used as a dictionary key
++        errors_dict = {error: "error"}
++        self.assertEqual(errors_dict[error], "error")
++
++    def test_validation_error_can_be_printed_with_traceback(self):
++        try:
++            raise ValidationError([
++                Message(text="Invalid input", code="invalid_input")
++            ])
++        except ValidationError as e:
++            # Capture the traceback
++            tb = traceback.format_exc()
++            self.assertIn("ValidationError", tb)
++            self.assertIn("Invalid input", tb)
++
++if __name__ == '__main__':
++    unittest.main()
+```
+
+These tests will fail if the `ValidationError` class does not implement the `__hash__` method, and they will pass once the fix is applied. The first test checks that `ValidationError` is hashable, which means it can be added to sets and used as dictionary keys. The second test ensures that `ValidationError` can be printed using `traceback.print_exc()`, which confirms that the exception can be properly displayed in a traceback.

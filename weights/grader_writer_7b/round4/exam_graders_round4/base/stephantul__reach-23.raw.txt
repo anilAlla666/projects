@@ -1,0 +1,35 @@
+To address the issue of the `dtype` being reset when adding an `<UNK>` token, we can write a test that checks if the `dtype` remains unchanged after adding the `<UNK>` token. Here's how you can create a new test file named `test_reach_dtype.py`:
+
+```python
+import numpy as np
+from pathlib import Path
+from unittest.mock import patch
+from io import StringIO
+
+# Assuming the Reach class is defined in reach.py
+from reach.reach import Reach
+
+def test_add_unk_token_dtype():
+    # Create a mock .vec file with a specific dtype
+    vec_content = "2 3\nhello 1.0 2.0 3.0\ngoodbye 4.0 5.0 6.0"
+    mock_file = StringIO(vec_content)
+    
+    # Load the mock .vec file with a specific dtype
+    reach_instance = Reach.load(mock_file, desired_dtype=np.float32)
+    
+    # Check if the dtype of the vectors is np.float32
+    assert reach_instance.vectors.dtype == np.float32
+    
+    # Add the <UNK> token
+    reach_instance.add_unk_token("<UNK>")
+    
+    # Check if the dtype of the vectors remains np.float32
+    assert reach_instance.vectors.dtype == np.float32
+
+if __name__ == "__main__":
+    test_add_unk_token_dtype()
+```
+
+This test creates a mock `.vec` file with a specific `dtype` (`np.float32`) and loads it into a `Reach` instance. It then checks if the `dtype` of the vectors is indeed `np.float32`. After adding the `<UNK>` token, it verifies that the `dtype` remains unchanged.
+
+To run this test, you can use a testing framework like `unittest` or `pytest`. Make sure to place this test file in the same directory as your existing tests or adjust the import paths accordingly.

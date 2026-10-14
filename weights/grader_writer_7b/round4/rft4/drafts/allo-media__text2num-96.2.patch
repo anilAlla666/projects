@@ -1,0 +1,170 @@
+--- /dev/null
++++ b/tests/test_text_to_num_ca_grader.py
+@@ -0,0 +1,22 @@
++"""
++Test the ``text_to_num`` library.
++"""
++
++
++from unittest import TestCase
++from text_to_num import alpha2digit, text2num
++
++
++class TestTextToNumCA(TestCase):
++    def test_alpha2digit_all_ordinals(self):
++        source = (
++            "Cinquè primer segon tercer vint-i-unè centè mil dos-cents trentè."
++        )
++        expected = "5è 1r 2n 3r 21è 100è 1230è."
++        self.assertEqual(alpha2digit(source, "ca", ordinal_threshold=0), expected)
++
++    def test_alpha2digit_large_numbers(self):
++        source = "un milion de billons"
++        expected = "1000000000000"
++        self.assertEqual(alpha2digit(source, "ca"), expected)
+--- /dev/null
++++ b/tests/test_text_to_num_fr_grader.py
+@@ -0,0 +1,22 @@
++"""
++Test the ``text_to_num`` library.
++"""
++
++
++from unittest import TestCase
++from text_to_num import alpha2digit, text2num
++
++
++class TestTextToNumFR(TestCase):
++    def test_alpha2digit_all_ordinals(self):
++        source = (
++            "Cinquantième premier deuxième troisième vingt et unième centième milliénaire "
++            "deux cents trente sixième."
++        )
++        expected = "50ème 1er 2ème 3ème 21ème 100ème 1230ème."
++        self.assertEqual(alpha2digit(source, "fr", ordinal_threshold=0), expected)
++
++    def test_alpha2digit_large_numbers(self):
++        source = "un milliard de milliards"
++        expected = "1000000000000"
++        self.assertEqual(alpha2digit(source, "fr"), expected)
+--- /dev/null
++++ b/tests/test_text_to_num_it_grader.py
+@@ -0,0 +1,22 @@
++"""
++Test the ``text_to_num`` library.
++"""
++
++
++from unittest import TestCase
++from text_to_num import alpha2digit, text2num
++
++
++class TestTextToNumIT(TestCase):
++    def test_alpha2digit_all_ordinals(self):
++        source = (
++            "Quindicesimo primo secondo terzo ventuno cento decimillesimo milione di migliaia "
++            "duecentotrentaseiesimo."
++        )
++        expected = "15° 1r 2n 3r 21° 100° 1230°."
++        self.assertEqual(alpha2digit(source, "it", ordinal_threshold=0), expected)
++
++    def test_alpha2digit_large_numbers(self):
++        source = "un miliardo di miliardi"
++        expected = "1000000000000"
++        self.assertEqual(alpha2digit(source, "it"), expected)
+--- /dev/null
++++ b/tests/test_text_to_num_no_grader.py
+@@ -0,0 +1,22 @@
++"""
++Test the ``text_to_num`` library.
++"""
++
++
++from unittest import TestCase
++from text_to_num import alpha2digit, text2num
++
++
++class TestTextToNumNO(TestCase):
++    def test_alpha2digit_all_ordinals(self):
++        source = (
++            "Femte første andre tredje tjueettende hundrede tiokilofylle milljon millioner."
++        )
++        expected = "5. 1. 2. 3. 21. 100. 1230. "
++        self.assertEqual(alpha2digit(source, "no", ordinal_threshold=0), expected)
++
++    def test_alpha2digit_large_numbers(self):
++        source = "en biljoner av biljoner"
++        expected = "1000000000000"
++        self.assertEqual(alpha2digit(source, "no"), expected)
+--- /dev/null
++++ b/tests/test_text_to_num_pt_grader.py
+@@ -0,0 +1,22 @@
++"""
++Test the ``text_to_num`` library.
++"""
++
++
++from unittest import TestCase
++from text_to_num import alpha2digit, text2num
++
++
++class TestTextToNumPT(TestCase):
++    def test_alpha2digit_all_ordinals(self):
++        source = (
++            "Quinto primeiro segundo terceiro vinte e um centésimo milhão milhões."
++        )
++        expected = "5º 1º 2º 3º 21º 100º 1230º."
++        self.assertEqual(alpha2digit(source, "pt", ordinal_threshold=0), expected)
++
++    def test_alpha2digit_large_numbers(self):
++        source = "um bilhão de bilhões"
++        expected = "1000000000000"
++        self.assertEqual(alpha2digit(source, "pt"), expected)
+--- /dev/null
++++ b/tests/test_text_to_num_ru_grader.py
+@@ -0,0 +1,22 @@
++"""
++Test the ``text_to_num`` library.
++"""
++
++
++from unittest import TestCase
++from text_to_num import alpha2digit, text2num
++
++
++class TestTextToNumRU(TestCase):
++    def test_alpha2digit_all_ordinals(self):
++        source = (
++            "Пятый первый второй третий двадцать первым сотым миллионом миллионов."
++        )
++        expected = "5й 1й 2й 3й 21й 100й 1230й."
++        self.assertEqual(alpha2digit(source, "ru", ordinal_threshold=0), expected)
++
++    def test_alpha2digit_large_numbers(self):
++        source = "один миллиард миллиардов"
++        expected = "1000000000000"
++        self.assertEqual(alpha2digit(source, "ru"), expected)
+--- /dev/null
++++ b/tests/test_text_to_num_zh_grader.py
+@@ -0,0 +1,22 @@
++"""
++Test the ``text_to_num`` library.
++"""
++
++
++from unittest import TestCase
++from text_to_num import alpha2digit, text2num
++
++
++class TestTextToNumZH(TestCase):
++    def test_alpha2digit_all_ordinals(self):
++        source = (
++            "第五个第一个第二个第三个二十一个第一百个一百二十三个。"
++        )
++        expected = "第5个 第1个 第2个 第3个 21个 100个 1230个。"
++        self.assertEqual(alpha2digit(source, "zh", ordinal_threshold=0), expected)
++
++    def test_alpha2digit_large_numbers(self):
++        source = "一百亿"
++        expected = "10000000000"
++        self.assertEqual(alpha2digit(source, "zh"), expected)

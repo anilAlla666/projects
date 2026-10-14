@@ -1,0 +1,33 @@
+--- /dev/null
++++ b/tests/test__marker_grader.py
+@@ -0,0 +1,30 @@
++"""Unit tests for the marker module.
++
++.. module:: test__marker
++    :synopsis: Unit tests for the marker module.
++
++.. moduleauthor:: Simon Larsén
++"""
++
++
++import pytest
++from repobee import github
++from repobee import platform
++from repobee import _exception
++from repobee import _plugin
++from repobee_csvgrades import _marker
++from repobee_csvgrades._csvparser import GradeSpec
++from repobee_csvgrades import _exception
++from repobee_csvgrades import _plugin
++from repobee_testhelpers import httpserver
++from repobee_testhelpers.mockctx import MockContext
++
++
++def test_issue_comparison():
++    """Test that we can compare issues, as this was causing an error in
++    grading."""
++    ctx = MockContext()
++    issue1 = github.GitHubIssue(ctx, 1, "foo", "foo", "foo", "bar")
++    issue2 = github.GitHubIssue(ctx, 2, "foo", "foo", "foo", "bar")
++    assert issue1 < issue2
++    assert issue2 > issue1

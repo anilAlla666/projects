@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/t/unit/test_transport_grader.py
+@@ -0,0 +1,44 @@
++import errno
++import os
++import re
++import ssl
++import socket
++import struct
++from struct import pack
++from unittest.mock import ANY, MagicMock, Mock, call, patch, sentinel
++import pytest
++from amqp import transport
++from amqp.exceptions import UnexpectedFrame
++from amqp.transport import _AbstractTransport
++
++
++SIGNED_INT_MAX = 0x7FFFFFFF
++
++
++class DummyException(Exception):
++    pass
++
++
++class MockSocket:
++    options = {}
++
++    def __init__(self, *args, **kwargs):
++        super().__init__(*args, **kwargs)
++        self.connected = False
++        self.sa = None
++
++    def setsockopt(self, family, key, value):
++        is_sol_socket = family == socket.SOL_SOCKET
++        is_receive_or_send_timeout = key in (socket.SO_RCVTIMEO,
++                                             socket.SO_SNDTIMEO)
++        if is_sol_socket and is_receive_or_send_timeout:
++            self.options[key] = value
++        elif not isinstance(value, int):
++            raise OSError()
++        self.options[key] = value
++
++
++class TestSSLTransport:
++    Transport = transport.SSLTransport
++
++    @pytest.mark.parametrize("cert_reqs", [None, ssl.CERT_NONE])
++    def test_wrap_socket_sni__verify_mode_before_check_hostname(self, cert_reqs):
++        mock_context = Mock()
++        mock_sock = Mock()
++        transport._wrap_socket_sni(mock_context, mock_sock, cert_reqs=cert_reqs)
++        assert mock_context.verify_mode == cert_reqs
++        assert mock_context.check_hostname is False

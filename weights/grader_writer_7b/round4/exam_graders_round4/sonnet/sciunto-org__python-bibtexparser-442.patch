@@ -1,0 +1,69 @@
+diff --git a/tests/test_entry_setitem.py b/tests/test_entry_setitem.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_entry_setitem.py
+@@ -0,0 +1,63 @@
++from bibtexparser.model import Entry, Field
++
++
++def _entry():
++    return Entry(
++        "article",
++        "key",
++        [Field("author", "Doe")],
++        1,
++        "raw",
++    )
++
++
++def test_setitem_creates_new_field():
++    entry = _entry()
++    entry["title"] = "My Title"
++
++    assert entry["title"] == "My Title"
++    assert "title" in entry.fields_dict
++    field = entry.fields_dict["title"]
++    assert isinstance(field, Field)
++    assert field.key == "title"
++    assert field.value == "My Title"
++    assert len(entry.fields) == 2
++
++
++def test_setitem_replaces_existing_field():
++    entry = _entry()
++    entry["author"] = "Smith"
++
++    assert entry["author"] == "Smith"
++    assert len(entry.fields) == 1
++    assert entry.fields[0].key == "author"
++    assert entry.fields[0].value == "Smith"
++
++
++def test_setitem_accepts_any_value_type():
++    entry = _entry()
++    entry["year"] = 2023
++    assert entry["year"] == 2023
++
++    value = ["a", "b"]
++    entry["list"] = value
++    assert entry["list"] == value
++
++
++def test_setitem_shows_up_in_items():
++    entry = _entry()
++    entry["title"] = "T"
++    assert ("title", "T") in entry.items()
++    assert ("author", "Doe") in entry.items()
++
++
++def test_setitem_multiple_keys():
++    entry = _entry()
++    entry["a"] = "1"
++    entry["b"] = "2"
++    entry["a"] = "3"
++
++    assert entry["a"] == "3"
++    assert entry["b"] == "2"
++    keys = [f.key for f in entry.fields]
++    assert sorted(keys) == ["a", "author", "b"]
++    assert len(keys) == 3
