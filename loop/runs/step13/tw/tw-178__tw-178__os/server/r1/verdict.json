@@ -1,0 +1,14 @@
+{"changed": true,
+ "correct_candidates": ["A","B"],
+ "wrong_candidates": ["C","D"],
+ "near_misses": ["nm1_summary_missing_debug","nm2_hardcoded_double","nm3_hardcoded_diff_data","nm4_env_shebang","nm5_missing_blank_line","nm6_copy_expected_shortcut"],
+ "checks": [
+  {"check":"first line is exactly #!/bin/bash","requirement":"The script must use #!/bin/bash shebang (not sh)","basis":"task-text","note":"kept from original"},
+  {"check":"bash /app/process_data.sh exits 0 (twice, with original and changed inputs)","requirement":"ensure it runs without errors","basis":"task-text","note":""},
+  {"check":"regenerated output.txt byte-identical to the Dockerfile's expected_output.txt","requirement":"The fixed script should produce output to /app/output.txt that matches /app/expected_output.txt","basis":"task-text","note":"output deleted before run so a stale file cannot pass"},
+  {"check":"regenerated config_summary.txt contains header and APP_NAME/VERSION/MODE/DEBUG lines","requirement":"The script should also generate /app/config_summary.txt with parsed configuration values","basis":"task-text","note":"line-based, whitespace-tolerant; was missing from original"},
+  {"check":"script code contains <<<, a << WORD heredoc, and <(","requirement":"Read configuration from a here-document / here-strings / process substitution; fix each bug maintaining intended functionality","basis":"format","note":"new"},
+  {"check":"with changed inputs and decoy expected file, Data Comparison section equals diff of the new inputs; config/transform sections unchanged","requirement":"Compare outputs from multiple data sources ...; maintaining the original intended functionality","basis":"recomputed","note":"new; rejects copy/hard-coded shortcuts"},
+  {"check":"bc is invoked with the input value 42 on stdin (PATH shim) or by absolute path","requirement":"Process input data using here-strings for single-value transformations; maintaining the original intended functionality (original uses bc; Dockerfile installs bc for arithmetic)","basis":"format","note":"new; rejects hard-coded doubled value"}
+ ],
+ "contested": []}

@@ -1,0 +1,11 @@
+{"changed": true,
+ "correct_candidates": ["A","B","C","E"],
+ "wrong_candidates": ["D"],
+ "near_misses": ["nm_missing_rbash","nm_dash_wrong_path","nm_no_current_shell","nm_script_as_current_shell","nm_no_verification","nm_zsh_marked_missing","shortcut_names_only"],
+ "checks": [
+  {"check":"/app/shell_report.txt exists and is non-empty","requirement":"Your report should be saved as `shell_report.txt` in the /app directory","basis":"format","note":""},
+  {"check":"a 'current shell'/$0 entry whose value is a shell name (any shell)","requirement":"The current shell being used (identified by $0 or similar methods)","basis":"format","note":"value not pinned to bash; rejects script names like /replay.sh"},
+  {"check":"all 13 distinct /etc/shells absolute paths of the image appear as whole paths","requirement":"A list of all installed shells found on the system (from /etc/shells); The absolute path to each shell executable","basis":"recomputed","note":"read from this machine's /etc/shells (from Dockerfile packages); extra entries like /usr/bin/tmux allowed"},
+  {"check":"report mentions 'exist' and 'executable'; no listed image shell marked missing/not executable","requirement":"Verification that these shells actually exist as executable files","basis":"recomputed","note":"all 13 paths verified executable on this machine"}
+ ],
+ "contested": []}

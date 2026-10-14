@@ -1,0 +1,30 @@
+I've added a new test file rather than editing `tests/test_models.py`, because I couldn't check that file's exact contents to write a clean patch against it. I haven't run these tests. I'm also assuming `hy.models.Symbol` raises `ValueError` on invalid input, as it does for `"5"`.
+
+```diff
+diff --git a/tests/test_symbol_reader_macro_name.py b/tests/test_symbol_reader_macro_name.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_symbol_reader_macro_name.py
+@@ -0,0 +1,22 @@
++import pytest
++
++import hy.models
++
++
++@pytest.mark.parametrize("s", ["#foo", "#a", "#foo-bar"])
++def test_symbol_rejects_reader_macro_syntax(s):
++    # These parse as reader-macro calls, not symbols.
++    with pytest.raises(ValueError):
++        hy.models.Symbol(s)
++
++
++def test_symbol_rejects_number():
++    # Sanity check of the analogous existing behavior.
++    with pytest.raises(ValueError):
++        hy.models.Symbol("5")
++
++
++@pytest.mark.parametrize("s", ["foo", "foo-bar", "foo#bar"])
++def test_symbol_accepts_normal(s):
++    assert str(hy.models.Symbol(s)) == s
+```

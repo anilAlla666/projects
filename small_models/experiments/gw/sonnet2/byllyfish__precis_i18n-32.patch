@@ -1,0 +1,59 @@
+--- /dev/null
++++ b/tests/test_nickname_whitespace.py
+@@ -0,0 +1,58 @@
++# -*- coding: utf-8 -*-
++"""Nickname profile must only strip ASCII space, not other whitespace."""
++
++import unittest
++
++from precis_i18n import get_profile
++
++
++class NicknameWhitespaceTest(unittest.TestCase):
++    def setUp(self):
++        self.profile = get_profile('Nickname')
++
++    def _assert_rejected(self, value):
++        with self.assertRaises(UnicodeEncodeError):
++            self.profile.enforce(value)
++
++    def test_trailing_newline_not_stripped(self):
++        self._assert_rejected(' a\n')
++
++    def test_trailing_newline_only(self):
++        self._assert_rejected('a\n')
++
++    def test_unit_separator_not_stripped(self):
++        self._assert_rejected('\x1fb\x1f')
++
++    def test_tab_cr_lf_not_stripped(self):
++        self._assert_rejected('\tc\r\n')
++
++    def test_leading_tab_not_stripped(self):
++        self._assert_rejected('\tc')
++
++    def test_nel_not_stripped(self):
++        self._assert_rejected('\x85a')
++
++    def test_line_separator_not_stripped(self):
++        self._assert_rejected('a\u2028')
++
++    def test_paragraph_separator_not_stripped(self):
++        self._assert_rejected('\u2029a')
++
++    def test_ascii_space_still_stripped(self):
++        self.assertEqual(self.profile.enforce('  a  '), 'a')
++
++    def test_internal_spaces_collapsed(self):
++        self.assertEqual(self.profile.enforce(' a   b '), 'a b')
++
++    def test_non_ascii_space_still_mapped_and_stripped(self):
++        self.assertEqual(self.profile.enforce('\u2003a\u2003'), 'a')
++        self.assertEqual(self.profile.enforce('a\u2003\u2003b'), 'a b')
++
++    def test_plain_nickname(self):
++        self.assertEqual(self.profile.enforce('Foo'), 'Foo')
++
++
++if __name__ == '__main__':
++    unittest.main()

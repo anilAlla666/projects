@@ -1,0 +1,59 @@
+I couldn't see the repository, so this is written from memory of its API and I haven't run it. It assumes `provider` and `inject` are exported from `ioccontainer`, that `@provider('name')` registers a function or class under a name, and that `@inject(param='name')` maps a parameter to a provider. If the API differs, the imports and decorator calls will need adjusting.
+
+```diff
+diff --git a/tests/test_inject_none_override.py b/tests/test_inject_none_override.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_inject_none_override.py
+@@ -0,0 +1,45 @@
++from ioccontainer import provider, inject
++
++
++class NoneOverrideService(object):
++    pass
++
++
++@provider('none_override_service')
++def provide_none_override_service():
++    return NoneOverrideService()
++
++
++@inject(service='none_override_service')
++def kw_func(service=None):
++    return service
++
++
++@inject(service='none_override_service')
++def pos_func(service):
++    return service
++
++
++def test_none_kwarg_is_overridden():
++    result = kw_func(service=None)
++    assert isinstance(result, NoneOverrideService)
++
++
++def test_none_positional_is_overridden():
++    result = pos_func(None)
++    assert isinstance(result, NoneOverrideService)
++
++
++def test_not_provided_is_injected():
++    assert isinstance(kw_func(), NoneOverrideService)
++
++
++def test_non_none_value_is_kept():
++    sentinel = object()
++    assert kw_func(service=sentinel) is sentinel
++    assert pos_func(sentinel) is sentinel
++
++
++def test_class_method_none_is_overridden():
++    class Foo(object):
++        @inject(service='none_override_service')
++        def method(self, service=None):
++            return service
++
++    assert isinstance(Foo().method(service=None), NoneOverrideService)
++    assert isinstance(Foo().method(None), NoneOverrideService)
+```

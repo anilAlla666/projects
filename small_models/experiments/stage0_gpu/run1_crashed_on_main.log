@@ -1,0 +1,90 @@
+{"config": "dev", "params": 24324959, "compiled": false, "batch": 32, "seq": 2048, "tokens_per_s": 119489, "tokens_per_s_min": 119480, "tokens_per_s_max": 119508, "peak_gb": 19.25, "hours_per_1b_tokens": 2.32, "dollars_per_1b_tokens": 3.0}
+{"config": "dev", "params": 24324959, "compiled": true, "batch": 32, "seq": 2048, "tokens_per_s": 149783, "tokens_per_s_min": 149778, "tokens_per_s_max": 149795, "peak_gb": 12.14, "hours_per_1b_tokens": 1.85, "dollars_per_1b_tokens": 2.39}
+{"config": "dev", "params": 24324959, "compiled": false, "batch": 128, "seq": 512, "tokens_per_s": 119484, "tokens_per_s_min": 119383, "tokens_per_s_max": 119488, "peak_gb": 19.25, "hours_per_1b_tokens": 2.32, "dollars_per_1b_tokens": 3.0}
+{"config": "dev", "params": 24324959, "compiled": true, "batch": 128, "seq": 512, "tokens_per_s": 149198, "tokens_per_s_min": 149007, "tokens_per_s_max": 149224, "peak_gb": 12.14, "hours_per_1b_tokens": 1.86, "dollars_per_1b_tokens": 2.4}
+{"config": "mid", "params": 44509873, "compiled": false, "batch": 32, "seq": 2048, "tokens_per_s": 81504, "tokens_per_s_min": 81478, "tokens_per_s_max": 81508, "peak_gb": 31.39, "hours_per_1b_tokens": 3.41, "dollars_per_1b_tokens": 4.4}
+{"config": "mid", "params": 44509873, "compiled": true, "batch": 32, "seq": 2048, "tokens_per_s": 105543, "tokens_per_s_min": 105518, "tokens_per_s_max": 105547, "peak_gb": 19.18, "hours_per_1b_tokens": 2.63, "dollars_per_1b_tokens": 3.4}
+{"config": "mid", "params": 44509873, "compiled": false, "batch": 128, "seq": 512, "tokens_per_s": 82064, "tokens_per_s_min": 82052, "tokens_per_s_max": 82064, "peak_gb": 31.39, "hours_per_1b_tokens": 3.38, "dollars_per_1b_tokens": 4.37}
+{"config": "mid", "params": 44509873, "compiled": true, "batch": 128, "seq": 512, "tokens_per_s": 106178, "tokens_per_s_min": 106158, "tokens_per_s_max": 106203, "peak_gb": 19.18, "hours_per_1b_tokens": 2.62, "dollars_per_1b_tokens": 3.37}
+Traceback (most recent call last):
+  File "/home/ubuntu/verifier_model/scripts/stage0_gpu.py", line 112, in <module>
+    main()
+  File "/home/ubuntu/verifier_model/scripts/stage0_gpu.py", line 92, in main
+    rows.append(train_speed(name, cfg, batch, seq, a.steps, comp, a.price))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/verifier_model/scripts/stage0_gpu.py", line 38, in train_speed
+    trainer.step(tok, seg)  # warm up (and compile)
+    ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/verifier_model/vmt/train.py", line 59, in step
+    loss = self.loss_fn(self.model, *batch)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/verifier_model/vmt/train.py", line 51, in lm_loss
+    return lm_loss_with(model, model, tokens, segments)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/verifier_model/vmt/train.py", line 45, in lm_loss_with
+    hidden = run_model(tokens[:, :-1], segments[:, :-1])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/verifier_model/vmt/model.py", line 43, in forward
+    x = block(x)
+        ^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/verifier_model/vmt/model.py", line 23, in forward
+    x = x + self.mixer(self.norm1(x))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1779, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1790, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/verifier_model/vmt/layers.py", line 76, in forward
+    o, _ = chunk_kda(q.to(dt), k.to(dt), v, log_g, beta, scale=K**-0.5)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 1263, in _fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/fla/ops/backends/__init__.py", line 214, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 1263, in _fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/fla/ops/kda/chunk.py", line 416, in chunk_kda
+    return ChunkKDAFunction.apply(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/torch/autograd/function.py", line 596, in apply
+    return super().apply(*args, **kwargs)  # type: ignore[misc]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/fla/utils/_decorators.py", line 152, in wrapper
+    return fn(*processed_args, **processed_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/torch/amp/autocast_mode.py", line 481, in decorate_fwd
+    return fwd(*args, **kwargs)  # pyrefly: ignore [not-callable]
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/fla/ops/kda/chunk.py", line 74, in forward
+    (o, final_state, g_cumsum, Aqk, Akk, w, u, qg, kg, v_new, h, initial_state) = chunk_kda_fwd(
+                                                                                  ^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/fla/ops/kda/chunk_fwd.py", line 94, in chunk_kda_fwd
+    h, v_new, final_state = chunk_gated_delta_rule_fwd_h(
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 1263, in _fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/fla/ops/backends/__init__.py", line 214, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/vmenv/lib/python3.12/site-packages/fla/ops/common/chunk_delta_h.py", line 706, in chunk_gated_delta_rule_fwd_h
+    h = k.new_empty(B, NT, HV, K, V)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 96.00 MiB. GPU 0 has a total capacity of 39.49 GiB of which 68.56 MiB is free. Including non-PyTorch memory, this process has 39.42 GiB memory in use. Of the allocated memory 35.13 GiB is allocated by PyTorch, and 46.72 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)

@@ -1,0 +1,74 @@
+diff --git a/tests/pathlib_entry_test.py b/tests/pathlib_entry_test.py
+new file mode 100644
+--- /dev/null
++++ b/tests/pathlib_entry_test.py
+@@ -0,0 +1,67 @@
++import os
++import tempfile
++import unittest
++from pathlib import Path
++
++from container_app_conf import Config
++from container_app_conf.entry.file import FileConfigEntry, DirectoryConfigEntry
++
++
++class PathlibEntryTest(unittest.TestCase):
++    def setUp(self):
++        for k in ("FILE", "DIR"):
++            os.environ.pop(k, None)
++
++    def tearDown(self):
++        for k in ("FILE", "DIR"):
++            os.environ.pop(k, None)
++
++    def test_file_entry_returns_path(self):
++        with tempfile.NamedTemporaryFile() as tmp:
++            os.environ["FILE"] = tmp.name
++
++            class AppConfig(Config):
++                FILE = FileConfigEntry(key_path=["file"], required=False)
++
++            config = AppConfig()
++            value = config.FILE.value
++            self.assertIsInstance(value, Path)
++            self.assertEqual(Path(tmp.name), value)
++
++    def test_directory_entry_returns_path(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            os.environ["DIR"] = tmp
++
++            class AppConfig(Config):
++                DIR = DirectoryConfigEntry(key_path=["dir"], required=False)
++
++            config = AppConfig()
++            value = config.DIR.value
++            self.assertIsInstance(value, Path)
++            self.assertEqual(Path(tmp), value)
++
++    def test_file_entry_accepts_path_default(self):
++        with tempfile.NamedTemporaryFile() as tmp:
++            default = Path(tmp.name)
++
++            class AppConfig(Config):
++                FILE = FileConfigEntry(key_path=["file"], default=default)
++
++            config = AppConfig()
++            value = config.FILE.value
++            self.assertIsInstance(value, Path)
++            self.assertEqual(default, value)
++
++    def test_directory_entry_accepts_path_default(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            default = Path(tmp)
++
++            class AppConfig(Config):
++                DIR = DirectoryConfigEntry(key_path=["dir"], default=default)
++
++            config = AppConfig()
++            value = config.DIR.value
++            self.assertIsInstance(value, Path)
++            self.assertEqual(default, value)
++
++
++if __name__ == "__main__":
++    unittest.main()

@@ -1,0 +1,118 @@
+{
+ "loop": "tw-770__tw-770__nu",
+ "task": "tw-770",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "stop",
+   "turns": 59,
+   "usd": 0.0,
+   "seconds": 1975,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "A",
+     "C"
+    ],
+    "wrong_candidates": [
+     "B",
+     "D",
+     "E"
+    ],
+    "near_misses": [
+     "nm1_missing_config_files",
+     "nm2_wrong_dependency_version",
+     "nm3_missing_scripts_summary",
+     "nm4_false_conffiles_none",
+     "nm5_false_service_active",
+     "nm6_shortcut_fabricated"
+    ],
+    "checks": [
+     {
+      "check": "Report file exists at /home/user/package_audit_report.txt and contains all 5 required section headers (FILES, DEPENDENCIES, SCRIPTS, CONFFILES, SERVICES)",
+      "requirement": "Create a structured audit report at /home/user/package_audit_report.txt that contains the following sections: 1. FILES SECTION, 2. DEPENDENCIES SECTION, 3. SCRIPTS SECTION, 4. CONFFILES SECTION, 5. SERVICES SECTION",
+      "basis": "task-text",
+      "note": "Explicitly required by task; case-insensitive check"
+     },
+     {
+      "check": "FILES section has category headers (binaries, configuration, libraries, documentation, other), lists critical files (/usr/sbin/nginx, /etc/nginx, nginx.conf, documentation, systemd service, default site), and does not falsely claim '(none)' for configuration or libraries",
+      "requirement": "FILES SECTION: A categorized list of all files installed by the nginx package, grouped by type: Binaries, Configuration files, Libraries, Documentation, Other files",
+      "basis": "task-text",
+      "note": "Task explicitly requires categorization and specific directories; nginx-common provides config/libraries"
+     },
+     {
+      "check": "DEPENDENCIES section lists all 7 direct dependencies (libc6, libcrypt1, libpcre2-8-0, libssl3t64, zlib1g, iproute2, nginx-common) with correct version requirements; nginx-common version must be 1.24.0",
+      "requirement": "DEPENDENCIES SECTION: The complete dependency tree showing: All direct dependencies of the nginx package; Version requirements for each dependency",
+      "basis": "recomputed",
+      "note": "Versions derived from dpkg-query --showformat='${Depends}\\n' -W nginx on the grading container"
+     },
+     {
+      "check": "SCRIPTS section references postinst scripts, mentions /var/lib/dpkg/info/nginx.postinst, and includes a summary/description of what the scripts do",
+      "requirement": "SCRIPTS SECTION: Information about package scripts: List any postinst (post-installation) scripts associated with nginx; Provide a brief summary of what these scripts do",
+      "basis": "task-text",
+      "note": "Task explicitly requires listing scripts and providing summary"
+     },
+     {
+      "check": "CONFFILES section does not claim '(none)' or 'no conffiles'; lists at least 3 of 5 key conffiles (nginx.conf, mime.types, sites-available/default, fastcgi_params, proxy_params)",
+      "requirement": "CONFFILES SECTION: A list of configuration files managed by dpkg: These are files marked as 'conffiles' that dpkg tracks for modifications",
+      "basis": "recomputed",
+      "note": "Conffiles derived from dpkg-query --showformat='${Conffiles}\\n' -W nginx-common (nginx package has none)"
+     },
+     {
+      "check": "SERVICES section mentions nginx.service, includes service unit file path (/lib/systemd/system/nginx.service or /usr/lib/systemd/system/nginx.service), correctly indicates status cannot be determined (systemctl unavailable), and does not falsely claim 'Active: active'",
+      "requirement": "SERVICES SECTION: Information about systemd services: List any systemd service units associated with nginx; Include the service status if possible",
+      "basis": "recomputed",
+      "note": "Service file from dpkg -L nginx-common; systemctl not available in grading container"
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "PPPPPF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "nop"
+   ],
+   "guard": {
+    "kept": false,
+    "old_agree": 3,
+    "new_agree": 10,
+    "items": 12
+   }
+  }
+ ],
+ "usd": 0.0,
+ "before": {
+  "accepted_correct": "4/4",
+  "attempts": 7,
+  "balanced_accuracy": 0.666667,
+  "isolation": "bindproc",
+  "labels": "PPPPFFF",
+  "rejected_wrong": "1/3",
+  "reward": 0.333333,
+  "seconds": 2.7,
+  "task": "tw-770",
+  "timeouts": 0,
+  "tnr": 0.333333,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "4/4",
+  "attempts": 7,
+  "balanced_accuracy": 0.666667,
+  "isolation": "bindproc",
+  "labels": "PPPPFFF",
+  "rejected_wrong": "1/3",
+  "reward": 0.333333,
+  "seconds": 2.6,
+  "task": "tw-770",
+  "timeouts": 0,
+  "tnr": 0.333333,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPF"
+ }
+}

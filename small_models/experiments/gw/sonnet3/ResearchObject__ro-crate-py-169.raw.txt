@@ -1,0 +1,43 @@
+I'm adding a new test file rather than editing `test/test_model.py`. It tries to reassign `id` on a dataset and a person and checks the crate stays consistent. I haven't run it.
+
+The tests accept any exception when `id` is assigned, since the issue doesn't say which one a fix should raise. A read-only property would raise `AttributeError`, but other fixes could raise something else. The tests then check that the id and the crate's lookup by that id are unchanged. Both tests fail on the current code, because the assignment succeeds and the id changes.
+
+```diff
+--- /dev/null
++++ b/test/test_entity_id_immutable.py
+@@ -0,0 +1,38 @@
++import pytest
++
++from rocrate.rocrate import ROCrate
++from rocrate.model import Person
++
++
++def _try_set_id(entity, new_id):
++    with pytest.raises(Exception):
++        entity.id = new_id
++
++
++def test_entity_id_not_modifiable():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    orig_id = d.id
++    canonical = d.canonical_id()
++    _try_set_id(d, "foo")
++    # nothing changed
++    assert d.id == orig_id
++    assert d.canonical_id() == canonical
++    assert crate.dereference("FOO") is d
++    assert crate.dereference("foo") is None
++    assert crate.get("FOO") is d
++    assert d in crate.get_entities()
++
++
++def test_context_entity_id_not_modifiable():
++    crate = ROCrate()
++    joe = crate.add(Person(crate, "#joe", properties={"name": "Joe"}))
++    _try_set_id(joe, "#jim")
++    assert joe.id == "#joe"
++    assert crate.get("#joe") is joe
++    assert crate.get("#jim") is None
++    assert joe["@id"] == "#joe"
+```

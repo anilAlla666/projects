@@ -1,0 +1,70 @@
+--- /dev/null
++++ b/tests/test_linq_copy.py
+@@ -0,0 +1,75 @@
++from .testing_util import *
++
++from qastle import *
++
++import ast
++import copy
++
++import pytest
++
++
++def _expr(text):
++    return unwrap_ast(ast.parse(text))
++
++
++def _make_nodes():
++    return [
++        Where(source=_expr('the_source'), predicate=_expr('lambda row: row')),
++        Select(source=_expr('the_source'), selector=_expr('lambda row: row')),
++        SelectMany(source=_expr('the_source'), selector=_expr('lambda row: row')),
++        First(source=_expr('the_source')),
++        Aggregate(source=_expr('the_source'),
++                  seed=_expr('0'),
++                  func=_expr('lambda a, b: a')),
++        Count(source=_expr('the_source')),
++        Max(source=_expr('the_source')),
++        Min(source=_expr('the_source')),
++        Sum(source=_expr('the_source')),
++        Zip(source=_expr('the_source')),
++        OrderBy(source=_expr('the_source'), key_selector=_expr('lambda row: row')),
++        Choose(source=_expr('the_source'), n=_expr('2')),
++    ]
++
++
++@pytest.mark.parametrize('node', _make_nodes(), ids=lambda n: type(n).__name__)
++def test_shallow_copy(node):
++    new = copy.copy(node)
++    assert type(new) is type(node)
++    assert new is not node
++    for field in node._fields:
++        assert getattr(new, field) is getattr(node, field)
++
++
++@pytest.mark.parametrize('node', _make_nodes(), ids=lambda n: type(n).__name__)
++def test_deep_copy(node):
++    new = copy.deepcopy(node)
++    assert type(new) is type(node)
++    assert new is not node
++    assert list(new._fields) == list(node._fields)
++    for field in node._fields:
++        assert getattr(new, field) is not getattr(node, field)
++    assert_ast_nodes_are_equal(new, node)
++
++
++def test_deep_copy_nested_tree():
++    initial_ast = ast.parse("the_source.Where('lambda row: row').Select('lambda row: row')"
++                            ".Count()")
++    linq_ast = insert_linq_nodes(initial_ast)
++    new = copy.deepcopy(linq_ast)
++    assert new is not linq_ast
++    assert_ast_nodes_are_equal(new, linq_ast)
++
++
++def test_copy_nested_tree():
++    initial_ast = ast.parse("the_source.First().Zip()")
++    linq_ast = insert_linq_nodes(initial_ast)
++    new = copy.copy(linq_ast)
++    assert_ast_nodes_are_equal(new, linq_ast)

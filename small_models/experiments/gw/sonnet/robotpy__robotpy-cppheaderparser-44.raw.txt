@@ -1,0 +1,52 @@
+I added a new test file rather than editing an existing one, so the diff doesn't depend on the context of the current test module. I haven't run it. The path `CppHeaderParser/test/` is my assumption about where the repo keeps its tests.
+
+The first test uses the exact header from the issue, including the missing semicolon after the class. The second uses the same header with the semicolon. Both should raise `KeyError: 'typedefs'` on the current code and pass once the fix is in. They only assert that parsing succeeds and that `aMethod` is found with return type `A`. They don't check how the typedef is resolved, because I don't know what the fix produces there.
+
+```diff
+diff --git a/CppHeaderParser/test/test_typedef_rtntype.py b/CppHeaderParser/test/test_typedef_rtntype.py
+new file mode 100644
+--- /dev/null
++++ b/CppHeaderParser/test/test_typedef_rtntype.py
+@@ -0,0 +1,35 @@
++import unittest
++
++import CppHeaderParser
++
++
++class TypedefReturnTypeTest(unittest.TestCase):
++    """Regression: method returning a typedef'd type raised KeyError: 'typedefs'"""
++
++    def test_method_returns_typedef_no_semicolon(self):
++        h = """
++typedef C A;
++
++class B
++{
++public:
++   A aMethod();
++}
++"""
++        cpp = CppHeaderParser.CppHeader(h, "string")
++        methods = cpp.classes["B"]["methods"]["public"]
++        self.assertEqual(len(methods), 1)
++        self.assertEqual(methods[0]["name"], "aMethod")
++        self.assertEqual(methods[0]["rtnType"], "A")
++
++    def test_method_returns_typedef_with_semicolon(self):
++        h = """
++typedef C A;
++
++class B
++{
++public:
++   A aMethod();
++};
++"""
++        cpp = CppHeaderParser.CppHeader(h, "string")
++        methods = cpp.classes["B"]["methods"]["public"]
++        self.assertEqual(methods[0]["name"], "aMethod")
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

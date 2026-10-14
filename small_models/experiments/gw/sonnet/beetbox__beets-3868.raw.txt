@@ -1,0 +1,55 @@
+I haven't run this against the repository, and I wrote the hunk without seeing the exact end of `test/test_web.py`. It assumes the file ends with `def suite():` followed by `unittest.main(defaultTest='suite')`. If the hunk doesn't apply cleanly, move the new class to just above `def suite():`.
+
+The new test class has its own in-memory library, so it doesn't depend on the fixtures in the existing web tests. It checks both cases for GET `/album/<id>`:
+
+- **`INCLUDE_PATHS` true:** the JSON must contain `artpath`, equal to the displayable form of the stored path. The current code deletes it unconditionally, so this test fails today.
+- **`INCLUDE_PATHS` false:** `artpath` must be absent.
+
+```diff
+--- a/test/test_web.py
++++ b/test/test_web.py
+@@ -1,3 +1,43 @@
++class WebAlbumArtpathTest(unittest.TestCase):
++    """GET /album/<id> should honour the INCLUDE_PATHS setting for artpath."""
++
++    def setUp(self):
++        from beets import library
++        self.lib = library.Library(':memory:')
++        album = library.Album(album='album with art',
++                              albumartist='someone',
++                              artpath=b'/some/art/cover.jpg')
++        self.lib.add(album)
++        self.album_id = album.id
++        self.expected_artpath = library.util.displayable_path(
++            b'/some/art/cover.jpg')
++
++        web.app.config['TESTING'] = True
++        web.app.config['lib'] = self.lib
++        web.app.config['INCLUDE_PATHS'] = False
++        self.client = web.app.test_client()
++
++    def tearDown(self):
++        web.app.config['INCLUDE_PATHS'] = False
++
++    def test_album_artpath_included_when_configured(self):
++        web.app.config['INCLUDE_PATHS'] = True
++        response = self.client.get('/album/{}'.format(self.album_id))
++        res_json = json.loads(response.data.decode('utf-8'))
++
++        self.assertEqual(response.status_code, 200)
++        self.assertIn('artpath', res_json)
++        self.assertEqual(res_json['artpath'], self.expected_artpath)
++
++    def test_album_artpath_hidden_by_default(self):
++        web.app.config['INCLUDE_PATHS'] = False
++        response = self.client.get('/album/{}'.format(self.album_id))
++        res_json = json.loads(response.data.decode('utf-8'))
++
++        self.assertEqual(response.status_code, 200)
++        self.assertNotIn('artpath', res_json)
++
++
+ def suite():
+     return unittest.TestLoader().loadTestsFromName(__name__)
+ 
+```

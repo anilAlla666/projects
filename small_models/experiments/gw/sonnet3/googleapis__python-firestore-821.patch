@@ -1,0 +1,75 @@
+--- a/tests/unit/v1/test_transforms.py
++++ b/tests/unit/v1/test_transforms.py
+@@ -14,6 +14,69 @@
+ 
+ import pytest
+ 
+ 
++def test_sentinel_copy_preserves_identity():
++    import copy
++    from google.cloud.firestore_v1.transforms import (
++        DELETE_FIELD,
++        SERVER_TIMESTAMP,
++    )
++
++    assert copy.copy(SERVER_TIMESTAMP) is SERVER_TIMESTAMP
++    assert copy.copy(DELETE_FIELD) is DELETE_FIELD
++
++
++def test_sentinel_deepcopy_preserves_identity():
++    import copy
++    from google.cloud.firestore_v1.transforms import (
++        DELETE_FIELD,
++        SERVER_TIMESTAMP,
++    )
++
++    assert copy.deepcopy(SERVER_TIMESTAMP) is SERVER_TIMESTAMP
++    assert copy.deepcopy(DELETE_FIELD) is DELETE_FIELD
++
++
++def test_sentinel_deepcopy_with_memo_preserves_identity():
++    import copy
++    from google.cloud.firestore_v1.transforms import SERVER_TIMESTAMP
++
++    assert copy.deepcopy(SERVER_TIMESTAMP, {}) is SERVER_TIMESTAMP
++
++
++def test_sentinel_deepcopy_nested_container():
++    import copy
++    from google.cloud.firestore_v1.transforms import (
++        DELETE_FIELD,
++        SERVER_TIMESTAMP,
++    )
++
++    data = {"a": SERVER_TIMESTAMP, "b": [DELETE_FIELD, {"c": SERVER_TIMESTAMP}]}
++    result = copy.deepcopy(data)
++    assert result["a"] is SERVER_TIMESTAMP
++    assert result["b"][0] is DELETE_FIELD
++    assert result["b"][1]["c"] is SERVER_TIMESTAMP
++
++
++def test_sentinel_dataclass_asdict_preserves_identity():
++    import dataclasses
++    from google.cloud.firestore_v1.transforms import SERVER_TIMESTAMP
++
++    @dataclasses.dataclass
++    class Example:
++        timestamp: object = SERVER_TIMESTAMP
++
++    example = Example()
++    assert example.timestamp is SERVER_TIMESTAMP
++    assert dataclasses.asdict(example)["timestamp"] is SERVER_TIMESTAMP
++
++
++def test_sentinel_custom_instance_copy_identity():
++    import copy
++    from google.cloud.firestore_v1.transforms import Sentinel
++
++    s = Sentinel("custom")
++    assert copy.copy(s) is s
++    assert copy.deepcopy(s) is s
++
++
+ def _make_value_list(*args, **kwargs):
+     from google.cloud.firestore_v1.transforms import _ValueList
+ 

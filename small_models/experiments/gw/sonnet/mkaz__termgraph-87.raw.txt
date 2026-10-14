@@ -1,0 +1,68 @@
+I haven't run these tests, and they rest on some guesses about the repo. I couldn't see the repo, so I assumed `chart` and `normalize` take a list of lists for `data`. I also guessed which keys `chart` reads from `args`, so the `args` dict is generous.
+
+The issue example passes a flat `data=[0, 0]`, which I changed to `[[0], [0]]`. If the repo expects a different shape, the tests will need adjusting.
+
+I put the tests in a new file, `tests/test_zero_data.py`, to avoid colliding with existing test files.
+
+- **Normalize:** the first test checks that `normalize` on all-zero data returns zeros rather than raising `ZeroDivisionError`.
+- **Chart:** the second runs `chart` end to end on all-zero data with the labels from the issue and checks that it doesn't raise.
+
+```diff
+diff --git a/tests/test_zero_data.py b/tests/test_zero_data.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_zero_data.py
+@@ -0,0 +1,54 @@
++from termgraph import termgraph as tg
++
++
++def _args(**overrides):
++    args = {
++        "filename": "-",
++        "title": None,
++        "width": 50,
++        "format": "{:<5.2f}",
++        "suffix": "",
++        "no_labels": False,
++        "no_values": False,
++        "vertical": False,
++        "stacked": False,
++        "histogram": False,
++        "different_scale": False,
++        "calendar": False,
++        "start_dt": None,
++        "custom_tick": "",
++        "delim": "",
++        "verbose": False,
++        "label_before": False,
++        "color": None,
++        "space_between": False,
++        "bins": 5,
++        "version": False,
++        "tick": "▇",
++    }
++    args.update(overrides)
++    return args
++
++
++def test_normalize_all_zeros():
++    res = tg.normalize([[0], [0]], 50)
++    assert [list(map(float, r)) for r in res] == [[0.0], [0.0]]
++
++
++def test_normalize_all_zeros_multi_series():
++    res = tg.normalize([[0, 0], [0, 0]], 50)
++    assert all(float(v) == 0 for row in res for v in row)
++
++
++def test_chart_all_zeros_does_not_raise(capsys):
++    tg.chart(
++        colors=[],
++        data=[[0], [0]],
++        args=_args(width=100, format="{:,}"),
++        labels=["iOS", "Android"],
++    )
++    out = capsys.readouterr().out
++    assert "iOS" in out
++    assert "Android" in out
+```

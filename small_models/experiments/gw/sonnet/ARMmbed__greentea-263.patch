@@ -1,0 +1,48 @@
+diff --git a/test/mbed_gt_test_name_glob.py b/test/mbed_gt_test_name_glob.py
+new file mode 100644
+--- /dev/null
++++ b/test/mbed_gt_test_name_glob.py
+@@ -0,0 +1,57 @@
++import unittest
++
++from mbed_greentea import mbed_greentea_cli
++
++
++class GreenteaTestNameGlob(unittest.TestCase):
++
++    def setUp(self):
++        self.tests = {
++            'mbed-os-timer': './build/mbed-os-timer.bin',
++            'tests-timer': './build/tests-timer.bin',
++            'mbed-os-ticker': './build/mbed-os-ticker.bin',
++            'mbed-drivers-timer': './build/mbed-drivers-timer.bin',
++            'other': './build/other.bin',
++        }
++
++    def _filter(self, pattern):
++        result = mbed_greentea_cli.create_filtered_test_list(
++            self.tests, pattern, None)
++        return sorted(result.keys())
++
++    def test_trailing_wildcard(self):
++        self.assertEqual(self._filter('mbed-os-*'),
++                         ['mbed-os-ticker', 'mbed-os-timer'])
++
++    def test_leading_wildcard(self):
++        self.assertEqual(self._filter('*-timer'),
++                         ['mbed-drivers-timer', 'mbed-os-timer', 'tests-timer'])
++
++    def test_middle_wildcard(self):
++        self.assertEqual(self._filter('mbed-*-timer'),
++                         ['mbed-drivers-timer', 'mbed-os-timer'])
++
++    def test_exact_name(self):
++        self.assertEqual(self._filter('other'), ['other'])
++
++    def test_multiple_patterns(self):
++        self.assertEqual(self._filter('*-ticker,other'),
++                         ['mbed-os-ticker', 'other'])
++
++
++if __name__ == '__main__':
++    unittest.main()

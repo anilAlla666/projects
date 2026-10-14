@@ -1,0 +1,38 @@
+--- a/tests/unittests/arguments/test_parser.py
++++ b/tests/unittests/arguments/test_parser.py
+@@ -300,3 +300,40 @@
+         self.assertEqual([call(USAGE_MESSAGE),
+                           call("next-action: error: argument -r/--reference: invalid choice: 'not_an_option' "
+                                "(choose from 'always', 'never', 'multiple')\n")],
+                          mock_stderr_write.call_args_list)
++
++
++@patch.object(config, "open", mock_open(read_data=""))
++class MixedFilterOrderTest(ParserTestCase):
++    """ Unit tests for filters given in mixed order, including excluded filters followed by included ones. """
++
++    @patch.object(sys, "argv", ["next-action", "@context", "-@excluded_context", "+project"])
++    def test_project_after_excluded_context(self):
++        """ Test that a project after a context and an excluded context is recognized. """
++        namespace = parse_arguments()[1]
++        self.assertEqual({"context"}, namespace.contexts)
++        self.assertEqual({"excluded_context"}, namespace.excluded_contexts)
++        self.assertEqual({"project"}, namespace.projects)
++        self.assertEqual(set(), namespace.excluded_projects)
++
++    @patch.object(sys, "argv", ["next-action", "-@excluded_context", "+project", "@context"])
++    def test_include_after_excluded_context_first(self):
++        """ Test that included filters after a leading excluded context are recognized. """
++        namespace = parse_arguments()[1]
++        self.assertEqual({"context"}, namespace.contexts)
++        self.assertEqual({"excluded_context"}, namespace.excluded_contexts)
++        self.assertEqual({"project"}, namespace.projects)
++
++    @patch.object(sys, "argv", ["next-action", "@context", "-+excluded_project", "+project", "-@excluded_context"])
++    def test_all_four_kinds(self):
++        """ Test that all four kinds of filters can be mixed. """
++        namespace = parse_arguments()[1]
++        self.assertEqual({"context"}, namespace.contexts)
++        self.assertEqual({"excluded_context"}, namespace.excluded_contexts)
++        self.assertEqual({"project"}, namespace.projects)
++        self.assertEqual({"excluded_project"}, namespace.excluded_projects)

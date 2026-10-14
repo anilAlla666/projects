@@ -1,0 +1,58 @@
+I'm adding tests to `tests/test_model.py`. I haven't run them. They cover the behaviour the issue specifies and leave its open points alone.
+
+The tests check that:
+- Assigning a new key adds a field to the entry.
+- The new field's key is the assigned string and its value is the assigned value, and it is a `Field` instance.
+- Assigning an existing key replaces that field rather than adding a duplicate.
+- Assigning a non-string value (an int) is stored as given.
+
+I do not test how `ENTRYTYPE` or `ID` assignment behaves, because the issue does not specify it.
+
+```diff
+--- a/tests/test_model.py
++++ b/tests/test_model.py
+@@ -290,3 +290,51 @@
+     )
+ 
+     assert str(entry) == expected
++
++
++def test_entry_setitem_new_field():
++    entry = Entry(
++        entry_type="article",
++        key="myEntry",
++        fields=[Field("a", "1")],
++    )
++    entry["somekey"] = "somevalue"
++
++    assert entry["somekey"] == "somevalue"
++    assert len(entry.fields) == 2
++    field = entry.fields_dict["somekey"]
++    assert isinstance(field, Field)
++    assert field.key == "somekey"
++    assert field.value == "somevalue"
++    assert entry["a"] == "1"
++
++
++def test_entry_setitem_replaces_existing_field():
++    entry = Entry(
++        entry_type="article",
++        key="myEntry",
++        fields=[Field("a", "1"), Field("b", "2")],
++    )
++    entry["a"] = "new"
++
++    assert entry["a"] == "new"
++    assert len(entry.fields) == 2
++    assert [f.key for f in entry.fields].count("a") == 1
++    assert entry["b"] == "2"
++
++
++def test_entry_setitem_non_string_value():
++    entry = Entry(entry_type="article", key="myEntry", fields=[])
++    entry["year"] = 2020
++
++    assert entry["year"] == 2020
++    assert entry.fields_dict["year"].value == 2020
++    assert len(entry.fields) == 1
+```

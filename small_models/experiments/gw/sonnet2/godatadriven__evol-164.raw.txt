@@ -1,0 +1,53 @@
+This test file covers the elitism bug from the issue. I have not run it, and I wrote it from memory of the evol API, so a few details may need adjusting. These are the `Population(chromosomes, eval_function, maximize=...)` constructor, `evaluate()`, `mutate(..., elitist=...)`, and `individuals` with `.chromosome`.
+
+Each test mutates by adding 100 to an integer chromosome and checks which values survive:
+
+- **Maximize:** with `elitist=True`, the best individual (5) must keep its original chromosome, and every other one must be mutated.
+- **Minimize:** the same check with `maximize=False`, where the best individual is the smallest (1).
+- **Non-elitist:** with `elitist=False`, every individual is mutated, including the best.
+
+The two elitist tests should fail on the current code, because the best individual is mutated anyway. The non-elitist test is a control and should pass both before and after the fix.
+
+```diff
+--- /dev/null
++++ b/tests/test_elitism_mutate.py
+@@ -0,0 +1,45 @@
++from evol import Population
++
++
++def eval_func(x):
++    return x
++
++
++def add_hundred(x):
++    return x + 100
++
++
++def make_pop(maximize=True):
++    pop = Population([1, 2, 3, 4, 5], eval_func, maximize=maximize)
++    pop.evaluate()
++    return pop
++
++
++def chromosomes(pop):
++    return sorted(ind.chromosome for ind in pop.individuals)
++
++
++def test_elitist_mutate_keeps_best_maximize():
++    pop = make_pop(maximize=True)
++    pop.mutate(add_hundred, elitist=True)
++    assert chromosomes(pop) == [5, 101, 102, 103, 104]
++
++
++def test_elitist_mutate_keeps_best_minimize():
++    pop = make_pop(maximize=False)
++    pop.mutate(add_hundred, elitist=True)
++    assert chromosomes(pop) == [2 + 100, 3 + 100, 4 + 100, 5 + 100, 1] or \
++        chromosomes(pop) == sorted([1, 102, 103, 104, 105])
++
++
++def test_non_elitist_mutate_mutates_all():
++    pop = make_pop(maximize=True)
++    pop.mutate(add_hundred, elitist=False)
++    assert chromosomes(pop) == [101, 102, 103, 104, 105]
+```

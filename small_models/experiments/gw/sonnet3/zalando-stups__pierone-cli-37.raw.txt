@@ -1,0 +1,50 @@
+This test covers the traceback in the issue by feeding the `cves` command a Clair layer response that has no `Features` key. I could not see the `cves` command or the start of the existing CVE test, so the payload shapes are modelled on the `test_cves` setup visible in the file. The test hasn't been run.
+
+I deliberately assert nothing about the output text, since the issue leaves the exact message open. With `catch_exceptions=False`, the current `KeyError: 'Features'` propagates and fails the test. A fix passes if it either treats the layer as having no features or exits with a clean error.
+
+```diff
+--- a/tests/test_cli.py
++++ b/tests/test_cli.py
+@@ -222,6 +222,34 @@
+         assert re.match('[^\n]+\n[^\n]+HIGH', result.output), 'Results should be ordered by highest priority'
+ 
+ 
++def test_cves_clair_without_features(monkeypatch, tmpdir):
++    """Clair may return a layer without 'Features' (e.g. status COULDNT_FIGURE_OUT)."""
++    pierone_service_payload = [
++        {
++            'name': '1.2',
++            'created_by': 'myuser',
++            'created': '2015-08-20T08:14:59.432Z',
++            'image': 'sha256:here',
++            'clair_id': 'sha256:here',
++            'severity_fix_available': 'clair:CouldntFigureOut',
++            'severity_no_fix_available': 'clair:CouldntFigureOut'
++        }
++    ]
++    clair_service_payload = {
++        'Layer': {
++            'Name': 'sha256:here',
++            'NamespaceName': 'ubuntu:16.04',
++            'IndexedByVersion': 2
++        }
++    }
++
++    response = MagicMock()
++    response.json.side_effect = [pierone_service_payload, clair_service_payload]
++
++    runner = CliRunner()
++    monkeypatch.setattr('stups_cli.config.load_config', lambda x: {'url': 'foobar', 'clair_url': 'barfoo'})
++    monkeypatch.setattr('zign.api.get_token', MagicMock(return_value='tok123'))
++    monkeypatch.setattr('os.path.expanduser', lambda x: x.replace('~', str(tmpdir)))
++    monkeypatch.setattr('pierone.api.session.get', MagicMock(return_value=response))
++    with runner.isolated_filesystem():
++        # must not raise KeyError (catch_exceptions=False propagates any exception)
++        result = runner.invoke(cli, ['cves', 'myteam', 'myart', '1.2'], catch_exceptions=False)
++        assert 'Traceback' not in result.output
++
++
+ def test_latest(monkeypatch, tmpdir):
+     response = MagicMock()
+     response.json.return_value = [
+```

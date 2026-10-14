@@ -1,0 +1,53 @@
+diff --git a/tests/test_duration_dict_body.py b/tests/test_duration_dict_body.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_duration_dict_body.py
+@@ -0,0 +1,50 @@
++import unittest
++from datetime import timedelta
++
++import isodate
++
++from msrest.serialization import Model, Serializer
++
++
++class DurationModel(Model):
++    _attribute_map = {
++        "duration": {"key": "duration", "type": "duration"},
++    }
++
++    def __init__(self, duration=None):
++        super(DurationModel, self).__init__()
++        self.duration = duration
++
++
++class TestDurationDictBody(unittest.TestCase):
++
++    def setUp(self):
++        self.s = Serializer({"DurationModel": DurationModel})
++
++    def test_dict_with_isodate_duration(self):
++        duration = isodate.parse_duration("P3Y6M4DT12H30M5S")
++        self.assertIsInstance(duration, isodate.Duration)
++
++        result = self.s.body({"duration": duration}, "DurationModel")
++        self.assertEqual(result["duration"], "P3Y6M4DT12H30M5S")
++
++    def test_dict_with_timedelta(self):
++        delta = timedelta(days=1, hours=12, minutes=30, seconds=5)
++
++        result = self.s.body({"duration": delta}, "DurationModel")
++        self.assertEqual(isodate.parse_duration(result["duration"]), delta)
++
++    def test_dict_with_duration_string(self):
++        result = self.s.body({"duration": "P3Y6M4DT12H30M5S"}, "DurationModel")
++        self.assertEqual(result["duration"], "P3Y6M4DT12H30M5S")
++
++    def test_model_with_duration(self):
++        duration = isodate.parse_duration("P3Y6M4DT12H30M5S")
++        result = self.s.body(DurationModel(duration=duration), "DurationModel")
++        self.assertEqual(result["duration"], "P3Y6M4DT12H30M5S")
++
++
++if __name__ == "__main__":
++    unittest.main()

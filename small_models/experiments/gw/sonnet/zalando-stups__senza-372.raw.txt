@@ -1,0 +1,76 @@
+I haven't run these tests, and I wrote them without seeing the current `senza/aws.py` or `tests/test_aws.py`. I assumed `resolve_security_groups(security_groups, region)` calls `boto3.resource('ec2', region).security_groups.filter(Filters=...)` and raises `ValueError` for a missing group. If the real function uses a different boto3 call or exception, the mocks and the `pytest.raises` check will need adjusting.
+
+The tests cover three behaviours:
+- **Tag lookup preferred:** a security group with a matching `Name` tag is chosen even when another group has that string as its `GroupName`.
+- **Fallback:** when no tag matches, the lookup falls back to `GroupName`.
+- **Not found:** a name that matches neither raises `ValueError`.
+
+They also check that `sg-…` IDs and `Fn::GetAtt` dicts pass through unchanged. The mock accepts either filter form (`tag:Name`, or `tag-key` plus `tag-value`).
+
+I put the tests in a new file because I couldn't see the existing test file to write a diff against it.
+
+```diff
+diff --git a/tests/test_security_group_lookup.py b/tests/test_security_group_lookup.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_security_group_lookup.py
+@@ -0,0 +1,80 @@
++from unittest.mock import MagicMock
++
++import pytest
++from senza.aws import resolve_security_groups
++
++
++def _make_ec2(tag_map, name_map):
++    """Fake EC2 resource: tag_map/name_map map a name to a security group id."""
++    ec2 = MagicMock()
++
++    def sg_filter(Filters=None, **kwargs):
++        filters = Filters or []
++        names = {f['Name']: f['Values'] for f in filters}
++        result = []
++        if 'group-name' in names:
++            for v in names['group-name']:
++                if v in name_map:
++                    result.append(MagicMock(id=name_map[v]))
++        elif 'tag:Name' in names:
++            for v in names['tag:Name']:
++                if v in tag_map:
++                    result.append(MagicMock(id=tag_map[v]))
++        elif 'tag-value' in names:
++            assert 'Name' in names.get('tag-key', [])
++            for v in names['tag-value']:
++                if v in tag_map:
++                    result.append(MagicMock(id=tag_map[v]))
++        return result
++
++    ec2.security_groups.filter.side_effect = sg_filter
++    return ec2
++
++
++def test_resolve_security_groups_by_tag_name(monkeypatch):
++    ec2 = _make_ec2({'app-test': 'sg-tagged'}, {})
++    monkeypatch.setattr('boto3.resource', MagicMock(return_value=ec2))
++    result = resolve_security_groups(
++        [{'Fn::GetAtt': ['Foo', 'GroupId']}, 'sg-bar', 'app-test'], 'myregion')
++    assert [{'Fn::GetAtt': ['Foo', 'GroupId']}, 'sg-bar', 'sg-tagged'] == result
++
++
++def test_resolve_security_groups_tag_preferred_over_group_name(monkeypatch):
++    ec2 = _make_ec2({'app-test': 'sg-tagged'}, {'app-test': 'sg-groupname'})
++    monkeypatch.setattr('boto3.resource', MagicMock(return_value=ec2))
++    assert ['sg-tagged'] == resolve_security_groups(['app-test'], 'myregion')
++
++
++def test_resolve_security_groups_fallback_to_group_name(monkeypatch):
++    ec2 = _make_ec2({}, {'app-test': 'sg-groupname'})
++    monkeypatch.setattr('boto3.resource', MagicMock(return_value=ec2))
++    assert ['sg-groupname'] == resolve_security_groups(['app-test'], 'myregion')
++
++
++def test_resolve_security_groups_not_found(monkeypatch):
++    ec2 = _make_ec2({}, {})
++    monkeypatch.setattr('boto3.resource', MagicMock(return_value=ec2))
++    with pytest.raises(ValueError):
++        resolve_security_groups(['does-not-exist'], 'myregion')
+```

@@ -1,0 +1,42 @@
+I haven't run these tests, so I haven't confirmed they fail on the current code. They check that `normalize_fill_value` no longer emits a warning when given a structured scalar fill value. The first test mirrors the issue's snippet and the second covers a mixed-type structured dtype with an all-zero fill value. Whether they fail today depends on the numpy version. On older numpy the `fill_value == 0` comparison raises the `FutureWarning`, which `simplefilter("error")` turns into a test failure.
+
+```diff
+--- a/zarr/tests/test_util.py
++++ b/zarr/tests/test_util.py
+@@ -1,5 +1,6 @@
+ # -*- coding: utf-8 -*-
+ import itertools
++import warnings
+ 
+ import numpy as np
+ import pytest
+@@ -7,6 +8,36 @@
+ from zarr.util import (guess_chunks, human_readable_size, info_html_report,
+                        info_text_report, is_total_slice, normalize_chunks,
+                        normalize_dimension_separator,
+                        normalize_fill_value, normalize_order,
+                        normalize_resize_args, normalize_shape, retry_call,
+                        tree_array_icon, tree_group_icon, tree_get_icon,
+                        tree_widget_sublist, TreeViewer, InfoReporter)
++
++
++def test_normalize_fill_value_structured_no_warning():
++    dtype = np.dtype([('a', int), ('b', int)])
++    fill_value = np.zeros((), dtype=dtype)[()]
++    with warnings.catch_warnings():
++        warnings.simplefilter("error")
++        result = normalize_fill_value(fill_value, dtype)
++    assert result == fill_value
++    assert result.dtype == dtype
++
++
++def test_normalize_fill_value_structured_mixed_no_warning():
++    dtype = np.dtype([('a', 'i4'), ('b', 'S10')])
++    expect = np.zeros((), dtype=dtype)[()]
++    with warnings.catch_warnings():
++        warnings.simplefilter("error")
++        result = normalize_fill_value(expect, dtype)
++    assert result == expect
+```
+
+The diff adds the two tests at module level in `zarr/tests/test_util.py`, right after the existing import block. It assumes the file already imports `normalize_fill_value`, which I'm not certain of. If the import list in that file differs from what I assumed, the hunk context won't apply cleanly and needs a small adjustment.

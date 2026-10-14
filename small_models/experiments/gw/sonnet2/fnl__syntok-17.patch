@@ -1,0 +1,53 @@
+--- /dev/null
++++ b/tests/test_not_contraction_offsets.py
+@@ -0,0 +1,56 @@
++from unittest import TestCase
++
++from syntok.tokenizer import Tokenizer
++
++
++class NotContractionOffsetTest(TestCase):
++    def test_lone_nt_no_replace(self):
++        tok = Tokenizer(replace_not_contraction=False)
++        tokens = tok.split("n't")
++        self.assertEqual(["n't"], [t.value for t in tokens])
++        self.assertEqual([0], [t.offset for t in tokens])
++
++    def test_dont_no_replace(self):
++        tok = Tokenizer(replace_not_contraction=False)
++        tokens = tok.split("don't")
++        self.assertEqual(["do", "n't"], [t.value for t in tokens])
++        self.assertEqual([0, 2], [t.offset for t in tokens])
++
++    def test_dont_replace(self):
++        tok = Tokenizer(replace_not_contraction=True)
++        tokens = tok.split("don't")
++        self.assertEqual(["do", "not"], [t.value for t in tokens])
++        self.assertEqual([0, 2], [t.offset for t in tokens])
++
++    def test_lone_nt_replace(self):
++        tok = Tokenizer(replace_not_contraction=True)
++        tokens = tok.split("n't")
++        self.assertEqual(["not"], [t.value for t in tokens])
++        self.assertEqual([0], [t.offset for t in tokens])
++
++    def test_offsets_in_sentence_no_replace(self):
++        text = "I don't know"
++        tok = Tokenizer(replace_not_contraction=False)
++        tokens = tok.split(text)
++        self.assertEqual(["I", "do", "n't", "know"], [t.value for t in tokens])
++        for t in tokens:
++            self.assertEqual(t.value, text[t.offset:t.offset + len(t.value)])
++
++    def test_separate_nt_token(self):
++        text = "do n't hurt"
++        tok = Tokenizer(replace_not_contraction=False)
++        tokens = tok.split(text)
++        self.assertEqual(["do", "n't", "hurt"], [t.value for t in tokens])
++        for t in tokens:
++            self.assertEqual(t.value, text[t.offset:t.offset + len(t.value)])
++
++    def test_dont_with_base_offset(self):
++        tok = Tokenizer(replace_not_contraction=False)
++        tokens = tok.split("don't", 10)
++        self.assertEqual([10, 12], [t.offset for t in tokens])

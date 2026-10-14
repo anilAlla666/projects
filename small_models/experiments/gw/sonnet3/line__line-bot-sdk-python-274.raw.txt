@@ -1,0 +1,72 @@
+I'm adding tests to `tests/models/test_flex_message.py` that cover the hero block as a box and as an image, built from dicts and from component instances. The box-from-dict tests should fail on the current code because `hero` is always built as an `ImageComponent`. I haven't run them.
+
+```diff
+--- a/tests/models/test_flex_message.py
++++ b/tests/models/test_flex_message.py
+@@ -248,5 +248,63 @@
+         )
+ 
+ 
++class TestBubbleHero(unittest.TestCase):
++    def test_hero_box_from_dict(self):
++        hero = {
++            'type': 'box',
++            'layout': 'vertical',
++            'contents': [{'type': 'text', 'text': 'Brown Cafe'}]
++        }
++        bubble = BubbleContainer(hero=hero)
++        self.assertIsInstance(bubble.hero, BoxComponent)
++        self.assertEqual(
++            bubble.as_json_dict()['hero'],
++            {
++                'type': 'box',
++                'layout': 'vertical',
++                'contents': [{'type': 'text', 'text': 'Brown Cafe'}]
++            }
++        )
++
++    def test_hero_image_from_dict(self):
++        hero = {'type': 'image', 'url': 'https://example.com/a.png'}
++        bubble = BubbleContainer(hero=hero)
++        self.assertIsInstance(bubble.hero, ImageComponent)
++        self.assertEqual(
++            bubble.as_json_dict()['hero'],
++            {'type': 'image', 'url': 'https://example.com/a.png'}
++        )
++
++    def test_hero_component_instances(self):
++        box = BoxComponent(layout='vertical',
++                           contents=[TextComponent(text='hi')])
++        bubble = BubbleContainer(hero=box)
++        self.assertIsInstance(bubble.hero, BoxComponent)
++        self.assertEqual(bubble.as_json_dict()['hero']['type'], 'box')
++
++        image = ImageComponent(url='https://example.com/a.png')
++        bubble = BubbleContainer(hero=image)
++        self.assertIsInstance(bubble.hero, ImageComponent)
++        self.assertEqual(bubble.as_json_dict()['hero']['type'], 'image')
++
++    def test_flex_send_message_hero_box(self):
++        contents = {
++            'type': 'bubble',
++            'hero': {
++                'type': 'box',
++                'layout': 'vertical',
++                'contents': [{'type': 'text', 'text': 'Brown Cafe'}]
++            }
++        }
++        msg = FlexSendMessage(alt_text='altText', contents=contents)
++        self.assertIsInstance(msg.contents.hero, BoxComponent)
++        self.assertEqual(
++            msg.as_json_dict()['contents']['hero'],
++            {
++                'type': 'box',
++                'layout': 'vertical',
++                'contents': [{'type': 'text', 'text': 'Brown Cafe'}]
++            }
++        )
++
++
+ if __name__ == '__main__':
+     unittest.main()
+```

@@ -1,0 +1,87 @@
+{
+  "changed": true,
+  "correct_candidates": ["A", "B", "C", "D"],
+  "wrong_candidates": [],
+  "near_misses": ["nm1_missing_valid_file", "nm2_wrong_validation", "nm3_missing_reason", "nm4_wrong_summary", "nm5_hardcoded_shortcut"],
+  "checks": [
+    {
+      "check": "media_report.json exists and is valid JSON with required top-level keys (valid_files, invalid_files, summary)",
+      "requirement": "Generate a JSON report at /workspace/media_report.json with this structure",
+      "basis": "task-text",
+      "note": "Validates required structure per task specification"
+    },
+    {
+      "check": "summary.txt exists, non-empty, and mentions total files (11)",
+      "requirement": "Create a summary file at /workspace/summary.txt containing human-readable statistics",
+      "basis": "task-text",
+      "note": "Task doesn't specify exact format, only human-readable statistics"
+    },
+    {
+      "check": "All 5 expected valid files present in valid_files list with correct type-specific fields",
+      "requirement": "Scan the directory recursively for all media files... Extract metadata for each file",
+      "basis": "task-text",
+      "note": "Files: valid_video_720p.mp4, valid_video_1080p.mp4, valid_audio.mp3, valid_audio_48k.flac, nested_valid.mp4"
+    },
+    {
+      "check": "All 6 expected invalid files present in invalid_files list with appropriate reasons",
+      "requirement": "Validate files against these criteria... Files must not be corrupted",
+      "basis": "task-text",
+      "note": "Files: invalid_low_resolution.mp4, invalid_low_bitrate.mp4, invalid_low_sample_rate.mp3, invalid_short_duration.mp4, invalid_short_audio.mp3, corrupted_file.mp4"
+    },
+    {
+      "check": "No file appears in both valid_files and invalid_files",
+      "requirement": "Each file must be classified as either valid or invalid",
+      "basis": "task-text",
+      "note": "Logical consistency requirement"
+    },
+    {
+      "check": "Invalid files have non-empty reasons array with semantically appropriate reason strings",
+      "requirement": "Invalid files must have reasons array as shown in example: \"reasons\": [\"resolution_too_low\", \"duration_too_short\"]",
+      "basis": "task-text",
+      "note": "Accepts variant strings (e.g., \"corrupted\", \"corrupted_file\", \"corrupted_or_unreadable\") as long as they indicate the correct failure reason"
+    },
+    {
+      "check": "Valid video files meet minimum resolution (width >= 1280, height >= 720) and bitrate >= 500 kbps",
+      "requirement": "Video files must have a minimum resolution of 720p (width >= 1280 AND height >= 720)... Video files must have a bitrate of at least 500 kb/s",
+      "basis": "task-text",
+      "note": "Exact thresholds from task"
+    },
+    {
+      "check": "Valid audio files meet minimum sample rate (>= 44100 Hz)",
+      "requirement": "Audio files must have a sample rate of at least 44100 Hz",
+      "basis": "task-text",
+      "note": "Exact threshold from task"
+    },
+    {
+      "check": "All valid files have duration >= 5 seconds",
+      "requirement": "All files must have a duration of at least 5 seconds",
+      "basis": "task-text",
+      "note": "Exact threshold from task"
+    },
+    {
+      "check": "Summary counts are mathematically consistent (total_files = valid_count + invalid_count, counts match actual array lengths)",
+      "requirement": "Summary object with total_files, valid_count, invalid_count, total_valid_duration",
+      "basis": "recomputed",
+      "note": "Internal consistency check"
+    },
+    {
+      "check": "Total files = 11, valid_count = 5, invalid_count = 6",
+      "requirement": "Implied by the test environment created by the grading Dockerfile",
+      "basis": "data-settled",
+      "note": "Derived from Dockerfile which creates exactly these 11 files with known validity"
+    },
+    {
+      "check": "total_valid_duration matches sum of valid file durations (within 0.1s) and is approximately 52 seconds (within 2s)",
+      "requirement": "Summary includes total_valid_duration",
+      "basis": "recomputed",
+      "note": "Sum of actual durations: 10 + 15 + 12.042 + 8 + 7 = 52.042 seconds"
+    },
+    {
+      "check": "Valid file metadata accuracy: duration, resolution, codec, frame rate, sample rate, channels, bitrate within expected ranges from ffprobe",
+      "requirement": "Extract metadata for each file including: file format/container type, duration, bitrate, resolution, codec, frame rate, sample rate, channels",
+      "basis": "recomputed",
+      "note": "Validated against actual ffprobe output from test files on this machine"
+    }
+  ],
+  "contested": []
+}

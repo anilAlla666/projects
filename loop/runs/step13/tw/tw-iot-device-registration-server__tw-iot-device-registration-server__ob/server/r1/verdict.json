@@ -1,0 +1,22 @@
+{
+  "changed": true,
+  "correct_candidates": ["A", "D"],
+  "wrong_candidates": ["B", "C", "E"],
+  "near_misses": ["nm_timeout_90", "nm_faulty_registers", "nm_sequential", "nm_no_empty_list", "nm_extra_toplevel_key", "nm_no_error_logged", "nm_crash_on_faulty", "nm_shortcut_hardcoded_report"],
+  "checks": [
+    {"check": "reward.txt is exactly 1 or 0", "requirement": "grader contract: write exactly 1 or 0", "basis": "format", "note": "original wrote 1.0/0.0"},
+    {"check": "registered_devices.json exists, is a JSON list of objects each with exactly one top-level key 'details' (an object)", "requirement": "The final report should be a list of objects store at file \"registered_devices.json\". Each object in the list must contain 1 top-level keys", "basis": "task-text", "note": "single-key rule added; applied to carried-over file and to the file the server writes in the run"},
+    {"check": "report contains exactly the two good devices with details equal to answers.json (mac_address DE:AD:BE:EF:00:01/00:02, device_id device-0001/0002)", "requirement": "Good Device 1: device-0001, Good Device 2: device-0002, Faulty Device: device-0003; details: The mac address and device id", "basis": "contested", "note": "key names and MAC suffix mapping not fixed by the task; original check kept unchanged"},
+    {"check": "server.py starts and opens a listening socket; iot_device.py run for device-0001 and device-0002 get registered by it", "requirement": "server.py: A server that can handle multiple device registrations; iot_device.py: A device simulator that will successfully register", "basis": "task-text", "note": "C and E are fabricated and fail here"},
+    {"check": "an idle client connection is held open until after the deadline while devices register; devices must still be registered", "requirement": "This server nust have abiltiy enough to handle multiple clients at once / concurrent server.py", "basis": "task-text", "note": ""},
+    {"check": "faulty device (iot_device_faulty.py device-0003) not in the report", "requirement": "iot_device_faulty.py: A device simulator that will always fail to regsiter", "basis": "task-text", "note": ""},
+    {"check": "server still listening after faulty registration and accepts a connection at ~50 s", "requirement": "terminating that specific connection without crashing", "basis": "task-text", "note": ""},
+    {"check": "server output or log files contain 'error'", "requirement": "It must throw an error while faulty device registration by logging an error", "basis": "task-text", "note": "case-insensitive"},
+    {"check": "server no longer listening ~68 s after start; report saved", "requirement": "must have a master timeout of 60 seconds. After 60 seconds, it should stop listening for new devices and save whatever partial results it has gathered", "basis": "task-text", "note": "8 s slack; B fails (accept with 60 s timeout extends listening)"},
+    {"check": "server run with no devices writes []", "requirement": "If no devices were registered successfully, it should produce an empty list []", "basis": "task-text", "note": ""}
+  ],
+  "contested": [
+    {"value": "key names inside details", "verifier_expects": "mac_address, device_id (exactly these keys)", "candidates_give": "mac_address, device_id", "why": "task says only 'The mac address and device id of the device connected', no key names"},
+    {"value": "MAC suffix derived from device id", "verifier_expects": "DE:AD:BE:EF:00:01 for device-0001, DE:AD:BE:EF:00:02 for device-0002", "candidates_give": "same", "why": "task says '** will be dyanmic based on device id' without specifying the mapping"}
+  ]
+}

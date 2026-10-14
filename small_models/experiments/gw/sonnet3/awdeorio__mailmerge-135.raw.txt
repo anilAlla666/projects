@@ -1,0 +1,43 @@
+This diff adds a new test file, `tests/test_csv_bom.py`. It calls `read_csv_database` directly, so it assumes the fix goes in that function. I have not run it, but on the current code the BOM case should fail, because the first header would be read as `'\ufeffname'` instead of `'name'`.
+
+```diff
+--- /dev/null
++++ b/tests/test_csv_bom.py
+@@ -0,0 +1,36 @@
++"""Tests for reading a CSV database that starts with a UTF-8 BOM."""
++from pathlib import Path
++
++from mailmerge.__main__ import read_csv_database
++
++
++def test_csv_with_bom(tmp_path):
++    """The BOM must not become part of the first header key."""
++    database = Path(tmp_path) / "database_bom.csv"
++    database.write_bytes(
++        b"\xef\xbb\xbfname,email\r\nMy Name,to@test.com\r\n"
++    )
++    rows = list(read_csv_database(database))
++    assert rows == [{"name": "My Name", "email": "to@test.com"}]
++    assert list(rows[0].keys()) == ["name", "email"]
++
++
++def test_csv_with_bom_multiple_rows(tmp_path):
++    """Every row should be keyed by clean header names."""
++    database = Path(tmp_path) / "database_bom2.csv"
++    database.write_bytes(
++        b"\xef\xbb\xbfemail,name\nto@test.com,A\nto2@test.com,B\n"
++    )
++    rows = list(read_csv_database(database))
++    assert rows == [
++        {"email": "to@test.com", "name": "A"},
++        {"email": "to2@test.com", "name": "B"},
++    ]
++
++
++def test_csv_without_bom(tmp_path):
++    """A CSV without a BOM still works."""
++    database = Path(tmp_path) / "database_nobom.csv"
++    database.write_bytes(b"name,email\r\nMy Name,to@test.com\r\n")
++    rows = list(read_csv_database(database))
++    assert rows == [{"name": "My Name", "email": "to@test.com"}]
+```

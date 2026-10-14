@@ -1,0 +1,70 @@
+The new tests are in `tests/test_zip_plus_4.py`. I haven't run them, so I haven't confirmed that they fail on the current code and pass after the fix.
+
+They take `examples/house1.xml`, set its `ZipCode` to different values, translate it, and check `building_address.zip_code` in the JSON output. They cover:
+
+- **ZIP+4:** `68959-1234` must become `68959`.
+- **ZIP+4 with whitespace:** `" 68959-1234 "` is also expected to become `68959`. This is stricter than the issue asks for, so a fix that doesn't strip whitespace would fail it.
+- **Plain ZIP:** `68959` must stay `68959`.
+- **Other ZIP+4 values:** `80202-0001` and `00501-0001` must reduce to their first five digits.
+
+The ZIP lookup uses `local-name()`, so it doesn't depend on the HPXML namespace version of the example file.
+
+```diff
+diff --git a/tests/test_zip_plus_4.py b/tests/test_zip_plus_4.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_zip_plus_4.py
+@@ -0,0 +1,66 @@
++import os
++import tempfile
++import unittest
++
++from lxml import etree
++
++from hescorehpxml import HPXMLtoHEScoreTranslator
++
++thisdir = os.path.dirname(os.path.abspath(__file__))
++exampledir = os.path.abspath(os.path.join(thisdir, '..', 'examples'))
++
++
++class TestZipPlus4(unittest.TestCase):
++
++    def _translate_with_zip(self, zipcode):
++        tree = etree.parse(os.path.join(exampledir, 'house1.xml'))
++        elems = tree.xpath('//*[local-name()="ZipCode"]')
++        self.assertTrue(len(elems) > 0)
++        for el in elems:
++            el.text = zipcode
++        fd, path = tempfile.mkstemp(suffix='.xml')
++        os.close(fd)
++        try:
++            tree.write(path)
++            translator = HPXMLtoHEScoreTranslator(path)
++            return translator.hpxml_to_hescore_dict()
++        finally:
++            os.remove(path)
++
++    def test_zip_plus_4_stripped(self):
++        d = self._translate_with_zip('68959-1234')
++        self.assertEqual(d['building_address']['zip_code'], '68959')
++
++    def test_zip_plus_4_with_whitespace(self):
++        d = self._translate_with_zip(' 68959-1234 ')
++        self.assertEqual(d['building_address']['zip_code'], '68959')
++
++    def test_plain_zip_unchanged(self):
++        d = self._translate_with_zip('68959')
++        self.assertEqual(d['building_address']['zip_code'], '68959')
++
++    def test_another_zip_plus_4(self):
++        d = self._translate_with_zip('80202-0001')
++        self.assertEqual(d['building_address']['zip_code'], '80202')
++
++    def test_leading_zero_zip_plus_4(self):
++        d = self._translate_with_zip('00501-0001')
++        self.assertEqual(d['building_address']['zip_code'], '00501')
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

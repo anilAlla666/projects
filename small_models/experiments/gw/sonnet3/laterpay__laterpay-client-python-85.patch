@@ -1,0 +1,54 @@
+--- a/tests/test_signing.py
++++ b/tests/test_signing.py
+@@ -37,3 +37,52 @@
+         )
+ 
++    def test_create_message_bytes_value_is_decoded(self):
++        url = 'https://endpoint.com/api'
++
++        msg = signing.create_base_message({'key': b'foo'}, url)
++        self.assertEqual(
++            msg,
++            'POST&https%3A%2F%2Fendpoint.com%2Fapi&key%3Dfoo',
++        )
++        self.assertNotIn('b%2527', msg)
++
++        self.assertEqual(
++            msg,
++            signing.create_base_message({'key': u'foo'}, url),
++        )
++
++    def test_create_message_bytes_values_in_list(self):
++        url = 'https://endpoint.com/api'
++
++        msg = signing.create_base_message({'key': [b'foo', b'bar']}, url)
++        self.assertEqual(
++            msg,
++            signing.create_base_message({'key': [u'foo', u'bar']}, url),
++        )
++        self.assertEqual(
++            msg,
++            'POST&https%3A%2F%2Fendpoint.com%2Fapi&key%3Dbar%26key%3Dfoo',
++        )
++
++    def test_create_message_non_ascii_bytes_value(self):
++        url = 'https://endpoint.com/api'
++
++        msg = signing.create_base_message({'key': b'valu\xc4\x98'}, url)
++        self.assertEqual(
++            msg,
++            'POST&https%3A%2F%2Fendpoint.com%2Fapi&key%3Dvalu%25C4%2598',
++        )
++
++    def test_sign_bytes_equals_text(self):
++        url = 'https://endpoint.com/api'
++        secret = 'secret'
++
++        sig_bytes = signing.sign(secret, {'key': b'foo', 'k2': [b'a', b'b']}, url)
++        sig_text = signing.sign(secret, {'key': u'foo', 'k2': [u'a', u'b']}, url)
++        self.assertEqual(sig_bytes, sig_text)
++
+     def test_create_message_sorting_and_combining_params(self):
+EOF
+cd /repo 2>/dev/null && git apply --check /tmp/patch.diff; cat /tmp/patch.diff</parameter>
+</invoke>

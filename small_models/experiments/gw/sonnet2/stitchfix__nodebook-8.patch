@@ -1,0 +1,106 @@
+diff --git a/nodebook/tests/test_py3_functions.py b/nodebook/tests/test_py3_functions.py
+new file mode 100644
+--- /dev/null
++++ b/nodebook/tests/test_py3_functions.py
+@@ -0,0 +1,100 @@
++import inspect
++import os
++import tempfile
++
++import pytest
++
++from nodebook import nodebookcore
++from nodebook import pickledict
++
++
++def _find_class():
++    for name in ("Nodebook", "NodeBook", "NodebookCore"):
++        if hasattr(nodebookcore, name):
++            return getattr(nodebookcore, name)
++    for name, obj in vars(nodebookcore).items():
++        if inspect.isclass(obj) and "ode" in name and obj.__module__ == nodebookcore.__name__:
++            return obj
++    raise RuntimeError("could not find nodebook core class")
++
++
++def _make_pickler(tmpdir):
++    cls = pickledict.PickleDict
++    path = os.path.join(tmpdir, "nb.db")
++    for args in ((path,), ()):
++        try:
++            return cls(*args)
++        except TypeError:
++            continue
++    raise RuntimeError("cannot build PickleDict")
++
++
++def _make_nodebook(tmpdir):
++    cls = _find_class()
++    pickler = _make_pickler(tmpdir)
++    attempts = [
++        (pickler,),
++        (pickler, "test"),
++        (pickler, "test", "test"),
++        (),
++    ]
++    for args in attempts:
++        try:
++            return cls(*args)
++        except TypeError:
++            continue
++    raise RuntimeError("cannot build nodebook")
++
++
++def _runner(nb):
++    for name in ("run_cell", "execute", "run_code", "run", "exec_code", "execute_code"):
++        if hasattr(nb, name):
++            return getattr(nb, name)
++    raise RuntimeError("no run method on nodebook")
++
++
++@pytest.fixture
++def nb():
++    with tempfile.TemporaryDirectory() as d:
++        yield _make_nodebook(d)
++
++
++def _run(nb, code):
++    fn = _runner(nb)
++    try:
++        return fn(code)
++    except TypeError:
++        # some APIs need extra args such as a namespace
++        return fn(code, {})
++
++
++def test_function_definition_with_args(nb):
++    code = "def add(a, b):\n    return a + b\n"
++    _run(nb, code)  # must not raise KeyError: name 'a' is not defined
++
++
++def test_function_definition_and_call(nb):
++    _run(nb, "def add(a, b):\n    return a + b\n")
++    _run(nb, "result = add(1, 2)\n")
++
++
++def test_function_with_defaults_and_kwargs(nb):
++    code = (
++        "def f(a, b=2, *args, c=3, **kwargs):\n"
++        "    return a + b + c\n"
++    )
++    _run(nb, code)
++
++
++def test_nested_function_and_lambda(nb):
++    code = (
++        "def outer(x):\n"
++        "    def inner(y):\n"
++        "        return x + y\n"
++        "    return inner(1)\n"
++        "g = lambda q: q * 2\n"
++    )
++    _run(nb, code)
++
++
++def test_comprehension_vars(nb):
++    _run(nb, "vals = [i * 2 for i in range(3)]\n")

@@ -1,0 +1,67 @@
+diff --git a/tests/test_vendor_export_extensions_loopouts.py b/tests/test_vendor_export_extensions_loopouts.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_vendor_export_extensions_loopouts.py
+@@ -0,0 +1,67 @@
++import unittest
++
++import scadnano as sc
++
++
++class TestVendorExportExtensionsLoopouts(unittest.TestCase):
++
++    def test_idt_bulk_input_5p_extension(self):
++        design = sc.Design(helices=[sc.Helix(max_offset=100)])
++        design.draw_strand(0, 0).extension_5p(3).move(5).with_sequence('TTT' + 'AAAAA')
++        contents = design.to_idt_bulk_input_format()
++        self.assertIn('TTTAAAAA', contents)
++
++    def test_idt_bulk_input_3p_extension(self):
++        design = sc.Design(helices=[sc.Helix(max_offset=100)])
++        design.draw_strand(0, 0).move(5).extension_3p(3).with_sequence('AAAAA' + 'TTT')
++        contents = design.to_idt_bulk_input_format()
++        self.assertIn('AAAAATTT', contents)
++
++    def test_idt_bulk_input_loopout(self):
++        design = sc.Design(helices=[sc.Helix(max_offset=100), sc.Helix(max_offset=100)])
++        design.draw_strand(0, 0).move(5).loopout(1, 3).move(-5).with_sequence('AAAAA' + 'TTT' + 'CCCCC')
++        contents = design.to_idt_bulk_input_format()
++        self.assertIn('AAAAATTTCCCCC', contents)
++
++    def test_vendor_dna_sequence_5p_extension(self):
++        design = sc.Design(helices=[sc.Helix(max_offset=100)])
++        design.draw_strand(0, 0).extension_5p(3).move(5).with_sequence('TTT' + 'AAAAA')
++        strand = design.strands[0]
++        self.assertEqual('TTTAAAAA', strand.vendor_dna_sequence())
++
++    def test_vendor_dna_sequence_3p_extension(self):
++        design = sc.Design(helices=[sc.Helix(max_offset=100)])
++        design.draw_strand(0, 0).move(5).extension_3p(3).with_sequence('AAAAA' + 'TTT')
++        strand = design.strands[0]
++        self.assertEqual('AAAAATTT', strand.vendor_dna_sequence())
++
++    def test_vendor_dna_sequence_loopout(self):
++        design = sc.Design(helices=[sc.Helix(max_offset=100), sc.Helix(max_offset=100)])
++        design.draw_strand(0, 0).move(5).loopout(1, 3).move(-5).with_sequence('AAAAA' + 'TTT' + 'CCCCC')
++        strand = design.strands[0]
++        self.assertEqual('AAAAATTTCCCCC', strand.vendor_dna_sequence())
++
++    def test_vendor_dna_sequence_delimiter_extension_and_loopout(self):
++        design = sc.Design(helices=[sc.Helix(max_offset=100)])
++        design.draw_strand(0, 0).extension_5p(3).move(5).with_sequence('TTT' + 'AAAAA')
++        self.assertEqual('TTT_AAAAA', design.strands[0].vendor_dna_sequence(domain_delimiter='_'))
++
++        design = sc.Design(helices=[sc.Helix(max_offset=100), sc.Helix(max_offset=100)])
++        design.draw_strand(0, 0).move(5).loopout(1, 3).move(-5).with_sequence('AAAAA' + 'TTT' + 'CCCCC')
++        self.assertEqual('AAAAA_TTT_CCCCC', design.strands[0].vendor_dna_sequence(domain_delimiter='_'))
++
++    def test_idt_bulk_input_with_5p_modification_and_extension(self):
++        design = sc.Design(helices=[sc.Helix(max_offset=100)])
++        design.draw_strand(0, 0).extension_5p(3).move(5) \
++            .with_modification_5p(sc.Modification5Prime(display_text='B', vendor_code='/5Biosg/')) \
++            .with_sequence('TTT' + 'AAAAA')
++        self.assertEqual('/5Biosg/TTTAAAAA', design.strands[0].vendor_dna_sequence())
++
++
++if __name__ == '__main__':
++    unittest.main()

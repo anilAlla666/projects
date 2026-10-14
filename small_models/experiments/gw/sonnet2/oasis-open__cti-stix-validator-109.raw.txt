@@ -1,0 +1,72 @@
+The diff below adds a test file for the snort case. I haven't run it, so I haven't confirmed it fails on the current code. I also didn't open `musts.py` and am relying on my memory of it. I believe its `pattern` check runs the STIX pattern parser on every indicator regardless of `pattern_type`, which would make the first two tests fail until the fix.
+
+The tests cover three cases:
+- A snort and a suricata indicator with a non-STIX pattern should produce no errors and `is_valid` should be `True`.
+- A `stix` indicator with a bad pattern should still be rejected, as a regression guard that should pass on both the old and new code.
+
+```diff
+diff --git a/stix2validator/test/v21/test_non_stix_pattern_type.py b/stix2validator/test/v21/test_non_stix_pattern_type.py
+new file mode 100644
+index 0000000..4d1c8a7
+--- /dev/null
++++ b/stix2validator/test/v21/test_non_stix_pattern_type.py
+@@ -0,0 +1,63 @@
++"""Non-STIX pattern types must not be checked with the STIX pattern parser."""
++import copy
++
++from stix2validator import ValidationOptions, validate_instance
++
++OPTIONS = ValidationOptions(version="2.1")
++
++SNORT_PATTERN = 'alert tcp any any -> any 80 (msg:"test"; sid:1000001;)'
++
++INDICATOR = {
++    "type": "indicator",
++    "spec_version": "2.1",
++    "id": "indicator--a932fcc6-e032-476c-826f-cb970a5a1ade",
++    "created": "2016-04-06T20:03:48.000Z",
++    "modified": "2016-04-06T20:03:48.000Z",
++    "pattern": SNORT_PATTERN,
++    "pattern_type": "snort",
++    "valid_from": "2016-01-01T00:00:00Z",
++}
++
++
++def _error_text(results):
++    return " ".join(str(e) for e in results.errors)
++
++
++def test_snort_pattern_not_validated_as_stix():
++    indicator = copy.deepcopy(INDICATOR)
++    results = validate_instance(indicator, OPTIONS)
++    assert results.is_valid, _error_text(results)
++    assert not results.errors
++
++
++def test_suricata_pattern_not_validated_as_stix():
++    indicator = copy.deepcopy(INDICATOR)
++    indicator["pattern_type"] = "suricata"
++    indicator["pattern"] = (
++        'alert http any any -> any any (msg:"x"; content:"abc"; sid:1;)'
++    )
++    results = validate_instance(indicator, OPTIONS)
++    assert results.is_valid, _error_text(results)
++    assert not results.errors
++
++
++def test_stix_pattern_type_still_validated():
++    indicator = copy.deepcopy(INDICATOR)
++    indicator["pattern_type"] = "stix"
++    # Not a valid STIX pattern
++    indicator["pattern"] = SNORT_PATTERN
++    results = validate_instance(indicator, OPTIONS)
++    assert not results.is_valid
++
++
++def test_valid_stix_pattern_ok():
++    indicator = copy.deepcopy(INDICATOR)
++    indicator["pattern_type"] = "stix"
++    indicator["pattern"] = "[file:name = 'foo.exe']"
++    results = validate_instance(indicator, OPTIONS)
++    assert results.is_valid, _error_text(results)
+```

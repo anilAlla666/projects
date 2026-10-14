@@ -1,0 +1,66 @@
+The tests below use a real, unconnected socket and the real `ssl` module, so they check the resulting context rather than any particular call order. On the current code, the `CERT_NONE` tests should fail with the `ValueError` from the issue. The `CERT_REQUIRED` test is a regression guard that should pass both before and after the fix.
+
+```diff
+--- a/t/unit/test_transport.py
++++ b/t/unit/test_transport.py
+@@ -857,6 +857,48 @@
+             repr(t)
+         )
+ 
++    def test_wrap_socket_sni_cert_none_with_hostname(self):
++        t = transport.SSLTransport('host', 3)
++        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
++        try:
++            wrapped = t._wrap_socket_sni(
++                s,
++                cert_reqs=ssl.CERT_NONE,
++                server_hostname='example.com',
++                do_handshake_on_connect=False,
++            )
++            try:
++                assert wrapped.context.verify_mode == ssl.CERT_NONE
++                assert wrapped.context.check_hostname is False
++            finally:
++                wrapped.close()
++        finally:
++            s.close()
++
++    def test_wrap_socket_sni_cert_none_without_hostname(self):
++        t = transport.SSLTransport('host', 3)
++        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
++        try:
++            wrapped = t._wrap_socket_sni(
++                s,
++                cert_reqs=ssl.CERT_NONE,
++                do_handshake_on_connect=False,
++            )
++            try:
++                assert wrapped.context.verify_mode == ssl.CERT_NONE
++                assert wrapped.context.check_hostname is False
++            finally:
++                wrapped.close()
++        finally:
++            s.close()
++
++    def test_wrap_socket_sni_cert_required_keeps_hostname_check(self):
++        t = transport.SSLTransport('host', 3)
++        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
++        try:
++            wrapped = t._wrap_socket_sni(
++                s,
++                cert_reqs=ssl.CERT_REQUIRED,
++                server_hostname='example.com',
++                do_handshake_on_connect=False,
++            )
++            try:
++                assert wrapped.context.verify_mode == ssl.CERT_REQUIRED
++                assert wrapped.context.check_hostname is True
++            finally:
++                wrapped.close()
++        finally:
++            s.close()
++
+     @pytest.fixture(autouse=True)
+     def setup_transport(self):
+         self.t = self.Transport('host', 3)
+```

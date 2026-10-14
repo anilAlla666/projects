@@ -1,0 +1,40 @@
+diff --git a/tests/test_translation.py b/tests/test_translation.py
+--- a/tests/test_translation.py
++++ b/tests/test_translation.py
+@@ -1,3 +1,48 @@
++import os
++import re
++import tempfile
++import unittest
++
++from hescorehpxml import HPXMLtoHEScoreTranslator
++
++
++class TestZipPlus4(unittest.TestCase):
++
++    def _translate_with_zip(self, zipcode):
++        here = os.path.dirname(os.path.abspath(__file__))
++        src = os.path.join(here, '..', 'examples', 'house1.xml')
++        with open(src, 'r') as f:
++            xml = f.read()
++        pattern = re.compile(r'(<(?:\w+:)?ZipCode>)[^<]*(</(?:\w+:)?ZipCode>)')
++        self.assertTrue(pattern.search(xml))
++        xml = pattern.sub(lambda m: m.group(1) + zipcode + m.group(2), xml)
++        fd, path = tempfile.mkstemp(suffix='.xml')
++        try:
++            with os.fdopen(fd, 'w') as f:
++                f.write(xml)
++            translator = HPXMLtoHEScoreTranslator(path)
++            return translator.hpxml_to_hescore_dict()
++        finally:
++            os.remove(path)
++
++    def test_zip_plus_4_is_truncated(self):
++        d = self._translate_with_zip('68959-1234')
++        self.assertEqual(d['building_address']['zip_code'], '68959')
++
++    def test_plain_zip_unchanged(self):
++        d = self._translate_with_zip('68959')
++        self.assertEqual(d['building_address']['zip_code'], '68959')
++
++

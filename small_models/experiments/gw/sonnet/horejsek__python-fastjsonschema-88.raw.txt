@@ -1,0 +1,78 @@
+I've added a new test file that checks `tuple` is accepted wherever the schema expects an array. I haven't run it against the current code or a fix.
+
+The tests call `fastjsonschema.compile` directly instead of using the `asserter` fixture, so they don't depend on the fixture's details.
+
+```diff
+diff --git a/tests/test_array_tuple.py b/tests/test_array_tuple.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_array_tuple.py
+@@ -0,0 +1,67 @@
++import pytest
++
++from fastjsonschema import JsonSchemaException, compile
++
++
++def test_tuple_is_array():
++    validate = compile({'type': 'array'})
++    assert validate(()) == ()
++    assert validate((1, 'a', True)) == (1, 'a', True)
++
++
++def test_tuple_is_not_object():
++    validate = compile({'type': 'object'})
++    with pytest.raises(JsonSchemaException):
++        validate((1, 2))
++
++
++def test_tuple_is_not_string():
++    validate = compile({'type': 'string'})
++    with pytest.raises(JsonSchemaException):
++        validate((1, 2))
++
++
++def test_tuple_min_max_items():
++    validate = compile({'type': 'array', 'minItems': 2, 'maxItems': 3})
++    assert validate((1, 2)) == (1, 2)
++    with pytest.raises(JsonSchemaException):
++        validate((1,))
++    with pytest.raises(JsonSchemaException):
++        validate((1, 2, 3, 4))
++
++
++def test_tuple_items_single_schema():
++    validate = compile({'type': 'array', 'items': {'type': 'integer'}})
++    assert validate((1, 2, 3)) == (1, 2, 3)
++    with pytest.raises(JsonSchemaException):
++        validate((1, 'a'))
++
++
++def test_tuple_items_list_schema():
++    validate = compile({
++        'type': 'array',
++        'items': [{'type': 'integer'}, {'type': 'string'}],
++        'additionalItems': False,
++    })
++    assert validate((1, 'a')) == (1, 'a')
++    with pytest.raises(JsonSchemaException):
++        validate(('a', 1))
++    with pytest.raises(JsonSchemaException):
++        validate((1, 'a', 3))
++
++
++def test_tuple_unique_items():
++    validate = compile({'type': 'array', 'uniqueItems': True})
++    assert validate((1, 2, 3)) == (1, 2, 3)
++    with pytest.raises(JsonSchemaException):
++        validate((1, 2, 1))
++
++
++def test_nested_tuple_in_object():
++    validate = compile({
++        'type': 'object',
++        'properties': {'a': {'type': 'array', 'items': {'type': 'integer'}}},
++    })
++    assert validate({'a': (1, 2)}) == {'a': (1, 2)}
++    with pytest.raises(JsonSchemaException):
++        validate({'a': (1, 'x')})
+```

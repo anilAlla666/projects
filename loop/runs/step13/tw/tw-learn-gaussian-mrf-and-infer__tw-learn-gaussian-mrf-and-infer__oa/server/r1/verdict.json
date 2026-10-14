@@ -1,0 +1,18 @@
+{"changed": true,
+ "correct_candidates": ["B","C"],
+ "wrong_candidates": ["A","D"],
+ "near_misses": ["nm_wrong_edge","nm_ignores_evidence","nm_swapped_evidence","nm_bootstrap_samples","nm_shuffled_input","nm_independent_samples","nm_9999_rows"],
+ "checks": [
+  {"check":"three output files exist","requirement":"Three output files must be saved","basis":"format","note":""},
+  {"check":"learned_mrf.csv: exactly 8 rows of 2 valid case-sensitive node names, no header, no duplicate/self edges","requirement":"Exactly 8 edges ... each edge should appear only once ... use capital letters","basis":"format","note":""},
+  {"check":"V has strictly highest degree","requirement":"node V must have the highest degree","basis":"task-text","note":"old check used max() tie-breaking"},
+  {"check":"edge set equals top-8 |partial correlation| pairs of the input data {A-V,B-V,C-V,V-W,V-X,A-B,D-X,W-Y}","requirement":"Recover the underlying graphical structure of the MRF. The true graph has exactly 8 edges","basis":"recomputed","note":"partial correlation thresholding named by task; 8th/9th gap ~10x; glasso agrees at all 8-edge alphas; computed at runtime from /app data"},
+  {"check":"inferred_marginals.csv header w_value,probability, numeric, >=2 rows, probs >=0, sum in [0.95,1.05]","requirement":"Format: CSV with header w_value,probability ... sum to approximately 1.0","basis":"format","note":""},
+  {"check":"marginal mean/sd agree (0.06 / 20%) with Gaussian conditioning on the solver's own samples at V=1,X=0.5; mean exceeds W mean by >0.03","requirement":"The conditional inference should properly account for the evidence V=1.0 and X=0.5; Generated samples should follow the learned distribution","basis":"format","note":"self-consistency, not a fixed expected value; holds under all estimator readings"},
+  {"check":"final_mrf_sample.csv: 10000 rows, all 8 columns, finite","requirement":"Exactly 10,000 rows ... header row containing all 8 node names","basis":"format","note":""},
+  {"check":"samples are not copies/resamples of input (<1% duplicate rows, <1% rows equal to input rows)","requirement":"Generate 10,000 samples from the learned MRF model","basis":"format","note":"catches A (permutation) and D (bootstrap)"},
+  {"check":"samples: non-edge partial correlations |pc|<0.06, std in (0.4,1.5), |mean|<0.2","requirement":"Generated samples should follow the learned distribution","basis":"format","note":"loose bounds; sampling SE ~0.01"}
+ ],
+ "contested": [
+  {"value":"conditional mean/sd of P(W|V=1,X=0.5)","verifier_expects":"no fixed value (original had none); only self-consistency with samples","candidates_give":"B .2015/.722, C .198/.723, D .2015/.722, A 0/.63","why":"depends on the estimator / glasso penalty, which the task does not fix (alpha .1 still recovers the 8 edges but gives mean .05)"}
+ ]}

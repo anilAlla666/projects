@@ -1,0 +1,69 @@
+I could not inspect the repository, so these tests assume the API from my memory of its README: `from ioccontainer import inject, provider`, `@provider('name')` on a class, and `@inject(param='name')`. If the real signatures differ, the imports or decorator calls will need adjusting. I have not run the tests.
+
+```diff
+diff --git a/tests/test_inject_none_override.py b/tests/test_inject_none_override.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_inject_none_override.py
+@@ -0,0 +1,56 @@
++from ioccontainer import inject, provider
++
++
++@provider('none_override_service')
++class NoneOverrideService:
++    pass
++
++
++@inject(service='none_override_service')
++def func(service=None):
++    return service
++
++
++@inject(service='none_override_service')
++def func_required(service):
++    return service
++
++
++class Holder:
++    @inject(service='none_override_service')
++    def method(self, service=None):
++        return service
++
++
++def test_not_provided_is_injected():
++    assert isinstance(func(), NoneOverrideService)
++
++
++def test_keyword_none_is_overridden():
++    assert isinstance(func(service=None), NoneOverrideService)
++
++
++def test_positional_none_is_overridden():
++    assert isinstance(func(None), NoneOverrideService)
++
++
++def test_required_param_positional_none_is_overridden():
++    assert isinstance(func_required(None), NoneOverrideService)
++
++
++def test_required_param_keyword_none_is_overridden():
++    assert isinstance(func_required(service=None), NoneOverrideService)
++
++
++def test_method_none_is_overridden():
++    assert isinstance(Holder().method(service=None), NoneOverrideService)
++    assert isinstance(Holder().method(None), NoneOverrideService)
++
++
++def test_explicit_value_is_kept():
++    sentinel = object()
++    assert func(service=sentinel) is sentinel
++    assert func(sentinel) is sentinel
++    assert func_required(sentinel) is sentinel
++
++
++def test_falsy_non_none_value_is_kept():
++    assert func(service=0) == 0
++    assert func(service='') == ''
++    assert func(service=False) is False
+```

@@ -1,0 +1,67 @@
+The patch below adds a test that mocks the two `brew` calls and checks that a dot in the artifact id survives into the generated URL. I haven't run it. It assumes `get_brew_url` is in `cekit/tools.py` and builds the URL by replacing `.` with `/` in the artifact id.
+
+```diff
+diff --git a/tests/test_unit_tools_brew_url.py b/tests/test_unit_tools_brew_url.py
+new file mode 100644
+index 0000000..3b1c7a4
+--- /dev/null
++++ b/tests/test_unit_tools_brew_url.py
+@@ -0,0 +1,56 @@
++import json
++
++import mock
++
++from cekit.tools import get_brew_url
++
++
++def _fake_check_output(archive, build):
++    def check_output(cmd, *args, **kwargs):
++        if 'listArchives' in cmd:
++            return json.dumps([archive]).encode("utf8")
++        if 'getBuild' in cmd:
++            return json.dumps(build).encode("utf8")
++        raise AssertionError("Unexpected command: {}".format(cmd))
++    return check_output
++
++
++def test_get_brew_url_preserves_dots_in_artifact_id():
++    archive = {
++        "build_id": 410568,
++        "version": "1.0.4",
++        "type_name": "jar",
++        "artifact_id": "javax.json",
++        "filename": "javax.json-1.0.4.jar",
++        "group_id": "org.glassfish",
++        "checksum": "569870f975deeeb6691fcb9bc02a9555",
++    }
++    build = {
++        "package_name": "javax.json",
++        "version": "1.0.4",
++        "release": "1",
++    }
++
++    with mock.patch('subprocess.check_output',
++                    side_effect=_fake_check_output(archive, build)):
++        url = get_brew_url("569870f975deeeb6691fcb9bc02a9555")
++
++    assert url.endswith(
++        "/maven/org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar")
++    assert "javax/json" not in url
++
++
++def test_get_brew_url_group_id_dots_still_become_slashes():
++    archive = {
++        "build_id": 1,
++        "version": "2.0",
++        "artifact_id": "simple",
++        "filename": "simple-2.0.jar",
++        "group_id": "com.example.foo",
++    }
++    build = {"package_name": "simple", "version": "2.0", "release": "1"}
++
++    with mock.patch('subprocess.check_output',
++                    side_effect=_fake_check_output(archive, build)):
++        url = get_brew_url("abc")
++
++    assert url.endswith("/maven/com/example/foo/simple/2.0/simple-2.0.jar")
+```

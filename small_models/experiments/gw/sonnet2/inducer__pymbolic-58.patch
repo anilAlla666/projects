@@ -1,0 +1,40 @@
+--- /dev/null
++++ b/test/test_parser_if_precedence.py
+@@ -0,0 +1,41 @@
++from pymbolic.parser import parse
++from pymbolic.primitives import If, Variable
++
++
++def test_if_else_with_logical_or_condition():
++    result = parse("10 if x or y else 20")
++    expected = If(parse("x or y"), 10, 20)
++    assert result == expected
++
++
++def test_if_else_with_logical_and_condition():
++    result = parse("10 if x and y else 20")
++    expected = If(parse("x and y"), 10, 20)
++    assert result == expected
++
++
++def test_if_else_with_comparison_condition():
++    result = parse("10 if x < y else 20")
++    expected = If(parse("x < y"), 10, 20)
++    assert result == expected
++
++
++def test_if_else_with_not_condition():
++    result = parse("10 if not x else 20")
++    expected = If(parse("not x"), 10, 20)
++    assert result == expected
++
++
++def test_if_else_with_or_in_else_branch():
++    result = parse("10 if x else y or z")
++    expected = If(Variable("x"), 10, parse("y or z"))
++    assert result == expected
++
++
++def test_if_else_simple():
++    assert parse("a if x else b") == If(
++        Variable("x"), Variable("a"), Variable("b"))

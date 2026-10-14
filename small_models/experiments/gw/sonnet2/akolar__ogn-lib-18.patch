@@ -1,0 +1,59 @@
+--- /dev/null
++++ b/tests/test_capturs_callsign.py
+@@ -0,0 +1,63 @@
++import inspect
++
++import ogn_lib.parser as parser
++
++
++def _find_capturs():
++    cls = getattr(parser, 'Capturs', None)
++    if cls is None:
++        for name, obj in vars(parser).items():
++            if inspect.isclass(obj) and name.lower().startswith('captur'):
++                cls = obj
++                break
++    return cls
++
++
++def _callsigns(cls):
++    found = set()
++    for klass in cls.__mro__:
++        if klass is object:
++            continue
++        for value in vars(klass).values():
++            if isinstance(value, str):
++                found.add(value)
++            elif isinstance(value, (list, tuple, set, frozenset)):
++                found.update(v for v in value if isinstance(v, str))
++    return found
++
++
++def test_capturs_class_exists():
++    assert _find_capturs() is not None
++
++
++def test_capturs_registered_with_ogcapt():
++    cls = _find_capturs()
++    assert 'OGCAPT' in _callsigns(cls)
++
++
++def test_capturs_not_registered_with_oglt24():
++    cls = _find_capturs()
++    assert 'OGLT24' not in _callsigns(cls)
++
++
++def test_registry_maps_ogcapt_to_capturs():
++    cls = _find_capturs()
++    registries = []
++    for obj in list(vars(parser).values()):
++        if inspect.isclass(obj):
++            for klass in obj.__mro__ + (type(obj),):
++                for value in vars(klass).values():
++                    if isinstance(value, dict):
++                        registries.append(value)
++    mapped = [r for r in registries if 'OGCAPT' in r or 'OGLT24' in r]
++    for reg in mapped:
++        assert reg.get('OGLT24') is not cls
++    if mapped:
++        assert any(r.get('OGCAPT') is cls for r in mapped)

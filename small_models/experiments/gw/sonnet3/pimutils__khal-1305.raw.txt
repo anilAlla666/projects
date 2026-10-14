@@ -1,0 +1,36 @@
+I'm adding tests to `tests/parse_datetime_test.py` for a leading `+` on a DELTA value. They cover `guesstimedeltafstr` directly and the path `khal add` uses, `guessrangefstr`/`eventinfofstr`. I haven't run them. They should fail on the current code, because a leading `+` currently raises `ValueError` in `guesstimedeltafstr` and ends up in the title via `eventinfofstr`.
+
+I assumed `eventinfofstr` returns a dict with `'summary'`, `'dtstart'` and `'dtend'` keys, based on how `_construct_event` calls it. The tests don't depend on how a fix handles `+` in other positions, such as `+1h +15m`.
+
+
+<invoke name="bash">
+<parameter name="command">cat >> tests/parse_datetime_test.py <<'EOF'
+
+
+def test_guesstimedeltafstr_leading_plus():
+    assert guesstimedeltafstr('+90m') == dt.timedelta(minutes=90)
+    assert guesstimedeltafstr('+1d') == dt.timedelta(days=1)
+    assert guesstimedeltafstr('+1h 15m') == dt.timedelta(hours=1, minutes=15)
+    assert guesstimedeltafstr('+90m') == guesstimedeltafstr('90m')
+
+
+def test_guesstimedeltafstr_negative_still_works():
+    assert guesstimedeltafstr('-1h') == dt.timedelta(hours=-1)
+
+
+@freeze_time('2014-02-16 12:00:00')
+def test_guessrangefstr_leading_plus_delta():
+    start, end, allday = guessrangefstr('25.10.2013 18:00 +90m', LOCALE_BERLIN)
+    assert not allday
+    assert end - start == dt.timedelta(minutes=90)
+
+
+@freeze_time('2014-02-16 12:00:00')
+def test_eventinfofstr_leading_plus_delta_not_in_summary():
+    info = eventinfofstr('25.10.2013 18:00 +90m Test', LOCALE_BERLIN,
+                         dt.timedelta(days=1), dt.timedelta(hours=1),
+                         adjust_reasonably=True)
+    assert info['summary'] == 'Test'
+    assert info['dtend'] - info['dtstart'] == dt.timedelta(minutes=90)
+EOF</parameter>
+</invoke>

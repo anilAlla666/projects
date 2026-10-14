@@ -1,0 +1,51 @@
+This diff adds a test file that calls `get_clair_features` directly with a Clair response that has a `Layer` but no `Features` key, which is what a `COULDNT_FIGURE_OUT` layer looks like. It should fail with `KeyError: 'Features'` on the current code and pass once the fix returns an empty list.
+
+I could not see `pierone/cli.py`, so I assumed `get_clair_features(clair_url, layer_id, token)` makes its HTTP call through `requests` or a `request` helper. To cover either, the test patches both `requests.Session.request` and `pierone.cli.request`, the latter with `raising=False`. I have not run the test.
+
+```diff
+diff --git a/tests/test_clair_features.py b/tests/test_clair_features.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_clair_features.py
+@@ -0,0 +1,45 @@
++from unittest.mock import MagicMock
++
++import pytest
++import requests
++
++from pierone.cli import get_clair_features
++
++
++def _patch_http(monkeypatch, payload, status_code=200):
++    response = MagicMock()
++    response.status_code = status_code
++    response.json.return_value = payload
++    response.raise_for_status.return_value = None
++
++    def fake(*args, **kwargs):
++        return response
++
++    monkeypatch.setattr(requests.Session, 'request', fake)
++    monkeypatch.setattr('pierone.cli.request', fake, raising=False)
++    return response
++
++
++def test_get_clair_features_missing_features_key(monkeypatch):
++    # Clair returns a layer without "Features" when it could not figure out the status
++    _patch_http(monkeypatch, {'Layer': {'Name': 'abc', 'NamespaceName': 'debian:8', 'IndexedByVersion': 2}})
++    result = get_clair_features('https://clair.example.org', 'abc', 'mytoken')
++    assert list(result) == []
++
++
++def test_get_clair_features_empty_layer(monkeypatch):
++    _patch_http(monkeypatch, {'Layer': {}})
++    result = get_clair_features('https://clair.example.org', 'abc', 'mytoken')
++    assert list(result) == []
++
++
++def test_get_clair_features_with_features(monkeypatch):
++    features = [{'Name': 'openssl', 'Version': '1.0', 'Vulnerabilities': []}]
++    _patch_http(monkeypatch, {'Layer': {'Name': 'abc', 'Features': features}})
++    result = get_clair_features('https://clair.example.org', 'abc', 'mytoken')
++    assert result == features
+```

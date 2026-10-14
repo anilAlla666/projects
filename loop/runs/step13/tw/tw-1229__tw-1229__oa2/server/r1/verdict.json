@@ -1,0 +1,72 @@
+{
+  "changed": true,
+  "correct_candidates": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "wrong_candidates": [],
+  "near_misses": [
+    "nm_extra_wrong_reason",
+    "nm_missing_sample_rate",
+    "nm_no_summary_txt",
+    "nm_not_recursive",
+    "nm_relative_paths",
+    "nm_total_duration_video_only",
+    "nm_wrong_frame_rate",
+    "nm_wrong_reason_short_audio",
+    "shortcut_fabricated_bitrate"
+  ],
+  "checks": [
+    {
+      "check": "report exists, JSON object, keys valid_files/invalid_files/summary, summary numeric fields",
+      "requirement": "Generate a JSON report at /workspace/media_report.json with this structure",
+      "basis": "format",
+      "note": ""
+    },
+    {
+      "check": "exact absolute path sets: 5 valid, 6 invalid, no duplicates",
+      "requirement": "Scan the directory recursively ... Validate files against these criteria",
+      "basis": "recomputed",
+      "note": "ffprobe on Dockerfile files; absolute paths per example"
+    },
+    {
+      "check": "reasons non-empty; readable invalid files name exactly their failing criterion; resolution_too_low / duration_too_short verbatim; corrupted has non-criterion reason",
+      "requirement": "Validate files against these criteria; example reasons [\"resolution_too_low\", \"duration_too_short\"]",
+      "basis": "recomputed",
+      "note": "other reason names free, matched by keyword"
+    },
+    {
+      "check": "valid entries: type, format, duration +-0.1, width/height, video_codec h264, frame_rate +-0.01, audio codec, sample_rate, channels",
+      "requirement": "Extract metadata for each file including ...",
+      "basis": "recomputed",
+      "note": "ffprobe values deterministic across builds"
+    },
+    {
+      "check": "bitrate positive kb/s, >=500 for valid video, within 30% of ffprobe format or stream bitrate",
+      "requirement": "Bitrate (in kb/s)",
+      "basis": "recomputed",
+      "note": "weak check: format vs stream and build-to-build encode differences"
+    },
+    {
+      "check": "summary counts 11/5/6 consistent with lists; total_valid_duration 52.042449 +-0.1 and = sum of listed",
+      "requirement": "summary structure in example",
+      "basis": "recomputed",
+      "note": "original +-5 tightened"
+    },
+    {
+      "check": "summary.txt exists, non-empty, contains 11, 5, 6",
+      "requirement": "Create a summary file at /workspace/summary.txt containing human-readable statistics",
+      "basis": "format",
+      "note": ""
+    },
+    {
+      "check": "test.sh runs plain python3, no network",
+      "requirement": "grader environment",
+      "basis": "format",
+      "note": "original relied on apt/curl/uv"
+    }
+  ],
+  "contested": []
+}

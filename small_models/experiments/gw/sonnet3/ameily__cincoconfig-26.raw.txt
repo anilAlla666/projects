@@ -1,0 +1,43 @@
+I added tests for `SecureField.to_basic` only. They check that an empty string is treated like `None` and never reaches the keyfile or encryption, and that a normal value is still encrypted. I did not test `to_python` for empty strings, since the issue doesn't say what it should return. I haven't run these tests. I put the new file at `tests/test_secure_field_empty.py`, guessing the directory is `tests/`.
+
+```diff
+--- /dev/null
++++ b/tests/test_secure_field_empty.py
+@@ -0,0 +1,45 @@
++from unittest.mock import MagicMock
++
++from cincoconfig.fields import SecureField
++
++
++def _make_cfg():
++    cfg = MagicMock()
++    ctx = MagicMock()
++    secret = MagicMock()
++    secret.method = 'aes'
++    secret.ciphertext = b'abcdef'
++    ctx.encrypt.return_value = secret
++    cfg._keyfile.__enter__.return_value = ctx
++    return cfg, ctx
+
+
++def test_secure_field_empty_string_not_encrypted():
++    cfg, ctx = _make_cfg()
++    field = SecureField()
++    assert field.to_basic(cfg, '') is None
++    ctx.encrypt.assert_not_called()
+
+
++def test_secure_field_none_not_encrypted():
++    cfg, ctx = _make_cfg()
++    field = SecureField()
++    assert field.to_basic(cfg, None) is None
++    ctx.encrypt.assert_not_called()
+
+
++def test_secure_field_nonempty_still_encrypted():
++    cfg, ctx = _make_cfg()
++    field = SecureField()
++    result = field.to_basic(cfg, 'secret')
++    ctx.encrypt.assert_called_once()
++    assert result == {'method': 'aes', 'ciphertext': 'YWJjZGVm'}
+```

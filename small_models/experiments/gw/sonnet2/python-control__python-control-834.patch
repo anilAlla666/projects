@@ -1,0 +1,43 @@
+diff --git a/control/tests/sisotool_deprecation_test.py b/control/tests/sisotool_deprecation_test.py
+new file mode 100644
+--- /dev/null
++++ b/control/tests/sisotool_deprecation_test.py
+@@ -0,0 +1,38 @@
++"""Test that sisotool does not use deprecated matplotlib functionality."""
++
++import warnings
++
++import matplotlib
++import matplotlib.pyplot as plt
++import pytest
++
++import control as ct
++
++
++@pytest.fixture(autouse=True)
++def _close_figs():
++    yield
++    plt.close('all')
++
++
++def test_sisotool_no_matplotlib_deprecation_warning():
++    sys = ct.tf([1000], [1, 25, 100, 0])
++    with warnings.catch_warnings():
++        warnings.simplefilter(
++            "error", matplotlib.MatplotlibDeprecationWarning)
++        ct.sisotool(sys)
++
++
++def test_sisotool_bode_axes_share_x():
++    sys = ct.tf([1000], [1, 25, 100, 0])
++    with warnings.catch_warnings():
++        warnings.simplefilter(
++            "error", matplotlib.MatplotlibDeprecationWarning)
++        ct.sisotool(sys)
++    fig = plt.gcf()
++    ax_mag, ax_phase = fig.axes[0], fig.axes[2]
++    siblings = ax_mag.get_shared_x_axes().get_siblings(ax_mag)
++    assert ax_phase in siblings
++    # shared limits propagate
++    ax_mag.set_xlim(0.5, 50)
++    assert tuple(ax_phase.get_xlim()) == pytest.approx((0.5, 50))

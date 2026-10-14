@@ -1,0 +1,70 @@
+I've added the tests as a new file, `tests/unit/v1/test_transforms_sentinel.py`, rather than editing the existing `test_transforms.py`, because I couldn't see that file's contents. I haven't run them. They exercise `copy.copy`, `copy.deepcopy`, nested containers and `dataclasses.asdict`, so they should fail on the current code and pass once `Sentinel` defines `__copy__` and `__deepcopy__`.
+
+The issue's suggested `__deepcopy__(self)` has no `memo` parameter. `copy.deepcopy` calls `__deepcopy__(memo)`, so that version would raise a `TypeError` in these tests. The fix needs `def __deepcopy__(self, memo)`.
+
+```diff
+--- /dev/null
++++ b/tests/unit/v1/test_transforms_sentinel.py
+@@ -0,0 +1,58 @@
++# Copyright 2024 Google LLC All rights reserved.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++import copy
++import dataclasses
++
++import pytest
++
++from google.cloud.firestore_v1.transforms import (
++    DELETE_FIELD,
++    SERVER_TIMESTAMP,
++    Sentinel,
++)
++
++
++@pytest.mark.parametrize("sentinel", [DELETE_FIELD, SERVER_TIMESTAMP])
++def test_sentinel_copy_preserves_identity(sentinel):
++    assert copy.copy(sentinel) is sentinel
++
++
++@pytest.mark.parametrize("sentinel", [DELETE_FIELD, SERVER_TIMESTAMP])
++def test_sentinel_deepcopy_preserves_identity(sentinel):
++    assert copy.deepcopy(sentinel) is sentinel
++
++
++def test_custom_sentinel_deepcopy_preserves_identity():
++    sentinel = Sentinel("custom")
++    assert copy.deepcopy(sentinel) is sentinel
++    assert copy.copy(sentinel) is sentinel
++
++
++def test_sentinel_deepcopy_in_nested_structure():
++    data = {"a": SERVER_TIMESTAMP, "b": [DELETE_FIELD, {"c": SERVER_TIMESTAMP}]}
++    result = copy.deepcopy(data)
++    assert result == data
++    assert result["a"] is SERVER_TIMESTAMP
++    assert result["b"][0] is DELETE_FIELD
++    assert result["b"][1]["c"] is SERVER_TIMESTAMP
++
++
++def test_sentinel_survives_dataclasses_asdict():
++    @dataclasses.dataclass
++    class Example:
++        timestamp: object = SERVER_TIMESTAMP
++
++    example = Example()
++    assert example.timestamp is SERVER_TIMESTAMP
++
++    as_dict = dataclasses.asdict(example)
++    assert as_dict["timestamp"] is SERVER_TIMESTAMP
+```

@@ -1,0 +1,39 @@
+diff --git a/tests/test_nickname_whitespace.py b/tests/test_nickname_whitespace.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_nickname_whitespace.py
+@@ -0,0 +1,35 @@
++import pytest
++
++from precis_i18n import get_profile
++
++
++@pytest.fixture
++def nickname():
++    return get_profile("Nickname")
++
++
++def test_strip_ascii_space(nickname):
++    assert nickname.enforce("  a  ") == "a"
++
++
++def test_strip_zs_space(nickname):
++    # Non-ASCII Zs is mapped to ASCII space, then stripped.
++    assert nickname.enforce("\u2003a\u00a0") == "a"
++
++
++@pytest.mark.parametrize(
++    "value",
++    [
++        "\x1fb\x1f",
++        "\x1fb",
++        "b\x1f",
++        "\tc",
++        "c\t",
++        "\x0bc\x0c",
++        "\x1cd\x1d\x1e",
++    ],
++)
++def test_control_whitespace_not_stripped(nickname, value):
++    with pytest.raises(ValueError):
++        nickname.enforce(value)

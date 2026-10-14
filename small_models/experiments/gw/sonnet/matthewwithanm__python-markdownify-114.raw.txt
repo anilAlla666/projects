@@ -1,0 +1,26 @@
+I haven't run these tests. The expected strings come from the issue's current outputs plus the blank lines it asks for, so check them against the fixed code. The tests go in a new file so the diff doesn't depend on the contents of the existing test files.
+
+```diff
+diff --git a/tests/test_captions.py b/tests/test_captions.py
+new file mode 100644
+index 0000000..3b1f6a2
+--- /dev/null
++++ b/tests/test_captions.py
+@@ -0,0 +1,17 @@
++from markdownify import markdownify as md
++
++
++def test_table_caption_blank_line():
++    assert md('TEXT<table><caption>Caption</caption>'
++              '<tr><td>CELL</td></tr></tbody></table>') == 'TEXT\n\nCaption\n\n| CELL |\n\n'
++
++
++def test_figcaption_at_top():
++    assert md('TEXT<figure><figcaption>Caption</figcaption>'
++              '<span>SPAN</span></figure>') == 'TEXT\n\nCaption\n\nSPAN'
++
++
++def test_figcaption_at_bottom():
++    assert md('<figure><span>SPAN</span>'
++              '<figcaption>Caption</figcaption></figure>TEXT') == 'SPAN\n\nCaption\n\nTEXT'
+```

@@ -1,0 +1,34 @@
+I've added a new test file covering both reported cases. I haven't run it. The assertions only require at least one blank line (`\n\n` or more) around each caption, so they don't depend on the exact newline count a fix produces.
+
+```diff
+--- /dev/null
++++ b/tests/test_captions.py
+@@ -0,0 +1,31 @@
++import re
++
++from markdownify import markdownify as md
++
++
++def test_table_caption_separated_from_table():
++    result = md('TEXT<table><caption>Caption</caption><tr><td>CELL</td></tr></tbody></table>')
++    # blank line between caption and first table row
++    assert re.search(r'Caption\n{2,}\|', result), repr(result)
++    # blank line between preceding text and caption
++    assert re.search(r'TEXT\n{2,}Caption', result), repr(result)
++    assert '| CELL |' in result
++
++
++def test_table_caption_with_well_formed_table():
++    result = md('<table><caption>Caption</caption><tbody><tr><td>CELL</td></tr></tbody></table>')
++    assert re.search(r'Caption\n{2,}\|', result), repr(result)
++
++
++def test_figcaption_at_top_of_figure():
++    result = md('TEXT<figure><figcaption>Caption</figcaption><span>SPAN</span></figure>')
++    assert re.search(r'TEXT\n{2,}Caption\n{2,}SPAN', result), repr(result)
++
++
++def test_figcaption_at_bottom_of_figure():
++    result = md('<figure><span>SPAN</span><figcaption>Caption</figcaption></figure>TEXT')
++    assert re.search(r'SPAN\n{2,}Caption\n{2,}TEXT', result), repr(result)
+```

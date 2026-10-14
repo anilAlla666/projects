@@ -1,0 +1,57 @@
+diff --git a/test/test_typedef_resolve.py b/test/test_typedef_resolve.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_typedef_resolve.py
+@@ -0,0 +1,57 @@
++import unittest
++
++import CppHeaderParser
++
++
++class TypedefResolveRegression(unittest.TestCase):
++    def test_typedef_return_type_in_method(self):
++        # Regression: KeyError: 'typedefs' in resolve_type (4.0.0)
++        h = """
++typedef C A;
++
++class B
++{
++public:
++   A aMethod();
++};
++"""
++        cpp = CppHeaderParser.CppHeader(h, "string")
++        self.assertIn("B", cpp.classes)
++        methods = cpp.classes["B"]["methods"]["public"]
++        self.assertEqual(len(methods), 1)
++        self.assertEqual(methods[0]["name"], "aMethod")
++        self.assertIn("A", methods[0]["rtnType"].split())
++
++    def test_typedef_return_type_in_method_with_args(self):
++        h = """
++typedef int MyInt;
++
++class D
++{
++public:
++   MyInt compute(MyInt x);
++   MyInt *ptr();
++};
++"""
++        cpp = CppHeaderParser.CppHeader(h, "string")
++        methods = cpp.classes["D"]["methods"]["public"]
++        self.assertEqual([m["name"] for m in methods], ["compute", "ptr"])
++
++    def test_typedef_free_function(self):
++        h = """
++typedef C A;
++
++A func();
++"""
++        cpp = CppHeaderParser.CppHeader(h, "string")
++        self.assertEqual(len(cpp.functions), 1)
++        self.assertEqual(cpp.functions[0]["name"], "func")
++
++
++if __name__ == "__main__":
++    unittest.main()

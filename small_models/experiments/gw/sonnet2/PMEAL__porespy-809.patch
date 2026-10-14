@@ -1,0 +1,42 @@
+diff --git a/test/unit/test_snow2_boundary_width.py b/test/unit/test_snow2_boundary_width.py
+new file mode 100644
+--- /dev/null
++++ b/test/unit/test_snow2_boundary_width.py
+@@ -0,0 +1,45 @@
++import numpy as np
++import porespy as ps
++
++
++def _get_net(out):
++    net = out.network if hasattr(out, "network") else out
++    return net
++
++
++class TestSnow2BoundaryWidth:
++
++    def setup_class(self):
++        np.random.seed(0)
++        self.im = ps.generators.blobs(
++            shape=[60, 60, 60], porosity=0.6, blobiness=1.5, seed=0
++        )
++
++    def test_pairs_on_all_axes_does_not_raise(self):
++        out = ps.networks.snow2(self.im, boundary_width=[[5, 15], [10, 10], [3, 3]])
++        net = _get_net(out)
++        assert net["pore.coords"].shape[0] > 0
++
++    def test_pairs_equivalent_to_scalar(self):
++        a = _get_net(ps.networks.snow2(self.im, boundary_width=5))
++        b = _get_net(ps.networks.snow2(
++            self.im, boundary_width=[[5, 5], [5, 5], [5, 5]]))
++        assert a["pore.coords"].shape == b["pore.coords"].shape
++        assert a["throat.conns"].shape == b["throat.conns"].shape
++        assert np.allclose(a["pore.coords"], b["pore.coords"])
++
++    def test_pairs_equivalent_to_mixed_spec(self):
++        a = _get_net(ps.networks.snow2(
++            self.im, boundary_width=[[5, 15], [10, 10], [3, 3]]))
++        b = _get_net(ps.networks.snow2(
++            self.im, boundary_width=[[5, 15], 10, 3]))
++        assert a["pore.coords"].shape == b["pore.coords"].shape
++        assert np.allclose(a["pore.coords"], b["pore.coords"])

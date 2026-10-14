@@ -1,0 +1,19 @@
+This test change assumes the fix passes `--cpus-per-task=<n>` to `srun` explicitly, which the issue says also works on older Slurm versions. It changes the existing `srun` expectation in the full-job test, where the job has `num_cpus_per_task=2`. It should fail on the current code, which emits plain `srun --foo`, and pass once `SrunLauncher` adds the option. The minimal-job expectation, `srun --foo`, stays the same because that job sets no CPUs per task.
+
+I did not run it. The line numbers in the diff are inferred from the listing. The expected string `srun --cpus-per-task=2 --foo` also fixes the option order, with the new option before the user options. A fix that sets `SRUN_CPUS_PER_TASK` instead would not pass this test.
+
+```diff
+--- a/unittests/test_launchers.py
++++ b/unittests/test_launchers.py
+@@ -116,7 +116,7 @@
+     elif launcher_name == 'mpirun':
+         assert command == 'mpirun -np 4 --foo'
+     elif launcher_name == 'srun':
+-        assert command == 'srun --foo'
++        assert command == 'srun --cpus-per-task=2 --foo'
+     elif launcher_name == 'srunalloc':
+         assert command == ('srun '
+                            '--job-name=fake_job '
+```
+
+Please check that the `-` line sits in `test_run_command` (the full job), not in `test_run_command_minimal`. The listing shows the full test's `srun` assertion as `assert command == 'srun --foo'` near line 119, and the diff context lines for it are approximate.

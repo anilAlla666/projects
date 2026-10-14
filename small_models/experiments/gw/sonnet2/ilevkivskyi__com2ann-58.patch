@@ -1,0 +1,63 @@
+--- /dev/null
++++ b/tests/test_multiple_files.py
+@@ -0,0 +1,64 @@
++import os
++import sys
++import tempfile
++import unittest
++from unittest import mock
++
++sys.path.insert(
++    0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src")
++)
++
++import com2ann  # noqa: E402
++
++
++def run_main(args):
++    with mock.patch.object(sys, "argv", ["com2ann"] + list(args)):
++        try:
++            com2ann.main()
++        except SystemExit as e:
++            if e.code not in (None, 0):
++                raise
++
++
++class MultipleFilesTest(unittest.TestCase):
++    def test_multiple_input_files_written_separately(self) -> None:
++        with tempfile.TemporaryDirectory() as d:
++            f1 = os.path.join(d, "f1.py")
++            f2 = os.path.join(d, "f2.py")
++            with open(f1, "w") as f:
++                f.write("x = 1  # type: int\n")
++            with open(f2, "w") as f:
++                f.write("y = 'a'  # type: str\n")
++
++            run_main([f1, f2])
++
++            with open(f1) as f:
++                c1 = f.read()
++            with open(f2) as f:
++                c2 = f.read()
++
++            self.assertEqual(c1, "x: int = 1\n")
++            self.assertEqual(c2, "y: str = 'a'\n")
++
++    def test_three_files(self) -> None:
++        with tempfile.TemporaryDirectory() as d:
++            paths = []
++            for i in range(3):
++                p = os.path.join(d, "m%d.py" % i)
++                with open(p, "w") as f:
++                    f.write("v%d = %d  # type: int\n" % (i, i))
++                paths.append(p)
++
++            run_main(paths)
++
++            for i, p in enumerate(paths):
++                with open(p) as f:
++                    self.assertEqual(f.read(), "v%d: int = %d\n" % (i, i))
++
++
++if __name__ == "__main__":
++    unittest.main()

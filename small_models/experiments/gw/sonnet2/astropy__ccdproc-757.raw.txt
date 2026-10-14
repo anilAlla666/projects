@@ -1,0 +1,71 @@
+This adds one test file covering generator input to both `Combiner` and `combine`, including a generator of filenames. I haven't run it against the current code.
+
+```diff
+--- /dev/null
++++ b/ccdproc/tests/test_combiner_generator.py
+@@ -0,0 +1,66 @@
++import numpy as np
++
++from astropy.nddata import CCDData
++
++from ccdproc.combiner import Combiner, combine
++
++
++def _make_ccds():
++    return [
++        CCDData(np.full((10, 10), float(i + 1)), unit="adu") for i in range(3)
++    ]
++
++
++def _gen(ccds):
++    for c in ccds:
++        yield c
++
++
++def test_combiner_accepts_generator():
++    ccds = _make_ccds()
++    expected = Combiner(list(ccds)).average_combine()
++
++    comb = Combiner(_gen(ccds))
++    result = comb.average_combine()
++
++    np.testing.assert_allclose(result.data, expected.data)
++    np.testing.assert_allclose(result.data, 2.0)
++
++
++def test_combiner_generator_median():
++    ccds = _make_ccds()
++    result = Combiner(c for c in ccds).median_combine()
++    np.testing.assert_allclose(result.data, 2.0)
++
++
++def test_combiner_generator_expression_sum():
++    ccds = _make_ccds()
++    result = Combiner(c for c in ccds).sum_combine()
++    np.testing.assert_allclose(result.data, 6.0)
++
++
++def test_combine_accepts_generator_of_ccds():
++    ccds = _make_ccds()
++    expected = combine(list(ccds), method="average")
++    result = combine(_gen(ccds), method="average")
++    np.testing.assert_allclose(result.data, expected.data)
++    np.testing.assert_allclose(result.data, 2.0)
++
++
++def test_combine_accepts_generator_median():
++    ccds = _make_ccds()
++    result = combine(_gen(ccds), method="median")
++    np.testing.assert_allclose(result.data, 2.0)
++
++
++def test_combine_accepts_generator_of_filenames(tmp_path):
++    names = []
++    for i, c in enumerate(_make_ccds()):
++        name = str(tmp_path / f"img{i}.fits")
++        c.write(name)
++        names.append(name)
++
++    result = combine((n for n in names), method="average", unit="adu")
++    np.testing.assert_allclose(result.data, 2.0)
+```

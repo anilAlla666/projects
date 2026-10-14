@@ -1,0 +1,48 @@
+The patch below adds `test/test_parser_if_precedence.py`, which checks that the condition of an `if`/`else` expression can contain `or`, `and`, comparisons and `not`. I have not run it against the current code or a fix.
+
+Each test builds the expected result as `If(parse(<condition>), 10, 20)` and compares it with the parse of the full conditional. This avoids hard-coding how `or`, `and` and comparisons are represented. The `or` case is the one from the issue. I expect the `or` and `and` cases to fail on the current code with the reported `ParseError`.
+
+Two further tests check that the `else` branch can hold an `or` expression and that a plain `x if y else z` still parses.
+
+```diff
+--- /dev/null
++++ b/test/test_parser_if_precedence.py
+@@ -0,0 +1,41 @@
++from pymbolic.parser import parse
++from pymbolic.primitives import If, Variable
++
++
++def test_if_else_with_logical_or_condition():
++    result = parse("10 if x or y else 20")
++    expected = If(parse("x or y"), 10, 20)
++    assert result == expected
++
++
++def test_if_else_with_logical_and_condition():
++    result = parse("10 if x and y else 20")
++    expected = If(parse("x and y"), 10, 20)
++    assert result == expected
++
++
++def test_if_else_with_comparison_condition():
++    result = parse("10 if x < y else 20")
++    expected = If(parse("x < y"), 10, 20)
++    assert result == expected
++
++
++def test_if_else_with_not_condition():
++    result = parse("10 if not x else 20")
++    expected = If(parse("not x"), 10, 20)
++    assert result == expected
++
++
++def test_if_else_with_or_in_else_branch():
++    result = parse("10 if x else y or z")
++    expected = If(Variable("x"), 10, parse("y or z"))
++    assert result == expected
++
++
++def test_if_else_simple():
++    assert parse("a if x else b") == If(
++        Variable("x"), Variable("a"), Variable("b"))
+```

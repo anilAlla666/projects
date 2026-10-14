@@ -1,0 +1,67 @@
+diff --git a/test/test_scan_type.py b/test/test_scan_type.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_scan_type.py
+@@ -0,0 +1,56 @@
++import pytest
++
++import fakeredis
++
++
++@pytest.fixture
++def r():
++    client = fakeredis.FakeRedis(decode_responses=True)
++    client.flushall()
++    yield client
++    client.flushall()
++    client.close()
++
++
++def _populate(r):
++    r.set("str_key", "value")
++    r.zadd("zset_key", {"a": 2})
++    r.hset("hash_key", "f", "v")
++    r.rpush("list_key", "a")
++    r.sadd("set_key", "a")
++
++
++def test_scan_iter_with_type_and_match(r):
++    r.zadd("key", {"a": 2})
++    result = [k for k in r.scan_iter(match="key", _type="ZSET")]
++    assert result == ["key"]
++
++
++def test_scan_iter_type_mismatch(r):
++    r.zadd("key", {"a": 2})
++    assert list(r.scan_iter(match="key", _type="string")) == []
++
++
++@pytest.mark.parametrize(
++    "type_name,expected",
++    [
++        ("string", "str_key"),
++        ("zset", "zset_key"),
++        ("ZSET", "zset_key"),
++        ("hash", "hash_key"),
++        ("list", "list_key"),
++        ("set", "set_key"),
++    ],
++)
++def test_scan_iter_filters_by_type(r, type_name, expected):
++    _populate(r)
++    assert list(r.scan_iter(_type=type_name)) == [expected]
++
++
++def test_scan_with_type(r):
++    _populate(r)
++    cursor, keys = r.scan(0, _type="hash", count=100)
++    assert cursor == 0
++    assert keys == ["hash_key"]
++
++
++def test_scan_type_no_match_pattern(r):
++    _populate(r)
++    assert sorted(r.scan_iter(match="*_key")) == sorted(
++        ["str_key", "zset_key", "hash_key", "list_key", "set_key"]
++    )
++    assert list(r.scan_iter(match="*_key", _type="list")) == ["list_key"]

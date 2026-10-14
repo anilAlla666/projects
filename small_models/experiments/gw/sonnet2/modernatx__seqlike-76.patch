@@ -1,0 +1,49 @@
+diff --git a/tests/test_codon_tables_isolation.py b/tests/test_codon_tables_isolation.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_codon_tables_isolation.py
+@@ -0,0 +1,46 @@
++import subprocess
++import sys
++import textwrap
++
++import pytest
++
++STANDARD_KEYS = "*ACDEFGHIKLMNPQRSTVWY"
++
++
++@pytest.mark.parametrize("name", ["h_sapiens_9606", "e_coli_316407"])
++def test_seqlike_does_not_pollute_python_codon_tables(name):
++    """Importing seqlike's codon tables must not modify tables that
++    python_codon_tables hands out on subsequent calls."""
++    code = textwrap.dedent(
++        f"""
++        import seqlike
++        import seqlike.codon_tables
++        import python_codon_tables as pct
++
++        table = pct.get_codons_table("{name}")
++        keys = "".join(sorted(table.keys()))
++        assert keys == "{STANDARD_KEYS}", keys
++        """
++    )
++    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
++    assert result.returncode == 0, result.stderr
++
++
++def test_pct_tables_unpolluted_in_process():
++    import seqlike.codon_tables  # noqa: F401
++    import python_codon_tables as pct
++
++    table = pct.get_codons_table("h_sapiens_9606")
++    assert "".join(sorted(table.keys())) == STANDARD_KEYS
++
++
++def test_repeated_calls_after_import_are_clean():
++    import seqlike.codon_tables  # noqa: F401
++    import python_codon_tables as pct
++
++    for _ in range(2):
++        table = pct.get_codons_table("h_sapiens_9606")
++        assert "-" not in table
++        assert "X" not in table

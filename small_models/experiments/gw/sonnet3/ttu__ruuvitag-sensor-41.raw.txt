@@ -1,0 +1,52 @@
+I haven't run these tests. They add a Format 3 advertisement with the trailing NULLs trimmed, as RuuviFW 1.2.8 sends it.
+
+The trimmed payload is the existing `FF:2C:6A:1E:59:3D` sample with its `00000000` padding removed. I also adjusted the two length bytes to `15` and `11` so the packet stays internally consistent.
+
+`test_trimmed_format_3_is_decoded` checks that `get_data_for_sensors` returns the same decoded values for the trimmed and padded packets, plus temperature 26.3 and humidity 20.5. `test_find_tags_with_trimmed_format_3` checks that `find_ruuvitags` recognises the trimmed tag.
+
+I derived the expected temperature and humidity by hand from the sample bytes (humidity `0x29` ÷ 2, temperature `0x1A.0x1E`). I did not check them against the decoder, so those two assertions are the most likely to need adjusting if my reading of Format 3 is off.
+
+```diff
+--- a/tests/test_ruuvitag_sensor.py
++++ b/tests/test_ruuvitag_sensor.py
+@@ -98,3 +98,42 @@
+         macs = ['CC:2C:6A:1E:59:3D', 'DD:2C:6A:1E:59:3D']
+         RuuviTagSensor.get_datas(lambda x: datas.append(x), macs)
+         self.assertEqual(2, len(datas))
++
++    def get_datas_trimmed(self, blacklist=[], bt_device=''):
++        # Format 3 data, with and without trailing NULLs (RuuviFW 1.2.8 trims them)
++        datas = [
++            ('AA:2C:6A:1E:59:3D', '1902010415FF990403291A1ECE1E02DEF94202CA0B5300000000BB'),
++            ('BB:2C:6A:1E:59:3D', '1502010411FF990403291A1ECE1E02DEF94202CA0B53BB'),
++        ]
++
++        for data in datas:
++            yield data
++
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationDummy.get_datas',
++           get_datas_trimmed)
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_datas',
++           get_datas_trimmed)
++    def test_trimmed_format_3_is_decoded(self):
++        macs = ['AA:2C:6A:1E:59:3D', 'BB:2C:6A:1E:59:3D']
++        data = RuuviTagSensor.get_data_for_sensors(macs, 4)
++        self.assertEqual(2, len(data))
++        full = data['AA:2C:6A:1E:59:3D']
++        trimmed = data['BB:2C:6A:1E:59:3D']
++        self.assertEqual(full['temperature'], trimmed['temperature'])
++        self.assertEqual(full['humidity'], trimmed['humidity'])
++        self.assertEqual(full['pressure'], trimmed['pressure'])
++        self.assertEqual(full['battery'], trimmed['battery'])
++        self.assertEqual(full['acceleration_x'], trimmed['acceleration_x'])
++        self.assertEqual(trimmed['humidity'], 20.5)
++        self.assertEqual(trimmed['temperature'], 26.3)
++
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationDummy.get_datas',
++           get_datas_trimmed)
++    @patch('ruuvitag_sensor.ble_communication.BleCommunicationNix.get_datas',
++           get_datas_trimmed)
++    def test_find_tags_with_trimmed_format_3(self):
++        tags = RuuviTagSensor.find_ruuvitags()
++        self.assertEqual(2, len(tags))
+```

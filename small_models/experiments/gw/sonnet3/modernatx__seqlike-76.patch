@@ -1,0 +1,59 @@
+--- a/tests/test_codon_tables.py
++++ b/tests/test_codon_tables.py
+@@ -1,13 +1,50 @@
+ import pytest
++import python_codon_tables as pct
+ 
+ from seqlike import aaSeqLike
+ from seqlike.codon_tables import (
+     codon_table_to_codon_map,
+     human_codon_table,
++    yeast_codon_table,
+     ecoli_codon_table,
+     sort_codon_table_by_frequency,
+ )
+ 
+ 
++STANDARD_LETTERS = "*ACDEFGHIKLMNPQRSTVWY"
++
++
++@pytest.mark.parametrize(
++    "name, module_table",
++    [
++        ("h_sapiens_9606", human_codon_table),
++        ("s_cerevisiae_4932", yeast_codon_table),
++        ("e_coli_316407", ecoli_codon_table),
++    ],
++)
++def test_module_tables_do_not_leak_into_pct(name, module_table):
++    """Modifying a seqlike codon table must not alter tables later returned by pct."""
++    module_table["-"] = {"---": 1}
++    module_table["X"] = {"NNN": 1}
++    try:
++        fresh = pct.get_codons_table(name)
++        assert "".join(sorted(fresh.keys())) == STANDARD_LETTERS
++    finally:
++        module_table.pop("-", None)
++        module_table.pop("X", None)
++
++
++@pytest.mark.parametrize(
++    "name, module_table",
++    [
++        ("h_sapiens_9606", human_codon_table),
++        ("s_cerevisiae_4932", yeast_codon_table),
++        ("e_coli_316407", ecoli_codon_table),
++    ],
++)
++def test_pct_mutation_does_not_affect_module_tables(name, module_table):
++    """Modifying a table obtained from pct must not alter seqlike's codon tables."""
++    table = pct.get_codons_table(name)
++    table["Q_TEST"] = {"AAA": 1}
++    try:
++        assert "Q_TEST" not in module_table
++    finally:
++        table.pop("Q_TEST", None)
++
++
+ @pytest.mark.parametrize("codon_table", [human_codon_table, ecoli_codon_table])
+ def test_sort_codon_table_by_frequency(codon_table):

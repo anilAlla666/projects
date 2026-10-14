@@ -1,0 +1,71 @@
+I added a new test file rather than editing an existing one, since I couldn't see the existing test files and a diff against them might not apply. I haven't run it. It checks that `str()` works on a field and on a domain whose dimension coordinate has had its data deleted, and that the construct's name still appears in the output. The issue doesn't say what the output should look like, so the tests don't assert on its exact format.
+
+```diff
+diff --git a/cfdm/test/test_print_no_data.py b/cfdm/test/test_print_no_data.py
+new file mode 100644
+--- /dev/null
++++ b/cfdm/test/test_print_no_data.py
+@@ -0,0 +1,63 @@
++import datetime
++import faulthandler
++import unittest
++
++faulthandler.enable()  # to debug seg faults and timeouts
++
++import cfdm
++
++
++class PrintNoDataTest(unittest.TestCase):
++    """Printing fields/domains with coordinates that have no data."""
++
++    def test_field_str_dimension_coordinate_no_data(self):
++        f = cfdm.example_field(2)
++        t = f.construct("time")
++        t.del_data()
++        self.assertFalse(t.has_data())
++
++        # Must not raise
++        s = str(f)
++        self.assertIsInstance(s, str)
++        self.assertIn("time", s)
++
++        # repr should also be fine
++        repr(f)
++
++    def test_domain_str_dimension_coordinate_no_data(self):
++        f = cfdm.example_field(2)
++        f.construct("time").del_data()
++
++        d = f.domain
++        s = str(d)
++        self.assertIsInstance(s, str)
++        self.assertIn("time", s)
++
++    def test_domain_str_all_dimension_coordinates_no_data(self):
++        f = cfdm.example_field(1)
++        for c in f.dimension_coordinates(todict=True).values():
++            c.del_data()
++
++        self.assertIsInstance(str(f), str)
++        self.assertIsInstance(str(f.domain), str)
++
++    def test_field_str_auxiliary_coordinate_no_data(self):
++        f = cfdm.example_field(1)
++        for c in f.auxiliary_coordinates(todict=True).values():
++            c.del_data()
++
++        self.assertIsInstance(str(f), str)
++        self.assertIsInstance(str(f.domain), str)
++
++    def test_field_str_with_data_unchanged(self):
++        f = cfdm.example_field(2)
++        s = str(f)
++        self.assertIn("time(36)", s)
++
++
++if __name__ == "__main__":
++    print("Run date:", datetime.datetime.now())
++    cfdm.environment()
++    print()
++    unittest.main(verbosity=2)
+```

@@ -1,0 +1,116 @@
+{
+ "loop": "tw-recover-corrupted-sqlite-data__tw-recover-corrupted-sqlite-data__ob",
+ "task": "tw-recover-corrupted-sqlite-data",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 13,
+   "usd": 0.4602,
+   "seconds": 158,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "A",
+     "B",
+     "C"
+    ],
+    "wrong_candidates": [],
+    "near_misses": [
+     "nm1_missing_record15",
+     "nm2_wrong_value_record9",
+     "nm3_unsorted",
+     "nm4_ids_as_strings",
+     "nm5_shortcut_only_8_committed",
+     "nm6_wrapped_in_object",
+     "nm7_values_as_strings",
+     "nm8_name_typo",
+     "nm9_duplicate_record"
+    ],
+    "checks": [
+     {
+      "check": "recovered.json exists in /data, readable, valid non-empty JSON",
+      "requirement": "export everything to /data/recovered.json",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "top level is a list of objects with exactly keys id,name,value",
+      "requirement": "The output format should be: [{\"id\": 1, \"name\": \"record1\", \"value\": X}, ...]",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "id/value are non-bool integers, name non-empty string",
+      "requirement": "The output format should be: [{\"id\": 1, \"name\": \"record1\", \"value\": X}, ...]",
+      "basis": "format",
+      "note": "bool exclusion added"
+     },
+     {
+      "check": "records sorted ascending by id",
+      "requirement": "sorted by id",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "exactly 15 records, ids 1..15, no duplicates",
+      "requirement": "recover all the missing data ... maybe 15 records total",
+      "basis": "recomputed",
+      "note": "sqlite3 read of /data/database.db (with and without WAL) yields 15 rows ids 1..15"
+     },
+     {
+      "check": "name == 'record<id>', value == id*10, sum 1200, spot checks 1/8/9/15",
+      "requirement": "recover all the missing data and export everything",
+      "basis": "recomputed",
+      "note": "values read from the records table"
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "PPPF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "C",
+    "nop"
+   ],
+   "guard": {
+    "kept": false,
+    "old_agree": 13,
+    "new_agree": 13,
+    "items": 13
+   }
+  }
+ ],
+ "usd": 0.46,
+ "before": {
+  "accepted_correct": "5/5",
+  "attempts": 7,
+  "balanced_accuracy": 0.75,
+  "isolation": "bindproc",
+  "labels": "PPPPPFF",
+  "rejected_wrong": "1/2",
+  "reward": 0.5,
+  "seconds": 3.5,
+  "task": "tw-recover-corrupted-sqlite-data",
+  "timeouts": 0,
+  "tnr": 0.5,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "5/5",
+  "attempts": 7,
+  "balanced_accuracy": 0.75,
+  "isolation": "bindproc",
+  "labels": "PPPPPFF",
+  "rejected_wrong": "1/2",
+  "reward": 0.5,
+  "seconds": 3.9,
+  "task": "tw-recover-corrupted-sqlite-data",
+  "timeouts": 0,
+  "tnr": 0.5,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPF"
+ }
+}

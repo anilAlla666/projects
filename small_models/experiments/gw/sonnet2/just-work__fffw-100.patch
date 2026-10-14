@@ -1,0 +1,44 @@
+diff --git a/tests/test_trim_duration.py b/tests/test_trim_duration.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_trim_duration.py
+@@ -0,0 +1,59 @@
++from datetime import timedelta
++from unittest import TestCase
++
++from fffw.encoding.filters import Trim
++from fffw.graph import VIDEO, AUDIO
++from fffw.graph.meta import video_meta_data, audio_meta_data
++
++
++def seconds(value) -> float:
++    if isinstance(value, timedelta):
++        return value.total_seconds()
++    return float(value)
++
++
++class TrimDurationTestCase(TestCase):
++    def test_video_trim_end_after_eof(self):
++        """End after EOF must not increase output duration."""
++        meta = video_meta_data(duration=10.0)
++        trim = Trim(VIDEO, start=2.0, end=20.0)
++        result = trim.transform(meta)
++        self.assertAlmostEqual(seconds(result.duration), 8.0, places=3)
++
++    def test_video_trim_end_after_eof_from_zero(self):
++        meta = video_meta_data(duration=10.0)
++        trim = Trim(VIDEO, start=0.0, end=30.0)
++        result = trim.transform(meta)
++        self.assertAlmostEqual(seconds(result.duration), 10.0, places=3)
++
++    def test_video_trim_inside_stream(self):
++        meta = video_meta_data(duration=10.0)
++        trim = Trim(VIDEO, start=2.0, end=5.0)
++        result = trim.transform(meta)
++        self.assertAlmostEqual(seconds(result.duration), 3.0, places=3)
++
++    def test_audio_trim_end_after_eof(self):
++        meta = audio_meta_data(duration=10.0)
++        trim = Trim(AUDIO, start=2.0, end=20.0)
++        result = trim.transform(meta)
++        self.assertAlmostEqual(seconds(result.duration), 8.0, places=3)

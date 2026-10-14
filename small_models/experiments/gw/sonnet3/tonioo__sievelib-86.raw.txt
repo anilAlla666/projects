@@ -1,0 +1,68 @@
+I'm adding a new test file, since no existing test files were shown. The tests parse a script containing an `exists` test, load it into a `FiltersSet`, and call `get_filter_conditions`. On the current code this should raise `AttributeError: 'list' object has no attribute 'startswith'`, as in the issue. I have not run them. They assume the rule name is `[test]` when the script uses the default `# rule:` prefix, and that the multi-header case returns a flat tuple like `("exists", "Subject", "From")`. The multi-header assertions only check membership, not exact tuple layout.
+
+```diff
+--- /dev/null
++++ b/sievelib/tests/test_exists_export.py
+@@ -0,0 +1,53 @@
++# coding: utf-8
++"""Exporting a parsed 'exists' test through the factory."""
++import unittest
++
++from sievelib.factory import FiltersSet
++from sievelib.parser import Parser
++
++
++class ExistsExportTestCase(unittest.TestCase):
++    def _load(self, script):
++        p = Parser()
++        self.assertTrue(p.parse(script), p.error)
++        fs = FiltersSet("test")
++        fs.from_parser_result(p)
++        return fs
++
++    def test_exists_single_header_list(self):
++        script = """require ["fileinto"];
++
++# rule:[test]
++if anyof (exists ["Subject"]) {
++    fileinto "INBOX";
++}
++"""
++        fs = self._load(script)
++        conds = fs.get_filter_conditions("[test]")
++        self.assertEqual(len(conds), 1)
++        self.assertEqual(conds[0][0], "exists")
++        self.assertIn("Subject", conds[0])
++
++    def test_exists_multiple_headers(self):
++        script = """require ["fileinto"];
++
++# rule:[test]
++if anyof (exists ["Subject", "From"]) {
++    fileinto "INBOX";
++}
++"""
++        fs = self._load(script)
++        conds = fs.get_filter_conditions("[test]")
++        self.assertEqual(len(conds), 1)
++        self.assertEqual(conds[0][0], "exists")
++        self.assertIn("Subject", conds[0])
++        self.assertIn("From", conds[0])
++
++    def test_exists_plain_string(self):
++        script = """require ["fileinto"];
++
++# rule:[test]
++if exists "Subject" {
++    fileinto "INBOX";
++}
++"""
++        fs = self._load(script)
++        conds = fs.get_filter_conditions("[test]")
++        self.assertEqual(conds[0][0], "exists")
++        self.assertIn("Subject", conds[0])
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

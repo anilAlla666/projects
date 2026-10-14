@@ -1,0 +1,74 @@
+I haven't run these tests against the repository, and I'm assuming `SyncedAttrDict` is importable from `signac.core.attrdict`, as the issue's output suggests. The tests go in a new file, `tests/test_synceddict_values.py`. They reproduce the issue by calling `values()`, `items()` and `keys()` on a job's statepoint and document. They then check that a nested value is still a `SyncedAttrDict` rather than a plain `dict`.
+
+```diff
+diff --git a/tests/test_synceddict_values.py b/tests/test_synceddict_values.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_synceddict_values.py
+@@ -0,0 +1,64 @@
++# Copyright (c) 2019 The Regents of the University of Michigan
++# All rights reserved.
++# This software is licensed under the BSD 3-Clause License.
++import shutil
++import tempfile
++
++import pytest
++
++import signac
++from signac.core.attrdict import SyncedAttrDict
++
++
++@pytest.fixture
++def project():
++    d = tempfile.mkdtemp()
++    try:
++        yield signac.init_project('test_values', root=d)
++    finally:
++        shutil.rmtree(d, ignore_errors=True)
++
++
++def test_statepoint_values_does_not_modify_nested(project):
++    job = project.open_job({'a': {'b': 'c'}}).init()
++    assert isinstance(job.sp.a, SyncedAttrDict)
++    job.sp.values()
++    assert isinstance(job.sp.a, SyncedAttrDict)
++    list(job.sp.values())
++    assert isinstance(job.sp.a, SyncedAttrDict)
++    assert isinstance(job.sp['a'], SyncedAttrDict)
++    assert job.sp.a.b == 'c'
++
++
++def test_statepoint_items_keys_do_not_modify_nested(project):
++    job = project.open_job({'a': {'b': 'c'}}).init()
++    list(job.sp.items())
++    assert isinstance(job.sp.a, SyncedAttrDict)
++    list(job.sp.keys())
++    assert isinstance(job.sp.a, SyncedAttrDict)
++
++
++def test_values_nested_are_synced(project):
++    job = project.open_job({'a': {'b': 'c'}}).init()
++    vals = list(job.sp.values())
++    assert len(vals) == 1
++    assert isinstance(vals[0], SyncedAttrDict)
++
++
++def test_document_values_does_not_modify_nested(project):
++    job = project.open_job({'x': 1}).init()
++    job.doc.a = {'b': 'c'}
++    assert isinstance(job.doc.a, SyncedAttrDict)
++    list(job.doc.values())
++    assert isinstance(job.doc.a, SyncedAttrDict)
++    list(job.doc.items())
++    assert isinstance(job.doc.a, SyncedAttrDict)
++
++
++def test_nested_write_after_values_is_synced(project):
++    job = project.open_job({'a': {'b': 'c'}}).init()
++    list(job.sp.values())
++    job.doc.n = {'k': 1}
++    list(job.doc.values())
++    job.doc.n.k = 2
++    assert job.doc.n.k == 2
++    assert project.open_job(id=job.get_id()).doc.n.k == 2
+```

@@ -1,0 +1,90 @@
+{
+ "changed": true,
+ "correct_candidates": [
+  "B",
+  "C"
+ ],
+ "wrong_candidates": [
+  "A",
+  "D"
+ ],
+ "near_misses": [
+  "nm_wrong_edge",
+  "nm_bootstrap_samples",
+  "nm_independent_samples",
+  "nm_nonedge_coupling",
+  "nm_unnormalised_marginal",
+  "nm_9999_samples",
+  "nm_duplicate_edge"
+ ],
+ "checks": [
+  {
+   "check": "learned_mrf.csv has exactly 8 lines/edges",
+   "requirement": "The true graph has exactly 8 edges / Requirements: Exactly 8 edges",
+   "basis": "task-text",
+   "note": ""
+  },
+  {
+   "check": "V strictly highest degree",
+   "requirement": "node V must have the highest degree",
+   "basis": "task-text",
+   "note": ""
+  },
+  {
+   "check": "no duplicate undirected edges, no self loops",
+   "requirement": "each edge should appear only once",
+   "basis": "format",
+   "note": ""
+  },
+  {
+   "check": "node names in A,B,C,D,V,W,X,Y",
+   "requirement": "All node names are case-sensitive",
+   "basis": "format",
+   "note": ""
+  },
+  {
+   "check": "edge set == top-8 |partial correlation| pairs of the task data (C-V,W-Y,V-W,D-X,V-X,A-B,A-V,B-V)",
+   "requirement": "Recover the underlying graphical structure... exactly 8 edges; partial correlation thresholding",
+   "basis": "recomputed",
+   "note": "10x gap between 8th (.198) and 9th (.021); recomputed at test time from /app/mrf_sample_10k.csv with hard-coded fallback"
+  },
+  {
+   "check": "inferred_marginals header w_value,probability; numeric, finite, distinct w, >=2 rows",
+   "requirement": "Format: CSV with header w_value,probability; Discretized probability distribution over W values",
+   "basis": "format",
+   "note": ""
+  },
+  {
+   "check": "probabilities >=0, sum in [0.95,1.05]",
+   "requirement": "The probabilities should sum to approximately 1.0",
+   "basis": "format",
+   "note": "original tolerance kept"
+  },
+  {
+   "check": "samples: all 8 columns, exactly 10000 rows, numeric finite, sd>0.1",
+   "requirement": "Exactly 10,000 rows of sampled values; header row containing all 8 node names",
+   "basis": "format",
+   "note": ""
+  },
+  {
+   "check": "samples not copied/bootstrapped from the input (<=100 rows equal to input rows)",
+   "requirement": "Generate 10,000 samples from the learned MRF model",
+   "basis": "format",
+   "note": "shortcut check; rejects A and D"
+  },
+  {
+   "check": "samples obey learned graph: non-edge |pcorr|<0.07, mean edge |pcorr|>=0.03",
+   "requirement": "Generated samples should follow the learned distribution",
+   "basis": "task-text",
+   "note": "Markov property of a Gaussian MRF; loose thresholds valid under every fitting reading (MLE, constrained MLE, glasso up to alpha .1)"
+  }
+ ],
+ "contested": [
+  {
+   "value": "conditional distribution P(W|V=1,X=0.5) (mean/sd)",
+   "verifier_expects": "no value check (original had none)",
+   "candidates_give": "mean ~0.198-0.2015, sd ~0.722 (B,C,D); A hard-coded mean 0, sd 0.63",
+   "why": "depends on the parameter-fitting estimator and graphical-lasso penalty, which the task does not fix (glasso alpha 0.01-0.10 all give 8 edges, mean 0.19-0.05); held-out comparison does not separate readings by 2x"
+  }
+ ]
+}

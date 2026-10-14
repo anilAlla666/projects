@@ -1,0 +1,44 @@
+diff --git a/t/unit/test_transport_cert_reqs_none.py b/t/unit/test_transport_cert_reqs_none.py
+new file mode 100644
+--- /dev/null
++++ b/t/unit/test_transport_cert_reqs_none.py
+@@ -0,0 +1,56 @@
++import ssl
++from unittest.mock import MagicMock, patch
++
++from amqp.transport import SSLTransport
++
++
++def _wrap(cert_reqs, server_hostname):
++    transport = SSLTransport('localhost', 10)
++    captured = {}
++
++    def fake_wrap_socket(self, *args, **kwargs):
++        captured['context'] = self
++        return MagicMock()
++
++    with patch.object(ssl.SSLContext, 'wrap_socket', fake_wrap_socket):
++        transport._wrap_socket_sni(
++            MagicMock(),
++            cert_reqs=cert_reqs,
++            server_hostname=server_hostname,
++        )
++    return captured['context']
++
++
++class test_SSLTransport_cert_reqs_none:
++
++    def test_cert_none_with_server_hostname(self):
++        context = _wrap(ssl.CERT_NONE, 'localhost')
++        assert context.verify_mode == ssl.CERT_NONE
++        assert context.check_hostname is False
++
++    def test_cert_none_without_server_hostname(self):
++        context = _wrap(ssl.CERT_NONE, None)
++        assert context.verify_mode == ssl.CERT_NONE
++        assert context.check_hostname is False
++
++    def test_cert_required_with_server_hostname(self):
++        context = _wrap(ssl.CERT_REQUIRED, 'localhost')
++        assert context.verify_mode == ssl.CERT_REQUIRED
++        assert context.check_hostname is True

@@ -1,0 +1,33 @@
+The new test fails on the current code when Matplotlib is 3.6 or newer, because `get_shared_x_axes().join(...)` raises the `join` deprecation warning. I haven't run it. On older Matplotlib the warning never fires, so the test would pass before the fix there. The test also checks that the Bode magnitude and phase x-axes are still shared, so a fix can't drop the sharing to silence the warning.
+
+```diff
+--- a/control/tests/sisotool_test.py
++++ b/control/tests/sisotool_test.py
+@@ -1,5 +1,6 @@
+ """sisotool_test.py"""
+ 
++import warnings
+ from control.exception import ControlMIMONotImplemented
+ import matplotlib.pyplot as plt
+ import numpy as np
+@@ -152,6 +153,24 @@ class TestSisotool:
+         with pytest.raises(ControlMIMONotImplemented):
+             sisotool(sys221)
+ 
++    def test_sisotool_no_mpl_join_deprecation(self, tsys):
++        """Bode axes must be shared without using deprecated Grouper.join"""
++        import matplotlib
++        with warnings.catch_warnings():
++            warnings.filterwarnings(
++                "error", message=".*join.*",
++                category=matplotlib.MatplotlibDeprecationWarning)
++            sisotool(tsys)
++
++        fig = plt.gcf()
++        ax_mag, ax_phase = fig.axes[0], fig.axes[2]
++        assert ax_phase.get_shared_x_axes().joined(ax_phase, ax_mag)
++
+ @pytest.mark.usefixtures("mplcleanup")
+ class TestPidDesigner:
+     @pytest.fixture
+```

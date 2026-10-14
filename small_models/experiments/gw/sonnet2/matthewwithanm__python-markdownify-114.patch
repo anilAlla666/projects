@@ -1,0 +1,25 @@
+--- /dev/null
++++ b/tests/test_caption_blank_lines.py
+@@ -0,0 +1,18 @@
++from markdownify import markdownify as md
++
++
++def test_table_caption_followed_by_blank_line():
++    assert (
++        md('TEXT<table><caption>Caption</caption><tr><td>CELL</td></tr></tbody></table>')
++        == 'TEXT\n\nCaption\n\n| CELL |\n\n'
++    )
++
++
++def test_figcaption_at_top_of_figure():
++    assert (
++        md('TEXT<figure><figcaption>Caption</figcaption><span>SPAN</span></figure>')
++        == 'TEXT\n\nCaption\n\nSPAN'
++    )
++
++
++def test_figcaption_at_bottom_of_figure():
++    assert (
++        md('<figure><span>SPAN</span><figcaption>Caption</figcaption></figure>TEXT')
++        == 'SPAN\n\nCaption\n\nTEXT'
++    )

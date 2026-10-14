@@ -1,0 +1,44 @@
+diff --git a/tests/test_trim_duration.py b/tests/test_trim_duration.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_trim_duration.py
+@@ -0,0 +1,50 @@
++from datetime import timedelta
++from unittest import TestCase
++
++from fffw.encoding.filters import Trim
++from fffw.graph import meta, VIDEO, AUDIO
++
++
++def seconds(value) -> float:
++    if isinstance(value, timedelta):
++        return value.total_seconds()
++    return float(value)
++
++
++class TrimDurationTestCase(TestCase):
++    """ Trim must not produce duration longer than the source stream. """
++
++    def test_video_end_after_eof(self):
++        source = meta.video_meta_data(duration=10.0, width=640, height=360)
++        trim = Trim(VIDEO, start=5.0, end=20.0)
++        result = trim.transform(source)
++        self.assertAlmostEqual(seconds(result.duration), 5.0, places=3)
++
++    def test_video_end_before_eof(self):
++        source = meta.video_meta_data(duration=10.0, width=640, height=360)
++        trim = Trim(VIDEO, start=2.0, end=7.0)
++        result = trim.transform(source)
++        self.assertAlmostEqual(seconds(result.duration), 5.0, places=3)
++
++    def test_video_end_after_eof_from_zero(self):
++        source = meta.video_meta_data(duration=10.0, width=640, height=360)
++        trim = Trim(VIDEO, start=0.0, end=100.0)
++        result = trim.transform(source)
++        self.assertAlmostEqual(seconds(result.duration), 10.0, places=3)
++
++    def test_audio_end_after_eof(self):
++        source = meta.audio_meta_data(duration=10.0, sampling_rate=48000)
++        trim = Trim(AUDIO, start=5.0, end=20.0)
++        result = trim.transform(source)
++        self.assertAlmostEqual(seconds(result.duration), 5.0, places=3)

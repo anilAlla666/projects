@@ -1,0 +1,73 @@
+I haven't run these tests against the repo. The existing `create_filtered_test_list(ctest_test_list, test_by_names, skip_test)` signature is written from memory, so check it matches. The tests cover only the `-n` filter and leave the skip filter alone, because I'm not sure the fix touches it. A suffix wildcard, a middle wildcard and a `?` wildcard should fail on the current code, since only a trailing `*` is handled there.
+
+```diff
+--- /dev/null
++++ b/test/mbed_gt_test_name_glob.py
+@@ -0,0 +1,67 @@
++import unittest
++
++from mbed_greentea import mbed_greentea_cli
++
++
++class GreenteaTestNameGlob(unittest.TestCase):
++
++    def setUp(self):
++        self.tests = {
++            "mbed-os-timer": "path/a",
++            "mbed-os-ticker": "path/b",
++            "mbed-drivers-timer": "path/c",
++            "other-test": "path/d",
++            "mbed-os-x-timer-y": "path/e",
++        }
++
++    def _filter(self, pattern):
++        return mbed_greentea_cli.create_filtered_test_list(
++            self.tests, pattern, None)
++
++    def test_exact_name(self):
++        result = self._filter("other-test")
++        self.assertEqual(sorted(result.keys()), ["other-test"])
++
++    def test_trailing_wildcard(self):
++        result = self._filter("mbed-os-*")
++        self.assertEqual(sorted(result.keys()),
++                         ["mbed-os-ticker", "mbed-os-timer", "mbed-os-x-timer-y"])
++
++    def test_leading_wildcard(self):
++        result = self._filter("*-timer")
++        self.assertEqual(sorted(result.keys()),
++                         ["mbed-drivers-timer", "mbed-os-timer"])
++
++    def test_middle_wildcard(self):
++        result = self._filter("mbed-*-timer")
++        self.assertEqual(sorted(result.keys()),
++                         ["mbed-drivers-timer", "mbed-os-timer"])
++
++    def test_both_ends_wildcard(self):
++        result = self._filter("*timer*")
++        self.assertEqual(sorted(result.keys()),
++                         ["mbed-drivers-timer", "mbed-os-timer", "mbed-os-x-timer-y"])
++
++    def test_question_mark_wildcard(self):
++        result = self._filter("mbed-os-ti?er")
++        self.assertEqual(sorted(result.keys()),
++                         ["mbed-os-ticker", "mbed-os-timer"])
++
++    def test_values_preserved(self):
++        result = self._filter("*-timer")
++        self.assertEqual(result["mbed-os-timer"], "path/a")
++        self.assertEqual(result["mbed-drivers-timer"], "path/c")
++
++    def test_multiple_patterns(self):
++        result = self._filter("*-timer,other-test")
++        self.assertEqual(sorted(result.keys()),
++                         ["mbed-drivers-timer", "mbed-os-timer", "other-test"])
++
++    def test_no_match_wildcard(self):
++        result = self._filter("*-nomatch")
++        self.assertEqual(len(result), 0)
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

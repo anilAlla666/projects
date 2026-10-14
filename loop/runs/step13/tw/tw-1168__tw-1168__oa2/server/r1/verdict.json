@@ -1,0 +1,13 @@
+{"changed": true,
+ "correct_candidates": ["B", "D"],
+ "wrong_candidates": ["A", "C", "E"],
+ "near_misses": ["nm_foreground_no_exec", "nm_forwards_sigint", "nm_slow_forward", "nm_forward_sigkill", "nm_shortcut_fake_marker", "nm_exits_immediately"],
+ "checks": [
+  {"check": "app.py (instrumented original) is started by the entrypoint, still running ~3s later, and writing data entries", "requirement": "The application is a Python-based data processing service in /app that writes to files periodically; do not change app.py", "basis": "task-text", "note": "rejects reimplementations such as E and entrypoints that stop by themselves"},
+  {"check": "after SIGTERM to PID 1, app.py's own SIGTERM handler runs (secret probe file contains token:SIGTERM)", "requirement": "The Python app receives SIGTERM and performs its cleanup (writes shutdown marker)", "basis": "task-text", "note": "PID 1 emulated with bwrap --as-pid-1, with a non-namespaced fallback; rejects shell-faked cleanup (A, C)"},
+  {"check": "PID 1 exits less than 10 s after SIGTERM", "requirement": "The container exits within a few seconds, not hitting the default 10-second timeout", "basis": "task-text", "note": ""},
+  {"check": "/app/data/shutdown_complete absent before SIGTERM, present after with content shutdown_complete:SIGTERM", "requirement": "The file /app/data/shutdown_complete is created to indicate clean shutdown", "basis": "recomputed", "note": "content follows from app.py's f-string with signal name SIGTERM"},
+  {"check": "output.txt contains '--- END OF DATA (clean shutdown) ---'", "requirement": "Data files are sometimes corrupted/incomplete because the app doesn't shutdown cleanly", "basis": "recomputed", "note": "written by app.py's handler"},
+  {"check": "test.sh writes 1/0 to /logs/verifier/reward.txt without network", "requirement": "grader contract", "basis": "format", "note": "removed the apt/uv/pytest bootstrap"}
+ ],
+ "contested": []}

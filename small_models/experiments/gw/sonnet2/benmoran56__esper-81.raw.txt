@@ -1,0 +1,60 @@
+The diff below adds `tests/test_create_empty_entity.py` with five tests for creating entities without components. I wrote it from memory of the esper 2.4 API and have not run it against the repo.
+
+Before the fix, `test_empty_entity_exists` and `test_empty_entity_can_receive_components_later` should fail, because `create_entity()` never registers the entity. The remaining three may also fail or pass depending on how the current code handles empty entities. After the fix they should all pass.
+
+I did not test the issue's suggestion that `add_component()` should raise `KeyError` for an unknown entity. The issue only says to consider removing that behaviour, so a correct fix could reasonably keep it.
+
+```diff
+diff --git a/tests/test_create_empty_entity.py b/tests/test_create_empty_entity.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_create_empty_entity.py
+@@ -0,0 +1,56 @@
++import esper
++
++
++class Position:
++    def __init__(self, x=0, y=0):
++        self.x = x
++        self.y = y
++
++
++def test_empty_entity_exists():
++    world = esper.World()
++    entity = world.create_entity()
++    assert world.entity_exists(entity)
++
++
++def test_empty_entities_have_unique_incrementing_ids():
++    world = esper.World()
++    first = world.create_entity()
++    second = world.create_entity()
++    assert first != second
++    assert second == first + 1
++    assert world.entity_exists(first)
++    assert world.entity_exists(second)
++
++
++def test_empty_entity_can_receive_components_later():
++    world = esper.World()
++    entity = world.create_entity()
++    pos = Position(1, 2)
++    world.add_component(entity, pos)
++    assert world.entity_exists(entity)
++    assert world.has_component(entity, Position)
++    assert world.component_for_entity(entity, Position) is pos
++
++
++def test_empty_entity_can_be_deleted():
++    world = esper.World()
++    entity = world.create_entity()
++    world.delete_entity(entity, immediate=True)
++    assert not world.entity_exists(entity)
++
++
++def test_entity_with_components_still_exists():
++    world = esper.World()
++    entity = world.create_entity(Position(3, 4))
++    assert world.entity_exists(entity)
++    assert world.has_component(entity, Position)
+```

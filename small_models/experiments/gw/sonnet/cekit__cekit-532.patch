@@ -1,0 +1,58 @@
+diff --git a/tests/test_unit_brew_url.py b/tests/test_unit_brew_url.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_unit_brew_url.py
+@@ -0,0 +1,50 @@
++import json
++import subprocess
++
++from cekit.tools import get_brew_url
++
++
++ARCHIVES = [
++    {
++        "build_id": 410568,
++        "version": "1.0.4",
++        "type_name": "jar",
++        "artifact_id": "javax.json",
++        "type_id": 1,
++        "checksum": "569870f975deeeb6691fcb9bc02a9555",
++        "extra": None,
++        "filename": "javax.json-1.0.4.jar",
++        "type_description": "Jar file",
++        "metadata_only": False,
++        "type_extensions": "jar war rar ear sar kar jdocbook jdocbook-style plugin",
++        "btype": "maven",
++        "checksum_type": 0,
++        "btype_id": 2,
++        "group_id": "org.glassfish",
++        "buildroot_id": None,
++        "id": 863130,
++        "size": 85147,
++    }
++]
++
++BUILD = {
++    "package_name": "org.glassfish-javax.json",
++    "name": "org.glassfish-javax.json",
++    "version": "1.0.4",
++    "release": "1",
++    "build_id": 410568,
++    "id": 410568,
++}
++
++
++def test_get_brew_url_preserves_dots_in_artifact_id(mocker):
++    def fake_check_output(cmd, *args, **kwargs):
++        if 'listArchives' in cmd:
++            return json.dumps(ARCHIVES).encode('utf8')
++        if 'getBuild' in cmd:
++            return json.dumps(BUILD).encode('utf8')
++        raise AssertionError("Unexpected command: {}".format(cmd))
++
++    mocker.patch.object(subprocess, 'check_output', side_effect=fake_check_output)
++
++    url = get_brew_url('569870f975deeeb6691fcb9bc02a9555')
++
++    assert '/org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar' in url
++    assert 'javax/json' not in url

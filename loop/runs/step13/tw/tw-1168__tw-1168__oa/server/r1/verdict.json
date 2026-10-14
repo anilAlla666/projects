@@ -1,0 +1,13 @@
+{"changed": true,
+ "correct_candidates": ["B","D"],
+ "wrong_candidates": ["A","C","E"],
+ "near_misses": ["nm_foreground_no_exec","nm_forwards_sigint","nm_forward_too_slow","nm_kill_child_sigkill","shortcut_fake_handler_call","shortcut_marker_written_upfront"],
+ "checks": [
+  {"check":"app.py main loop (the provided, unchanged app.py) is started by the entrypoint","requirement":"Only modify /app/entrypoint.sh - do not change app.py; Fix the entrypoint script so that the Python application receives and handles SIGTERM","basis":"task-text","note":"verifier writes app.py from the task Dockerfile plus invisible nonce instrumentation"},
+  {"check":"the process running app.py's main loop itself handles a real SIGTERM (per-run nonce proof)","requirement":"The Python app receives SIGTERM and performs its cleanup (writes shutdown marker)","basis":"task-text","note":"rejects shells that fake the marker"},
+  {"check":"entrypoint (container PID 1) exits within 8 s of SIGTERM","requirement":"The container exits within a few seconds, not hitting the default 10-second timeout","basis":"task-text","note":"8 s < 10 s; correct fixes take <0.1 s"},
+  {"check":"/app/data/shutdown_complete exists with content 'shutdown_complete:SIGTERM\\n'","requirement":"The file /app/data/shutdown_complete is created to indicate clean shutdown","basis":"recomputed","note":"content is what the given app.py handler writes on SIGTERM"},
+  {"check":"output.txt has data entries and ends with '--- END OF DATA (clean shutdown) ---'","requirement":"Data files are sometimes corrupted/incomplete because the app doesn't shutdown cleanly","basis":"recomputed","note":"written by the given app.py's cleanup"},
+  {"check":"test.sh writes 1/0 to /logs/verifier/reward.txt using only python3 (no network)","requirement":"grader contract","basis":"format","note":"original test.sh needed network (curl/uv) and could never pass"}
+ ],
+ "contested": []}

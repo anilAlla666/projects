@@ -1,0 +1,51 @@
+--- /dev/null
++++ b/unittests/test_srun_cpus_per_task.py
+@@ -0,0 +1,47 @@
++# Tests for Slurm >= 22.05 srun behaviour: srun no longer reads
++# SLURM_CPUS_PER_TASK, so the launcher must pass the option explicitly.
++
++import types
++
++import reframe.core.backends as backends
++
++
++def _make_job(**kwargs):
++    attrs = {
++        'num_tasks': 1,
++        'num_tasks_per_node': None,
++        'num_tasks_per_core': None,
++        'num_tasks_per_socket': None,
++        'num_cpus_per_task': None,
++        'use_smt': None,
++        'time_limit': None,
++        'options': [],
++        'launcher': None,
++    }
++    attrs.update(kwargs)
++    return types.SimpleNamespace(**attrs)
++
++
++def _explicit_cpus_per_task(cmd_tokens, value):
++    joined = ' '.join(cmd_tokens)
++    return (
++        f'--cpus-per-task={value}' in joined or
++        '--cpus-per-task=$SLURM_CPUS_PER_TASK' in joined or
++        '--cpus-per-task=${SLURM_CPUS_PER_TASK}' in joined or
++        'SRUN_CPUS_PER_TASK' in joined
++    )
++
++
++def test_srun_passes_cpus_per_task():
++    launcher = backends.getlauncher('srun')()
++    job = _make_job(num_cpus_per_task=4)
++    cmd = launcher.command(job)
++    assert cmd[0] == 'srun'
++    assert _explicit_cpus_per_task(cmd, 4)
++
++
++def test_srun_run_command_has_cpus_per_task():
++    launcher = backends.getlauncher('srun')()
++    job = _make_job(num_cpus_per_task=8)
++    cmdline = launcher.run_command(job)
++    assert cmdline.startswith('srun')
++    assert _explicit_cpus_per_task([cmdline], 8)

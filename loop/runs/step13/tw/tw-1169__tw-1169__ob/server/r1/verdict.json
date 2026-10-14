@@ -1,0 +1,23 @@
+{
+  "changed": true,
+  "correct_candidates": ["B", "D"],
+  "wrong_candidates": ["A", "C", "E"],
+  "near_misses": ["nm_wrong_order", "nm_not_executable", "nm_uppercase_x11", "nm_exit_status", "nm_requires_root", "nm_needs_ps", "nm_extra_header", "nm_env_only_display_ignores_session", "shortcut_hardcoded"],
+  "checks": [
+    {"check": "script exists at /app/system_profiler.sh", "requirement": "Build a shell script called `system_profiler.sh` in the /app directory", "basis": "format", "note": ""},
+    {"check": "script has an execute bit", "requirement": "The script should be executable", "basis": "format", "note": "new"},
+    {"check": "exit status 0 on every run", "requirement": "The script must exit with status code 0 on successful completion", "basis": "task-text", "note": ""},
+    {"check": "exactly 4 KEY=value lines in order DISPLAY_SERVER, INIT_SYSTEM, CONTAINER, VIRTUALIZATION, values from listed sets", "requirement": "The output must be in the following exact format (one line per detection, in this exact order); All values must be lowercase", "basis": "format", "note": "order check is new"},
+    {"check": "CONTAINER=docker in the grading container", "requirement": "Detect if the system is running inside a container ... Check for /.dockerenv", "basis": "task-text", "note": "original check kept; grading container is Docker"},
+    {"check": "DISPLAY_SERVER=headless with display vars empty or unset", "requirement": "Detect whether the system is using X11, Wayland, or running headless", "basis": "task-text", "note": "original check, plus unset variant"},
+    {"check": "DISPLAY_SERVER=x11 when XDG_SESSION_TYPE=x11, DISPLAY=:0, Xorg/X processes and X0 socket exist", "requirement": "Check $XDG_SESSION_TYPE, $DISPLAY, $WAYLAND_DISPLAY environment variables and validate by checking for running processes", "basis": "task-text", "note": "all named signals agree; rejects hard-coded scripts"},
+    {"check": "DISPLAY_SERVER=wayland when XDG_SESSION_TYPE=wayland, WAYLAND_DISPLAY=wayland-0, compositor processes and socket exist", "requirement": "Check $XDG_SESSION_TYPE, $DISPLAY, $WAYLAND_DISPLAY environment variables and validate by checking for running processes", "basis": "task-text", "note": "all named signals agree"},
+    {"check": "runs as uid 65534 with exit 0, valid format, docker/headless", "requirement": "The script must work without requiring root privileges", "basis": "task-text", "note": "new"},
+    {"check": "runs with ps/pgrep/systemctl/systemd-detect-virt/etc. removed from PATH, exit 0, valid format, docker/headless", "requirement": "The script should gracefully handle missing commands and fall back to alternative detection methods", "basis": "task-text", "note": "new"}
+  ],
+  "contested": [
+    {"value": "INIT_SYSTEM when PID 1 is not an init (container)", "verifier_expects": "any listed value (no check)", "candidates_give": "unknown (B), sysvinit (D)", "why": "task gives no precedence between PID 1 and /etc/init.d-style indicators"},
+    {"value": "VIRTUALIZATION on the grading host", "verifier_expects": "any listed value (no check)", "candidates_give": "kvm (B), unknown (D)", "why": "depends on host and on which DMI/cpuinfo heuristics count; task names no rule"},
+    {"value": "DISPLAY_SERVER when DISPLAY is set but no X process runs", "verifier_expects": "not tested", "candidates_give": "x11 (B, D)", "why": "task says to validate by processes but not which wins on conflict"}
+  ]
+}

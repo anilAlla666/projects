@@ -1,0 +1,66 @@
+--- /dev/null
++++ b/tests/test_success_codes.py
+@@ -0,0 +1,64 @@
++import json
++
++import pytest
++import responses
++
++from nylas.client.errors import NylasError
++
++
++THREAD = {
++    "id": "abc",
++    "object": "thread",
++    "subject": "hello",
++    "account_id": "acc",
++    "participants": [],
++}
++
++
++@pytest.mark.parametrize("status", [200, 201, 202, 203, 206])
++def test_success_status_codes_do_not_raise(mocked_responses, api_client,
++                                           api_url, status):
++    mocked_responses.add(
++        responses.GET,
++        api_url + "/threads/abc",
++        body=json.dumps(THREAD),
++        status=status,
++        content_type="application/json",
++    )
++    thread = api_client.threads.find("abc")
++    assert thread.id == "abc"
++
++
++def test_post_with_201_does_not_raise(mocked_responses, api_client, api_url):
++    mocked_responses.add(
++        responses.POST,
++        api_url + "/threads/abc",
++        body=json.dumps(THREAD),
++        status=201,
++        content_type="application/json",
++    )
++    mocked_responses.add(
++        responses.GET,
++        api_url + "/threads/abc",
++        body=json.dumps(THREAD),
++        status=200,
++        content_type="application/json",
++    )
++    thread = api_client.threads.find("abc")
++    thread.subject = "changed"
++    thread.save()
++
++
++def test_error_status_still_raises(mocked_responses, api_client, api_url):
++    mocked_responses.add(
++        responses.GET,
++        api_url + "/threads/abc",
++        body=json.dumps({"message": "boom", "type": "api_error"}),
++        status=500,
++        content_type="application/json",
++    )
++    with pytest.raises(Exception) as excinfo:
++        api_client.threads.find("abc")
++    assert not isinstance(excinfo.value, AssertionError)
++    assert isinstance(excinfo.value, (NylasError, Exception))

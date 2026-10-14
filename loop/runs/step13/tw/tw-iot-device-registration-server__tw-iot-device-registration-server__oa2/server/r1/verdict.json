@@ -1,0 +1,87 @@
+{
+ "changed": true,
+ "correct_candidates": [
+  "A",
+  "B",
+  "D"
+ ],
+ "wrong_candidates": [
+  "C",
+  "E"
+ ],
+ "near_misses": [
+  "nm1_serial_server",
+  "nm2_faulty_registers",
+  "nm3_short_timeout",
+  "nm4_no_empty_list",
+  "nm5_hardcoded_mac",
+  "nm6_crash_on_faulty",
+  "nm7_fabricated_shortcut",
+  "nm8_no_master_timeout",
+  "nm9_wrong_report"
+ ],
+ "checks": [
+  {
+   "check": "submitted registered_devices.json is a list of objects with only key 'details' and equals answers.json (order-insensitive)",
+   "requirement": "The final report should be a list of objects store at file registered_devices.json. Each object in the list must contain 1 top-level keys: details",
+   "basis": "contested",
+   "note": "original expected values kept; the MAC mapping is contested, the device ids are task-text"
+  },
+  {
+   "check": "server.py, iot_device.py, iot_device_faulty.py exist and are non-empty",
+   "requirement": "you must generate scripts: server.py ... iot_device.py ... iot_device_faulty.py",
+   "basis": "format",
+   "note": ""
+  },
+  {
+   "check": "server run live; file saved after the run equals the expected two good devices",
+   "requirement": "The server should easily register good devices; Good Device 1: device-0001, Good Device 2: device-0002",
+   "basis": "contested",
+   "note": "same expected values as the original check, applied to the live output; catches fabricated results"
+  },
+  {
+   "check": "good devices finish within 8s while another TCP client is connected",
+   "requirement": "This server nust have abiltiy enough to handle multiple clients at once",
+   "basis": "task-text",
+   "note": "behavioural; the margin is my choice"
+  },
+  {
+   "check": "faulty device (device-0003/0004) not in the saved list",
+   "requirement": "iot_device_faulty.py: A device simulator that will always fail to regsiter",
+   "basis": "task-text",
+   "note": ""
+  },
+  {
+   "check": "server still alive after the faulty registration and registers good devices afterwards; 'error' appears in the server logs",
+   "requirement": "It must throw an error while faulty device registration by logging an error and terminating that specific connection without crashing",
+   "basis": "task-text",
+   "note": ""
+  },
+  {
+   "check": "server exits by itself 55-85s after start and saves the file",
+   "requirement": "must have a master timeout of 60 seconds. After 60 seconds, it should stop listening for new devices and save whatever partial results",
+   "basis": "task-text",
+   "note": "tolerance window is my margin"
+  },
+  {
+   "check": "faulty-only run saves exactly []",
+   "requirement": "If no devices were registered successfully, it should produce an empty list []",
+   "basis": "task-text",
+   "note": ""
+  },
+  {
+   "check": "reward.txt holds exactly 1 or 0",
+   "requirement": "grader contract",
+   "basis": "format",
+   "note": "the original wrote 1.0/0.0"
+  }
+ ],
+ "contested": [
+  {
+   "value": "MAC suffix for device-0001/0002",
+   "verifier_expects": "DE:AD:BE:EF:00:01 / DE:AD:BE:EF:00:02",
+   "candidates_give": "same (all five)",
+   "why": "the task says only 'dynamic based on device id' and gives no mapping (digit split vs hex vs hash)"
+  }
+ ]
+}

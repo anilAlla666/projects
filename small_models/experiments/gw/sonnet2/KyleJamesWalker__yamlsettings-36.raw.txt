@@ -1,0 +1,58 @@
+The tests below cover the issue's example (`foo-bar` → `FOO_BAR`) and a few related cases. I haven't run them against the repo; I wrote them from memory of how `update_from_env` builds env var names, so the tests rest on that assumption. They should fail now, because hyphens in keys are not turned into underscores, and pass once every non-variable character becomes `_`.
+
+```diff
+diff --git a/tests/test_env_non_variable_chars.py b/tests/test_env_non_variable_chars.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_env_non_variable_chars.py
+@@ -0,0 +1,50 @@
++import os
++import unittest
++
++try:
++    from unittest import mock
++except ImportError:  # pragma: no cover
++    import mock
++
++import yamlsettings
++from yamlsettings.yamldict import YAMLDict
++
++
++class UpdateFromEnvNonVariableCharsTest(unittest.TestCase):
++
++    def test_hyphen_in_key_none_value(self):
++        with mock.patch.dict(os.environ, {'FOO_BAR': 'barbaz'}):
++            settings = YAMLDict({'foo-bar': None})
++            yamlsettings.update_from_env(settings)
++            self.assertEqual(settings['foo-bar'], 'barbaz')
++
++    def test_hyphen_in_key_existing_value(self):
++        with mock.patch.dict(os.environ, {'FOO_BAR': 'new'}):
++            settings = YAMLDict({'foo-bar': 'old'})
++            yamlsettings.update_from_env(settings)
++            self.assertEqual(settings['foo-bar'], 'new')
++
++    def test_nested_hyphen_key(self):
++        with mock.patch.dict(os.environ, {'TOP_SUB_KEY_LEAF': '5'}):
++            settings = YAMLDict({'top': {'sub-key': {'leaf': 1}}})
++            yamlsettings.update_from_env(settings)
++            self.assertEqual(settings['top']['sub-key']['leaf'], 5)
++
++    def test_other_non_variable_characters(self):
++        with mock.patch.dict(os.environ, {'A_B_C': 'xyz'}):
++            settings = YAMLDict({'a.b c': 'old'})
++            yamlsettings.update_from_env(settings)
++            self.assertEqual(settings['a.b c'], 'xyz')
++
++    def test_unset_env_keeps_value(self):
++        env = dict(os.environ)
++        env.pop('FOO_BAR', None)
++        with mock.patch.dict(os.environ, env, clear=True):
++            settings = YAMLDict({'foo-bar': 'keep'})
++            yamlsettings.update_from_env(settings)
++            self.assertEqual(settings['foo-bar'], 'keep')
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

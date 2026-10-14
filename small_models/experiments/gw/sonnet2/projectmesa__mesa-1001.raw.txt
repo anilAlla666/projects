@@ -1,0 +1,84 @@
+The patch below adds a new test file, `tests/test_networkgrid_remove_agent.py`. I have not run it. On the current code it should fail, because `NetworkGrid` has no public `remove_agent` method.
+
+The tests use a minimal stub agent with only `unique_id` and `pos`, so they don't depend on how `mesa.Agent` is constructed in a given version. They check four things:
+- Removing an agent clears its `pos` and takes it out of the node's agent list.
+- Other agents on the same node are left alone.
+- A removed agent can be placed again.
+- The private `_remove_agent` is still available.
+
+```diff
+--- /dev/null
++++ b/tests/test_networkgrid_remove_agent.py
+@@ -0,0 +1,62 @@
++import networkx as nx
++
++from mesa.space import NetworkGrid
++
++
++class StubAgent:
++    def __init__(self, unique_id):
++        self.unique_id = unique_id
++        self.pos = None
++
++
++def make_grid():
++    G = nx.cycle_graph(5)
++    return NetworkGrid(G)
++
++
++def test_remove_agent_is_public():
++    grid = make_grid()
++    assert hasattr(grid, "remove_agent")
++
++
++def test_remove_agent_clears_pos_and_node():
++    grid = make_grid()
++    a = StubAgent(1)
++    grid.place_agent(a, 2)
++    assert a.pos == 2
++    assert a in grid.G.nodes[2]["agent"]
++
++    grid.remove_agent(a)
++
++    assert a.pos is None
++    assert a not in grid.G.nodes[2]["agent"]
++    assert grid.is_cell_empty(2)
++
++
++def test_remove_agent_keeps_other_agents():
++    grid = make_grid()
++    a = StubAgent(1)
++    b = StubAgent(2)
++    c = StubAgent(3)
++    grid.place_agent(a, 0)
++    grid.place_agent(b, 0)
++    grid.place_agent(c, 1)
++
++    grid.remove_agent(a)
++
++    assert a.pos is None
++    assert b.pos == 0
++    assert c.pos == 1
++    assert a not in grid.G.nodes[0]["agent"]
++    assert b in grid.G.nodes[0]["agent"]
++    assert c in grid.G.nodes[1]["agent"]
++
++
++def test_remove_then_replace_agent():
++    grid = make_grid()
++    a = StubAgent(1)
++    grid.place_agent(a, 3)
++    grid.remove_agent(a)
++    grid.place_agent(a, 4)
++    assert a.pos == 4
++    assert a in grid.G.nodes[4]["agent"]
++    assert a not in grid.G.nodes[3]["agent"]
++
++
++def test_private_remove_still_works():
++    grid = make_grid()
++    a = StubAgent(1)
++    grid.place_agent(a, 0)
++    grid._remove_agent(a, 0)
++    assert a not in grid.G.nodes[0]["agent"]
+```

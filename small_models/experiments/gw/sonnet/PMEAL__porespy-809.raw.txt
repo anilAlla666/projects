@@ -1,0 +1,51 @@
+I've added a new test file that calls `snow2` with a nested `[[5, 15], [10, 10]]` boundary width. I haven't run these tests against the current code or a fix.
+
+Without a fix, the nested-list call should fail with the `np.pad` `TypeError` from the issue. With a fix, `[[5, 15], [10, 10]]` should give the same network as the already-working `[[5, 15], 10]`, which the new test checks by comparing pore counts and coordinates. The other two tests check that a uniform `[[5, 5], [5, 5]]` matches a plain `5`, and that the nested form works on a 3D image.
+
+```diff
+diff --git a/test/unit/test_snow2_boundary_width.py b/test/unit/test_snow2_boundary_width.py
+new file mode 100644
+--- /dev/null
++++ b/test/unit/test_snow2_boundary_width.py
+@@ -0,0 +1,45 @@
++import numpy as np
++import porespy as ps
++
++
++class Snow2BoundaryWidthTest:
++
++    def setup_class(self):
++        np.random.seed(0)
++        self.im = ps.generators.blobs(
++            shape=[60, 60], porosity=0.6, blobiness=1.5)
++
++    def test_nested_pad_on_all_axes_equals_mixed_form(self):
++        a = ps.networks.snow2(self.im, boundary_width=[[5, 15], 10])
++        b = ps.networks.snow2(self.im, boundary_width=[[5, 15], [10, 10]])
++        na, nb = a.network, b.network
++        assert na['pore.coords'].shape == nb['pore.coords'].shape
++        assert np.allclose(np.sort(na['pore.coords'], axis=0),
++                           np.sort(nb['pore.coords'], axis=0))
++
++    def test_nested_pad_symmetric_equals_int(self):
++        a = ps.networks.snow2(self.im, boundary_width=5)
++        b = ps.networks.snow2(self.im, boundary_width=[[5, 5], [5, 5]])
++        assert a.network['pore.coords'].shape == b.network['pore.coords'].shape
++
++    def test_nested_pad_3d(self):
++        np.random.seed(0)
++        im = ps.generators.blobs(shape=[40, 40, 40], porosity=0.6,
++                                 blobiness=2)
++        b = ps.networks.snow2(
++            im, boundary_width=[[3, 5], [4, 4], [2, 6]])
++        assert b.network['pore.coords'].shape[0] > 0
++
++
++if __name__ == '__main__':
++    t = Snow2BoundaryWidthTest()
++    t.setup_class()
++    for item in t.__dir__():
++        if item.startswith('test'):
++            print(f'Running test: {item}')
++            t.__getattribute__(item)()
+```

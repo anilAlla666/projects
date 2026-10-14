@@ -1,0 +1,65 @@
+diff --git a/tests/test_peakpick_thres.py b/tests/test_peakpick_thres.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_peakpick_thres.py
+@@ -0,0 +1,57 @@
++"""Tests for nmrglue.analysis.peakpick.pick with thresholding algorithms."""
++
++import numpy as np
++import pytest
++
++import nmrglue as ng
++
++
++def _make_2d_data():
++    y, x = np.mgrid[0:64, 0:64]
++    data = np.zeros((64, 64))
++    for (cy, cx, h) in [(16, 16, 100.0), (45, 40, 80.0)]:
++        data += h * np.exp(-((y - cy) ** 2 + (x - cx) ** 2) / (2 * 2.0 ** 2))
++    return data
++
++
++def _locations(result):
++    locs = result[0]
++    return sorted(tuple(int(i) for i in l) for l in locs)
++
++
++@pytest.mark.parametrize("algorithm", ["thres", "thres-fast"])
++def test_pick_thres_2d_est_params(algorithm):
++    data = _make_2d_data()
++    result = ng.peakpick.pick(
++        data, 20.0, algorithm=algorithm, msep=[3, 3],
++        est_params=True, cluster=True, table=False)
++    locs = _locations(result)
++    assert len(locs) == 2
++    assert locs[0] == (16, 16)
++    assert locs[1] == (45, 40)
++
++
++@pytest.mark.parametrize("algorithm", ["thres", "thres-fast"])
++def test_pick_thres_2d_table(algorithm):
++    data = _make_2d_data()
++    table = ng.peakpick.pick(
++        data, 20.0, algorithm=algorithm, msep=[3, 3],
++        est_params=True, cluster=True, table=True)
++    assert len(table) == 2
++
++
++@pytest.mark.parametrize("algorithm", ["thres", "thres-fast"])
++def test_pick_thres_2d_negative_peaks(algorithm):
++    data = _make_2d_data()
++    data[30:33, 5:8] = -90.0
++    result = ng.peakpick.pick(
++        data, 20.0, nthres=-20.0, algorithm=algorithm, msep=[3, 3],
++        est_params=True, cluster=True, table=False)
++    assert len(result[0]) >= 3
++
++
++def test_find_all_thres_fast_segments():
++    data = _make_2d_data()
++    locations, seg_slices = ng.analysis.peakpick.find_all_thres_fast(
++        data, 20.0, [3, 3], True)
++    assert len(locations) == len(seg_slices) == 2
++    for seg in seg_slices:
++        # each segment must be usable directly as an index
++        assert data[tuple(seg)].ndim == 2

@@ -1,0 +1,39 @@
+The diff below adds a test file, `tornadowebapi/tests/test_bad_representation.py`, that checks the rename from `BadRequest` to `BadRepresentation`. I haven't run it against the repository, and I wrote it without seeing `exceptions.py`. It assumes the existing exception class carries an `http_code` attribute set to 400 and can be created with no arguments. If the real attribute or constructor differs, those two tests would need adjusting.
+
+The tests fail on the current code because `BadRepresentation` doesn't exist there and `BadRequest` still does. They pass once the class is renamed and `BadRequest` is removed.
+
+```diff
+--- /dev/null
++++ b/tornadowebapi/tests/test_bad_representation.py
+@@ -0,0 +1,33 @@
++import unittest
++
++from tornadowebapi import exceptions
++
++
++class TestBadRepresentation(unittest.TestCase):
++    def test_bad_representation_exists(self):
++        self.assertTrue(hasattr(exceptions, "BadRepresentation"))
++
++    def test_bad_request_removed(self):
++        self.assertFalse(hasattr(exceptions, "BadRequest"))
++
++    def test_is_exception(self):
++        self.assertTrue(
++            issubclass(exceptions.BadRepresentation, Exception))
++
++    def test_same_base_as_other_webapi_exceptions(self):
++        base = exceptions.NotFound.__mro__[1]
++        self.assertTrue(issubclass(exceptions.BadRepresentation, base))
++
++    def test_http_code_is_400(self):
++        self.assertEqual(exceptions.BadRepresentation.http_code, 400)
++
++    def test_can_be_raised(self):
++        with self.assertRaises(exceptions.BadRepresentation):
++            raise exceptions.BadRepresentation()
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

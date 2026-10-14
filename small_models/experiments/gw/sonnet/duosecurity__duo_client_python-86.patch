@@ -1,0 +1,55 @@
+diff --git a/tests/admin/test_group_users.py b/tests/admin/test_group_users.py
+new file mode 100644
+--- /dev/null
++++ b/tests/admin/test_group_users.py
+@@ -0,0 +1,45 @@
++from .. import util
++from .base import TestAdmin
++
++
++class TestGroupUsers(TestAdmin):
++    def test_get_group_users_iterator(self):
++        iterator = self.client_list.get_group_users_iterator('ABC123')
++        response = next(iterator)
++        self.assertEqual(response['method'], 'GET')
++        self.assertEqual(response['uri'], '/admin/v2/groups/ABC123/users')
++        self.assertEqual(
++            util.params_to_dict(response['qs']),
++            {
++                'account_id': [self.client_list.account_id],
++                'limit': ['100'],
++                'offset': ['0'],
++            })
++
++    def test_get_group_users_no_limit_pages(self):
++        response = self.client_list.get_group_users('ABC123')
++        self.assertEqual(len(response), 2)
++        self.assertEqual(response[0]['method'], 'GET')
++        self.assertEqual(response[0]['uri'], '/admin/v2/groups/ABC123/users')
++        self.assertEqual(
++            util.params_to_dict(response[0]['qs']),
++            {
++                'account_id': [self.client_list.account_id],
++                'limit': ['100'],
++                'offset': ['0'],
++            })
++        self.assertEqual(response[1]['uri'], '/admin/v2/groups/ABC123/users')
++        self.assertEqual(
++            util.params_to_dict(response[1]['qs']),
++            {
++                'account_id': [self.client_list.account_id],
++                'limit': ['100'],
++                'offset': ['100'],
++            })
++
++    def test_get_group_users_with_limit(self):
++        response = self.client.get_group_users('ABC123', limit=20, offset=2)
++        self.assertEqual(response['method'], 'GET')
++        self.assertEqual(response['uri'], '/admin/v2/groups/ABC123/users')
++        self.assertEqual(
++            util.params_to_dict(response['qs']),
++            {
++                'account_id': [self.client.account_id],
++                'limit': ['20'],
++                'offset': ['2'],
++            })

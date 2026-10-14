@@ -1,0 +1,67 @@
+I'm adding tests to `tests/test_base.py`. They have not been run here. The fix adds `__hash__` to `BaseError`, so the tests check hashability and the `traceback.print_exc()` case from the issue, without assuming a particular hash value.
+
+The tests are:
+- `test_validation_error_is_hashable` calls `hash()` on a `ValidationError`, which raises `TypeError` on the current code.
+- `test_validation_error_hash_consistent_with_eq` checks that two equal errors have equal hashes, which Python requires of any `__hash__` alongside `__eq__`.
+- `test_validation_error_usable_in_set` puts an error in a set, which also needs hashing.
+- `test_validation_error_print_exc` runs the code from the issue. It uses `traceback.format_exc()` instead of `print_exc()` and checks that the exception text appears in the output. It does not depend on the Python 3.6 bug, so it may already pass on newer Pythons. It stays as a regression check.
+- `test_parse_error_is_hashable` covers the other `BaseError` subclass. `ParseError` has the same missing `__hash__`, so the fix should apply to it too.
+
+```diff
+--- a/tests/test_base.py
++++ b/tests/test_base.py
+@@ -1,4 +1,6 @@
++import traceback
++
+ import typesystem
+ 
+ 
+ class Example(typesystem.Schema):
+     a = typesystem.String(max_length=10)
+     b = typesystem.Integer(maximum=5)
+@@ -55,3 +57,43 @@
+         repr(message)
+         == "Message(text='Must have no more than 10 characters.', code='max_length')"
+     )
++
++
++def test_validation_error_is_hashable():
++    result = typesystem.String(max_length=10).validate_or_error("a" * 100)
++    assert isinstance(hash(result.error), int)
++
++
++def test_validation_error_hash_consistent_with_eq():
++    error_1 = typesystem.String(max_length=10).validate_or_error("a" * 100).error
++    error_2 = typesystem.String(max_length=10).validate_or_error("b" * 100).error
++    assert error_1 == error_2
++    assert hash(error_1) == hash(error_2)
++
++    error_3 = Example.validate_or_error({"a": "a"}).error
++    error_4 = Example.validate_or_error({"a": "a"}).error
++    assert error_3 == error_4
++    assert hash(error_3) == hash(error_4)
++
++
++def test_validation_error_usable_in_set():
++    error_1 = Example.validate_or_error({"a": "a"}).error
++    error_2 = Example.validate_or_error({"a": "a"}).error
++    assert len({error_1, error_2}) == 1
++
++
++def test_validation_error_print_exc():
++    try:
++        typesystem.Integer().validate("hello")
++    except typesystem.ValidationError:
++        output = traceback.format_exc()
++    assert "ValidationError" in output
++    assert "Must be a number." in output
++
++
++def test_parse_error_is_hashable():
++    try:
++        typesystem.tokenize_json("{")
++    except typesystem.ParseError as exc:
++        assert isinstance(hash(exc), int)
++    else:
++        raise AssertionError("ParseError not raised")
+```

@@ -1,0 +1,77 @@
+This diff adds one test file covering both cases from the issue. I haven't run it against the repo. It assumes `harvest_catalog_to_ckan` calls `harvest_dataset_to_ckan` through the module-level name in `pydatajson.federation`, so the tests patch that name. It also assumes a minimal dict catalog is accepted.
+
+- **Empty list:** `test_empty_dataset_list_harvests_nothing` passes `dataset_list=[]` and expects no calls to `harvest_dataset_to_ckan` and an empty result. On the current code every dataset is federated, so it fails.
+- **Failing dataset:** `test_failure_in_one_dataset_does_not_stop_the_rest` makes the second of three calls raise. It expects all three datasets to be attempted and the successful ids to be returned. On the current code the exception propagates, so it fails.
+
+The failure test uses an ordered `side_effect` list rather than inspecting arguments, so it works whether the fix passes the dataset id positionally or by keyword.
+
+```diff
+diff --git a/tests/test_federation_harvest_catalog_robustness.py b/tests/test_federation_harvest_catalog_robustness.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_federation_harvest_catalog_robustness.py
+@@ -0,0 +1,62 @@
++# -*- coding: utf-8 -*-
++import unittest
++
++try:
++    from unittest import mock
++    from unittest.mock import patch
++except ImportError:  # pragma: no cover
++    import mock
++    from mock import patch
++
++from pydatajson.federation import harvest_catalog_to_ckan
++
++
++def _catalog():
++    return {
++        "title": "Catalogo de prueba",
++        "description": "Catalogo de prueba",
++        "dataset": [
++            {"identifier": "d1", "title": "t1", "description": "x"},
++            {"identifier": "d2", "title": "t2", "description": "x"},
++            {"identifier": "d3", "title": "t3", "description": "x"},
++        ]
++    }
++
++
++class HarvestCatalogRobustnessTestCase(unittest.TestCase):
++
++    @patch('pydatajson.federation.harvest_dataset_to_ckan')
++    def test_empty_dataset_list_harvests_nothing(self, mock_harvest):
++        result = harvest_catalog_to_ckan(
++            _catalog(), 'http://portal', 'key', 'cat_id',
++            dataset_list=[], owner_org='org')
++        self.assertEqual(0, mock_harvest.call_count)
++        self.assertEqual([], list(result))
++
++    @patch('pydatajson.federation.harvest_dataset_to_ckan')
++    def test_none_dataset_list_harvests_all(self, mock_harvest):
++        mock_harvest.side_effect = ['d1', 'd2', 'd3']
++        result = harvest_catalog_to_ckan(
++            _catalog(), 'http://portal', 'key', 'cat_id',
++            owner_org='org')
++        self.assertEqual(3, mock_harvest.call_count)
++        self.assertEqual(['d1', 'd2', 'd3'], list(result))
++
++    @patch('pydatajson.federation.harvest_dataset_to_ckan')
++    def test_failure_in_one_dataset_does_not_stop_the_rest(self,
++                                                           mock_harvest):
++        mock_harvest.side_effect = ['d1', Exception('boom'), 'd3']
++        try:
++            result = harvest_catalog_to_ckan(
++                _catalog(), 'http://portal', 'key', 'cat_id',
++                owner_org='org')
++        except Exception as e:  # pragma: no cover
++            self.fail("La excepcion no deberia propagarse: %r" % (e,))
++        self.assertEqual(3, mock_harvest.call_count)
++        result = list(result)
++        self.assertIn('d1', result)
++        self.assertIn('d3', result)
++        self.assertNotIn('d2', result)
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

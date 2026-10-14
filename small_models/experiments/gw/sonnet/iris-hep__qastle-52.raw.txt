@@ -1,0 +1,90 @@
+I haven't run these tests against the repo. They discover every `ast.AST` subclass defined in `qastle/linq_util.py` and check that `copy.copy` and `copy.deepcopy` work on instances of each. The tests don't depend on the exact node class names or field layout.
+
+Each node is built from the parameters of its own `__init__`, with an `ast.Name` as the value for each. I assume `linq_util.py` defines at least one such class. If no class were found, the parametrized tests would be skipped rather than fail.
+
+On the current code the copy tests should fail. Once the constructors tolerate being called without arguments, they should pass.
+
+```diff
+diff --git a/tests/test_linq_node_copy.py b/tests/test_linq_node_copy.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_linq_node_copy.py
+@@ -0,0 +1,73 @@
++import ast
++import copy
++import inspect
++
++import pytest
++
++from qastle import linq_util
++
++
++def linq_node_classes():
++    classes = []
++    for name, obj in vars(linq_util).items():
++        if (inspect.isclass(obj)
++                and issubclass(obj, ast.AST)
++                and obj.__module__ == linq_util.__name__):
++            classes.append(obj)
++    return classes
++
++
++def make_node(cls):
++    kwargs = {}
++    try:
++        signature = inspect.signature(cls.__init__)
++    except (TypeError, ValueError):
++        return cls()
++    for i, (pname, param) in enumerate(signature.parameters.items()):
++        if i == 0:
++            continue  # self
++        if param.kind in (param.VAR_POSITIONAL, param.VAR_KEYWORD):
++            continue
++        kwargs[pname] = ast.Name(id='x_' + pname, ctx=ast.Load())
++    return cls(**kwargs)
++
++
++def test_found_linq_classes():
++    assert len(linq_node_classes()) > 0
++
++
++@pytest.mark.parametrize('cls', linq_node_classes())
++def test_copy(cls):
++    node = make_node(cls)
++    node_copy = copy.copy(node)
++    assert type(node_copy) is cls
++    assert node_copy is not node
++    assert ast.dump(node_copy) == ast.dump(node)
++
++
++@pytest.mark.parametrize('cls', linq_node_classes())
++def test_deepcopy(cls):
++    node = make_node(cls)
++    node_copy = copy.deepcopy(node)
++    assert type(node_copy) is cls
++    assert node_copy is not node
++    assert ast.dump(node_copy) == ast.dump(node)
++    for field in node._fields:
++        original = getattr(node, field, None)
++        copied = getattr(node_copy, field, None)
++        if isinstance(original, ast.AST):
++            assert copied is not original
++
++
++@pytest.mark.parametrize('cls', linq_node_classes())
++def test_deepcopy_nested(cls):
++    node = make_node(cls)
++    wrapper = ast.Expr(value=node)
++    wrapper_copy = copy.deepcopy(wrapper)
++    assert type(wrapper_copy.value) is cls
++    assert ast.dump(wrapper_copy) == ast.dump(wrapper)
++
++
++@pytest.mark.parametrize('cls', linq_node_classes())
++def test_no_arg_construction(cls):
++    # copy machinery needs to be able to construct the node without arguments
++    try:
++        cls()
++    except TypeError as e:
++        pytest.fail('cannot construct %s without arguments: %s' % (cls.__name__, e))
+```

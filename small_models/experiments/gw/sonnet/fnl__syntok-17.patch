@@ -1,0 +1,45 @@
+diff --git a/syntok/test_tokenizer_not_offsets.py b/syntok/test_tokenizer_not_offsets.py
+new file mode 100644
+--- /dev/null
++++ b/syntok/test_tokenizer_not_offsets.py
+@@ -0,0 +1,41 @@
++from unittest import TestCase
++
++from syntok.tokenizer import Tokenizer
++
++
++class NotContractionOffsetTest(TestCase):
++    def test_lone_not_contraction_offset(self):
++        tok = Tokenizer(replace_not_contraction=False)
++        tokens = tok.split("n't")
++        self.assertEqual(1, len(tokens))
++        self.assertEqual("n't", tokens[0].value)
++        self.assertEqual(0, tokens[0].offset)
++
++    def test_dont_offsets(self):
++        tok = Tokenizer(replace_not_contraction=False)
++        tokens = tok.split("don't")
++        self.assertEqual(["do", "n't"], [t.value for t in tokens])
++        self.assertEqual([0, 2], [t.offset for t in tokens])
++
++    def test_dont_offsets_replaced(self):
++        tok = Tokenizer(replace_not_contraction=True)
++        tokens = tok.split("don't")
++        self.assertEqual([0, 2], [t.offset for t in tokens])
++
++    def test_separated_not_contraction_offsets(self):
++        tok = Tokenizer(replace_not_contraction=False)
++        text = "York do n't hurt"
++        tokens = tok.split(text)
++        self.assertEqual(["York", "do", "n't", "hurt"], [t.value for t in tokens])
++        for t in tokens:
++            self.assertEqual(t.value, text[t.offset : t.offset + len(t.value)])
++
++    def test_offsets_after_contraction_consistent(self):
++        tok = Tokenizer(replace_not_contraction=False)
++        text = "I don't know"
++        tokens = tok.split(text)
++        self.assertEqual(["I", "do", "n't", "know"], [t.value for t in tokens])
++        self.assertEqual([0, 2, 4, 8], [t.offset for t in tokens])
++        for t in tokens:
++            self.assertEqual(t.value, text[t.offset : t.offset + len(t.value)])

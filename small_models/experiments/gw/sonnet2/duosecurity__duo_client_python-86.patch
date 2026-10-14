@@ -1,0 +1,106 @@
+--- /dev/null
++++ b/tests/admin/test_group_users_paging.py
+@@ -0,0 +1,100 @@
++import json
++import unittest
++
++try:
++    from urllib.parse import urlparse, parse_qs
++except ImportError:  # pragma: no cover
++    from urlparse import urlparse, parse_qs
++
++import duo_client.admin
++
++
++TOTAL_USERS = 5
++SERVER_PAGE_SIZE = 2
++
++
++class _Response(object):
++    def __init__(self, body):
++        self.status = 200
++        self.reason = 'OK'
++        self._body = body
++        self.msg = {}
++
++    def read(self):
++        return self._body
++
++    def getheader(self, name, default=None):
++        return default
++
++    def getheaders(self):
++        return []
++
++
++class _Connection(object):
++    def __init__(self, log):
++        self.log = log
++        self._last = None
++
++    def request(self, method, uri, body=None, headers=None):
++        self.log.append((method, uri))
++        self._last = (method, uri, body)
++
++    def getresponse(self):
++        method, uri, body = self._last
++        parsed = urlparse(uri)
++        params = parse_qs(parsed.query)
++        if body and not params:
++            params = parse_qs(body)
++        offset = int(params.get('offset', ['0'])[0])
++        limit = int(params.get('limit', [str(SERVER_PAGE_SIZE)])[0])
++        limit = min(limit, SERVER_PAGE_SIZE)
++        users = [{'username': 'user%d' % i} for i in range(TOTAL_USERS)]
++        page = users[offset:offset + limit]
++        metadata = {'total_objects': TOTAL_USERS}
++        if offset + limit < TOTAL_USERS:
++            metadata['next_offset'] = offset + limit
++        payload = {'stat': 'OK', 'response': page, 'metadata': metadata}
++        return _Response(json.dumps(payload).encode('utf-8'))
++
++    def close(self):
++        pass
++
++
++def _make_client():
++    client = duo_client.admin.Admin('ikey', 'skey', 'api.example.com')
++    log = []
++    client._connect = lambda: _Connection(log)
++    return client, log
++
++
++class TestGroupUsersPaging(unittest.TestCase):
++    def test_get_group_users_returns_all_pages(self):
++        client, log = _make_client()
++        users = client.get_group_users('ABC123')
++        self.assertEqual([u['username'] for u in users],
++                         ['user%d' % i for i in range(TOTAL_USERS)])
++        self.assertTrue(len(log) > 1)
++        for method, uri in log:
++            self.assertEqual(method, 'GET')
++            self.assertEqual(urlparse(uri).path,
++                             '/admin/v2/groups/ABC123/users')
++
++    def test_get_group_users_iterator(self):
++        client, log = _make_client()
++        self.assertTrue(hasattr(client, 'get_group_users_iterator'))
++        it = client.get_group_users_iterator('ABC123')
++        users = list(it)
++        self.assertEqual([u['username'] for u in users],
++                         ['user%d' % i for i in range(TOTAL_USERS)])
++        self.assertTrue(len(log) > 1)
++
++    def test_get_group_users_with_limit_returns_single_page(self):
++        client, log = _make_client()
++        users = client.get_group_users('ABC123', limit=2, offset=2)
++        self.assertEqual([u['username'] for u in users],
++                         ['user2', 'user3'])
++        self.assertEqual(len(log), 1)
++        params = parse_qs(urlparse(log[0][1]).query)
++        self.assertEqual(params['limit'], ['2'])
++        self.assertEqual(params['offset'], ['2'])
++
++
++if __name__ == '__main__':
++    unittest.main()

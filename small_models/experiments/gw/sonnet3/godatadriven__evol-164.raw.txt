@@ -1,0 +1,42 @@
+I added a new test file for the elitism bug. Nothing was run here. On the current code `elite_fitness` is an `Individual`, so `individual.fitness != elite_fitness` is always true and the best individual gets mutated. `test_elitist_keeps_best` and `test_elitist_keeps_best_minimize` should therefore fail before the fix and pass after it. `test_non_elitist_mutates_all` is a control that should pass either way.
+
+The tests use unique fitness values so they don't depend on how ties for the best individual are handled. I left out the unevaluated-population case because the issue doesn't say what should happen there.
+
+```diff
+diff --git a/tests/test_elitism.py b/tests/test_elitism.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_elitism.py
+@@ -0,0 +1,35 @@
++from evol import Population
++
++
++def _mutate(x):
++    return x + 100
++
++
++class TestElitistMutate:
++
++    def test_elitist_keeps_best(self):
++        pop = Population(list(range(10)), eval_function=lambda x: x, maximize=True)
++        pop.evaluate()
++        pop.mutate(_mutate, elitist=True)
++        chromosomes = sorted(i.chromosome for i in pop.individuals)
++        # best (9) untouched, all others mutated
++        assert chromosomes == sorted([9] + [x + 100 for x in range(9)])
++
++    def test_elitist_keeps_best_minimize(self):
++        pop = Population(list(range(10)), eval_function=lambda x: x, maximize=False)
++        pop.evaluate()
++        pop.mutate(_mutate, elitist=True)
++        chromosomes = sorted(i.chromosome for i in pop.individuals)
++        # best (0) untouched, all others mutated
++        assert chromosomes == sorted([0] + [x + 100 for x in range(1, 10)])
++
++    def test_non_elitist_mutates_all(self):
++        pop = Population(list(range(10)), eval_function=lambda x: x, maximize=True)
++        pop.evaluate()
++        pop.mutate(_mutate, elitist=False)
++        chromosomes = sorted(i.chromosome for i in pop.individuals)
++        assert chromosomes == [x + 100 for x in range(10)]
+```

@@ -1,0 +1,136 @@
+I couldn't run these tests or see the repo source, so they are written from my memory of how `taxii2client` builds URLs and have not been checked against the current code. The diff below adds `taxii2client/test/test_trailing_slash.py`.
+
+The tests build a `Collection` or `ApiRoot` from a URL without a trailing slash. They then assert that the requests go to the correct URLs, for example `.../collections/<id>/objects/<object-id>/` rather than `.../<id>objects/...`.
+
+- **Collection tests:** `get_object`, `get_objects` and `get_manifest` are checked with and without a trailing slash on the collection URL.
+- **ApiRoot test:** `collections` is checked against `.../collections/`.
+- **Mocks:** each mock is registered for the URL with and without a trailing slash, so the collection-info lookup passes whichever form the fix uses.
+- **Failure mode:** on the current code the object request goes to the malformed URL, which has no mock, so `responses` raises a connection error.
+
+```diff
+diff --git a/taxii2client/test/test_trailing_slash.py b/taxii2client/test/test_trailing_slash.py
+new file mode 100644
+--- /dev/null
++++ b/taxii2client/test/test_trailing_slash.py
+@@ -0,0 +1,118 @@
++import json
++
++import pytest
++import responses
++
++from taxii2client import (
++    MEDIA_TYPE_STIX_V20, MEDIA_TYPE_TAXII_V20, ApiRoot, Collection
++)
++
++BASE = 'https://example.com/trustgroup1/collections/'
++COLL_ID = '91a7b528-80eb-42ed-a74d-c6fbd5a26116'
++COLL_NO_SLASH = BASE + COLL_ID
++COLL_SLASH = COLL_NO_SLASH + '/'
++OBJ_ID = 'indicator--252c7c11-daf2-42bd-843b-be65edca9f61'
++
++COLLECTION_INFO = json.dumps({
++    "id": COLL_ID,
++    "title": "Test collection",
++    "description": "desc",
++    "can_read": True,
++    "can_write": True,
++    "media_types": [MEDIA_TYPE_STIX_V20],
++})
++
++BUNDLE = json.dumps({
++    "type": "bundle",
++    "id": "bundle--8f6bd6c5-1c4c-4d4d-9b1a-0d1b4b8d7b11",
++    "spec_version": "2.0",
++    "objects": [],
++})
++
++MANIFEST = json.dumps({"objects": []})
++
++
++def _mock_info():
++    for u in (COLL_NO_SLASH, COLL_SLASH):
++        responses.add(responses.GET, u, body=COLLECTION_INFO, status=200,
++                      content_type=MEDIA_TYPE_TAXII_V20)
++
++
++def _requested_urls():
++    return [c.request.url.split('?')[0] for c in responses.calls]
++
++
++@pytest.mark.parametrize("url", [COLL_NO_SLASH, COLL_SLASH])
++@responses.activate
++def test_get_object_url(url):
++    _mock_info()
++    expected = COLL_SLASH + 'objects/' + OBJ_ID + '/'
++    responses.add(responses.GET, expected, body=BUNDLE, status=200,
++                  content_type=MEDIA_TYPE_STIX_V20)
++
++    coll = Collection(url)
++    resp = coll.get_object(OBJ_ID)
++
++    assert resp["type"] == "bundle"
++    assert expected in _requested_urls()
++    assert not any(COLL_ID + 'objects' in u for u in _requested_urls())
++
++
++@pytest.mark.parametrize("url", [COLL_NO_SLASH, COLL_SLASH])
++@responses.activate
++def test_get_objects_url(url):
++    _mock_info()
++    expected = COLL_SLASH + 'objects/'
++    responses.add(responses.GET, expected, body=BUNDLE, status=200,
++                  content_type=MEDIA_TYPE_STIX_V20)
++
++    coll = Collection(url)
++    resp = coll.get_objects()
++
++    assert resp["type"] == "bundle"
++    assert expected in _requested_urls()
++
++
++@pytest.mark.parametrize("url", [COLL_NO_SLASH, COLL_SLASH])
++@responses.activate
++def test_get_manifest_url(url):
++    _mock_info()
++    expected = COLL_SLASH + 'manifest/'
++    responses.add(responses.GET, expected, body=MANIFEST, status=200,
++                  content_type=MEDIA_TYPE_TAXII_V20)
++
++    coll = Collection(url)
++    resp = coll.get_manifest()
++
++    assert "objects" in resp
++    assert expected in _requested_urls()
++
++
++@pytest.mark.parametrize("url", [
++    'https://example.com/trustgroup1',
++    'https://example.com/trustgroup1/',
++])
++@responses.activate
++def test_api_root_collections_url(url):
++    coll_list = json.dumps({"collections": [{
++        "id": COLL_ID,
++        "title": "Test collection",
++        "can_read": True,
++        "can_write": True,
++        "media_types": [MEDIA_TYPE_STIX_V20],
++    }]})
++    expected = 'https://example.com/trustgroup1/collections/'
++    responses.add(responses.GET, expected, body=coll_list, status=200,
++                  content_type=MEDIA_TYPE_TAXII_V20)
++    info = json.dumps({
++        "title": "root", "versions": ["taxii-2.0"],
++        "max_content_length": 1024,
++    })
++    for u in ('https://example.com/trustgroup1',
++              'https://example.com/trustgroup1/'):
++        responses.add(responses.GET, u, body=info, status=200,
++                      content_type=MEDIA_TYPE_TAXII_V20)
++
++    root = ApiRoot(url)
++    colls = root.collections
++
++    assert len(colls) == 1
++    assert expected in _requested_urls()
+```

@@ -1,0 +1,72 @@
+I've added a new test file that checks `FileConfigEntry` and `DirectoryConfigEntry` return `pathlib.Path` objects. I haven't run it. It should fail on the current code, which returns `str`, and pass once the entries return `Path`.
+
+The tests compare resolved paths rather than exact strings. That way the issue doesn't force a choice between `abspath`, `resolve` or `absolute`.
+
+They call `_value_to_type` directly, since that is the conversion method visible in the source. I haven't seen `EntryTestBase.assert_input_output`, so I don't rely on it.
+
+```diff
+--- /dev/null
++++ b/tests/path_entry_test.py
+@@ -0,0 +1,75 @@
++import os
++from pathlib import Path
++
++import pytest
++
++from container_app_conf.entry.file import FileConfigEntry, DirectoryConfigEntry
++
++
++def _same(result, expected: str):
++    assert isinstance(result, Path)
++    assert result.resolve() == Path(expected).resolve()
++
++
++def test_file_entry_returns_path():
++    entry = FileConfigEntry(yaml_path=["file"])
++    _same(entry._value_to_type("/tmp/test"), "/tmp/test")
++    _same(entry._value_to_type("./test"), os.path.abspath("./test"))
++
++
++def test_file_entry_accepts_path_input():
++    entry = FileConfigEntry(yaml_path=["file"])
++    _same(entry._value_to_type(Path("/tmp/test")), "/tmp/test")
++
++
++def test_file_entry_trailing_separator():
++    entry = FileConfigEntry(yaml_path=["file"])
++    with pytest.raises(AssertionError):
++        entry._value_to_type("/something/")
++
++
++def test_file_entry_check_existence():
++    entry = FileConfigEntry(yaml_path=["file"], check_existence=True)
++    with pytest.raises(FileNotFoundError):
++        entry._value_to_type("/tmp/definitely/not/existing/file_xyz")
++
++
++def test_directory_entry_returns_path():
++    entry = DirectoryConfigEntry(yaml_path=["directory"])
++    _same(entry._value_to_type("/tmp"), "/tmp")
++    _same(entry._value_to_type("./test"), os.path.abspath("./test"))
++    _same(entry._value_to_type("/something/"), "/something")
++
++
++def test_directory_entry_accepts_path_input():
++    entry = DirectoryConfigEntry(yaml_path=["directory"])
++    _same(entry._value_to_type(Path("/tmp")), "/tmp")
++
++
++def test_directory_entry_check_existence():
++    entry = DirectoryConfigEntry(yaml_path=["directory"], check_existence=True)
++    _same(entry._value_to_type("./"), os.path.abspath("./"))
++    with pytest.raises(FileNotFoundError):
++        entry._value_to_type("/tmp/definitely/not/existing/dir_xyz")
++
++
++def test_directory_entry_not_a_directory(tmp_path):
++    f = tmp_path / "afile"
++    f.write_text("x")
++    entry = DirectoryConfigEntry(yaml_path=["directory"])
++    with pytest.raises(NotADirectoryError):
++        entry._value_to_type(str(f))
+```

@@ -1,0 +1,63 @@
+I could not see the repository, so this test is a best guess at the `fdbk` data-tools API and has not been run. The names `run`, `topic_d`, `units`, `data_tools`, `field` and `method` are recalled, not confirmed. The exact output shape for table values is also an assumption. Adjust those names and the assertions to match the real code before relying on the test.
+
+```diff
+diff --git a/tests/test_data_tools_units.py b/tests/test_data_tools_units.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_data_tools_units.py
+@@ -0,0 +1,56 @@
++from unittest import TestCase
++
++from fdbk.data_tools import run
++
++
++def _walk(obj):
++    """Yield all dicts found in a nested structure."""
++    if isinstance(obj, dict):
++        yield obj
++        for v in obj.values():
++            yield from _walk(v)
++    elif isinstance(obj, (list, tuple)):
++        for v in obj:
++            yield from _walk(v)
++
++
++class DataToolsUnitPlacementTest(TestCase):
++    def _run(self, method):
++        topic_d = {
++            "name": "Topic",
++            "fields": ["temperature"],
++            "units": ["°C"],
++            "data_tools": [
++                {"field": "temperature", "method": method},
++            ],
++        }
++        data = [
++            {"timestamp": "2020-01-01T00:00:00Z", "temperature": 1},
++            {"timestamp": "2020-01-01T01:00:00Z", "temperature": 3},
++        ]
++        return run(topic_d, data)
++
++    def test_unit_is_inside_value_payload(self):
++        for method in ("average", "min", "max", "sum"):
++            result = self._run(method)
++            found = False
++            for d in _walk(result):
++                if "unit" in d and "value" in d:
++                    found = True
++                    # Unit must be next to the value inside the payload,
++                    # i.e. the dict holding both is a value payload.
++                    self.assertEqual(d["unit"], "°C")
++            self.assertTrue(found)
++
++    def test_unit_not_beside_payload(self):
++        for method in ("average", "min", "max", "sum"):
++            result = self._run(method)
++            for d in _walk(result):
++                if "payload" in d:
++                    # unit must not be a sibling of the payload
++                    self.assertNotIn("unit", d)
++                    payload = d["payload"]
++                    if isinstance(payload, dict) and "value" in payload:
++                        self.assertEqual(payload.get("unit"), "°C")
+```

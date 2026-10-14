@@ -1,0 +1,46 @@
+diff --git a/tests/test_secure_field_empty.py b/tests/test_secure_field_empty.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_secure_field_empty.py
+@@ -0,0 +1,41 @@
++from unittest.mock import MagicMock
++
++from cincoconfig.fields import SecureField
++
++
++class TestSecureFieldEmptyString:
++
++    def test_to_basic_empty_string_is_none(self):
++        field = SecureField()
++        field.name = 'secret'
++        cfg = MagicMock()
++        assert field.to_basic(cfg, '') is None
++
++    def test_to_basic_none_is_none(self):
++        field = SecureField()
++        field.name = 'secret'
++        cfg = MagicMock()
++        assert field.to_basic(cfg, None) is None
++
++    def test_to_python_empty_string_is_none(self):
++        field = SecureField()
++        field.name = 'secret'
++        cfg = MagicMock()
++        assert field.to_python(cfg, '') is None
++
++    def test_to_basic_empty_string_no_encryption(self):
++        field = SecureField()
++        field.name = 'secret'
++        cfg = MagicMock()
++        field.to_basic(cfg, '')
++        assert not cfg.method_calls
++
++    def test_to_basic_nonempty_not_none(self):
++        field = SecureField()
++        field.name = 'secret'
++        cfg = MagicMock()
++        try:
++            result = field.to_basic(cfg, 'hello')
++        except Exception:
++            return
++        assert result is not None

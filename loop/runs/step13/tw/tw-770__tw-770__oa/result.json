@@ -1,0 +1,156 @@
+{
+ "loop": "tw-770__tw-770__oa",
+ "task": "tw-770",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 17,
+   "usd": 1.2652,
+   "seconds": 408,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "B",
+     "D"
+    ],
+    "wrong_candidates": [
+     "A",
+     "C",
+     "E"
+    ],
+    "near_misses": [
+     "nm1_wrong_libssl_version",
+     "nm2_missing_manpage",
+     "nm3_partial_conffiles",
+     "nm4_no_script_summary",
+     "nm5_binary_miscategorised",
+     "nm6_missing_dependency",
+     "nm7_no_service_unit",
+     "nm8_shortcut_template"
+    ],
+    "checks": [
+     {
+      "check": "report exists and non-empty",
+      "requirement": "The report file must exist at exactly: /home/user/package_audit_report.txt",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "header line for each of the 5 sections",
+      "requirement": "The report should be well-formatted and clearly organized with section headers",
+      "basis": "format",
+      "note": "replaces word-anywhere check"
+     },
+     {
+      "check": "5 file categories present",
+      "requirement": "grouped by type: Binaries, Configuration files, Libraries, Documentation, Other files",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "every non-directory leaf of dpkg -L nginx listed in FILES",
+      "requirement": "A categorized list of all files installed by the nginx package",
+      "basis": "recomputed",
+      "note": "computed live in grader via dpkg -L"
+     },
+     {
+      "check": "/usr/sbin/nginx under Binaries, nginx doc/man under Documentation, category location rules",
+      "requirement": "Binaries (executables in /usr/sbin, /usr/bin, etc.) ... Documentation (in /usr/share/doc/, /usr/share/man/)",
+      "basis": "task-text",
+      "note": "lenient for lib (modules/.so) and bin (any executable)"
+     },
+     {
+      "check": "listed file paths are dpkg-owned (nginx/nginx-common) or exist",
+      "requirement": "all files installed by the nginx package",
+      "basis": "recomputed",
+      "note": "rejects fabricated paths"
+     },
+     {
+      "check": "nginx-common files listed either none or all",
+      "requirement": "all files installed by the nginx package",
+      "basis": "recomputed",
+      "note": "scope is contested; a partial list is wrong under both readings"
+     },
+     {
+      "check": "every dpkg Depends name present",
+      "requirement": "All direct dependencies of the nginx package",
+      "basis": "recomputed",
+      "note": ""
+     },
+     {
+      "check": "each versioned dep has a constraint equal to dpkg's (nginx-common: = and same upstream)",
+      "requirement": "Version requirements for each dependency",
+      "basis": "recomputed",
+      "note": "build revision of nginx-common varies between image builds"
+     },
+     {
+      "check": "nginx postinst named and summarised",
+      "requirement": "List any postinst scripts associated with nginx; Provide a brief summary",
+      "basis": "task-text",
+      "note": "summary detected by keyword"
+     },
+     {
+      "check": "conffiles listed are real; set is none (stated) / nginx's / nginx+nginx-common's",
+      "requirement": "A list of configuration files managed by dpkg",
+      "basis": "recomputed",
+      "note": "scope contested; both complete readings accepted"
+     },
+     {
+      "check": "nginx.service mentioned",
+      "requirement": "List any systemd service units associated with nginx",
+      "basis": "task-text",
+      "note": "status not checked (only 'if possible')"
+     }
+    ],
+    "contested": [
+     {
+      "value": "scope of 'the nginx package' (files, conffiles, scripts)",
+      "verifier_expects": "original: any mention of /etc/nginx or 'conffile'; now: nginx only, or nginx+nginx-common complete",
+      "candidates_give": "B, D: nginx only (no conffiles); C: nginx+nginx-common; A: nginx + truncated nginx-common",
+      "why": "the task does not say whether the dependency nginx-common (which holds config/unit/conffiles) counts as part of the nginx package"
+     }
+    ]
+   },
+   "evidence": "",
+   "evidence_ids": [],
+   "guard": {
+    "kept": false,
+    "old_agree": null,
+    "new_agree": null,
+    "items": null
+   }
+  }
+ ],
+ "usd": 1.265,
+ "before": {
+  "accepted_correct": "4/4",
+  "attempts": 7,
+  "balanced_accuracy": 0.666667,
+  "isolation": "bindproc",
+  "labels": "PPPPFFF",
+  "rejected_wrong": "1/3",
+  "reward": 0.333333,
+  "seconds": 4.0,
+  "task": "tw-770",
+  "timeouts": 0,
+  "tnr": 0.333333,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "4/4",
+  "attempts": 7,
+  "balanced_accuracy": 0.666667,
+  "isolation": "bindproc",
+  "labels": "PPPPFFF",
+  "rejected_wrong": "1/3",
+  "reward": 0.333333,
+  "seconds": 4.1,
+  "task": "tw-770",
+  "timeouts": 0,
+  "tnr": 0.333333,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPF"
+ }
+}

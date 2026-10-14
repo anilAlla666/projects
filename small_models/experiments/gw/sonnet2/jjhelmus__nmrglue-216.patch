@@ -1,0 +1,75 @@
+diff --git a/tests/test_peakpick_thres_numpy.py b/tests/test_peakpick_thres_numpy.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_peakpick_thres_numpy.py
+@@ -0,0 +1,95 @@
++"""Regression tests: peakpick.pick with 'thres' and 'thres-fast' algorithms
++must work with recent numpy versions (list-of-slices indexing)."""
++
++import numpy as np
++import pytest
++
++import nmrglue as ng
++
++
++def _make_2d():
++    y, x = np.mgrid[0:64, 0:64]
++    data = np.zeros((64, 64))
++    for (cy, cx, amp) in [(20, 30, 100.0), (45, 15, 80.0)]:
++        data += amp * np.exp(-((y - cy) ** 2 + (x - cx) ** 2) / (2 * 2.0 ** 2))
++    return data
++
++
++def _make_1d():
++    x = np.arange(128)
++    data = np.zeros(128)
++    for (c, amp) in [(30, 100.0), (90, 70.0)]:
++        data += amp * np.exp(-((x - c) ** 2) / (2 * 2.0 ** 2))
++    return data
++
++
++def _positions(table, n):
++    names = [nm for nm in table.dtype.names if nm.endswith("_AXIS")]
++    cols = [np.atleast_1d(table[nm]) for nm in names[:n]]
++    return sorted(zip(*[c.tolist() for c in cols]))
++
++
++@pytest.mark.parametrize("algorithm", ["thres", "thres-fast"])
++def test_pick_2d_est_params(algorithm):
++    data = _make_2d()
++    table = ng.peakpick.pick(
++        data, pthres=50.0, msep=[3, 3], algorithm=algorithm,
++        est_params=True, lineshapes=["g", "g"], cluster=False, table=True)
++    pos = _positions(table, 2)
++    assert len(pos) == 2
++    expected = [(20, 30), (45, 15)]
++    for (py, px), (ey, ex) in zip(pos, expected):
++        assert abs(py - ey) <= 1.5
++        assert abs(px - ex) <= 1.5
++
++
++@pytest.mark.parametrize("algorithm", ["thres", "thres-fast"])
++def test_pick_1d_est_params(algorithm):
++    data = _make_1d()
++    table = ng.peakpick.pick(
++        data, pthres=40.0, msep=[3], algorithm=algorithm,
++        est_params=True, lineshapes=["g"], cluster=False, table=True)
++    pos = _positions(table, 1)
++    assert len(pos) == 2
++    for (p,), e in zip(pos, [30, 90]):
++        assert abs(p - e) <= 1.5
++
++
++@pytest.mark.parametrize("algorithm", ["thres", "thres-fast"])
++def test_pick_2d_no_est_params(algorithm):
++    data = _make_2d()
++    table = ng.peakpick.pick(
++        data, pthres=50.0, msep=[3, 3], algorithm=algorithm,
++        est_params=False, cluster=False, table=True)
++    assert len(_positions(table, 2)) == 2
++
++
++def test_find_all_thres_fast_locations():
++    data = _make_2d()
++    locs = ng.peakpick.find_all_thres_fast(data, 50.0, [3, 3], False)
++    assert sorted(tuple(int(i) for i in l) for l in locs) == [(20, 30), (45, 15)]

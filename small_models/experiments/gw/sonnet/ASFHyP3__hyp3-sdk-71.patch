@@ -1,0 +1,41 @@
+diff --git a/tests/test_batch_iteration.py b/tests/test_batch_iteration.py
+new file mode 100644
+index 0000000..3c1d5a7
+--- /dev/null
++++ b/tests/test_batch_iteration.py
+@@ -0,0 +1,35 @@
++from unittest.mock import Mock
++
++from hyp3_sdk.jobs import Batch
++
++
++def _make_jobs(n):
++    return [Mock(name=f'job{i}') for i in range(n)]
++
++
++def test_batch_is_iterable():
++    jobs = _make_jobs(3)
++    batch = Batch(jobs)
++
++    iterated = [job for job in batch]
++
++    assert iterated == jobs
++
++
++def test_batch_iter_builtin():
++    jobs = _make_jobs(2)
++    batch = Batch(jobs)
++
++    it = iter(batch)
++    assert next(it) is jobs[0]
++    assert next(it) is jobs[1]
++
++
++def test_batch_list_conversion():
++    jobs = _make_jobs(4)
++    assert list(Batch(jobs)) == jobs
++
++
++def test_empty_batch_iteration():
++    assert list(Batch([])) == []
++    assert list(Batch()) == []

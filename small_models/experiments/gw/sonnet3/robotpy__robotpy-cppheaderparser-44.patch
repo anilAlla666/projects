@@ -1,0 +1,42 @@
+--- a/test/test_CppHeaderParser.py
++++ b/test/test_CppHeaderParser.py
+@@ -3868,5 +3868,48 @@
+         self.assertEqual(c["type"], "C")
+ 
+ 
++class TypedefReturnTypeRegression(unittest.TestCase):
++    def test_typedef_return_type_no_keyerror(self):
++        h = """
++typedef C A;
++
++class B
++{
++public:
++   A aMethod();
++}
++"""
++        cppHeader = CppHeaderParser.CppHeader(h, "string")
++        self.assertIn("B", cppHeader.classes)
++        methods = cppHeader.classes["B"]["methods"]["public"]
++        self.assertEqual(1, len(methods))
++        self.assertEqual("aMethod", methods[0]["name"])
++
++    def test_typedef_return_type_with_semicolon(self):
++        h = """
++typedef C A;
++
++class B
++{
++public:
++   A aMethod();
++};
++"""
++        cppHeader = CppHeaderParser.CppHeader(h, "string")
++        methods = cppHeader.classes["B"]["methods"]["public"]
++        self.assertEqual(1, len(methods))
++        self.assertEqual("aMethod", methods[0]["name"])
++        self.assertIn(methods[0]["rtnType"], ("A", "C"))
++
++
+ if __name__ == "__main__":
+     unittest.main()

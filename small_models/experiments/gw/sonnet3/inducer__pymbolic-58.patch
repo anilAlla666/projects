@@ -1,0 +1,29 @@
+--- a/test/test_pymbolic.py
++++ b/test/test_pymbolic.py
+@@ -664,6 +664,25 @@
+     assert evaluate(expr) is True
+ 
+ 
++def test_if_else_condition_precedence():
++    x = prim.Variable("x")
++
++    # the issue's example
++    result = parse("10 if x or y else 20")
++    assert isinstance(result, prim.If)
++    assert result == prim.If(parse("x or y"), 10, 20)
++    assert result.condition == parse("x or y")
++
++    assert parse("10 if x and y else 20") == prim.If(parse("x and y"), 10, 20)
++    assert parse("10 if not x else 20") == prim.If(parse("not x"), 10, 20)
++    assert parse("1 if x < 2 or y > 3 else 0") == prim.If(
++            parse("x < 2 or y > 3"), 1, 0)
++    assert parse("1 if x and y or z else 0") == prim.If(
++            parse("x and y or z"), 1, 0)
++
++    # simple case still works
++    assert parse("1 if x else 2") == prim.If(x, 1, 2)
++
++
+ if __name__ == "__main__":
+     import sys
+     if len(sys.argv) > 1:

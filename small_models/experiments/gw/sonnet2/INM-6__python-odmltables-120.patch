@@ -1,0 +1,63 @@
+--- /dev/null
++++ b/odmltables/tests/test_empty_csv.py
+@@ -0,0 +1,71 @@
++import os
++import shutil
++import tempfile
++import unittest
++
++import odml
++
++from odmltables.odml_table import OdmlTable
++
++
++class TestEmptyCsvConversion(unittest.TestCase):
++    """Loading a csv file that only contains a header must not crash
++    (formerly: 'row_id' undefined)."""
++
++    def setUp(self):
++        self.tmpdir = tempfile.mkdtemp()
++        doc = odml.Document(author='me')
++        sec = odml.Section('sec', 'test', parent=doc)
++        odml.Property('prop', value=[1, 2], parent=sec)
++
++        table = OdmlTable()
++        table.load_from_odmldoc(doc)
++        full_csv = os.path.join(self.tmpdir, 'full.csv')
++        table.write2file(full_csv)
++
++        with open(full_csv) as f:
++            header = f.readline()
++        self.header_csv = os.path.join(self.tmpdir, 'header_only.csv')
++        with open(self.header_csv, 'w') as f:
++            f.write(header if header.endswith('\n') else header + '\n')
++
++    def tearDown(self):
++        shutil.rmtree(self.tmpdir, ignore_errors=True)
++
++    def test_load_header_only_csv(self):
++        table = OdmlTable()
++        try:
++            table.load_from_csv_table(self.header_csv)
++        except (UnboundLocalError, NameError) as e:
++            self.fail('Loading header-only csv raised %r' % e)
++
++    def test_load_header_only_csv_via_load_from_file(self):
++        table = OdmlTable()
++        try:
++            table.load_from_file(self.header_csv)
++        except (UnboundLocalError, NameError) as e:
++            self.fail('Loading header-only csv raised %r' % e)
++
++    def test_convert_header_only_csv_to_odml(self):
++        table = OdmlTable()
++        try:
++            table.load_from_csv_table(self.header_csv)
++            out = os.path.join(self.tmpdir, 'out.odml')
++            table.write2odml(out)
++        except (UnboundLocalError, NameError) as e:
++            self.fail('Converting header-only csv raised %r' % e)
++
++
++if __name__ == '__main__':
++    unittest.main()

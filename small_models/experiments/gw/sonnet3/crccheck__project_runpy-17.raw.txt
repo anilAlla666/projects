@@ -1,0 +1,34 @@
+I'm adding tests for the case where `sql` is `None` in the record args. Django can log such a record, for example when `executemany` is called with no SQL. The issue only requires that `filter` no longer raises, so the tests check that it doesn't raise and that the record is still allowed through (`filter` returns truthy). I don't assert anything about what `record.args` becomes, since the issue leaves that open.
+
+I considered whether to also test `args` of the wrong shape, but the issue doesn't mention it, so I left it out. I also chose not to assert that `record.args[1]` stays `None`, because a fix might handle it differently. Checking only that `filter` returns truthy is enough.
+
+I haven't run these tests against the current code or a fix.
+
+```diff
+--- a/test_project_runpy.py
++++ b/test_project_runpy.py
+@@ -172,5 +172,23 @@
+         self.assertEqual(original_sql, record.args[1])
+ 
+ 
++    def test_filter_handles_none_sql(self):
++        logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=(1.0, None, ()))
++        self.assertTrue(logging_filter.filter(record))
++
++    def test_filter_handles_none_sql_without_params(self):
++        logging_filter = ReadableSqlFilter()
++        record = mock.MagicMock(args=(1.0, None))
++        self.assertTrue(logging_filter.filter(record))
++
++    def test_none_sql_through_logger(self):
++        logger = logging.getLogger('foo.sql.none')
++        logger.addHandler(logging.NullHandler())
++        logger.addFilter(ReadableSqlFilter())
++        # should not raise
++        logger.warning('(%.3f) %s; args=%s', 0.1, None, ())
++
++
+ if __name__ == '__main__':
+     unittest.main()
+```

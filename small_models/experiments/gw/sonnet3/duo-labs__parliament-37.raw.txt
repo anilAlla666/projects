@@ -1,0 +1,71 @@
+I'm adding a new test file for this issue. I haven't run it against the repo, so I'm assuming the `tests/unit` path and that `analyze_policy_string` returns a policy with a `findings` list.
+
+The first test and the policy-level test should fail on the current code. The remaining tests pass today and guard against a fix that breaks existing behaviour.
+
+```diff
+--- /dev/null
++++ b/tests/unit/test_redshift_arn_match.py
+@@ -0,0 +1,56 @@
++from parliament import is_arn_match, analyze_policy_string
++
++
++class TestRedshiftArnMatch:
++    def test_dbuser_matches(self):
++        assert is_arn_match(
++            "dbuser",
++            "arn:*:redshift:*:*:dbuser:*/*",
++            "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/the_user",
++        )
++
++    def test_dbuser_wildcard_resource_matches(self):
++        assert is_arn_match(
++            "dbuser",
++            "arn:*:redshift:*:*:dbuser:*/*",
++            "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/*",
++        )
++
++    def test_different_resource_type_does_not_match(self):
++        assert not is_arn_match(
++            "dbuser",
++            "arn:*:redshift:*:*:dbuser:*/*",
++            "arn:aws:redshift:us-west-2:123456789012:dbname:the_cluster/the_db",
++        )
++
++    def test_existing_s3_behavior(self):
++        assert is_arn_match("object", "arn:*:s3:::*/*", "arn:aws:s3:::*personalize*")
++        assert not is_arn_match("object", "arn:*:s3:::*/*", "arn:aws:s3:::mybucket")
++
++    def test_policy_get_cluster_credentials(self):
++        policy = analyze_policy_string(
++            """
++{
++    "Version": "2012-10-17",
++    "Statement": [
++        {
++            "Action": "redshift:GetClusterCredentials",
++            "Effect": "Allow",
++            "Resource": "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/the_user"
++        }
++    ]
++}
++"""
++        )
++        assert "RESOURCE_MISMATCH" not in [f.issue for f in policy.findings]
++
++    def test_policy_get_cluster_credentials_wrong_resource(self):
++        policy = analyze_policy_string(
++            """
++{
++    "Version": "2012-10-17",
++    "Statement": [
++        {
++            "Action": "redshift:GetClusterCredentials",
++            "Effect": "Allow",
++            "Resource": "arn:aws:s3:::mybucket"
++        }
++    ]
++}
++"""
++        )
++        assert "RESOURCE_MISMATCH" in [f.issue for f in policy.findings]
+```

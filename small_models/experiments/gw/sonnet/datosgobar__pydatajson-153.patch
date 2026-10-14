@@ -1,0 +1,61 @@
+diff --git a/tests/test_federation_harvest_catalog.py b/tests/test_federation_harvest_catalog.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_federation_harvest_catalog.py
+@@ -0,0 +1,56 @@
++# -*- coding: utf-8 -*-
++from __future__ import unicode_literals
++
++import os
++import unittest
++
++try:
++    from mock import patch
++except ImportError:
++    from unittest.mock import patch
++
++from pydatajson.federation import harvest_catalog_to_ckan
++from pydatajson.readers import read_catalog
++
++SAMPLES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
++                           "samples")
++
++
++class HarvestCatalogRobustnessTestCase(unittest.TestCase):
++
++    def setUp(self):
++        self.catalog = read_catalog(
++            os.path.join(SAMPLES_DIR, "full_data.json"))
++        self.ids = [ds['identifier'] for ds in self.catalog['dataset']]
++
++    @patch('pydatajson.federation.harvest_dataset_to_ckan')
++    def test_empty_dataset_list_harvests_nothing(self, mock_harvest):
++        harvest_catalog_to_ckan(
++            self.catalog, 'portal', 'key', 'catalog_id',
++            dataset_list=[], owner_org='org')
++        self.assertEqual(0, mock_harvest.call_count)
++
++    @patch('pydatajson.federation.harvest_dataset_to_ckan')
++    def test_none_dataset_list_harvests_all(self, mock_harvest):
++        mock_harvest.return_value = 'some_id'
++        harvest_catalog_to_ckan(
++            self.catalog, 'portal', 'key', 'catalog_id',
++            owner_org='org')
++        self.assertEqual(len(self.ids), mock_harvest.call_count)
++
++    @patch('pydatajson.federation.harvest_dataset_to_ckan')
++    def test_failure_in_one_dataset_does_not_stop_the_rest(self,
++                                                           mock_harvest):
++        self.assertGreaterEqual(len(self.ids), 2)
++        effects = [Exception('boom')] + \
++                  ['id_%d' % i for i in range(len(self.ids) - 1)]
++        mock_harvest.side_effect = effects
++
++        try:
++            harvest_catalog_to_ckan(
++                self.catalog, 'portal', 'key', 'catalog_id',
++                dataset_list=self.ids, owner_org='org')
++        except Exception as e:
++            self.fail("La excepcion no fue manejada: %r" % e)
++
++        self.assertEqual(len(self.ids), mock_harvest.call_count)

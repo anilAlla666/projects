@@ -1,0 +1,26 @@
+diff --git a/tests/test_symbol_reader_macro_name.py b/tests/test_symbol_reader_macro_name.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_symbol_reader_macro_name.py
+@@ -0,0 +1,22 @@
++import pytest
++
++import hy.models
++
++
++@pytest.mark.parametrize("s", ["#foo", "#a", "#foo-bar"])
++def test_symbol_rejects_reader_macro_syntax(s):
++    # These parse as reader-macro calls, not symbols.
++    with pytest.raises(ValueError):
++        hy.models.Symbol(s)
++
++
++def test_symbol_rejects_number():
++    # Sanity check of the analogous existing behavior.
++    with pytest.raises(ValueError):
++        hy.models.Symbol("5")
++
++
++@pytest.mark.parametrize("s", ["foo", "foo-bar", "foo#bar"])
++def test_symbol_accepts_normal(s):
++    assert str(hy.models.Symbol(s)) == s

@@ -1,0 +1,99 @@
+I haven't run these tests, and I'm working from memory of `linq_util.py`, so some details may be off. In particular, I assumed `Select` and `Where` take their source and selector/predicate as the first two positional arguments, and that `Count` takes a single source. The generic test builds each node class from its signature, so it doesn't depend on those names.
+
+The tests build the nodes directly rather than via `text_ast_to_python_ast`. They call `copy.copy` and `copy.deepcopy` on each node and check that the copy has the same type and fields, and is a distinct object. They should fail today because the constructors require arguments and `ast.AST.__reduce_ex__` doesn't pass any.
+
+```diff
+--- /dev/null
++++ b/tests/test_linq_copy.py
+@@ -0,0 +1,87 @@
++import ast
++import copy
++import inspect
++
++import pytest
++
++from qastle import linq_util
++
++
++def linq_classes():
++    classes = []
++    for name, obj in vars(linq_util).items():
++        if (inspect.isclass(obj) and issubclass(obj, ast.AST)
++                and obj.__module__ == linq_util.__name__):
++            classes.append(obj)
++    return classes
++
++
++def build(cls):
++    sig = inspect.signature(cls.__init__)
++    args = []
++    for i, (pname, p) in enumerate(list(sig.parameters.items())[1:]):
++        if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD):
++            args.append(ast.Name(id='n%d' % i, ctx=ast.Load()))
++    return cls(*args)
++
++
++def assert_equivalent(a, b):
++    assert type(a) is type(b)
++    assert a is not b
++    assert a._fields == b._fields
++    for f in a._fields:
++        va, vb = getattr(a, f), getattr(b, f)
++        if isinstance(va, ast.AST):
++            assert type(va) is type(vb)
++            assert ast.dump(va) == ast.dump(vb)
++        else:
++            assert va == vb
++
++
++def test_found_classes():
++    assert len(linq_classes()) > 0
++
++
++@pytest.mark.parametrize('cls', linq_classes())
++def test_copy(cls):
++    node = build(cls)
++    assert_equivalent(node, copy.copy(node))
++
++
++@pytest.mark.parametrize('cls', linq_classes())
++def test_deepcopy(cls):
++    node = build(cls)
++    new = copy.deepcopy(node)
++    assert_equivalent(node, new)
++    for f in node._fields:
++        v = getattr(node, f)
++        if isinstance(v, ast.AST):
++            assert getattr(new, f) is not v
++
++
++def test_select_deepcopy():
++    source = ast.Name(id='data', ctx=ast.Load())
++    selector = ast.Name(id='f', ctx=ast.Load())
++    node = linq_util.Select(source, selector)
++    new = copy.deepcopy(node)
++    assert isinstance(new, linq_util.Select)
++    assert new is not node
++    assert new.source is not node.source
++    assert new.source.id == 'data'
++    assert new.selector.id == 'f'
++
++
++def test_where_copy():
++    source = ast.Name(id='data', ctx=ast.Load())
++    predicate = ast.Name(id='p', ctx=ast.Load())
++    node = linq_util.Where(source, predicate)
++    new = copy.copy(node)
++    assert isinstance(new, linq_util.Where)
++    assert new is not node
++    assert new.source is node.source
++    assert new.predicate is node.predicate
++
++
++def test_nested_deepcopy():
++    inner = linq_util.Count(ast.Name(id='data', ctx=ast.Load()))
++    new = copy.deepcopy(inner)
++    assert isinstance(new, linq_util.Count)
++    assert new.source.id == 'data'
++    assert new.source is not inner.source
+```

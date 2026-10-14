@@ -1,0 +1,88 @@
+The new test file below checks `GET /album/<id>` with `INCLUDE_PATHS` both on and off. I haven't run it. It should fail on the current code because `artpath` is deleted unconditionally, so the `INCLUDE_PATHS=True` cases won't find it.
+
+```diff
+--- /dev/null
++++ b/test/test_web_artpath.py
+@@ -0,0 +1,87 @@
++"""Tests for the web plugin's handling of album art paths."""
++
++import json
++import os
++import unittest
++
++from beets import util
++from beets.library import Item, Library
++from beetsplug import web
++
++
++class WebAlbumArtpathTest(unittest.TestCase):
++    def setUp(self):
++        self.lib = Library(':memory:')
++        item = Item(
++            title='title',
++            path=os.path.join(os.sep, 'path_1').encode('utf-8'),
++            album='album',
++            artist='artist',
++        )
++        self.album = self.lib.add_album([item])
++        self.artpath = os.path.join(os.sep, 'cover.jpg').encode('utf-8')
++        self.album.artpath = self.artpath
++        self.album.store()
++
++        web.app.config['TESTING'] = True
++        web.app.config['lib'] = self.lib
++        web.app.config['INCLUDE_PATHS'] = False
++        self.client = web.app.test_client()
++
++    def tearDown(self):
++        web.app.config['INCLUDE_PATHS'] = False
++
++    def _get(self, url):
++        response = self.client.get(url)
++        self.assertEqual(response.status_code, 200)
++        return json.loads(response.data.decode('utf-8'))
++
++    def test_get_album_hides_artpath_by_default(self):
++        web.app.config['INCLUDE_PATHS'] = False
++        res = self._get('/album/{}'.format(self.album.id))
++        self.assertNotIn('artpath', res)
++
++    def test_get_album_includes_artpath_when_enabled(self):
++        web.app.config['INCLUDE_PATHS'] = True
++        res = self._get('/album/{}'.format(self.album.id))
++        self.assertIn('artpath', res)
++        self.assertEqual(
++            res['artpath'], util.displayable_path(self.artpath)
++        )
++
++    def test_get_albums_includes_artpath_when_enabled(self):
++        web.app.config['INCLUDE_PATHS'] = True
++        res = self._get('/album/')
++        self.assertEqual(len(res['albums']), 1)
++        self.assertEqual(
++            res['albums'][0]['artpath'], util.displayable_path(self.artpath)
++        )
++
++    def test_get_albums_hides_artpath_by_default(self):
++        web.app.config['INCLUDE_PATHS'] = False
++        res = self._get('/album/')
++        self.assertEqual(len(res['albums']), 1)
++        self.assertNotIn('artpath', res['albums'][0])
++
++    def test_get_album_query_includes_artpath_when_enabled(self):
++        web.app.config['INCLUDE_PATHS'] = True
++        res = self._get('/album/query/album')
++        self.assertEqual(len(res['results']), 1)
++        self.assertEqual(
++            res['results'][0]['artpath'],
++            util.displayable_path(self.artpath),
++        )
++
++
++def suite():
++    return unittest.TestLoader().loadTestsFromName(__name__)
++
++
++if __name__ == '__main__':
++    unittest.main(defaultTest='suite')
+```

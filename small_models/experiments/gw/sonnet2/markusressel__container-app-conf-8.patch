@@ -1,0 +1,63 @@
+diff --git a/tests/test_pathlib_entries.py b/tests/test_pathlib_entries.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_pathlib_entries.py
+@@ -0,0 +1,54 @@
++import os
++import tempfile
++import unittest
++from pathlib import Path
++
++from container_app_conf.entry.file import FileConfigEntry, DirectoryConfigEntry
++
++
++class TestPathlibEntries(unittest.TestCase):
++
++    def test_file_entry_returns_path(self):
++        entry = FileConfigEntry(key_path=["test", "file"])
++        with tempfile.TemporaryDirectory() as d:
++            file_path = os.path.join(d, "file.txt")
++            with open(file_path, "w") as f:
++                f.write("content")
++            result = entry._parse_value(file_path)
++            self.assertIsInstance(result, Path)
++            self.assertEqual(Path(file_path), result)
++
++    def test_directory_entry_returns_path(self):
++        entry = DirectoryConfigEntry(key_path=["test", "dir"])
++        with tempfile.TemporaryDirectory() as d:
++            result = entry._parse_value(d)
++            self.assertIsInstance(result, Path)
++            self.assertEqual(Path(d), result)
++
++    def test_file_entry_accepts_path_object(self):
++        entry = FileConfigEntry(key_path=["test", "file"])
++        with tempfile.TemporaryDirectory() as d:
++            file_path = Path(d) / "file.txt"
++            file_path.write_text("content")
++            result = entry._parse_value(file_path)
++            self.assertIsInstance(result, Path)
++            self.assertEqual(file_path, result)
++
++    def test_directory_entry_accepts_path_object(self):
++        entry = DirectoryConfigEntry(key_path=["test", "dir"])
++        with tempfile.TemporaryDirectory() as d:
++            result = entry._parse_value(Path(d))
++            self.assertIsInstance(result, Path)
++            self.assertEqual(Path(d), result)
++
++    def test_relative_path_returns_path(self):
++        entry = FileConfigEntry(key_path=["test", "file"])
++        with tempfile.TemporaryDirectory() as d:
++            old = os.getcwd()
++            try:
++                os.chdir(d)
++                Path("rel.txt").write_text("x")
++                result = entry._parse_value("rel.txt")
++            finally:
++                os.chdir(old)
++            self.assertIsInstance(result, Path)
++
++
++if __name__ == "__main__":
++    unittest.main()

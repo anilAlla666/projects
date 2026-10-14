@@ -1,0 +1,48 @@
+I haven't run these tests, and I wrote them without seeing the current `tests/` directory or `reach/reach.py`. I recalled `Reach.load`'s signature (`unk_word`, `desired_dtype`) from memory, so check those keyword names against the repo before relying on the tests. The tests load a small `.vec` file with an UNK token and check that the requested dtype survives. They should fail while the bug resets the dtype to float64.
+
+```diff
+--- /dev/null
++++ b/tests/test_unk_dtype.py
+@@ -0,0 +1,45 @@
++import os
++import tempfile
++import unittest
++
++from reach import Reach
++
++
++class TestUnkDtype(unittest.TestCase):
++    def _write_vec(self, directory):
++        path = os.path.join(directory, "test.vec")
++        with open(path, "w", encoding="utf-8") as f:
++            f.write("3 2\n")
++            f.write("dog 0.1 0.2\n")
++            f.write("cat 0.3 0.4\n")
++            f.write("fish 0.5 0.6\n")
++        return path
++
++    def test_load_with_unk_keeps_dtype(self):
++        for dtype in ("float32", "float16", "float64"):
++            with tempfile.TemporaryDirectory() as d:
++                path = self._write_vec(d)
++                r = Reach.load(path, unk_word="<UNK>", desired_dtype=dtype)
++                self.assertIn("<UNK>", r.items)
++                self.assertEqual(r.vectors.dtype.name, dtype)
++                self.assertEqual(len(r.items), 4)
++
++    def test_load_without_unk_keeps_dtype(self):
++        with tempfile.TemporaryDirectory() as d:
++            path = self._write_vec(d)
++            r = Reach.load(path, desired_dtype="float32")
++            self.assertEqual(r.vectors.dtype.name, "float32")
++
++    def test_load_unk_default_dtype_is_float32(self):
++        with tempfile.TemporaryDirectory() as d:
++            path = self._write_vec(d)
++            r = Reach.load(path, unk_word="<UNK>")
++            self.assertEqual(r.vectors.dtype.name, "float32")
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

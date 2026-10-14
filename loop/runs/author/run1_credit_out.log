@@ -1,0 +1,45 @@
+{"tasks": 50, "held_out": 17, "truncated": ["react-lead-form"]}
+{"stage": "ask", "questions": 367, "loaded_options": 5, "usd": 1.868}
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/anilkumar/verifier_bench/vb/authormodel.py", line 292, in <module>
+    main()
+  File "/Users/anilkumar/verifier_bench/vb/authormodel.py", line 273, in main
+    for d in ex.map(lambda t: label(t, qs[t["task"]], spend) if qs[t["task"]] else {}, tasks):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.12/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 619, in result_iterator
+    yield _result_or_cancel(fs.pop())
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.12/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 317, in _result_or_cancel
+    return fut.result(timeout)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.12/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 456, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.12/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/opt/homebrew/Cellar/python@3.12/3.12.12/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/anilkumar/verifier_bench/vb/authormodel.py", line 273, in <lambda>
+    for d in ex.map(lambda t: label(t, qs[t["task"]], spend) if qs[t["task"]] else {}, tasks):
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/anilkumar/verifier_bench/vb/authormodel.py", line 177, in label
+    raw = call(LABEL.format(task=t["text"], tests=t["tests"][:TESTS_CAP], questions=show(qs)), LABEL_MODEL, spend,
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/anilkumar/verifier_bench/vb/authormodel.py", line 131, in call
+    r = anthropic.Anthropic(max_retries=8).messages.create(model=model, max_tokens=max_tokens,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/anilkumar/verifier_bench/.venv/lib/python3.12/site-packages/anthropic/_utils/_utils.py", line 294, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/anilkumar/verifier_bench/.venv/lib/python3.12/site-packages/anthropic/resources/messages/messages.py", line 1029, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/Users/anilkumar/verifier_bench/.venv/lib/python3.12/site-packages/anthropic/_base_client.py", line 1557, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/anilkumar/verifier_bench/.venv/lib/python3.12/site-packages/anthropic/_base_client.py", line 1222, in request
+    raise self._make_status_error_from_response(response) from None
+anthropic.BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CfvM4CxpkWoD1gD5a1Lm5'}

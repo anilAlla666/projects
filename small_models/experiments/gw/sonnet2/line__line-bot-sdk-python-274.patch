@@ -1,0 +1,81 @@
+diff --git a/tests/models/test_flex_hero.py b/tests/models/test_flex_hero.py
+new file mode 100644
+index 0000000..3c1d2a4
+--- /dev/null
++++ b/tests/models/test_flex_hero.py
+@@ -0,0 +1,75 @@
++# -*- coding: utf-8 -*-
++import unittest
++
++from linebot.models import (
++    BubbleContainer,
++    BoxComponent,
++    ImageComponent,
++    TextComponent,
++    FlexSendMessage,
++)
++
++
++BOX_HERO = {
++    'type': 'box',
++    'layout': 'vertical',
++    'contents': [
++        {'type': 'text', 'text': 'Brown Cafe'}
++    ]
++}
++
++IMAGE_HERO = {
++    'type': 'image',
++    'url': 'https://example.com/image.png',
++}
++
++
++class TestBubbleHero(unittest.TestCase):
++    def test_box_hero_from_dict(self):
++        bubble = BubbleContainer(hero=BOX_HERO)
++        self.assertIsInstance(bubble.hero, BoxComponent)
++        self.assertEqual(bubble.hero.layout, 'vertical')
++        self.assertIsInstance(bubble.hero.contents[0], TextComponent)
++        self.assertEqual(bubble.hero.contents[0].text, 'Brown Cafe')
++
++    def test_image_hero_from_dict(self):
++        bubble = BubbleContainer(hero=IMAGE_HERO)
++        self.assertIsInstance(bubble.hero, ImageComponent)
++        self.assertEqual(bubble.hero.url, 'https://example.com/image.png')
++
++    def test_hero_from_objects(self):
++        box = BoxComponent(layout='vertical',
++                           contents=[TextComponent(text='hi')])
++        self.assertIs(BubbleContainer(hero=box).hero, box)
++        img = ImageComponent(url='https://example.com/a.png')
++        self.assertIs(BubbleContainer(hero=img).hero, img)
++
++    def test_box_hero_serialization_has_no_url(self):
++        bubble = BubbleContainer(hero=BOX_HERO)
++        hero = bubble.as_json_dict()['hero']
++        self.assertEqual(hero['type'], 'box')
++        self.assertNotIn('url', hero)
++        self.assertEqual(hero['layout'], 'vertical')
++        self.assertEqual(hero['contents'][0]['text'], 'Brown Cafe')
++
++    def test_flex_send_message_with_box_hero(self):
++        msg = FlexSendMessage(
++            alt_text='altText',
++            contents={'type': 'bubble', 'hero': BOX_HERO})
++        self.assertIsInstance(msg.contents.hero, BoxComponent)
++        hero = msg.as_json_dict()['contents']['hero']
++        self.assertEqual(hero['type'], 'box')
++        self.assertNotIn('url', hero)
++
++    def test_flex_send_message_with_image_hero(self):
++        msg = FlexSendMessage(
++            alt_text='altText',
++            contents={'type': 'bubble', 'hero': IMAGE_HERO})
++        self.assertIsInstance(msg.contents.hero, ImageComponent)
++        hero = msg.as_json_dict()['contents']['hero']
++        self.assertEqual(hero['type'], 'image')
++        self.assertEqual(hero['url'], 'https://example.com/image.png')
++
++
++if __name__ == '__main__':
++    unittest.main()

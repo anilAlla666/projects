@@ -1,0 +1,15 @@
+{"changed": true,
+ "correct_candidates": ["B","C","D"],
+ "wrong_candidates": ["A","E"],
+ "near_misses": ["nm1_eth0_no_version","nm2_eth0_no_dependencies","nm3_missing_loopback","nm4_eth0_no_parameters","nm5_eth0_no_module_path","nm6_placeholder_value","nm7_shortcut_no_driver_claimed","nm8_empty_file"],
+ "checks": [
+  {"check":"report file /app/network_driver_report.txt exists and is non-empty","requirement":"The report should be saved to a file called `network_driver_report.txt` in the working directory.","basis":"format","note":""},
+  {"check":"per-interface sections present and loopback 'lo' reported","requirement":"The report must include for each network interface ... The system has various network interfaces including ... loopback","basis":"format","note":"replaces cross-check with grading machine's ip link"},
+  {"check":"each interface section has a hardware/interface description","requirement":"The interface name and hardware description","basis":"format","note":""},
+  {"check":"each interface names a driver or explicitly states none; at least one non-lo interface has a named driver","requirement":"identifies all network device drivers currently in use; The currently loaded kernel driver name; Some interfaces may not have drivers loaded","basis":"format","note":"driver identity itself not compared (machine-specific)"},
+  {"check":"interfaces with a driver report module path, dependencies, version, parameters (values may be N/A/unknown)","requirement":"The driver module's full filesystem path; Module dependencies; Driver version information; Module parameters currently in use (if any)","basis":"format","note":""},
+  {"check":"no placeholder/TODO/TBD/FIXME markers","requirement":"gather this information programmatically (no fabricated/partial report)","basis":"format","note":""}
+ ],
+ "contested": [
+  {"value":"driver version for veth","verifier_expects":"no value check (old and new)","candidates_give":"1.0 (C,D via ethtool), Unknown (B via modinfo)","why":"task does not name the source (ethtool driver version vs modinfo version field)"}
+ ]}

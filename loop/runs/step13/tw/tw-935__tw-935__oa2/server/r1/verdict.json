@@ -1,0 +1,27 @@
+{
+  "changed": true,
+  "correct_candidates": [],
+  "wrong_candidates": ["A", "B", "C", "D", "E"],
+  "near_misses": ["nm_usb_double_count", "nm_threads_assume_smt", "nm_rota_inverted", "nm_stale_timestamp", "nm_not_executable", "nm_fabricated_features", "nm_crash_without_lsusb", "nm_missing_disks", "nm_total_doubled", "shortcut_example_json"],
+  "checks": [
+    {"check": "script exists and is executable (test no longer chmods it)", "requirement": "Be executable and placed in /app/hardware_audit.sh", "basis": "task-text", "note": "original test.sh chmod +x masked this"},
+    {"check": "output is a JSON object with usb, cpu, storage, audit_timestamp", "requirement": "Output a valid JSON file to /tmp/hardware_audit.json; The JSON output structure should follow this format", "basis": "format", "note": ""},
+    {"check": "non-zero root_hubs equal the live system's root hubs (sysfs usbN/version or lsusb 1d6b:000N)", "requirement": "Detect all USB root hubs and their versions; Count how many root hubs exist for each USB version", "basis": "recomputed", "note": "zero-count keys optional; keys restricted to 1.0..3.2"},
+    {"check": "max_version = highest version present; null/'unknown' if none", "requirement": "Report the highest USB version supported by the system", "basis": "recomputed", "note": ""},
+    {"check": "has_usb3 boolean consistent with max version >= 3.0", "requirement": "Determine if the system has USB 3.0 or higher support", "basis": "recomputed", "note": ""},
+    {"check": "cpu.model equals lscpu Model name", "requirement": "Report CPU model name", "basis": "recomputed", "note": "whitespace normalised"},
+    {"check": "cpu.cores integer equal to physical core count (cores/socket x sockets or unique core ids)", "requirement": "Report number of CPU cores", "basis": "recomputed", "note": ""},
+    {"check": "cpu.threads integer equal to logical CPU count (lscpu CPU(s)/nproc/getconf); threads >= cores", "requirement": "Report number of threads", "basis": "recomputed", "note": ""},
+    {"check": "features: non-empty list of real CPU flags including aes/avx/avx2/sse4_1 where the CPU has them", "requirement": "Detect CPU feature flags (e.g., aes, avx, avx2, sse4_1, etc.)", "basis": "recomputed", "note": "full list vs subset is contested; only the weaker property is checked"},
+    {"check": "every lsblk disk listed, all names real, disk type from nvme name/ROTA", "requirement": "List all block devices with their type (HDD, SSD, NVMe)", "basis": "recomputed", "note": "extra non-disk entries allowed (contested)"},
+    {"check": "size_gb within [bytes/2^30-1, bytes/1e9+1]; total = sum of size_gb within max(1, n)", "requirement": "Report total storage capacity in GB", "basis": "contested", "note": "GB vs GiB and rounding not fixed by the task; both accepted"},
+    {"check": "type_summary ssd/hdd/nvme integers equal counts in devices", "requirement": "Create a summary of storage device types", "basis": "task-text", "note": ""},
+    {"check": "audit_timestamp extended ISO 8601 and within 15 min of the run", "requirement": "Include an ISO 8601 formatted timestamp in the output", "basis": "task-text", "note": "freshness rejects hard-coded timestamps"},
+    {"check": "with a failing lsusb on PATH the script still writes valid JSON with all sections", "requirement": "Handle missing or unavailable information gracefully", "basis": "task-text", "note": ""}
+  ],
+  "contested": [
+    {"value": "size_gb / total_capacity_gb unit and rounding", "verifier_expects": "anything between GiB-1 and GB+1 per device; total = sum of listed sizes", "candidates_give": "floor GiB (A, D), round GiB (B)", "why": "task says GB without saying 1e9 or 2^30, or how to round"},
+    {"value": "which CPU flags to list", "verifier_expects": "subset of real flags including aes/avx/avx2/sse4_1 if present", "candidates_give": "all flags (A, B) or a filtered list (D)", "why": "task says 'e.g.' and its example lists only five"},
+    {"value": "whether non-disk block devices (rom, partitions) are listed", "verifier_expects": "all disks required; extra real devices allowed", "candidates_give": "disks only", "why": "'all block devices' with only HDD/SSD/NVMe types"}
+  ]
+}

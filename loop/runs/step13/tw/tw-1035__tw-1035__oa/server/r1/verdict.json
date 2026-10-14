@@ -1,0 +1,19 @@
+{"changed": true,
+ "correct_candidates": ["B"],
+ "wrong_candidates": ["A"],
+ "near_misses": ["nm_unconverted_link","nm_root_absolute_link","nm_manifest_wrong_size","nm_manifest_missing_entry","nm_manifest_format","nm_depth6_downloaded","nm_depth4_only","nm_zip_downloaded","nm_copy_shortcut"],
+ "checks": [
+  {"check":"test.sh runs check.py with python3 stdlib only","requirement":"grader runs bash /tests/test.sh offline","basis":"format","note":"original needed network (apt/curl/uv) and would always output 0"},
+  {"check":"all 28 pages/assets reachable within depth 5 exist","requirement":"Download all necessary assets (HTML, CSS, JS, images); complete website structure; max recursion depth 5","basis":"recomputed","note":"wget -r -l5 -k -p run on this machine yields exactly these 28 files"},
+  {"check":"no level6 page in mirror or manifest","requirement":"some up to 6 levels, but only download up to 5","basis":"recomputed","note":""},
+  {"check":"no admin/ files in mirror or manifest","requirement":"Exclude the /admin/ directory","basis":"task-text","note":""},
+  {"check":"no .zip in mirror or manifest","requirement":"Exclude .zip files","basis":"task-text","note":""},
+  {"check":"css/js/png byte-identical to site; HTML identical apart from link values","requirement":"All HTML, CSS, JS, and image files are downloaded correctly","basis":"recomputed","note":""},
+  {"check":"links to downloaded files are relative and resolve to the same file inside the mirror","requirement":"Convert all links in downloaded documents to work locally (relative links)","basis":"task-text","note":""},
+  {"check":"links to non-downloaded files are absolute URLs to the same path (not dangling relative links)","requirement":"Convert all links ... using wget","basis":"recomputed","note":"wget --convert-links behaviour as documented in man wget; same in every flag variant tried"},
+  {"check":"every manifest line is 'path: N'","requirement":"format: \"filepath: size_in_bytes\" (one file per line)","basis":"format","note":"./, bare and absolute path prefixes accepted"},
+  {"check":"manifest lists every mirrored file with its exact size","requirement":"lists all downloaded files with their sizes","basis":"task-text","note":""},
+  {"check":"manifest does not list images/banner.jpg","requirement":"Mirror the website ... using wget; lists all downloaded files","basis":"recomputed","note":"banner.jpg is unlinked, so a wget crawl cannot fetch it; detects copy-instead-of-mirror shortcuts"},
+  {"check":"(not checked) --wait=0.5, user-agent, http server","requirement":"Respect a reasonable download rate; Set an appropriate user-agent","basis":"unverified","note":"process-only, so the carried files cannot show it"}
+ ],
+ "contested": []}

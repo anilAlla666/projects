@@ -1,0 +1,85 @@
+{
+  "changed": true,
+  "correct_candidates": ["B"],
+  "wrong_candidates": ["A"],
+  "near_misses": [
+    "nm1_missing_asset",
+    "nm2_admin_present",
+    "nm3_zip_present",
+    "nm4_level6_present",
+    "nm5_links_not_converted",
+    "nm6_manifest_format",
+    "nm7_manifest_wrong_sizes",
+    "nm8_banner_downloaded",
+    "nm9_wrong_structure"
+  ],
+  "checks": [
+    {
+      "check": "Mirror directory exists with all 28 expected files directly under /home/user/website_mirror/",
+      "requirement": "The mirror directory exists with the complete website structure",
+      "basis": "task-text",
+      "note": "Verifies completeness of downloaded assets (HTML, CSS, JS, images)"
+    },
+    {
+      "check": "No admin directory or files exist in mirror",
+      "requirement": "Exclude the /admin/ directory (do not download any files from it)",
+      "basis": "task-text",
+      "note": "Direct exclusion requirement"
+    },
+    {
+      "check": "No .zip files exist in mirror",
+      "requirement": "Exclude .zip files (do not download any .zip archives)",
+      "basis": "task-text",
+      "note": "Direct exclusion requirement"
+    },
+    {
+      "check": "No level6 directory (depth > 5) exists in mirror",
+      "requirement": "Set a maximum recursion depth of 5 levels",
+      "basis": "task-text",
+      "note": "Depth limit excludes level6 which is at depth 6"
+    },
+    {
+      "check": "No banner.jpg (unlinked asset) exists in mirror",
+      "requirement": "Download all necessary assets (HTML, CSS, JS, images) for offline viewing",
+      "basis": "recomputed",
+      "note": "banner.jpg exists in source but is not referenced by any HTML file; wget only downloads linked assets"
+    },
+    {
+      "check": "Section index files (docs, tutorials, api-reference, blog) have relative CSS and navigation links",
+      "requirement": "Convert all links in downloaded documents to work locally (relative links)",
+      "basis": "task-text",
+      "note": "wget --convert-links converts links to downloaded content to relative paths"
+    },
+    {
+      "check": "Main index.html has absolute URLs for admin and downloads zip links",
+      "requirement": "Convert all links in downloaded documents to work locally (relative links)",
+      "basis": "recomputed",
+      "note": "wget --convert-links converts links to EXCLUDED content to absolute URLs pointing to original server; admin and zip are excluded"
+    },
+    {
+      "check": "Deep index.html has absolute URL for level6 link",
+      "requirement": "Convert all links in downloaded documents to work locally (relative links) + depth limit of 5",
+      "basis": "recomputed",
+      "note": "level6 is at depth 6 (excluded by --level=5); wget converts links to non-downloaded content to absolute URLs"
+    },
+    {
+      "check": "mirror_manifest.txt exists with format 'filepath: size_in_bytes' (one per line)",
+      "requirement": "generate a manifest file called mirror_manifest.txt in /home/user/website_mirror/ that lists all downloaded files with their sizes in the format: 'filepath: size_in_bytes' (one file per line)",
+      "basis": "task-text",
+      "note": "Explicit format requirement"
+    },
+    {
+      "check": "Manifest lists exactly the 28 expected downloaded files (no more, no less)",
+      "requirement": "lists all downloaded files with their sizes",
+      "basis": "task-text",
+      "note": "Manifest must be complete and accurate"
+    },
+    {
+      "check": "Manifest file sizes match actual file sizes on disk",
+      "requirement": "with their sizes in the format: 'filepath: size_in_bytes'",
+      "basis": "task-text",
+      "note": "Sizes must reflect post-conversion file sizes (after link conversion)"
+    }
+  ],
+  "contested": []
+}

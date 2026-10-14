@@ -1,0 +1,50 @@
+This diff adds a new test file that loads a small `.vec` file with an explicit `desired_dtype` and an `unk_word` that is not in the file. It checks that the matrix keeps the requested dtype after the `<UNK>` row is added. I have not run it against the current code. It assumes `Reach.load(path, unk_word=..., desired_dtype=...)` and the `vectors` and `unk_index` attributes behave as the issue describes.
+
+```diff
+--- /dev/null
++++ b/tests/test_unk_dtype.py
+@@ -0,0 +1,45 @@
++import numpy as np
++import pytest
++
++from reach import Reach
++
++
++def _write_vec(tmp_path):
++    path = tmp_path / "vectors.vec"
++    path.write_text("2 3\nfoo 1 2 3\nbar 4 5 6\n")
++    return path
++
++
++@pytest.mark.parametrize("dtype", ["float16", "float32", "float64"])
++def test_unk_added_keeps_dtype(tmp_path, dtype):
++    path = _write_vec(tmp_path)
++    r = Reach.load(str(path), unk_word="<UNK>", desired_dtype=dtype)
++    assert r.vectors.dtype == np.dtype(dtype)
++    assert r.unk_index == 0
++    assert r.vectors.shape == (3, 3)
++    assert not r.vectors[0].any()
++    assert r.vectors[1].tolist() == [1, 2, 3]
++
++
++@pytest.mark.parametrize("dtype", ["float16", "float32"])
++def test_unk_present_keeps_dtype(tmp_path, dtype):
++    path = tmp_path / "vectors.vec"
++    path.write_text("2 3\nfoo 1 2 3\n<UNK> 4 5 6\n")
++    r = Reach.load(str(path), unk_word="<UNK>", desired_dtype=dtype)
++    assert r.vectors.dtype == np.dtype(dtype)
++    assert r.unk_index == 1
++
++
++def test_no_unk_keeps_dtype(tmp_path):
++    path = _write_vec(tmp_path)
++    r = Reach.load(str(path), desired_dtype="float32")
++    assert r.vectors.dtype == np.dtype("float32")
++
++
++def test_unk_same_dtype_as_without_unk(tmp_path):
++    path = _write_vec(tmp_path)
++    with_unk = Reach.load(str(path), unk_word="<UNK>", desired_dtype="float32")
++    without = Reach.load(str(path), desired_dtype="float32")
++    assert with_unk.vectors.dtype == without.vectors.dtype
+```

@@ -1,0 +1,46 @@
+I've added a new test file that calls `find_matches` with 1D m/z arrays. The tests are untested: I haven't run them against the current code or a fix. I expect them to fail now, because the current code indexes `spec[i, 0]` and raises an error on 1D input. They should pass once `find_matches(spec1_mz, spec2_mz, tolerance, shift)` takes only m/z values.
+
+I assumed the fix keeps `collect_peak_pairs` taking 2D arrays, so I did not change its tests. I also left the existing `find_matches` tests alone, because they pass 2D arrays and will need updating to match the new signature.
+
+```diff
+--- /dev/null
++++ b/tests/test_find_matches_mz_only.py
+@@ -0,0 +1,55 @@
++"""Test that find_matches works on 1D arrays of m/z values only."""
++import numpy
++import pytest
++from matchms.similarity.spectrum_similarity_functions import find_matches
++
++
++def _call(numba_compiled, *args, **kwargs):
++    if numba_compiled:
++        return find_matches(*args, **kwargs)
++    return find_matches.py_func(*args, **kwargs)
++
++
++@pytest.mark.parametrize("numba_compiled", [True, False])
++@pytest.mark.parametrize("shift, expected_matches",
++                         [(0.0, [(2, 2), (3, 4)]),
++                          (-5.0, [(0, 0), (1, 1), (2, 3)])])
++def test_find_matches_mz_only(numba_compiled, shift, expected_matches):
++    spec1_mz = numpy.array([100, 200, 300, 500], dtype="float")
++    spec2_mz = numpy.array([105, 205.1, 300, 304.99, 500.1], dtype="float")
++    matches = _call(numba_compiled, spec1_mz, spec2_mz, tolerance=0.2, shift=shift)
++    assert list(matches) == expected_matches
++
++
++@pytest.mark.parametrize("numba_compiled", [True, False])
++def test_find_matches_mz_only_no_matches(numba_compiled):
++    spec1_mz = numpy.array([100, 200, 300, 500], dtype="float")
++    spec2_mz = numpy.array([105, 205.1, 300, 500.1], dtype="float")
++    matches = _call(numba_compiled, spec1_mz, spec2_mz, tolerance=0.2, shift=-20.0)
++    assert len(matches) == 0
++
++
++@pytest.mark.parametrize("numba_compiled", [True, False])
++def test_find_matches_mz_only_multiple_in_tolerance(numba_compiled):
++    spec1_mz = numpy.array([100.0, 200.0], dtype="float")
++    spec2_mz = numpy.array([99.95, 100.05, 200.5], dtype="float")
++    matches = _call(numba_compiled, spec1_mz, spec2_mz, tolerance=0.1, shift=0.0)
++    assert list(matches) == [(0, 0), (0, 1)]
+```

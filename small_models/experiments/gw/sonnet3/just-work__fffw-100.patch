@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/tests/test_trim_duration.py
+@@ -0,0 +1,50 @@
++from unittest import TestCase
++
++from fffw.encoding import filters
++from fffw.graph import VIDEO, AUDIO, meta
++
++
++class TrimDurationTestCase(TestCase):
++    """ Trim must not produce output longer than the available input."""
++
++    def _trim_and_reset(self, kind, md, start, end):
++        trim = filters.Trim(kind, start=start, end=end)
++        trimmed = trim.transform(md)
++        return filters.SetPTS(kind).transform(trimmed)
++
++    def test_video_end_after_eof(self):
++        md = meta.video_meta_data(width=1920, height=1080, duration=10.0)
++        result = self._trim_and_reset(VIDEO, md, 3.0, 15.0)
++        self.assertEqual(float(result.duration), 7.0)
++
++    def test_video_end_before_eof(self):
++        md = meta.video_meta_data(width=1920, height=1080, duration=10.0)
++        result = self._trim_and_reset(VIDEO, md, 3.0, 7.0)
++        self.assertEqual(float(result.duration), 4.0)
++
++    def test_video_end_equals_eof(self):
++        md = meta.video_meta_data(width=1920, height=1080, duration=10.0)
++        result = self._trim_and_reset(VIDEO, md, 2.0, 10.0)
++        self.assertEqual(float(result.duration), 8.0)
++
++    def test_audio_end_after_eof(self):
++        md = meta.audio_meta_data(duration=10.0)
++        result = self._trim_and_reset(AUDIO, md, 3.0, 15.0)
++        self.assertEqual(float(result.duration), 7.0)

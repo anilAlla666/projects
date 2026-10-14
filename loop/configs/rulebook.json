@@ -1,0 +1,53 @@
+{
+ "version": 3,
+ "rules": [
+  {
+   "id": "r1",
+   "rule": "Before leaving any grader check unchanged, work out from the attempts whether that specific check is actually exercised: for every check that no available attempt fails, the judge has zero evidence about it and must construct the plausible correct variants the requirement permits and confirm the check accepts each of them. Tracing a check back to a sentence of the task shows only that something is required, never that the check recognises correctness.",
+   "why": "All 7 false rejections came from one check that none of the candidates the judge inspected ever failed; the judge's two-way trace mapped it to a task sentence and then left it untouched, spending its effort instead on the checks that had visibly fired.",
+   "source_task": "fin-saccr-rwa",
+   "status": "candidate",
+   "lint": null
+  },
+  {
+   "id": "r2",
+   "rule": "When a requirement constrains only how a human-readable artifact is laid out — ordering, position, grouping, or the wording of labels — a check that enforces it by searching for keywords and comparing positions encodes one of many correct renderings; either rewrite it to assert only what the requirement unambiguously demands (that the required content is present and attributable) or enumerate the reasonable layouts and verify each passes.",
+   "why": "Every miss is a correct attempt rejected by a label-plus-position test on a presentation detail, where a different but equally valid arrangement or naming of the roll-up defeated the recognizer rather than violating the requirement.",
+   "source_task": "fin-saccr-rwa",
+   "status": "candidate",
+   "lint": null
+  },
+  {
+   "id": "r3",
+   "rule": "Treat mutual agreement among unlabelled attempts as no evidence of correctness, and mutual disagreement as positive evidence of a false accept: whenever attempts produce different outputs on inputs that bear on a stated requirement, at most one behaviour can satisfy it, so the judge must find or add a check grounded in the task text that separates them (or report the requirement as unverified) instead of concluding that every attempt is correct because they all pass.",
+   "why": "All four wrong attempts were accepted because the judge declared every available attempt 'correct' from self-consistency — they reproduced the bundled training data and agreed with each other on most generated inputs — and then had no rejected candidate to adjudicate. The attempts in fact differed from each other on the unlabelled inputs the grader scores, which already showed that passing all of them had to be wrong for some of them.",
+   "source_task": "sound-change-cascade",
+   "status": "candidate",
+   "lint": null
+  },
+  {
+   "id": "r4",
+   "rule": "Never derive a threshold from the attempts under audit by placing it just outside their observed values; a bar calibrated that way is guaranteed to pass everything on hand and contributes no coverage, so each bound must come from the task's stated requirement or its own bundled data, and a requirement that cannot be bounded that way must be recorded as unverified rather than counted as checked.",
+   "why": "The generalization and anti-memorization bars were explicitly set below the worst value measured on the attempts themselves, so the failing attempts cleared every rate check by a hair and the judge reported full coverage of the generalization requirement while admitting the labels needed to test it were unavailable. This is the direct mechanism of all four false accepts.",
+   "source_task": "sound-change-cascade",
+   "status": "candidate",
+   "lint": null
+  },
+  {
+   "id": "r5",
+   "rule": "Never let a criterion fail an attempt because the evidence needed to judge it could not be found: unless the task text explicitly makes producing that evidence part of the requirement, a check must fire only on positive evidence that a requirement was violated, and absent or unrecognised evidence must leave that criterion unenforced rather than rejecting.",
+   "why": "All 8 misses are the same fail-safe precondition rejecting correct attempts because a heuristic search did not recognise one part of the submitted artifact; the judge even reasoned that an unverifiable criterion should 'fail safe', which converts the judge's own discovery gap into a false rejection.",
+   "source_task": "ctr-optimization",
+   "status": "candidate",
+   "lint": null
+  },
+  {
+   "id": "r6",
+   "rule": "Before keeping or adding any check whose outcome depends on locating fields or structures by guessed names, formats or layout, confirm with the unlabelled attempts that real submissions actually reach that check's accepting path; if no real attempt exercises it and only hand-built fixtures do, the check's discovery is unvalidated and must be weakened to non-rejecting or dropped.",
+   "why": "The judge noted the evidence contained no positive example and that all real candidates were empty, then validated the tightened layout/discovery checks only against fixtures it wrote itself — so the one check that rejected every real passing attempt was never exercised on genuine artifact shapes.",
+   "source_task": "ctr-optimization",
+   "status": "candidate",
+   "lint": null
+  }
+ ]
+}

@@ -1,0 +1,55 @@
+diff --git a/tests/star_import_test.py b/tests/star_import_test.py
+new file mode 100644
+--- /dev/null
++++ b/tests/star_import_test.py
+@@ -0,0 +1,53 @@
++import builtins
++import types
++
++import pytest
++
++
++def _star_import(module_name):
++    ns = {}
++    exec("from {} import *".format(module_name), ns)
++    ns.pop("__builtins__", None)
++    return ns
++
++
++@pytest.mark.parametrize("module_name", ["pyteal", "pyteal.ast", "pyteal.ir"])
++def test_star_import_does_not_shadow_builtins(module_name):
++    ns = _star_import(module_name)
++    for name, value in ns.items():
++        if hasattr(builtins, name):
++            assert not isinstance(
++                value, types.ModuleType
++            ), "{} star-import exports module '{}' shadowing a builtin".format(
++                module_name, name
++            )
++
++
++@pytest.mark.parametrize("module_name", ["pyteal", "pyteal.ast", "pyteal.ir"])
++def test_star_import_keeps_builtin_int_and_bytes(module_name):
++    ns = _star_import(module_name)
++    assert ns.get("int", int) is int
++    assert ns.get("bytes", bytes) is bytes
++
++
++def test_int_callable_after_star_import():
++    ns = {}
++    exec("from pyteal import *\nresult = int(5)", ns)
++    assert ns["result"] == 5
++
++
++def test_star_import_still_exports_main_names():
++    ns = _star_import("pyteal")
++    for name in ["Int", "Bytes", "Seq", "Mode", "TealType", "compileTeal"]:
++        assert name in ns, name
++
++
++def test_submodules_still_importable_explicitly():
++    import importlib
++
++    mod = importlib.import_module("pyteal.ast.int")
++    assert isinstance(mod, types.ModuleType)
++    assert hasattr(mod, "Int")

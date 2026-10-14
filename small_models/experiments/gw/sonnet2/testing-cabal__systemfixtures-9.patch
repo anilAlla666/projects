@@ -1,0 +1,49 @@
+--- /dev/null
++++ b/systemfixtures/tests/test_filesystem_direntry.py
+@@ -0,0 +1,50 @@
++import os
++import shutil
++import tempfile
++
++from testtools import TestCase
++
++from systemfixtures import FakeFilesystem
++
++
++class DirEntryTest(TestCase):
++
++    def setUp(self):
++        super(DirEntryTest, self).setUp()
++        self.filesystem = self.useFixture(FakeFilesystem())
++        self.src = tempfile.mkdtemp()
++        self.addCleanup(shutil.rmtree, self.src, True)
++
++    def test_open_direntry(self):
++        """open() accepts a DirEntry while an overlay is active."""
++        self.filesystem.add("/foo")
++        with open(os.path.join(self.src, "a.txt"), "w") as fd:
++            fd.write("hello")
++        entries = list(os.scandir(self.src))
++        self.assertEqual(1, len(entries))
++        with open(entries[0], "rb") as fd:
++            self.assertEqual(b"hello", fd.read())
++
++    def test_copytree_to_overlayed_dir(self):
++        """shutil.copytree works with an overlayed destination."""
++        self.filesystem.add("/foo")
++        with open(os.path.join(self.src, "a.txt"), "w") as fd:
++            fd.write("hello")
++        os.mkdir(os.path.join(self.src, "sub"))
++        with open(os.path.join(self.src, "sub", "b.txt"), "w") as fd:
++            fd.write("world")
++
++        shutil.copytree(self.src, "/foo/dst")
++
++        with open("/foo/dst/a.txt") as fd:
++            self.assertEqual("hello", fd.read())
++        with open("/foo/dst/sub/b.txt") as fd:
++            self.assertEqual("world", fd.read())
++        # The data really went to the overlay, not the real root.
++        self.assertTrue(
++            os.path.exists(
++                os.path.join(self.filesystem.root, "foo", "dst", "a.txt")))

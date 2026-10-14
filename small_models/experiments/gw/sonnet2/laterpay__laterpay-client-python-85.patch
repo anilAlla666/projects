@@ -1,0 +1,51 @@
+diff --git a/tests/test_signing_bytes.py b/tests/test_signing_bytes.py
+new file mode 100644
+index 0000000..3d1c5a2
+--- /dev/null
++++ b/tests/test_signing_bytes.py
+@@ -0,0 +1,45 @@
++# -*- coding: utf-8 -*-
++from __future__ import absolute_import, unicode_literals
++
++import unittest
++
++from laterpay import signing
++
++
++SECRET = 'secret'
++URL = 'https://endpoint.example.com/path'
++
++
++class SigningByteStringTest(unittest.TestCase):
++
++    def test_bytes_value_signs_like_text_value(self):
++        sig_bytes = signing.sign(SECRET, {'param': b'foo'}, URL)
++        sig_text = signing.sign(SECRET, {'param': 'foo'}, URL)
++        self.assertEqual(sig_bytes, sig_text)
++
++    def test_bytes_value_in_list_signs_like_text_value(self):
++        sig_bytes = signing.sign(
++            SECRET, {'param': [b'foo', b'bar']}, URL)
++        sig_text = signing.sign(
++            SECRET, {'param': ['foo', 'bar']}, URL)
++        self.assertEqual(sig_bytes, sig_text)
++
++    def test_bytes_key_signs_like_text_key(self):
++        sig_bytes = signing.sign(SECRET, {b'param': 'foo'}, URL)
++        sig_text = signing.sign(SECRET, {'param': 'foo'}, URL)
++        self.assertEqual(sig_bytes, sig_text)
++
++    def test_bytes_value_with_method(self):
++        sig_bytes = signing.sign(SECRET, {'a': b'foo'}, URL, 'POST')
++        sig_text = signing.sign(SECRET, {'a': 'foo'}, URL, 'POST')
++        self.assertEqual(sig_bytes, sig_text)
++
++    def test_sign_and_encode_bytes_value(self):
++        enc_bytes = signing.sign_and_encode(SECRET, {'param': b'foo'}, URL)
++        enc_text = signing.sign_and_encode(SECRET, {'param': 'foo'}, URL)
++        self.assertEqual(enc_bytes, enc_text)
++        self.assertNotIn('b%27foo%27', enc_bytes)
++
++
++if __name__ == '__main__':
++    unittest.main()

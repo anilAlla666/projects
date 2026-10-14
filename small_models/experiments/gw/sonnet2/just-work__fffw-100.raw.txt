@@ -1,0 +1,50 @@
+I haven't run these tests, and I wrote them without seeing the current `Trim` code, so a few API details are guesses. I'm assuming `Trim(VIDEO, start=..., end=...)`, `Trim.transform(meta)`, and that `video_meta_data` and `audio_meta_data` accept `duration=` and fill in sensible defaults for the other fields. If any of those differ, the tests need adjusting.
+
+The tests cover the case from the issue (trim end past EOF) for both video and audio. Each should fail today because the output duration comes out larger than the source allows. A sanity test with `end` inside the stream should pass both before and after the fix.
+
+```diff
+diff --git a/tests/test_trim_duration.py b/tests/test_trim_duration.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_trim_duration.py
+@@ -0,0 +1,59 @@
++from datetime import timedelta
++from unittest import TestCase
++
++from fffw.encoding.filters import Trim
++from fffw.graph import VIDEO, AUDIO
++from fffw.graph.meta import video_meta_data, audio_meta_data
++
++
++def seconds(value) -> float:
++    if isinstance(value, timedelta):
++        return value.total_seconds()
++    return float(value)
++
++
++class TrimDurationTestCase(TestCase):
++    def test_video_trim_end_after_eof(self):
++        """End after EOF must not increase output duration."""
++        meta = video_meta_data(duration=10.0)
++        trim = Trim(VIDEO, start=2.0, end=20.0)
++        result = trim.transform(meta)
++        self.assertAlmostEqual(seconds(result.duration), 8.0, places=3)
++
++    def test_video_trim_end_after_eof_from_zero(self):
++        meta = video_meta_data(duration=10.0)
++        trim = Trim(VIDEO, start=0.0, end=30.0)
++        result = trim.transform(meta)
++        self.assertAlmostEqual(seconds(result.duration), 10.0, places=3)
++
++    def test_video_trim_inside_stream(self):
++        meta = video_meta_data(duration=10.0)
++        trim = Trim(VIDEO, start=2.0, end=5.0)
++        result = trim.transform(meta)
++        self.assertAlmostEqual(seconds(result.duration), 3.0, places=3)
++
++    def test_audio_trim_end_after_eof(self):
++        meta = audio_meta_data(duration=10.0)
++        trim = Trim(AUDIO, start=2.0, end=20.0)
++        result = trim.transform(meta)
++        self.assertAlmostEqual(seconds(result.duration), 8.0, places=3)
+```

@@ -1,0 +1,144 @@
+{
+ "loop": "tw-iot-device-registration-server__tw-iot-device-registration-server__oa",
+ "task": "tw-iot-device-registration-server",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 18,
+   "usd": 1.3257,
+   "seconds": 1276,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "A",
+     "D"
+    ],
+    "wrong_candidates": [
+     "B",
+     "C",
+     "E"
+    ],
+    "near_misses": [
+     "nm_timeout_90s",
+     "nm_sequential",
+     "nm_silent_faulty",
+     "nm_faulty_accepted",
+     "nm_crash_on_faulty",
+     "nm_extra_key",
+     "nm_no_empty_list",
+     "nm_hardcoded_mac"
+    ],
+    "checks": [
+     {
+      "check": "server.py, iot_device.py, iot_device_faulty.py exist and are non-empty",
+      "requirement": "you must generate scripts: server.py ... iot_device.py ... iot_device_faulty.py",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "submitted and re-generated registered_devices.json are JSON lists of objects with exactly one key 'details'",
+      "requirement": "The final report should be a list of objects store at file \"registered_devices.json\". Each object in the list must contain 1 top-level keys",
+      "basis": "format",
+      "note": "single-key check added"
+     },
+     {
+      "check": "details equal answers.json: device-0001/DE:AD:BE:EF:00:01 and device-0002/DE:AD:BE:EF:00:02, keys mac_address/device_id, exactly 2 entries",
+      "requirement": "\"details\": The mac address and device id of the device connected; Good Device 1: device-0001, Good Device 2: device-0002, Faulty Device: device-0003",
+      "basis": "contested",
+      "note": "original check kept unchanged; applied to the submitted file and to the file produced by re-running the scripts"
+     },
+     {
+      "check": "good devices complete within 15 s while another client connection is held open",
+      "requirement": "This server nust have abiltiy enough to handle multiple clients at once.",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "faulty device run produces error log output from the server and is not registered",
+      "requirement": "It must throw an error while faulty device registration by logging an error",
+      "basis": "task-text",
+      "note": "keyword match error|fail|reject|invalid|denied|refus"
+     },
+     {
+      "check": "server alive and accepting after faulty run and at 45 s",
+      "requirement": "terminating that specific connection without crashing; must have a master timeout of 60 seconds",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "server port refuses connections 68 s after launch; report saved by 76 s",
+      "requirement": "After 60 seconds, it should stop listening for new devices and save whatever partial results it has gathered.",
+      "basis": "task-text",
+      "note": "8 s margin"
+     },
+     {
+      "check": "run with no devices yields []",
+      "requirement": "If no devices were registered successfully, it should produce an empty list [].",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "iot_device.py for device-0010/0011 sends its id and distinct DE:AD:BE:EF:hh:hh MACs",
+      "requirement": "iot MAC_Address should contain DE:AD:BE:EF:**:** ** will be dyanmic based on device id",
+      "basis": "task-text",
+      "note": "weak property valid for any id->MAC mapping"
+     },
+     {
+      "check": "reward file contains exactly 1 or 0",
+      "requirement": "grader contract",
+      "basis": "format",
+      "note": "original wrote 1.0/0.0"
+     }
+    ],
+    "contested": [
+     {
+      "value": "exact details object for the two good devices",
+      "verifier_expects": "{mac_address: DE:AD:BE:EF:00:01, device_id: device-0001}, {mac_address: DE:AD:BE:EF:00:02, device_id: device-0002}",
+      "candidates_give": "the same (all five)",
+      "why": "task does not name the JSON keys inside details nor the device-id-to-MAC mapping"
+     }
+    ]
+   },
+   "evidence": "",
+   "evidence_ids": [],
+   "guard": {
+    "kept": false,
+    "old_agree": null,
+    "new_agree": null,
+    "items": null
+   }
+  }
+ ],
+ "usd": 1.326,
+ "before": {
+  "accepted_correct": "1/1",
+  "attempts": 4,
+  "balanced_accuracy": 0.666667,
+  "isolation": "bindproc",
+  "labels": "PFFF",
+  "rejected_wrong": "1/3",
+  "reward": 0.333333,
+  "seconds": 1.0,
+  "task": "tw-iot-device-registration-server",
+  "timeouts": 0,
+  "tnr": 0.333333,
+  "tpr": 1.0,
+  "verdicts": "PPPF"
+ },
+ "after": {
+  "accepted_correct": "1/1",
+  "attempts": 4,
+  "balanced_accuracy": 0.666667,
+  "isolation": "bindproc",
+  "labels": "PFFF",
+  "rejected_wrong": "1/3",
+  "reward": 0.333333,
+  "seconds": 0.9,
+  "task": "tw-iot-device-registration-server",
+  "timeouts": 0,
+  "tnr": 0.333333,
+  "tpr": 1.0,
+  "verdicts": "PPPF"
+ }
+}

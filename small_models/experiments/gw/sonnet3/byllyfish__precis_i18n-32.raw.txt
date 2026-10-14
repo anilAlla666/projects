@@ -1,0 +1,69 @@
+I couldn't see the repo's existing tests, so I wrote a new test file from the issue text alone. I haven't run it. It relies on `precis_i18n.get_profile` and on the error text containing `invalid_white_space`, and it assumes the fix makes leading or trailing control or line-separator characters raise instead of being stripped.
+
+The issue leaves open whether `\t`, `\r` and `\n` should keep being stripped, so the tests avoid them. They use only characters that no plausible fix would strip: U+0B, U+0C, U+1C–U+1F, U+85, U+2028 and U+2029.
+
+The tests check three things:
+- **Leading and trailing characters:** each of these characters at the start or end of a nickname must raise an error whose text includes `invalid_white_space`.
+- **Existing behaviour:** ASCII-space stripping, collapsing of interior spaces, and mapping of non-ASCII `Zs` space to ASCII space must still work.
+- **Interior characters:** these must still not be accepted.
+
+One point worth checking when reviewing: `"\x1fb\x1f"` is already rejected today, but as a disallowed code point, not as `invalid_white_space`. So this test fails on the current code because of the message, not because nothing is raised.
+
+```diff
+--- /dev/null
++++ b/tests/test_nickname_whitespace.py
+@@ -0,0 +1,56 @@
++import unittest
++
++from precis_i18n import get_profile
++
++
++def _error_text(exc):
++    parts = [str(exc)]
++    reason = getattr(exc, 'reason', None)
++    if reason is not None:
++        parts.append(str(reason))
++    return ' '.join(parts)
++
++
++class NicknameWhiteSpaceTest(unittest.TestCase):
++
++    def setUp(self):
++        self.profile = get_profile('Nickname')
++
++    def _assert_invalid_white_space(self, value):
++        with self.assertRaises(Exception) as ctx:
++            self.profile.enforce(value)
++        self.assertIn('invalid_white_space', _error_text(ctx.exception),
++                      repr(value))
++
++    def test_ascii_space_still_stripped(self):
++        self.assertEqual(self.profile.enforce('  a  '), 'a')
++        self.assertEqual(self.profile.enforce(' a   b '), 'a b')
++
++    def test_nonascii_space_still_mapped(self):
++        self.assertEqual(self.profile.enforce('\u3000a\u2003'), 'a')
++        self.assertEqual(self.profile.enforce('a\u2003\u2003b'), 'a b')
++
++    def test_trailing_control_white_space(self):
++        for ch in ('\x0b', '\x0c', '\x1c', '\x1d', '\x1e', '\x1f',
++                   '\x85', '\u2028', '\u2029'):
++            self._assert_invalid_white_space('a' + ch)
++
++    def test_leading_control_white_space(self):
++        for ch in ('\x0b', '\x0c', '\x1c', '\x1d', '\x1e', '\x1f',
++                   '\x85', '\u2028', '\u2029'):
++            self._assert_invalid_white_space(ch + 'a')
++
++    def test_both_ends(self):
++        self._assert_invalid_white_space('\x1fb\x1f')
++
++    def test_interior_control_not_accepted(self):
++        for ch in ('\x1f', '\x85', '\u2028'):
++            with self.assertRaises(Exception):
++                self.profile.enforce('a' + ch + 'b')
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

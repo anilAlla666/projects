@@ -1,0 +1,51 @@
+I've added a `HarvestCatalogTestCase` to `tests/test_federation.py`. I haven't run the tests against the current code or a fix. The tests mock `harvest_dataset_to_ckan`, so no CKAN portal is involved.
+
+- **Empty list:** `dataset_list=[]` must not call `harvest_dataset_to_ckan` at all. This fails on the current code, which federates every dataset.
+- **Failure in the middle:** with the middle dataset raising, `harvest_catalog_to_ckan` must not propagate the exception and must still attempt all three datasets. This fails on the current code, which raises.
+- **All fail, no list:** when every call fails and no `dataset_list` is passed, nothing is raised and every catalog dataset is attempted.
+
+The tests deliberately do not check the return value or how the error is logged. They only count calls, and the test names the datasets explicitly so it does not depend on the sample catalog contents.
+
+```diff
+--- a/tests/test_federation.py
++++ b/tests/test_federation.py
+@@ -394,3 +394,56 @@
+             self.assertItemsEqual([theme['id'] for theme in self.catalog['themeTaxonomy']][2:], res_names)
+         except AttributeError:
+             self.assertCountEqual([theme['id'] for theme in self.catalog['themeTaxonomy']][2:], res_names)
++
++
++class HarvestCatalogTestCase(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.catalog = pydatajson.DataJson(
++            os.path.join(SAMPLES_DIR, 'full_data.json'))
++
++    @patch('pydatajson.federation.harvest_dataset_to_ckan')
++    def test_empty_dataset_list_harvests_nothing(self, mock_harvest):
++        mock_harvest.side_effect = lambda *a, **k: 'id'
++        harvest_catalog_to_ckan(self.catalog, 'portal_url', 'apikey',
++                                'catalog_id', dataset_list=[])
++        self.assertEqual(0, mock_harvest.call_count)
++
++    @patch('pydatajson.federation.harvest_dataset_to_ckan')
++    def test_failure_does_not_stop_harvesting(self, mock_harvest):
++        def side_effect(*args, **kwargs):
++            if 'bad' in args or 'bad' in kwargs.values():
++                raise Exception('boom')
++            return 'ok'
++
++        mock_harvest.side_effect = side_effect
++        # No debe levantar excepción
++        harvest_catalog_to_ckan(self.catalog, 'portal_url', 'apikey',
++                                'catalog_id',
++                                dataset_list=['a', 'bad', 'c'])
++        self.assertEqual(3, mock_harvest.call_count)
++
++    @patch('pydatajson.federation.harvest_dataset_to_ckan')
++    def test_all_failures_do_not_raise(self, mock_harvest):
++        mock_harvest.side_effect = Exception('boom')
++        harvest_catalog_to_ckan(self.catalog, 'portal_url', 'apikey',
++                                'catalog_id')
++        self.assertEqual(len(self.catalog.datasets), mock_harvest.call_count)
+```

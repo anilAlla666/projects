@@ -1,0 +1,81 @@
+The tests below build a topic with units, run a `table_item` data tool and a `list_item` data tool, and walk the result tree. I have not run them against the repo, and I wrote them without the full source, so they rest on assumptions about the statistics format:
+
+- A topic's `units` list is parallel to its `fields` list.
+- A `table_item` or `list_item` result carries its value payload inside a `payload` key.
+- The `unit` key currently ends up as a sibling of `payload` in the statistics dict, which is the bug.
+
+The first test fails on the current code if `unit` is a sibling of `payload` anywhere in the output. It also checks that the unit value (`"kg"`) appears somewhere in the result. The second test checks that the `table_item` output still passes `validate_statistics_array`.
+
+```diff
+--- a/tst/test_data_tools_units.py
++++ b/tst/test_data_tools_units.py
+@@ -0,0 +1,64 @@
++from unittest import TestCase
++
++from fdbk.data_tools import run_data_tools
++from fdbk.validate import validate_statistics_array
++
++
++def _data(N=5):
++    return [
++        dict(
++            number=i,
++            number2=i * 2,
++            letter=chr(ord('A') + i),
++            timestamp=f'2020-08-23T00:00:{i:02}Z') for i in range(N)]
++
++
++def _walk(obj):
++    """Yield all dicts found in the nested structure."""
++    if isinstance(obj, dict):
++        yield obj
++        for v in obj.values():
++            yield from _walk(v)
++    elif isinstance(obj, (list, tuple)):
++        for v in obj:
++            yield from _walk(v)
++
++
++def _topic(tool):
++    return dict(
++        id='unit_id',
++        name='Unit test',
++        fields=["number", "number2", "letter"],
++        units=["kg", "", ""],
++        data_tools=[tool])
++
++
++class DataToolsUnitTest(TestCase):
++    def _check(self, tool):
++        results, warnings = run_data_tools(_topic(tool), _data())
++        self.assertEqual(warnings, [])
++        self.assertGreater(len(results), 0)
++
++        dicts = list(_walk(results))
++
++        # Unit must not be next to payload in any statistics dict
++        for d in dicts:
++            self.assertFalse(
++                "payload" in d and "unit" in d,
++                f"unit found next to payload: {d}")
++
++        # Unit must be present inside a payload
++        units = [
++            d["payload"]["unit"] for d in dicts
++            if isinstance(d.get("payload"), dict) and "unit" in d["payload"]]
++        self.assertIn("kg", units)
++        return results
++
++    def test_table_item_unit_inside_payload(self):
++        results = self._check(dict(
++            field='number',
++            method='table_item',
++            parameters=dict(method='max', name='Test table')))
++        validate_statistics_array(results)
++
++    def test_list_item_unit_inside_payload(self):
++        self._check(dict(
++            field='number',
++            method='list_item',
++            parameters=dict(method='max', name='Test list')))
+```

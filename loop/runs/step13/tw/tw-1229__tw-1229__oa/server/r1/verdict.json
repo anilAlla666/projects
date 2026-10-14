@@ -1,0 +1,91 @@
+{
+  "changed": true,
+  "correct_candidates": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "wrong_candidates": [],
+  "near_misses": [
+    "nm_basename_paths",
+    "nm_bitrate_bps",
+    "nm_empty_summary",
+    "nm_lowbitrate_valid",
+    "nm_nonrecursive",
+    "nm_samplerate_khz",
+    "nm_total_duration",
+    "nm_wrong_framerate",
+    "nm_wrong_reason"
+  ],
+  "checks": [
+    {
+      "check": "test.sh runs plain python3 without network installs",
+      "requirement": "grader runs bash /tests/test.sh offline",
+      "basis": "format",
+      "note": "original needed apt/curl/uv -> always 0"
+    },
+    {
+      "check": "report exists, valid JSON, keys valid_files/invalid_files/summary with right types",
+      "requirement": "Generate a JSON report at /workspace/media_report.json with this structure",
+      "basis": "format",
+      "note": ""
+    },
+    {
+      "check": "reported absolute path set equals media files found recursively in grader",
+      "requirement": "Scan the directory recursively for all media files with these extensions",
+      "basis": "recomputed",
+      "note": "11 files"
+    },
+    {
+      "check": "valid set equals files passing all criteria per ffprobe",
+      "requirement": "Validate files against these criteria",
+      "basis": "recomputed",
+      "note": "5 valid"
+    },
+    {
+      "check": "valid entry type/format/duration/width/height/video_codec/frame_rate/audio codec/sample_rate/channels match ffprobe",
+      "requirement": "Extract metadata for each file including ...",
+      "basis": "recomputed",
+      "note": "duration +-0.1s, fps +-0.02; format accepts extension or ffprobe format_name"
+    },
+    {
+      "check": "bitrate within [0.75*min(format,stream), 1.3*max(format,stream)] kb/s",
+      "requirement": "Bitrate (in kb/s)",
+      "basis": "contested",
+      "note": "only a band holding under all readings"
+    },
+    {
+      "check": "invalid reasons non-empty strings, keyword covering each failed criterion, no reason for passed criterion",
+      "requirement": "invalid_files ... reasons",
+      "basis": "task-text",
+      "note": "labels beyond example not fixed; keyword match"
+    },
+    {
+      "check": "summary counts consistent and total_files == number of media files",
+      "requirement": "summary: total_files, valid_count, invalid_count",
+      "basis": "recomputed",
+      "note": ""
+    },
+    {
+      "check": "total_valid_duration == sum of ffprobe durations of valid files +-0.1",
+      "requirement": "total_valid_duration",
+      "basis": "recomputed",
+      "note": "was 52+-5"
+    },
+    {
+      "check": "summary.txt exists, non-empty, states total/valid/invalid counts",
+      "requirement": "Create a summary file at /workspace/summary.txt containing human-readable statistics",
+      "basis": "task-text",
+      "note": ""
+    }
+  ],
+  "contested": [
+    {
+      "value": "exact bitrate value",
+      "verifier_expects": "band around ffprobe format/stream bitrate",
+      "candidates_give": "format bitrate int (A,D), video stream bitrate (B,C)",
+      "why": "task does not say container vs stream bitrate, rounding, or 1000 vs 1024; encodes also vary by build"
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+I added a new test file that exercises `_escape` and `_make_path` with bytes values. I haven't run it. On the current code, bytes input should raise `AttributeError` on Python 3, so these tests should fail. They should pass once bytes are handled. I used a new filename, `test_escape_bytes.py`, to avoid colliding with any existing `test_utils.py`.
+
+```diff
+diff --git a/test_elasticsearch/test_client/test_escape_bytes.py b/test_elasticsearch/test_client/test_escape_bytes.py
+new file mode 100644
+--- /dev/null
++++ b/test_elasticsearch/test_client/test_escape_bytes.py
+@@ -0,0 +1,45 @@
++# -*- coding: utf-8 -*-
++from unittest import TestCase
++
++from elasticsearch.client.utils import _make_path, _escape, query_params
++
++
++def _as_text(value):
++    if isinstance(value, bytes):
++        return value.decode('utf-8')
++    return value
++
++
++class TestEscapeBytes(TestCase):
++    def test_escape_bytes_does_not_raise(self):
++        result = _escape(b'celery-task-meta-c4f1201f')
++        self.assertEqual('celery-task-meta-c4f1201f', _as_text(result))
++
++    def test_escape_bytes_not_repr(self):
++        result = _as_text(_escape(b'abc'))
++        self.assertFalse(result.startswith("b'"))
++        self.assertEqual('abc', result)
++
++    def test_escape_text(self):
++        self.assertEqual('abc', _as_text(_escape(u'abc')))
++
++    def test_escape_unicode_text(self):
++        self.assertEqual(u'\u00e9', _as_text(_escape(u'\u00e9')))
++
++    def test_escape_bytes_in_list(self):
++        result = _as_text(_escape([b'a', b'b']))
++        self.assertEqual('a,b', result)
++
++    def test_make_path_with_bytes_id(self):
++        self.assertEqual(
++            '/index/type/abc-123',
++            _make_path('index', 'type', b'abc-123'))
++
++    def test_make_path_with_bytes_index(self):
++        self.assertEqual(
++            '/index/_search',
++            _make_path(b'index', '_search'))
++
++    def test_query_params_with_bytes_value(self):
++        @query_params('routing')
++        def f(self, params=None):
++            return params
++
++        self.assertEqual('abc', _as_text(f(None, routing=b'abc')['routing']))
+```

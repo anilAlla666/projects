@@ -1,0 +1,50 @@
+The diff below adds two tests in `tests/test_qrbill.py`. Both should fail on the current code and pass once line breaks are stripped from `additional_information`. I haven't run them.
+
+- **Line breaks in the encoded data:** the tests build a bill with `\n`, `\r\n` and `\r` inside `additional_information`. They check that the additional-information field in `qr_data()` contains no `\n` or `\r`, that both words survive, and that the total number of lines in the encoded data is unchanged from a bill without a line break.
+- **Stored attribute:** a second test checks that `bill.additional_information` itself has no `\n` or `\r` left.
+
+The issue doesn't say what a line break should become (a space, nothing, or something else), so the tests don't check the exact replacement text.
+
+```diff
+--- a/tests/test_qrbill.py
++++ b/tests/test_qrbill.py
+@@ -540,6 +540,45 @@
+ def strip_svg_path(content):
+     return re.sub(r'<path[^>]*', '', content)
+ 
+ 
++class AdditionalInfoLineBreakTests(unittest.TestCase):
++    def _bill(self, info):
++        return QRBill(
++            account="CH 53 8000 5000 0102 83664",
++            creditor={'name': 'Jane', 'pcode': '1000', 'city': 'Lausanne'},
++            additional_information=info,
++        )
++
++    def test_linebreak_not_in_qr_data(self):
++        reference_lines = self._bill("Hello Line break").qr_data().split("\r\n")
++        for info in ("Hello \n Line break", "Hello\nLine break",
++                     "Hello\r\nLine break", "Hello\rLine break"):
++            data = self._bill(info).qr_data()
++            lines = data.split("\r\n")
++            self.assertEqual(len(lines), len(reference_lines))
++            epd = lines.index('EPD')
++            field = lines[epd - 1]
++            self.assertNotIn("\n", field)
++            self.assertNotIn("\r", field)
++            self.assertIn("Hello", field)
++            self.assertIn("Line", field)
++            self.assertTrue(field.endswith("break"))
++            # No stray line breaks anywhere other than the CRLF separators
++            self.assertNotIn("\n", data.replace("\r\n", ""))
++            self.assertNotIn("\r", data.replace("\r\n", ""))
++
++    def test_linebreak_not_in_attribute(self):
++        bill = self._bill("Hello\nLine break")
++        self.assertNotIn("\n", bill.additional_information)
++        self.assertNotIn("\r", bill.additional_information)
++
++
+ if __name__ == '__main__':
+     unittest.main()
+```

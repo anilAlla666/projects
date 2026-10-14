@@ -1,0 +1,50 @@
+I could not check the repository source, so these tests assume `SecureField` has the standard `to_basic(cfg, value)` and `to_python(cfg, value)` methods. I also assumed an empty string must come back as `None` or `''`, never as an encrypted value. I have not run them.
+
+The tests use a `MagicMock` config. A correct fix returns early for empty strings and never touches the config or the key. On the current code, the encrypt and decrypt paths go through the mock config and should either raise or return something that is not `None` or `''`.
+
+```diff
+diff --git a/tests/test_secure_field_empty.py b/tests/test_secure_field_empty.py
+new file mode 100644
+index 0000000..3b1c7a1
+--- /dev/null
++++ b/tests/test_secure_field_empty.py
+@@ -0,0 +1,38 @@
++import unittest
++from unittest.mock import MagicMock
++
++from cincoconfig.fields import SecureField
++
++
++class TestSecureFieldEmptyString(unittest.TestCase):
++    """Empty strings must be treated like None and never be encrypted."""
++
++    def setUp(self):
++        self.field = SecureField()
++        self.cfg = MagicMock()
++
++    def test_to_basic_empty_string_not_encrypted(self):
++        try:
++            result = self.field.to_basic(self.cfg, '')
++        except Exception as err:  # pragma: no cover
++            self.fail('to_basic raised for empty string: %r' % (err,))
++        self.assertIn(result, (None, ''))
++
++    def test_to_basic_none(self):
++        result = self.field.to_basic(self.cfg, None)
++        self.assertIn(result, (None, ''))
++
++    def test_to_python_empty_string(self):
++        try:
++            result = self.field.to_python(self.cfg, '')
++        except Exception as err:  # pragma: no cover
++            self.fail('to_python raised for empty string: %r' % (err,))
++        self.assertIn(result, (None, ''))
++
++    def test_to_python_none(self):
++        result = self.field.to_python(self.cfg, None)
++        self.assertIn(result, (None, ''))
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

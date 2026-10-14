@@ -1,0 +1,68 @@
+This patch adds a test file that checks the client accepts 2xx status codes other than 200 on GET and DELETE, and still raises on error codes. I haven't run it against the repo. It assumes `client.threads.find(...)` and `client._delete_resource(...)` exist in this version of the client.
+
+Rather than depend on `responses`, the tests patch `requests.Session.request` and return hand-built `requests.Response` objects.
+
+```diff
+diff --git a/tests/test_success_status_codes.py b/tests/test_success_status_codes.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_success_status_codes.py
+@@ -0,0 +1,80 @@
++import json
++
++import pytest
++import requests
++from mock import patch
++
++from nylas import APIClient
++from nylas.client.restful_models import Thread
++
++
++def make_response(status_code, body=None, method="GET"):
++    url = "https://api.nylas.com/threads/abc"
++    r = requests.Response()
++    r.status_code = status_code
++    if body is None:
++        r._content = b""
++    else:
++        r._content = json.dumps(body).encode("utf-8")
++        r.headers["Content-Type"] = "application/json"
++    r.url = url
++    r.request = requests.Request(method, url).prepare()
++    return r
++
++
++@pytest.fixture
++def client():
++    return APIClient("app_id", "app_secret", "token", "https://api.nylas.com")
++
++
++@pytest.mark.parametrize("status", [200, 201, 202, 203])
++def test_get_accepts_2xx(client, status):
++    resp = make_response(status, {"id": "abc", "object": "thread"})
++    with patch.object(requests.Session, "request", return_value=resp):
++        thread = client.threads.find("abc")
++    assert thread.id == "abc"
++
++
++@pytest.mark.parametrize("status", [200, 202, 204])
++def test_delete_accepts_2xx(client, status):
++    resp = make_response(status, None, method="DELETE")
++    with patch.object(requests.Session, "request", return_value=resp):
++        # must not raise
++        client._delete_resource(Thread, "abc")
++
++
++def test_error_status_still_raises(client):
++    resp = make_response(400, {"message": "bad", "type": "invalid_request_error"})
++    with patch.object(requests.Session, "request", return_value=resp):
++        with pytest.raises(Exception):
++            client.threads.find("abc")
++
++
++def test_server_error_still_raises(client):
++    resp = make_response(500, {"message": "oops", "type": "api_error"})
++    with patch.object(requests.Session, "request", return_value=resp):
++        with pytest.raises(Exception):
++            client.threads.find("abc")
+```

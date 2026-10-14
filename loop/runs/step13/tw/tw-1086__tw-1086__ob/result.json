@@ -1,0 +1,136 @@
+{
+ "loop": "tw-1086__tw-1086__ob",
+ "task": "tw-1086",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 15,
+   "usd": 0.8238,
+   "seconds": 224,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "A",
+     "B"
+    ],
+    "wrong_candidates": [
+     "C",
+     "D",
+     "E"
+    ],
+    "near_misses": [
+     "nm_bug1_vars",
+     "nm_bug2_dir",
+     "nm_bug3_array",
+     "nm_bug4_ifs",
+     "nm_shortcut_hardcoded",
+     "nm_list_missing_config"
+    ],
+    "checks": [
+     {
+      "check": ".deploy_state has lines DEPLOY_VERSION=2.0 and DEPLOY_ENV=production (solver output and fresh run)",
+      "requirement": "/app/.deploy_state should contain DEPLOY_VERSION=2.0 and DEPLOY_ENV=production",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "frontend/.built and backend/.built exist (solver output and fresh run)",
+      "requirement": "/app/frontend/.built and /app/backend/.built should exist",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "components.list has lines frontend, backend, config",
+      "requirement": "/app/config/components.list should contain all three components",
+      "basis": "task-text",
+      "note": "old check required only >=2"
+     },
+     {
+      "check": "after sourcing deploy.sh, PWD is /app at exit",
+      "requirement": "Script should end in /app directory",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "unit: set_deploy_config sets DEPLOY_VERSION/DEPLOY_ENV in caller; full run DEPLOY_VERSION=2.0 at exit",
+      "requirement": "Set and preserve deployment configuration variables (DEPLOY_VERSION and DEPLOY_ENV)",
+      "basis": "task-text",
+      "note": "bug 1"
+     },
+     {
+      "check": "unit: build_component does not change caller PWD and creates .built in target dir",
+      "requirement": "Temporarily change directories for component builds without affecting the main script's working directory",
+      "basis": "task-text",
+      "note": "bug 2"
+     },
+     {
+      "check": "unit: load_components populates COMPONENTS in caller (test conf and real conf)",
+      "requirement": "Preserve array modifications made inside functions",
+      "basis": "task-text",
+      "note": "bug 3"
+     },
+     {
+      "check": "unit: IFS default after parse_deploy_info and it still splits on ','; full run IFS default at exit, no 'IFS is corrupted'",
+      "requirement": "Isolate IFS changes to only the parsing section that needs them",
+      "basis": "task-text",
+      "note": "bug 4"
+     },
+     {
+      "check": "the four functions remain defined; bash -n ok; script exits 0; fallback list not used",
+      "requirement": "Fix each bug by correctly choosing between () and {}",
+      "basis": "format",
+      "note": "rejects hard-coded replacement scripts"
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "PPPPPF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "nop"
+   ],
+   "guard": {
+    "kept": true,
+    "old_agree": 3,
+    "new_agree": 12,
+    "items": 12
+   }
+  }
+ ],
+ "usd": 0.824,
+ "before": {
+  "accepted_correct": "2/2",
+  "attempts": 7,
+  "balanced_accuracy": 0.6,
+  "isolation": "bindproc",
+  "labels": "PPFFFFF",
+  "rejected_wrong": "1/5",
+  "reward": 0.2,
+  "seconds": 3.6,
+  "task": "tw-1086",
+  "timeouts": 0,
+  "tnr": 0.2,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "2/2",
+  "attempts": 7,
+  "balanced_accuracy": 1.0,
+  "isolation": "bindproc",
+  "labels": "PPFFFFF",
+  "rejected_wrong": "5/5",
+  "reward": 1.0,
+  "seconds": 2.0,
+  "task": "tw-1086",
+  "timeouts": 0,
+  "tnr": 1.0,
+  "tpr": 1.0,
+  "verdicts": "PPFFFFF"
+ }
+}

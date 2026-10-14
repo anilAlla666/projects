@@ -1,0 +1,14 @@
+{"changed": true,
+ "correct_candidates": ["A","B"],
+ "wrong_candidates": ["C","D"],
+ "near_misses": ["nm1_pipe_not_procsub","nm2_no_config_summary","nm3_hardcoded_double","nm4_env_shebang","nm5_hardcoded_diff","nm6_wrong_config_value"],
+ "checks": [
+  {"check":"first line == #!/bin/bash","requirement":"The script must use #!/bin/bash shebang (not sh)","basis":"task-text","note":"kept"},
+  {"check":"submitted and regenerated /app/output.txt byte-equal expected_output.txt","requirement":"The fixed script should produce output to /app/output.txt that matches /app/expected_output.txt","basis":"task-text","note":"now also checks the submitted file"},
+  {"check":"config_summary.txt (submitted and regenerated) contains the 4 config key: value lines","requirement":"The script should also generate /app/config_summary.txt with parsed configuration values","basis":"task-text","note":"new; layout not asserted"},
+  {"check":"fresh run exits 0 with empty stderr","requirement":"ensure it runs without errors","basis":"task-text","note":"stderr check added"},
+  {"check":"with changed input_a/input_b and expected_output.txt hidden, the comparison section equals diff of new inputs","requirement":"Fix each bug while maintaining the original intended functionality (compare outputs from multiple data sources)","basis":"recomputed","note":"rejects copy/hard-coded shortcuts"},
+  {"check":"non-comment code contains here-doc, <<< and <(","requirement":"Read configuration from a here-document; here-strings for single-value transformations; process substitution","basis":"format","note":"new"},
+  {"check":"code does not reference expected_output, literal 84, banana/blueberry","requirement":"maintaining the original intended functionality (values computed, not hard-coded)","basis":"format","note":"anti-shortcut"}
+ ],
+ "contested": []}

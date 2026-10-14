@@ -1,0 +1,38 @@
+diff --git a/tests/test_constructor.py b/tests/test_constructor.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_constructor.py
+@@ -0,0 +1,43 @@
++import importlib
++import sys
++from unittest import mock
++
++import pytest
++
++
++@pytest.fixture
++def hub_module():
++    """Import sensorhub.hub with the I2C libraries mocked out."""
++    fake_modules = {
++        "smbus2": mock.MagicMock(),
++        "smbus": mock.MagicMock(),
++    }
++    with mock.patch.dict(sys.modules, fake_modules):
++        for name in [m for m in sys.modules if m == "sensorhub" or m.startswith("sensorhub.")]:
++            del sys.modules[name]
++        module = importlib.import_module("sensorhub.hub")
++        yield module
++    for name in [m for m in sys.modules if m == "sensorhub" or m.startswith("sensorhub.")]:
++        del sys.modules[name]
++
++
++def test_constructor_without_arguments(hub_module):
++    # Previously raised TypeError: missing required positional argument
++    hub = hub_module.SensorHub()
++    assert hub is not None
++
++
++def test_constructor_with_explicit_bus(hub_module):
++    bus = mock.MagicMock()
++    hub = hub_module.SensorHub(bus)
++    assert hub is not None

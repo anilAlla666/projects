@@ -1,0 +1,52 @@
+I couldn't run these tests. I put them in a new file rather than editing an existing test module, because I can't see the existing test layout and a diff against it could fail to apply. The first test uses the exact example from the issue. The second runs the same data with two string users, to check the per-tripleg grouping keeps each user's id.
+
+Before the fix, both tests should fail with the `TypeError` from the issue, because `generate_triplegs` tries to take the mean of a string `user_id`. I haven't asserted that triplegs are non-empty, because I'm not sure the example's data produces any after filtering. I only assert that nothing raises and that any `user_id` values returned are the original strings.
+
+```diff
+diff --git a/tests/preprocessing/test_positionfixes_string_user.py b/tests/preprocessing/test_positionfixes_string_user.py
+new file mode 100644
+--- /dev/null
++++ b/tests/preprocessing/test_positionfixes_string_user.py
+@@ -0,0 +1,50 @@
++import geopandas as gpd
++import pandas as pd
++
++from trackintel.preprocessing.positionfixes import generate_staypoints, generate_triplegs
++from trackintel.preprocessing.staypoints import generate_locations
++
++
++class TestGenerateTriplegsStringUserId:
++    """generate_triplegs must work if user_id is a string."""
++
++    def test_string_user_id(self):
++        pfs = gpd.GeoDataFrame(
++            {
++                "user_id": "test",
++                "tracked_at": pd.date_range("2023-01-01T00:00:00Z", freq="60s", periods=10),
++            },
++            geometry=gpd.points_from_xy([0] * 5 + [1] * 5, [0] * 5 + [1] * 5),
++            crs="EPSG:4326",
++        )
++        pfs, sp = generate_staypoints(pfs)
++        sp, _ = generate_locations(sp)
++        pfs, tpls = generate_triplegs(pfs)
++        assert (tpls["user_id"] == "test").all()
++        assert (pfs["user_id"] == "test").all()
++
++    def test_string_user_id_multiple_users(self):
++        n = 10
++        pfs = gpd.GeoDataFrame(
++            {
++                "user_id": ["a"] * n + ["b"] * n,
++                "tracked_at": list(pd.date_range("2023-01-01T00:00:00Z", freq="60s", periods=n)) * 2,
++            },
++            geometry=gpd.points_from_xy(
++                ([0] * 5 + [1] * 5) * 2,
++                ([0] * 5 + [1] * 5) * 2,
++            ),
++            crs="EPSG:4326",
++        )
++        pfs, sp = generate_staypoints(pfs)
++        pfs, tpls = generate_triplegs(pfs)
++        assert set(tpls["user_id"]).issubset({"a", "b"})
+```

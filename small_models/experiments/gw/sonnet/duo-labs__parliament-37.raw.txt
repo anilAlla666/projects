@@ -1,0 +1,64 @@
+I haven't run these tests. I also haven't looked at the current `is_arn_match` or the existing test files; I wrote the tests from my recollection of the repository. The new file `tests/unit/test_redshift_resource_match.py` covers the issue's repro in two ways. One calls `is_arn_match` directly with the arn format from the issue. The other runs the full policy through `analyze_policy_string`. A third test checks that a resource of the wrong type (`cluster` instead of `dbuser`) still produces `RESOURCE_MISMATCH`, so a fix can't just make everything match.
+
+```diff
+--- /dev/null
++++ b/tests/unit/test_redshift_resource_match.py
+@@ -0,0 +1,50 @@
++import unittest
++
++from parliament import analyze_policy_string, is_arn_match
++
++
++class TestRedshiftResourceMatch(unittest.TestCase):
++    """Regression tests for RESOURCE_MISMATCH on redshift:GetClusterCredentials"""
++
++    def test_is_arn_match_dbuser(self):
++        assert is_arn_match(
++            "dbuser",
++            "arn:*:redshift:*:*:dbuser:*/*",
++            "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/the_user",
++        )
++
++    def test_is_arn_match_dbuser_wildcards(self):
++        assert is_arn_match(
++            "dbuser",
++            "arn:*:redshift:*:*:dbuser:*/*",
++            "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/*",
++        )
++
++    def test_get_cluster_credentials_policy(self):
++        policy = analyze_policy_string(
++            """
++{
++    "Statement": [
++        {
++            "Action": "redshift:GetClusterCredentials",
++            "Effect": "Allow",
++            "Resource": "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/the_user"
++        }
++    ],
++    "Version": "2012-10-17"
++}
++"""
++        )
++        policy.analyze()
++        assert policy.finding_ids == set(), policy.findings
++
++    def test_wrong_resource_type_still_mismatches(self):
++        policy = analyze_policy_string(
++            """
++{
++    "Statement": [
++        {
++            "Action": "redshift:GetClusterCredentials",
++            "Effect": "Allow",
++            "Resource": "arn:aws:redshift:us-west-2:123456789012:cluster:the_cluster"
++        }
++    ],
++    "Version": "2012-10-17"
++}
++"""
++        )
++        policy.analyze()
++        assert "RESOURCE_MISMATCH" in policy.finding_ids
+```

@@ -1,0 +1,41 @@
+This adds a new test file with two tests. Both fail on the current code, where `np.pad` raises the reported `TypeError`. I have not run them.
+
+- **Padded shape:** `boundary_width=[[5, 15], [10, 10]]` must not raise, and the returned `regions` must be padded to `(100+20, 100+20)`. This assumes `regions` includes the padding, as the existing `test_two_phases_and_boundary_nodes` does.
+- **Equivalence with the working form:** the issue says `[[5, 15], 10]` already works, so `[[5, 15], [10, 10]]` must give identical `regions`.
+
+Both tests run with `parallelization=None` on a small 2D blobs image.
+
+
+<invoke name="bash">
+<parameter name="command">cat > test/unit/test_snow2_boundary_width.py << 'EOF'
+import numpy as np
+import porespy as ps
+import openpnm as op
+ws = op.Workspace()
+ws.settings['loglevel'] = 50
+ps.settings.tqdm['disable'] = True
+
+
+class Snow2BoundaryWidthTest:
+
+    def setup_class(self):
+        np.random.seed(0)
+        self.im = ps.generators.blobs(shape=[100, 100], porosity=0.6,
+                                      blobiness=1.5)
+
+    def test_asymmetric_pairs_on_all_axes_shape(self):
+        im = self.im
+        out = ps.networks.snow2(im, boundary_width=[[5, 15], [10, 10]],
+                                parallelization=None)
+        assert out.regions.shape == (im.shape[0] + 20, im.shape[1] + 20)
+
+    def test_pairs_same_as_mixed_spec(self):
+        im = self.im
+        a = ps.networks.snow2(im, boundary_width=[[5, 15], 10],
+                              parallelization=None)
+        b = ps.networks.snow2(im, boundary_width=[[5, 15], [10, 10]],
+                              parallelization=None)
+        assert a.regions.shape == b.regions.shape
+        assert np.all(a.regions == b.regions)
+EOF</parameter>
+</invoke>

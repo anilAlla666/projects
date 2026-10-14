@@ -1,0 +1,56 @@
+I haven't run these tests, and I wrote them without seeing the existing test files, so some names are assumptions. They assume `NextActionArgumentParser` is importable from `next_action.arguments` and that `parse_args()` reads `sys.argv`. They also assume `-w` skips reading the config file. To avoid depending on attribute names such as `filters`, they check that the parsed namespace mentions the project instead of asserting on specific fields.
+
+Each test parses a command line that mixes `+project` with an excluded context after a context. On the current code the parser exits with "unrecognized arguments: +project" (a `SystemExit`), so the tests fail. Once the parser accepts the project after an excluded context, they pass.
+
+```diff
+diff --git a/tests/unittests/arguments/test_project_after_excluded_context.py b/tests/unittests/arguments/test_project_after_excluded_context.py
+new file mode 100644
+--- /dev/null
++++ b/tests/unittests/arguments/test_project_after_excluded_context.py
+@@ -0,0 +1,45 @@
++"""Unit tests for filtering on a project after a context and an excluded context."""
++
++import io
++import sys
++import unittest
++from unittest.mock import patch
++
++from next_action.arguments import NextActionArgumentParser
++
++
++class ProjectAfterExcludedContextTest(unittest.TestCase):
++    """Test that a project can follow a context and an excluded context."""
++
++    def parse(self, *arguments):
++        """Parse the arguments, failing the test if the parser exits."""
++        argv = ["next-action", "-w"] + list(arguments)
++        with patch.object(sys, "argv", argv), patch.object(sys, "stderr", new_callable=io.StringIO) as stderr:
++            try:
++                return NextActionArgumentParser().parse_args()
++            except SystemExit:
++                self.fail("Parser exited with error: " + stderr.getvalue())
++
++    def test_context_excluded_context_and_project(self):
++        """Test context, excluded context, and project, in that order."""
++        namespace = self.parse("@context", "-@excluded_context", "+project")
++        text = str(vars(namespace))
++        self.assertIn("project", text)
++        self.assertIn("excluded_context", text)
++
++    def test_excluded_context_and_project(self):
++        """Test excluded context followed by a project."""
++        namespace = self.parse("-@excluded_context", "+project")
++        self.assertIn("project", str(vars(namespace)))
++
++    def test_context_excluded_project_and_project(self):
++        """Test context, excluded project, and project."""
++        namespace = self.parse("@context", "-+excluded_project", "+project")
++        self.assertIn("excluded_project", str(vars(namespace)))
++
++    def test_multiple_mixed(self):
++        """Test a mix of filters with a project at the end."""
++        namespace = self.parse("@context", "-@excluded_context", "@other", "+project")
++        text = str(vars(namespace))
++        self.assertIn("other", text)
++        self.assertIn("project", text)
+```

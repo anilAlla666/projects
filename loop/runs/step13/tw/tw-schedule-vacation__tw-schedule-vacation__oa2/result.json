@@ -1,0 +1,130 @@
+{
+ "loop": "tw-schedule-vacation__tw-schedule-vacation__oa2",
+ "task": "tw-schedule-vacation",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 11,
+   "usd": 0.5903,
+   "seconds": 181,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "B",
+     "D"
+    ],
+    "wrong_candidates": [
+     "A",
+     "C"
+    ],
+    "near_misses": [
+     "nm1_wrong_end_date",
+     "nm2_charlie_board_meeting_ignored",
+     "nm3_stale_overlap_results",
+     "nm4_truncated_schedule",
+     "nm5_shortcut_fabricated_availability",
+     "nm6_alice_off_by_one",
+     "nm7_duration_6"
+    ],
+    "checks": [
+     {
+      "check": "vacation_dates.txt exists",
+      "requirement": "Save your final answer to /app/vacation_dates.txt.",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "vacation_dates.txt is exactly one line 'YYYY-MM-DD to YYYY-MM-DD' equal to 2025-07-28 to 2025-08-03",
+      "requirement": "The file must contain exactly one line (dates inclusive): YYYY-MM-DD to YYYY-MM-DD",
+      "basis": "recomputed",
+      "note": "only 7-day window where all four are free per get_schedule.py + find_overlap.py; format tightened to exact"
+     },
+     {
+      "check": "overlap_results.json exists with vacation_duration 7, total_windows_found == len(windows) > 0",
+      "requirement": "Use /app/find_overlap.py to find overlapping 7-day periods to generate /app/overlap_results.json",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "overlap_results.json equals find_overlap.py 7 output on submitted all_availability.json and contains the 4-friend 07-28..08-03 window",
+      "requirement": "Use /app/find_overlap.py to find overlapping 7-day periods to generate /app/overlap_results.json",
+      "basis": "recomputed",
+      "note": "new"
+     },
+     {
+      "check": "each *_schedule.txt equals get_schedule.py <friend> stdout (stripped)",
+      "requirement": "Get each friend's schedule data using /app/get_schedule.py and save to alice_schedule.txt, ...",
+      "basis": "recomputed",
+      "note": ""
+     },
+     {
+      "check": "all_availability.json has exactly alice/bob/charlie/dana, non-empty lists of {start,end} YYYY-MM-DD",
+      "requirement": "create a file called /app/all_availability.json with this exact schema",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "each friend's listed days, within the span the schedule covers, equal the free days parsed from the schedule",
+      "requirement": "Each friend should have a list of their available date ranges (when they're free for vacation).",
+      "basis": "recomputed",
+      "note": "new; rejects A and C which list only the final window; days outside covered spans unchecked"
+     }
+    ],
+    "contested": [
+     {
+      "value": "availability of Charlie Sep-Dec 2025 and Bob outside 2025-06-01..2025-08-05",
+      "verifier_expects": "not checked",
+      "candidates_give": "B omits, D lists charlie 2025-09-01..2025-12-31",
+      "why": "the schedules do not mention these days; whether unmentioned = free is not fixed by the task"
+     }
+    ]
+   },
+   "evidence": "PPPPF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "nop"
+   ],
+   "guard": {
+    "kept": true,
+    "old_agree": 6,
+    "new_agree": 12,
+    "items": 12
+   }
+  }
+ ],
+ "usd": 0.59,
+ "before": {
+  "accepted_correct": "8/8",
+  "attempts": 10,
+  "balanced_accuracy": 0.75,
+  "isolation": "bindproc",
+  "labels": "PPPPPPPPFF",
+  "rejected_wrong": "1/2",
+  "reward": 0.5,
+  "seconds": 9.6,
+  "task": "tw-schedule-vacation",
+  "timeouts": 0,
+  "tnr": 0.5,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "8/8",
+  "attempts": 10,
+  "balanced_accuracy": 1.0,
+  "isolation": "bindproc",
+  "labels": "PPPPPPPPFF",
+  "rejected_wrong": "2/2",
+  "reward": 1.0,
+  "seconds": 2.8,
+  "task": "tw-schedule-vacation",
+  "timeouts": 0,
+  "tnr": 1.0,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPPPFF"
+ }
+}

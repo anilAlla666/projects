@@ -1,0 +1,56 @@
+diff --git a/tests/test_find_matches_mz_only.py b/tests/test_find_matches_mz_only.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_find_matches_mz_only.py
+@@ -0,0 +1,50 @@
++import numpy as np
++from matchms.similarity.spectrum_similarity_functions import find_matches
++
++
++def _as_tuples(matches):
++    return [(int(a), int(b)) for a, b in matches]
++
++
++def test_find_matches_mz_only_no_shift():
++    spec1_mz = np.array([100, 200, 300, 500], dtype="float")
++    spec2_mz = np.array([100, 205, 300, 500, 510], dtype="float")
++
++    matches = find_matches(spec1_mz, spec2_mz, 10.0)
++
++    assert _as_tuples(matches) == [(0, 0), (1, 1), (2, 2), (3, 3)]
++
++
++def test_find_matches_mz_only_tight_tolerance():
++    spec1_mz = np.array([100, 200, 300, 500], dtype="float")
++    spec2_mz = np.array([100, 205, 300, 500, 510], dtype="float")
++
++    matches = find_matches(spec1_mz, spec2_mz, 1.0)
++
++    assert _as_tuples(matches) == [(0, 0), (2, 2), (3, 3)]
++
++
++def test_find_matches_mz_only_with_shift():
++    spec1_mz = np.array([100, 200, 300, 500], dtype="float")
++    spec2_mz = np.array([95, 195, 295, 600], dtype="float")
++
++    matches = find_matches(spec1_mz, spec2_mz, 1.0, 5.0)
++
++    assert _as_tuples(matches) == [(0, 0), (1, 1), (2, 2)]
++
++
++def test_find_matches_mz_only_empty_result():
++    spec1_mz = np.array([100.0, 200.0])
++    spec2_mz = np.array([400.0, 500.0])
++
++    matches = find_matches(spec1_mz, spec2_mz, 0.5)
++
++    assert len(matches) == 0
++
++
++def test_find_matches_mz_only_multiple_matches_within_tolerance():
++    spec1_mz = np.array([100.0, 100.4])
++    spec2_mz = np.array([100.0, 100.3])
++
++    matches = find_matches(spec1_mz, spec2_mz, 0.5)
++
++    assert sorted(_as_tuples(matches)) == [(0, 0), (0, 1), (1, 0), (1, 1)]

@@ -1,0 +1,38 @@
+I couldn't run these tests. They assume `tornadowebapi/tests/` already exists as a package, and I used a new file name (`test_bad_representation.py`) to avoid colliding with an existing test file. They check only the rename and what the issue implies. `BadRepresentation` must be importable from `tornadowebapi.exceptions`, subclass `WebAPIException`, keep HTTP status 400, and report `"BadRepresentation"` as its representation type. All of them fail on the current code because the class doesn't exist. I deliberately don't test whether `BadRequest` is kept or removed, since the issue doesn't say.
+
+```diff
+--- /dev/null
++++ b/tornadowebapi/tests/test_bad_representation.py
+@@ -0,0 +1,31 @@
++import unittest
++
++from tornadowebapi import exceptions
++
++
++class TestBadRepresentation(unittest.TestCase):
++    def test_exists(self):
++        self.assertTrue(hasattr(exceptions, "BadRepresentation"))
++
++    def test_is_webapi_exception(self):
++        from tornadowebapi.exceptions import BadRepresentation
++        self.assertTrue(
++            issubclass(BadRepresentation, exceptions.WebAPIException))
++
++    def test_http_code(self):
++        from tornadowebapi.exceptions import BadRepresentation
++        self.assertEqual(BadRepresentation.http_code, 400)
++
++    def test_representation_type(self):
++        from tornadowebapi.exceptions import BadRepresentation
++        exc = BadRepresentation("wrong", foo="bar")
++        self.assertEqual(
++            exc.representation(),
++            {"type": "BadRepresentation",
++             "message": "wrong",
++             "foo": "bar"})
++
++    def test_representation_no_message(self):
++        from tornadowebapi.exceptions import BadRepresentation
++        self.assertEqual(BadRepresentation().representation(),
++                         {"type": "BadRepresentation"})
+```

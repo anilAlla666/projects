@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/test/test_mixins/test_scan_type.py
+@@ -0,0 +1,38 @@
++import pytest
++
++
++def test_scan_iter_type_zset_match(r):
++    r.zadd("key", {"a": 2})
++    assert list(r.scan_iter(match="key", _type="ZSET")) == [b"key"]
++
++
++def test_scan_iter_type_mismatch(r):
++    r.zadd("key", {"a": 2})
++    assert list(r.scan_iter(match="key", _type="STRING")) == []
++
++
++def test_scan_iter_type_filters_mixed_keys(r):
++    r.set("str1", "v")
++    r.zadd("zset1", {"a": 1})
++    r.sadd("set1", "a")
++    r.rpush("list1", "a")
++    r.hset("hash1", "f", "v")
++    assert set(r.scan_iter(_type="STRING")) == {b"str1"}
++    assert set(r.scan_iter(_type="ZSET")) == {b"zset1"}
++    assert set(r.scan_iter(_type="SET")) == {b"set1"}
++    assert set(r.scan_iter(_type="LIST")) == {b"list1"}
++    assert set(r.scan_iter(_type="HASH")) == {b"hash1"}
++
++
++def test_scan_type_option(r):
++    r.set("str1", "v")
++    r.zadd("zset1", {"a": 1})
++    cursor, keys = r.scan(0, count=100, _type="ZSET")
++    assert cursor == 0
++    assert keys == [b"zset1"]

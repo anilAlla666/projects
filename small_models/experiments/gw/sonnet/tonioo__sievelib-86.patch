@@ -1,0 +1,52 @@
+diff --git a/sievelib/tests/test_exists_export.py b/sievelib/tests/test_exists_export.py
+new file mode 100644
+--- /dev/null
++++ b/sievelib/tests/test_exists_export.py
+@@ -0,0 +1,45 @@
++# coding: utf-8
++"""Export of a parsed 'exists' test through the factory module."""
++import unittest
++
++from sievelib.factory import FiltersSet
++from sievelib.parser import Parser
++
++
++SCRIPT_SINGLE = """require ["fileinto"];
++
++# rule:[test]
++if anyof (exists ["Subject"]) {
++    fileinto "INBOX";
++}
++"""
++
++SCRIPT_MULTI = """require ["fileinto"];
++
++# rule:[test]
++if anyof (exists ["Subject", "X-Spam"]) {
++    fileinto "INBOX";
++}
++"""
++
++
++class ExistsExportTestCase(unittest.TestCase):
++    def _export(self, script):
++        parser = Parser()
++        self.assertTrue(parser.parse(script), parser.error)
++        fs = FiltersSet("test")
++        fs.from_parser_result(parser)
++        self.assertTrue(len(fs.filters) > 0)
++        name = fs.filters[0]["name"]
++        return fs.get_filter_conditions(name)
++
++    def test_export_exists_single(self):
++        conditions = self._export(SCRIPT_SINGLE)
++        self.assertIn("Subject", str(conditions))
++
++    def test_export_exists_multiple(self):
++        conditions = self._export(SCRIPT_MULTI)
++        self.assertIn("Subject", str(conditions))
++        self.assertIn("X-Spam", str(conditions))
++
++
++if __name__ == "__main__":
++    unittest.main()

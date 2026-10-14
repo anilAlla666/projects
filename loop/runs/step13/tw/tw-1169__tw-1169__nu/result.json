@@ -1,0 +1,148 @@
+{
+ "loop": "tw-1169__tw-1169__nu",
+ "task": "tw-1169",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "stop",
+   "turns": 46,
+   "usd": 0.0,
+   "seconds": 1621,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [],
+    "wrong_candidates": [
+     "A",
+     "B",
+     "C",
+     "D",
+     "E"
+    ],
+    "near_misses": [
+     "nm1_wrong_display",
+     "nm2_wrong_init",
+     "nm3_wrong_container",
+     "nm4_wrong_virt",
+     "nm5_wrong_order",
+     "nm6_uppercase",
+     "nm7_hardcoded_shortcut"
+    ],
+    "checks": [
+     {
+      "check": "Script exists at /app/system_profiler.sh and is executable",
+      "requirement": "Build a shell script called system_profiler.sh in the /app directory. The script should be executable.",
+      "basis": "format",
+      "note": "Basic existence and executability check"
+     },
+     {
+      "check": "Script exits with status code 0",
+      "requirement": "The script must exit with status code 0 on successful completion",
+      "basis": "format",
+      "note": "Exit code validation"
+     },
+     {
+      "check": "Output has exactly 4 lines in key=value format",
+      "requirement": "The output must be in the following exact format (one line per detection, in this exact order)",
+      "basis": "format",
+      "note": "Structure validation"
+     },
+     {
+      "check": "All four required keys present: DISPLAY_SERVER, INIT_SYSTEM, CONTAINER, VIRTUALIZATION",
+      "requirement": "The output must be in the following exact format (one line per detection, in this exact order)",
+      "basis": "format",
+      "note": "Completeness validation"
+     },
+     {
+      "check": "All values are valid enum members for their respective fields",
+      "requirement": "The output must be in the following exact format... DISPLAY_SERVER=<x11|wayland|headless> INIT_SYSTEM=<systemd|sysvinit|openrc|unknown> CONTAINER=<docker|podman|lxc|none> VIRTUALIZATION=<kvm|virtualbox|vmware|hyperv|none|unknown>",
+      "basis": "format",
+      "note": "Enum validation"
+     },
+     {
+      "check": "All values are lowercase",
+      "requirement": "All values must be lowercase",
+      "basis": "format",
+      "note": "Case validation"
+     },
+     {
+      "check": "Output lines in exact order: DISPLAY_SERVER, INIT_SYSTEM, CONTAINER, VIRTUALIZATION",
+      "requirement": "The output must be in the following exact format (one line per detection, in this exact order)",
+      "basis": "format",
+      "note": "Order validation"
+     },
+     {
+      "check": "DISPLAY_SERVER=headless",
+      "requirement": "Detect whether the system is using X11, Wayland, or running headless (no display server). Check $XDG_SESSION_TYPE, $DISPLAY, $WAYLAND_DISPLAY environment variables and validate by checking for running processes.",
+      "basis": "recomputed",
+      "note": "Environment has no display vars set and no X11/Wayland processes running"
+     },
+     {
+      "check": "INIT_SYSTEM=unknown",
+      "requirement": "Determine if the system uses systemd, SysVinit, OpenRC, or another init system. This requires checking PID 1, presence of systemctl, and init system indicators.",
+      "basis": "recomputed",
+      "note": "PID 1 is 'sleep', no systemd/openrc/sysvinit indicators present"
+     },
+     {
+      "check": "CONTAINER=docker",
+      "requirement": "Detect if the system is running inside a container and identify the type (Docker, Podman, LXC, or none). Check for /.dockerenv, cgroup information, and container-specific environment variables.",
+      "basis": "recomputed",
+      "note": "/.dockerenv exists, /proc/1/cgroup shows Docker cgroup v2 format"
+     },
+     {
+      "check": "VIRTUALIZATION=unknown",
+      "requirement": "Detect if running in a VM and identify the hypervisor type (KVM, VirtualBox, VMware, Hyper-V, or bare metal). Use systemd-detect-virt if available, otherwise check DMI information or /sys/class/dmi entries.",
+      "basis": "recomputed",
+      "note": "DMI shows Bochs (not in allowed list), CPU has hypervisor flag, systemd-detect-virt not available. Virtualized but type not identifiable from allowed list."
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "PPPPPF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "nop"
+   ],
+   "guard": {
+    "kept": true,
+    "old_agree": 4,
+    "new_agree": 12,
+    "items": 13
+   }
+  }
+ ],
+ "usd": 0.0,
+ "before": {
+  "accepted_correct": "4/4",
+  "attempts": 10,
+  "balanced_accuracy": 0.583333,
+  "isolation": "bindproc",
+  "labels": "PPPPFFFFFF",
+  "rejected_wrong": "1/6",
+  "reward": 0.166667,
+  "seconds": 3.5,
+  "task": "tw-1169",
+  "timeouts": 0,
+  "tnr": 0.166667,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "0/4",
+  "attempts": 10,
+  "balanced_accuracy": 0.5,
+  "isolation": "bindproc",
+  "labels": "PPPPFFFFFF",
+  "rejected_wrong": "6/6",
+  "reward": 0.0,
+  "seconds": 3.8,
+  "task": "tw-1169",
+  "timeouts": 0,
+  "tnr": 1.0,
+  "tpr": 0.0,
+  "verdicts": "FFFFFFFFFF"
+ }
+}

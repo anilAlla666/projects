@@ -1,0 +1,42 @@
+I couldn't run these tests against the repo. They assume `Trim` takes the stream kind as its first positional argument, that `video_meta_data` and `audio_meta_data` accept a `duration` keyword, and that `start` defaults to 0.
+
+The tests apply `Trim.transform` and then `SetPTS.transform` to metadata with a 10-second duration. They assert the resulting duration, so they should fail on the current code and pass once `Trim` clamps its end to EOF.
+
+```diff
+--- /dev/null
++++ b/tests/test_trim_duration.py
+@@ -0,0 +1,50 @@
++from unittest import TestCase
++
++from fffw.encoding import filters
++from fffw.graph import VIDEO, AUDIO, meta
++
++
++class TrimDurationTestCase(TestCase):
++    """ Trim must not produce output longer than the available input."""
++
++    def _trim_and_reset(self, kind, md, start, end):
++        trim = filters.Trim(kind, start=start, end=end)
++        trimmed = trim.transform(md)
++        return filters.SetPTS(kind).transform(trimmed)
++
++    def test_video_end_after_eof(self):
++        md = meta.video_meta_data(width=1920, height=1080, duration=10.0)
++        result = self._trim_and_reset(VIDEO, md, 3.0, 15.0)
++        self.assertEqual(float(result.duration), 7.0)
++
++    def test_video_end_before_eof(self):
++        md = meta.video_meta_data(width=1920, height=1080, duration=10.0)
++        result = self._trim_and_reset(VIDEO, md, 3.0, 7.0)
++        self.assertEqual(float(result.duration), 4.0)
++
++    def test_video_end_equals_eof(self):
++        md = meta.video_meta_data(width=1920, height=1080, duration=10.0)
++        result = self._trim_and_reset(VIDEO, md, 2.0, 10.0)
++        self.assertEqual(float(result.duration), 8.0)
++
++    def test_audio_end_after_eof(self):
++        md = meta.audio_meta_data(duration=10.0)
++        result = self._trim_and_reset(AUDIO, md, 3.0, 15.0)
++        self.assertEqual(float(result.duration), 7.0)
+```

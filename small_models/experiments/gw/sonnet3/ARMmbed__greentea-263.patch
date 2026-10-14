@@ -1,0 +1,70 @@
+--- /dev/null
++++ b/test/mbed_gt_glob.py
+@@ -0,0 +1,71 @@
++"""
++Tests for wildcard (glob) handling of test names passed with -n
++"""
++
++import unittest
++
++from mbed_greentea import mbed_greentea_cli
++
++
++class GreenteaTestNameGlob(unittest.TestCase):
++
++    def setUp(self):
++        self.tests = {
++            "mbed-os-tests-timer": "a",
++            "mbed-os-tests-ticker": "b",
++            "mbed-os-tests-mbed_drivers-timer": "c",
++            "other-timer": "d",
++            "other-thing": "e",
++        }
++
++    def _filter(self, pattern):
++        result = mbed_greentea_cli.create_filtered_test_list(
++            dict(self.tests), pattern, '')
++        return sorted(result.keys())
++
++    def test_exact_name(self):
++        self.assertEqual(self._filter("other-timer"), ["other-timer"])
++
++    def test_trailing_star(self):
++        self.assertEqual(
++            self._filter("mbed-os-*"),
++            ["mbed-os-tests-mbed_drivers-timer",
++             "mbed-os-tests-ticker",
++             "mbed-os-tests-timer"])
++
++    def test_leading_star(self):
++        self.assertEqual(
++            self._filter("*-timer"),
++            ["mbed-os-tests-mbed_drivers-timer",
++             "mbed-os-tests-timer",
++             "other-timer"])
++
++    def test_middle_star(self):
++        self.assertEqual(
++            self._filter("mbed-os-*-timer"),
++            ["mbed-os-tests-mbed_drivers-timer",
++             "mbed-os-tests-timer"])
++
++    def test_both_ends_star(self):
++        self.assertEqual(
++            self._filter("*tests-ti*"),
++            ["mbed-os-tests-ticker",
++             "mbed-os-tests-timer"])
++
++    def test_multiple_patterns(self):
++        self.assertEqual(
++            self._filter("*-thing,mbed-os-tests-t*"),
++            ["mbed-os-tests-ticker",
++             "mbed-os-tests-timer",
++             "other-thing"])
++
++    def test_no_match(self):
++        self.assertEqual(self._filter("*-nothing"), [])
++
++
++if __name__ == '__main__':
++    unittest.main()

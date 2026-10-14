@@ -1,0 +1,38 @@
+This diff adds two tests to `TestMultipleNetworkGrid` in `tests/test_space.py`. I have not run them. Both should fail on the current code, where `NetworkGrid` has no public `remove_agent`, and pass once it exists.
+
+- **`test_remove_agent`:** removes the only agent on node 0 and checks that its `pos` becomes `None`, that it leaves the node's agent list, and that the cell reads as empty.
+- **`test_remove_agent_shared_node`:** removes one of two agents sharing node 1 and checks that the other agent stays on the node with its `pos` unchanged.
+
+Neither test depends on how the fix is written internally, only on the public `remove_agent(agent)` signature and the `pos = None` behaviour the issue asks for.
+
+```diff
+--- a/tests/test_space.py
++++ b/tests/test_space.py
+@@ -447,6 +447,26 @@
+     def test_get_all_cell_contents(self):
+         assert self.space.get_all_cell_contents() == [
+             self.agents[0],
+             self.agents[1],
+             self.agents[2],
+         ]
++
++    def test_remove_agent(self):
++        agent = self.agents[0]
++        assert agent.pos == 0
++        assert agent in self.space.G.nodes[0]["agent"]
++        self.space.remove_agent(agent)
++        assert agent.pos is None
++        assert agent not in self.space.G.nodes[0]["agent"]
++        assert self.space.is_cell_empty(0)
++
++    def test_remove_agent_shared_node(self):
++        removed = self.agents[1]
++        remaining = self.agents[2]
++        assert removed.pos == 1
++        self.space.remove_agent(removed)
++        assert removed.pos is None
++        assert removed not in self.space.G.nodes[1]["agent"]
++        assert remaining in self.space.G.nodes[1]["agent"]
++        assert remaining.pos == 1
++        assert self.space.get_cell_list_contents([1]) == [remaining]
+```

@@ -1,0 +1,109 @@
+The tests below assume lightstep-tracer-python's 4.x internals, which I could not check against the repo: `Recorder._span_records`, `Recorder.flush(connection=...)`, and `SpanContext(trace_id, span_id, baggage, sampled)`. They have not been run. If any of those names differ, the tests need adjusting.
+
+The first four tests cover spans that arrive unsampled. They check that such spans are not buffered, are not sent to the collector on flush, and stay unsampled after an inject/extract round trip. The last two check that sampled spans are still recorded and sent.
+
+```diff
+diff --git a/tests/test_sampling.py b/tests/test_sampling.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_sampling.py
+@@ -0,0 +1,100 @@
++import unittest
++
++import opentracing
++from opentracing.propagation import Format
++
++import lightstep
++from lightstep.span_context import SpanContext
++
++
++class FakeConnection(object):
++    def __init__(self):
++        self.reports = []
++        self.ready = True
++
++    def report(self, auth, request):
++        self.reports.append(request)
++        return None
++
++
++def make_tracer():
++    return lightstep.Tracer(
++        component_name='sampling_test',
++        access_token='token',
++        periodic_flush_seconds=0,
++        collector_host='localhost',
++        collector_port=1,
++        verbosity=0,
++    )
++
++
++def buffered(tracer):
++    return list(tracer.recorder._span_records)
++
++
++class SamplingTest(unittest.TestCase):
++    def setUp(self):
++        self.tracer = make_tracer()
++
++    def tearDown(self):
++        try:
++            self.tracer.recorder.shutdown()
++        except Exception:
++            pass
++
++    def _unsampled_parent(self):
++        return SpanContext(trace_id=1, span_id=2, baggage={}, sampled=False)
++
++    def test_unsampled_child_not_buffered(self):
++        span = self.tracer.start_span(
++            'child', child_of=self._unsampled_parent())
++        span.finish()
++        self.assertEqual(len(buffered(self.tracer)), 0)
++
++    def test_sampled_child_buffered(self):
++        parent = SpanContext(trace_id=1, span_id=2, baggage={}, sampled=True)
++        span = self.tracer.start_span('child', child_of=parent)
++        span.finish()
++        self.assertEqual(len(buffered(self.tracer)), 1)
++
++    def test_default_root_span_buffered(self):
++        self.tracer.start_span('root').finish()
++        self.assertEqual(len(buffered(self.tracer)), 1)
++
++    def test_unsampled_not_sent_on_flush(self):
++        self.tracer.start_span(
++            'unsampled', child_of=self._unsampled_parent()).finish()
++        self.tracer.start_span('sampled').finish()
++        conn = FakeConnection()
++        self.tracer.recorder.flush(connection=conn)
++        sent = []
++        for req in conn.reports:
++            sent.extend(getattr(req, 'span_records', []))
++        names = [s.operation_name for s in sent]
++        self.assertEqual(names, ['sampled'])
++
++    def test_unsampled_survives_propagation(self):
++        parent = self.tracer.start_span(
++            'p', child_of=self._unsampled_parent())
++        carrier = {}
++        self.tracer.inject(parent.context, Format.TEXT_MAP, carrier)
++        ctx = self.tracer.extract(Format.TEXT_MAP, carrier)
++        child = self.tracer.start_span('c', child_of=ctx)
++        child.finish()
++        parent.finish()
++        self.assertEqual(len(buffered(self.tracer)), 0)
++
++    def test_sampled_span_sent_on_flush(self):
++        self.tracer.start_span('sampled').finish()
++        conn = FakeConnection()
++        self.tracer.recorder.flush(connection=conn)
++        sent = []
++        for req in conn.reports:
++            sent.extend(getattr(req, 'span_records', []))
++        self.assertEqual(len(sent), 1)
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

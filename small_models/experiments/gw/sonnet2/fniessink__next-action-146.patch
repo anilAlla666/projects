@@ -1,0 +1,46 @@
+diff --git a/tests/unittests/arguments/test_context_exclusion_then_project.py b/tests/unittests/arguments/test_context_exclusion_then_project.py
+new file mode 100644
+--- /dev/null
++++ b/tests/unittests/arguments/test_context_exclusion_then_project.py
+@@ -0,0 +1,45 @@
++"""Unit tests for filtering on a project after a context and an excluded context."""
++
++import sys
++import unittest
++from unittest.mock import patch
++
++from next_action.arguments import NextActionArgumentParser
++
++
++def parse():
++    """Parse the (patched) command line arguments."""
++    return NextActionArgumentParser().parse_args()
++
++
++class ContextExcludedContextProjectTest(unittest.TestCase):
++    """Test that a project can follow a context and an excluded context."""
++
++    @patch.object(sys, "argv", ["next-action", "@context", "-@excluded_context", "+project"])
++    def test_project_after_excluded_context(self):
++        """Test that the project is recognised after context and excluded context."""
++        namespace = parse()
++        filters = str(namespace.filters)
++        self.assertIn("context", filters)
++        self.assertIn("excluded_context", filters)
++        self.assertIn("project", filters)
++
++    @patch.object(sys, "argv", ["next-action", "@context", "-@excluded_context", "+project", "-+excluded_project"])
++    def test_excluded_project_too(self):
++        """Test that an excluded project can follow as well."""
++        namespace = parse()
++        filters = str(namespace.filters)
++        self.assertIn("project", filters)
++        self.assertIn("excluded_project", filters)
++
++    @patch.object(sys, "argv", ["next-action", "+project", "@context", "-@excluded_context"])
++    def test_project_first(self):
++        """Test that the project first still works."""
++        namespace = parse()
++        filters = str(namespace.filters)
++        self.assertIn("project", filters)
++        self.assertIn("excluded_context", filters)

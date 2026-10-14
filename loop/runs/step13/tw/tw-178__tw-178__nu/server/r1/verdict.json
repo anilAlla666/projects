@@ -1,0 +1,51 @@
+{
+  "changed": true,
+  "correct_candidates": ["A", "B"],
+  "wrong_candidates": ["C", "D"],
+  "near_misses": ["nm1_mismatched_delimiter", "nm2_pipe_instead_of_proc_sub", "nm3_here_doc_instead_of_here_string", "nm4_shortcut_hardcoded"],
+  "checks": [
+    {
+      "check": "Script uses #!/bin/bash shebang",
+      "requirement": "The script must use #!/bin/bash shebang (not sh) for process substitution support",
+      "basis": "task-text",
+      "note": "Explicitly required by task: 'The script must use #!/bin/bash shebang (not sh)'"
+    },
+    {
+      "check": "Script executes without error (exit code 0)",
+      "requirement": "The fixed script should run without errors",
+      "basis": "task-text",
+      "note": "Implied by 'ensure it runs without errors'"
+    },
+    {
+      "check": "Output file /app/output.txt matches /app/expected_output.txt exactly",
+      "requirement": "The fixed script should produce output to /app/output.txt that matches /app/expected_output.txt",
+      "basis": "task-text",
+      "note": "Explicitly required by task"
+    },
+    {
+      "check": "Config summary file /app/config_summary.txt exists with correct parsed configuration values",
+      "requirement": "The script should also generate /app/config_summary.txt with parsed configuration values",
+      "basis": "task-text",
+      "note": "Explicitly required by task; content derived from config here-document in task"
+    },
+    {
+      "check": "Script uses here-document (<< DELIMITER) with matching delimiter for configuration",
+      "requirement": "Read configuration from a here-document",
+      "basis": "task-text",
+      "note": "Explicitly required: 'Read configuration from a here-document'; bug 2 is 'Here-document syntax (mismatched delimiters)'"
+    },
+    {
+      "check": "Script uses here-string (<<<) with bc for single-value transformation",
+      "requirement": "Process input data using here-strings for single-value transformations",
+      "basis": "task-text",
+      "note": "Explicitly required: 'Process input data using here-strings for single-value transformations'; bug 4 is 'Incorrect here-string usage - missing the <<< operator'"
+    },
+    {
+      "check": "Script uses process substitution (<()) with diff for data comparison",
+      "requirement": "Compare outputs from multiple data sources using process substitution",
+      "basis": "task-text",
+      "note": "Explicitly required: 'Compare outputs from multiple data sources using process substitution'; bug 5 is 'Using pipe instead of process substitution for diff'"
+    }
+  ],
+  "contested": []
+}

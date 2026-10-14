@@ -1,0 +1,50 @@
+This test file calls `find_matches` with 1-D m/z arrays. The current code indexes `spec[:, 0]`, so those calls should fail under numba typing, and they should pass once the function takes only m/z values. I haven't run it. It assumes `find_matches` returns a list of `(idx1, idx2)` pairs.
+
+```diff
+diff --git a/tests/similarity/test_find_matches_mz_only.py b/tests/similarity/test_find_matches_mz_only.py
+new file mode 100644
+--- /dev/null
++++ b/tests/similarity/test_find_matches_mz_only.py
+@@ -0,0 +1,41 @@
++import numpy as np
++from matchms.similarity.spectrum_similarity_functions import find_matches
++
++
++def _as_pairs(matches):
++    return [(int(m[0]), int(m[1])) for m in matches]
++
++
++def test_find_matches_accepts_1d_mz_arrays():
++    mz1 = np.array([100.0, 200.0, 300.0, 500.0])
++    mz2 = np.array([100.0, 205.0, 300.0, 500.0, 510.0])
++    matches = _as_pairs(find_matches(mz1, mz2, 10.0))
++    assert matches == [(0, 0), (1, 1), (2, 2), (3, 3)]
++
++
++def test_find_matches_small_tolerance_1d():
++    mz1 = np.array([100.0, 200.0, 300.0, 500.0])
++    mz2 = np.array([100.0, 205.0, 300.0, 500.0, 510.0])
++    matches = _as_pairs(find_matches(mz1, mz2, 0.1))
++    assert matches == [(0, 0), (2, 2), (3, 3)]
++
++
++def test_find_matches_with_shift_1d():
++    mz1 = np.array([100.0, 200.0, 300.0])
++    mz2 = np.array([95.0, 195.0, 400.0])
++    matches = _as_pairs(find_matches(mz1, mz2, 0.1, 5.0))
++    assert matches == [(0, 0), (1, 1)]
++
++
++def test_find_matches_no_matches_1d():
++    mz1 = np.array([100.0, 200.0])
++    mz2 = np.array([300.0, 400.0])
++    matches = _as_pairs(find_matches(mz1, mz2, 1.0))
++    assert matches == []
++
++
++def test_find_matches_multiple_matches_1d():
++    mz1 = np.array([100.0, 101.0])
++    mz2 = np.array([100.0, 100.5, 101.0])
++    matches = _as_pairs(find_matches(mz1, mz2, 0.6))
++    assert matches == [(0, 0), (0, 1), (1, 1), (1, 2)]
+```

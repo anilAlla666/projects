@@ -1,0 +1,113 @@
+PACKAGE AUDIT REPORT: nginx
+Generated: 2026-10-11T19:17:45Z
+
+FILES SECTION
+Binaries
+  - /usr/sbin/nginx
+
+Configuration files
+  - /etc/default
+  - /etc/default/nginx
+  - /etc/init.d
+  - /etc/init.d/nginx
+  - /etc/logrotate.d
+  - /etc/logrotate.d/nginx
+  - /etc/nginx
+  - /etc/nginx/conf.d
+  - /etc/nginx/fastcgi.conf
+  - /etc/nginx/fastcgi_params
+
+Libraries
+  - /usr/lib/systemd
+  - /usr/lib/systemd/system
+  - /usr/lib/systemd/system/nginx.service
+
+Documentation
+  - /usr/share/doc/nginx
+  - /usr/share/doc/nginx-common
+  - /usr/share/doc/nginx-common/changelog.Debian.gz
+  - /usr/share/doc/nginx-common/copyright
+  - /usr/share/doc/nginx/changelog.Debian.gz
+  - /usr/share/doc/nginx/copyright
+  - /usr/share/man/man8
+  - /usr/share/man/man8/nginx.8.gz
+
+Other files
+  - 
+  - /etc
+  - /usr/lib
+  - /usr/sbin
+  - /usr/share
+  - /usr/share/apport
+  - /usr/share/apport/package-hooks
+  - /usr/share/apport/package-hooks/source_nginx.py
+  - /usr/share/doc
+  - /usr/share/man
+
+DEPENDENCIES SECTION
+Direct dependency expression
+  libc6 (>= 2.34), libcrypt1 (>= 1:4.1.0), libpcre2-8-0 (>= 10.22), libssl3t64 (>= 3.0.0), zlib1g (>= 1:1.1.4), iproute2, nginx-common (= 1.24.0-2ubuntu7.18)
+
+Dependency tree (direct)
+  nginx
+    Depends: libc6
+    Depends: libcrypt1
+    Depends: libpcre2-8-0
+    Depends: libssl3t64
+    Depends: zlib1g
+    Depends: iproute2
+    Depends: nginx-common
+    Breaks: nginx-core
+    Breaks: nginx-extras
+    Breaks: nginx-light
+    Replaces: nginx-core
+    Replaces: nginx-extras
+    Replaces: nginx-light
+
+SCRIPTS SECTION
+Maintainer post-installation scripts
+  - /var/lib/dpkg/info/nginx.postinst
+  - /var/lib/dpkg/info/nginx-common.postinst
+
+Brief summary
+  - Service integration and unit handling
+  - Reload/restart logic during install/upgrade
+  - Maintainer-script hooks and triggers
+
+Postinst indicators
+  - /var/lib/dpkg/info/nginx.postinst:    if invoke-rc.d --quiet nginx status >/dev/null; then
+  - /var/lib/dpkg/info/nginx.postinst:      invoke-rc.d nginx reload || true
+  - /var/lib/dpkg/info/nginx.postinst:if invoke-rc.d --quiet nginx status >/dev/null; then
+  - /var/lib/dpkg/info/nginx.postinst:  invoke-rc.d nginx upgrade || invoke-rc.d nginx restart
+  - /var/lib/dpkg/info/nginx.postinst:    invoke-rc.d nginx start || exit $?
+  - /var/lib/dpkg/info/nginx-common.postinst:	deb-systemd-helper unmask 'nginx.service' >/dev/null || true
+  - /var/lib/dpkg/info/nginx-common.postinst:	if deb-systemd-helper --quiet was-enabled 'nginx.service'; then
+  - /var/lib/dpkg/info/nginx-common.postinst:		deb-systemd-helper enable 'nginx.service' >/dev/null || true
+  - /var/lib/dpkg/info/nginx-common.postinst:		deb-systemd-helper update-state 'nginx.service' >/dev/null || true
+  - /var/lib/dpkg/info/nginx-common.postinst:		systemctl --system daemon-reload >/dev/null || true
+  - /var/lib/dpkg/info/nginx-common.postinst:		deb-systemd-invoke $_dh_action 'nginx.service' >/dev/null || true
+
+CONFFILES SECTION
+  - /etc/default/nginx
+  - /etc/init.d/nginx
+  - /etc/logrotate.d/nginx
+  - /etc/nginx/fastcgi.conf
+  - /etc/nginx/fastcgi_params
+  - /etc/nginx/koi-utf
+  - /etc/nginx/mime.types
+  - /etc/nginx/nginx.conf
+  - /etc/nginx/proxy_params
+  - /etc/nginx/scgi_params
+  - /etc/nginx/sites-available/default
+  - /etc/nginx/snippets/fastcgi-php.conf
+  - /etc/nginx/snippets/snakeoil.conf
+  - /etc/nginx/uwsgi_params
+  - /etc/nginx/win-utf
+  - /etc/ufw/applications.d/nginx
+
+SERVICES SECTION
+Associated unit files
+  - /lib/systemd/system/nginx.service
+
+Service status
+  /replay.sh: line 73: systemctl: command not found

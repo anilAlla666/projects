@@ -1,0 +1,115 @@
+{
+ "loop": "tw-44__tw-44__extra__nu",
+ "task": "tw-44",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "stop",
+   "turns": 46,
+   "usd": 0.0,
+   "seconds": 1209,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [],
+    "wrong_candidates": [
+     "A",
+     "B",
+     "C",
+     "D",
+     "E"
+    ],
+    "near_misses": [
+     "nm1_wrong_current_shell",
+     "nm2_missing_shell",
+     "nm3_fabricated_shell",
+     "nm4_no_verification"
+    ],
+    "checks": [
+     {
+      "check": "Report file exists at /app/shell_report.txt",
+      "requirement": "report should be saved as shell_report.txt in the /app directory",
+      "basis": "task-text",
+      "note": "Direct file existence check"
+     },
+     {
+      "check": "Current shell identified as bash (\"bash\" or \"/bin/bash\") not a script path",
+      "requirement": "The current shell being used (identified by $0 or similar methods)",
+      "basis": "task-text",
+      "note": "Accepts $0 output \"bash\" or $SHELL output \"/bin/bash\"; rejects script paths like /replay.sh"
+     },
+     {
+      "check": "All shells from /etc/shells listed in report (including duplicate /usr/bin/zsh)",
+      "requirement": "A list of all installed shells found on the system (from /etc/shells)",
+      "basis": "recomputed",
+      "note": "Reads /etc/shells at verification time; requires all 14 entries present"
+     },
+     {
+      "check": "No fabricated shells (e.g., /usr/bin/tmux) in report",
+      "requirement": "A list of all installed shells found on the system (from /etc/shells)",
+      "basis": "task-text",
+      "note": "Explicitly rejects /usr/bin/tmux; flags any /bin/* or /usr/bin/* path not in /etc/shells"
+     },
+     {
+      "check": "Each shell verified as existing and executable",
+      "requirement": "Verification that these shells actually exist as executable files",
+      "basis": "task-text",
+      "note": "Accepts per-shell verification or general \"all verified\" statement"
+     },
+     {
+      "check": "Absolute path to each shell executable present",
+      "requirement": "The absolute path to each shell executable",
+      "basis": "task-text",
+      "note": "Covered by shell list check since /etc/shells contains absolute paths"
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "FFFFFF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "nop"
+   ],
+   "guard": {
+    "kept": false,
+    "old_agree": 10,
+    "new_agree": 10,
+    "items": 10
+   }
+  }
+ ],
+ "usd": 0.0,
+ "before": {
+  "accepted_correct": "0/5",
+  "attempts": 8,
+  "balanced_accuracy": 0.5,
+  "isolation": "bindproc",
+  "labels": "PPPPPFFF",
+  "rejected_wrong": "3/3",
+  "reward": 0.0,
+  "seconds": 0.8,
+  "task": "tw-44",
+  "timeouts": 0,
+  "tnr": 1.0,
+  "tpr": 0.0,
+  "verdicts": "FFFFFFFF"
+ },
+ "after": {
+  "accepted_correct": "0/5",
+  "attempts": 8,
+  "balanced_accuracy": 0.5,
+  "isolation": "bindproc",
+  "labels": "PPPPPFFF",
+  "rejected_wrong": "3/3",
+  "reward": 0.0,
+  "seconds": 0.8,
+  "task": "tw-44",
+  "timeouts": 0,
+  "tnr": 1.0,
+  "tpr": 0.0,
+  "verdicts": "FFFFFFFF"
+ }
+}

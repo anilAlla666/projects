@@ -1,0 +1,12 @@
+{"changed": true,
+ "correct_candidates": ["A","B","C"],
+ "wrong_candidates": [],
+ "near_misses": ["nm_unsorted","nm_one_wrong_value","nm_wal_values_as_strings","nm_only_8_committed_rows","nm_missing_record14","nm_fabricated_extra_record","nm_name_case","nm_wrapped_in_object"],
+ "checks": [
+  {"check": "/data/recovered.json exists and is valid JSON", "requirement": "export everything to /data/recovered.json", "basis": "format", "note": ""},
+  {"check": "top level is a list of objects with exactly keys id,name,value; id/value int (not bool), name str", "requirement": "The output format should be: [{\"id\": 1, \"name\": \"record1\", \"value\": X}, ...]", "basis": "format", "note": "replaces many separate pytest checks"},
+  {"check": "ids ascending", "requirement": "sorted by id", "basis": "format", "note": ""},
+  {"check": "exactly 15 records equal to id 1..15, name record<id>, value id*10", "requirement": "recover all the missing data ... maybe 15 records total", "basis": "recomputed", "note": "SELECT * FROM records on /data/database.db with its WAL via sqlite3"},
+  {"check": "test.sh runs python3 check.py with no network/uv/pytest dependency", "requirement": "write 1 or 0 to /logs/verifier/reward.txt", "basis": "format", "note": "old test.sh tried apt/curl/uv offline"}
+ ],
+ "contested": []}

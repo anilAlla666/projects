@@ -1,0 +1,91 @@
+The diff below adds a test file that checks `keys()`, `values()` and `items()` leave nested dicts as synced objects, for both the statepoint and the job document. I did not run it against the repository. It should fail on the current code, where `values()` turns nested synced dicts into plain `dict` objects.
+
+The tests do not decide the open question of whether `values()` should return synced or plain dicts. They only check that calling these methods does not change the stored nested objects.
+
+```diff
+diff --git a/tests/test_synced_dict_mutation.py b/tests/test_synced_dict_mutation.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_synced_dict_mutation.py
+@@ -0,0 +1,80 @@
++# Copyright (c) 2019 The Regents of the University of Michigan
++# All rights reserved.
++# This software is licensed under the BSD 3-Clause License.
++import shutil
++import tempfile
++import unittest
++
++import signac
++from signac.core.attrdict import SyncedAttrDict
++
++
++class SyncedDictMappingMethodsTest(unittest.TestCase):
++
++    def setUp(self):
++        self._tmp_dir = tempfile.mkdtemp(prefix='signac_')
++        self.addCleanup(shutil.rmtree, self._tmp_dir, ignore_errors=True)
++        self.project = signac.init_project(
++            name='synceddict_test', root=self._tmp_dir)
++
++    def _job(self):
++        return self.project.open_job({'a': {'b': 'c'}}).init()
++
++    def test_statepoint_nested_is_synced(self):
++        job = self._job()
++        self.assertIsInstance(job.sp.a, SyncedAttrDict)
++
++    def test_statepoint_values_does_not_modify(self):
++        job = self._job()
++        before = type(job.sp.a)
++        job.sp.values()
++        self.assertIs(type(job.sp.a), before)
++        self.assertIsInstance(job.sp.a, SyncedAttrDict)
++        self.assertEqual(job.sp.a, {'b': 'c'})
++
++    def test_statepoint_values_iterated_does_not_modify(self):
++        job = self._job()
++        list(job.sp.values())
++        self.assertIsInstance(job.sp.a, SyncedAttrDict)
++
++    def test_statepoint_items_does_not_modify(self):
++        job = self._job()
++        list(job.sp.items())
++        self.assertIsInstance(job.sp.a, SyncedAttrDict)
++
++    def test_statepoint_keys_does_not_modify(self):
++        job = self._job()
++        list(job.sp.keys())
++        self.assertIsInstance(job.sp.a, SyncedAttrDict)
++
++    def test_statepoint_nested_still_syncs_after_values(self):
++        job = self._job()
++        job.sp.values()
++        job.sp.a.b = 'd'
++        self.assertEqual(job.sp.a.b, 'd')
++        # A freshly opened job must see the new state point value.
++        self.assertEqual(
++            len(list(self.project.find_jobs({'a.b': 'd'}))), 1)
++
++    def test_document_values_does_not_modify(self):
++        job = self._job()
++        job.doc.a = {'b': 'c'}
++        before = type(job.doc.a)
++        job.doc.values()
++        self.assertIs(type(job.doc.a), before)
++        list(job.doc.items())
++        list(job.doc.keys())
++        self.assertIs(type(job.doc.a), before)
++        self.assertIsNot(type(job.doc.a), dict)
++
++    def test_document_nested_still_syncs_after_values(self):
++        job = self._job()
++        job.doc.a = {'b': 'c'}
++        job.doc.values()
++        job.doc.a.b = 'd'
++        other = self.project.open_job({'a': {'b': 'c'}})
++        self.assertEqual(other.doc.a.b, 'd')
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

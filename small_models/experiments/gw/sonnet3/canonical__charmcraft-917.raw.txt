@@ -1,0 +1,59 @@
+I've added a new test file rather than editing `tests/test_main.py`. I haven't run these tests. The first one should fail on the current code, which drops `CHARMCRAFT_AUTH` from the output entirely. The other two pass on current code and should keep passing after the fix.
+
+The tests assume the format shown in the issue, `CHARMCRAFT_AUTH='<hidden>'`, and that the secret value itself never appears in the output. The `<hidden>` placeholder is the one detail I take from the issue's example, since the issue says "something like".
+
+```diff
+--- /dev/null
++++ b/tests/test_main_auth_env.py
+@@ -0,0 +1,45 @@
++# Copyright 2022 Canonical Ltd.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++# http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++#
++# For further info, check https://github.com/canonical/charmcraft
++
++"""Tests for logging the presence of the auth environment variable."""
++
++from charmcraft.commands.store.client import ALTERNATE_AUTH_ENV_VAR
++from charmcraft.main import _get_system_details
++
++
++def test_system_details_auth_present_is_hidden(monkeypatch):
++    """The presence of the auth variable is logged, but not its value."""
++    secret = "super-secret-credentials-123"
++    monkeypatch.setenv(ALTERNATE_AUTH_ENV_VAR, secret)
++
++    result = _get_system_details()
++
++    assert secret not in result
++    assert f"{ALTERNATE_AUTH_ENV_VAR}='<hidden>'" in result
++
++
++def test_system_details_auth_absent(monkeypatch):
++    """If the auth variable is not set, it is not mentioned."""
++    monkeypatch.delenv(ALTERNATE_AUTH_ENV_VAR, raising=False)
++
++    result = _get_system_details()
++
++    assert ALTERNATE_AUTH_ENV_VAR not in result
++
++
++def test_system_details_other_charmcraft_vars_still_logged(monkeypatch):
++    """Other CHARMCRAFT variables are logged with their real values."""
++    monkeypatch.setenv("CHARMCRAFT_FOO", "bar")
++    monkeypatch.setenv(ALTERNATE_AUTH_ENV_VAR, "secret")
++
++    result = _get_system_details()
++
++    assert "CHARMCRAFT_FOO='bar'" in result
+```

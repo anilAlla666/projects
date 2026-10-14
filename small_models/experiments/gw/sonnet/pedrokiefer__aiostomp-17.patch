@@ -1,0 +1,92 @@
+diff --git a/tests/test_protocol_partial.py b/tests/test_protocol_partial.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_protocol_partial.py
+@@ -0,0 +1,100 @@
++import unittest
++from unittest.mock import Mock
++
++from aiostomp.protocol import StompReader
++
++
++def _make_reader(handler):
++    try:
++        return StompReader(handler, loop=None)
++    except TypeError:
++        return StompReader(handler)
++
++
++def _as_str(value):
++    if isinstance(value, bytes):
++        return value.decode()
++    return value
++
++
++def _frames(handler):
++    return [c[1][0] for c in handler.method_calls if c[1]]
++
++
++FRAME = (
++    b"MESSAGE\n"
++    b"subscription:1\n"
++    b"message-id:007\n"
++    b"destination:/queue/a\n"
++    b"\n"
++    b"hello world\x00"
++)
++
++
++class TestPartialCommand(unittest.TestCase):
++    def setUp(self):
++        self.handler = Mock()
++        self.reader = _make_reader(self.handler)
++
++    def test_partial_command_does_not_raise(self):
++        for chunk in (b"M", b"ME", b"MES", b"MESSAG", b"MESSAGE"):
++            handler = Mock()
++            reader = _make_reader(handler)
++            reader.feed_data(chunk)
++            self.assertEqual(_frames(handler), [])
++
++    def test_command_split_across_feeds(self):
++        self.reader.feed_data(b"ME")
++        self.reader.feed_data(b"SSAGE\nsubscription:1\nmessage-id:007\n")
++        self.reader.feed_data(b"destination:/queue/a\n\nhello world\x00")
++
++        frames = _frames(self.handler)
++        self.assertEqual(len(frames), 1)
++        self.assertEqual(_as_str(frames[0].command), "MESSAGE")
++        self.assertEqual(_as_str(frames[0].body), "hello world")
++
++    def test_command_fed_byte_by_byte(self):
++        for i in range(len(FRAME)):
++            self.reader.feed_data(FRAME[i:i + 1])
++
++        frames = _frames(self.handler)
++        self.assertEqual(len(frames), 1)
++        self.assertEqual(_as_str(frames[0].command), "MESSAGE")
++        self.assertEqual(_as_str(frames[0].body), "hello world")
++
++    def test_every_split_point(self):
++        for i in range(1, len(FRAME)):
++            handler = Mock()
++            reader = _make_reader(handler)
++            reader.feed_data(FRAME[:i])
++            reader.feed_data(FRAME[i:])
++            frames = _frames(handler)
++            self.assertEqual(len(frames), 1, "split at %d" % i)
++            self.assertEqual(_as_str(frames[0].command), "MESSAGE")
++            self.assertEqual(_as_str(frames[0].body), "hello world")
++
++    def test_partial_command_after_complete_frame(self):
++        self.reader.feed_data(FRAME + b"MESS")
++        self.assertEqual(len(_frames(self.handler)), 1)
++        self.reader.feed_data(b"AGE\nsubscription:1\n\nsecond\x00")
++        frames = _frames(self.handler)
++        self.assertEqual(len(frames), 2)
++        self.assertEqual(_as_str(frames[1].command), "MESSAGE")
++        self.assertEqual(_as_str(frames[1].body), "second")
++
++
++if __name__ == "__main__":
++    unittest.main()

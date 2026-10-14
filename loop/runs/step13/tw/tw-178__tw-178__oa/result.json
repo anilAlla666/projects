@@ -1,0 +1,129 @@
+{
+ "loop": "tw-178__tw-178__oa",
+ "task": "tw-178",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 12,
+   "usd": 0.5368,
+   "seconds": 234,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "A",
+     "B"
+    ],
+    "wrong_candidates": [
+     "C",
+     "D"
+    ],
+    "near_misses": [
+     "nm1_sh_shebang",
+     "nm2_no_config_summary",
+     "nm3_pipe_not_procsub",
+     "nm4_no_herestring",
+     "nm5_hardcoded_diff",
+     "nm6_missing_blank",
+     "nm7_untouched_original"
+    ],
+    "checks": [
+     {
+      "check": "first line is #!/bin/bash",
+      "requirement": "The script must use #!/bin/bash shebang (not sh)",
+      "basis": "task-text",
+      "note": "kept from original"
+     },
+     {
+      "check": "bash -n clean, exit 0, no error/warning on stderr",
+      "requirement": "Fix the script in place ... and ensure it runs without errors",
+      "basis": "task-text",
+      "note": "exit 0 kept; syntax/stderr added (catches mismatched heredoc warning)"
+     },
+     {
+      "check": "output.txt (regenerated) byte-equals expected_output.txt",
+      "requirement": "The fixed script should produce output to /app/output.txt that matches /app/expected_output.txt",
+      "basis": "task-text",
+      "note": "outputs deleted before run; expected copied from Dockerfile"
+     },
+     {
+      "check": "config_summary.txt regenerated and contains the 4 config key: value lines",
+      "requirement": "The script should also generate /app/config_summary.txt with parsed configuration values",
+      "basis": "task-text",
+      "note": "exact layout not specified, only the values are checked"
+     },
+     {
+      "check": "non-comment here-string <<< present",
+      "requirement": "Process input data using here-strings for single-value transformations; maintaining the original intended functionality",
+      "basis": "format",
+      "note": "structural"
+     },
+     {
+      "check": "diff fed via process substitution <(...)",
+      "requirement": "Compare outputs from multiple data sources using process substitution",
+      "basis": "format",
+      "note": "structural"
+     },
+     {
+      "check": "comparison section equals real diff after input files are changed",
+      "requirement": "maintaining the original intended functionality (compare input_a/input_b)",
+      "basis": "recomputed",
+      "note": "anti-hardcoding behavioural check"
+     },
+     {
+      "check": "no literal 84 / banana / blueberry / expected_output in code",
+      "requirement": "Fix each bug while maintaining the original intended functionality",
+      "basis": "format",
+      "note": "anti-shortcut"
+     },
+     {
+      "check": "offline test.sh (no curl/uv/pytest)",
+      "requirement": "grader has no network",
+      "basis": "format",
+      "note": "original test.sh could never run"
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "",
+   "evidence_ids": [],
+   "guard": {
+    "kept": false,
+    "old_agree": null,
+    "new_agree": null,
+    "items": null
+   }
+  }
+ ],
+ "usd": 0.537,
+ "before": {
+  "accepted_correct": "5/5",
+  "attempts": 8,
+  "balanced_accuracy": 0.666667,
+  "isolation": "bindproc",
+  "labels": "PPPPPFFF",
+  "rejected_wrong": "1/3",
+  "reward": 0.333333,
+  "seconds": 4.5,
+  "task": "tw-178",
+  "timeouts": 0,
+  "tnr": 0.333333,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "5/5",
+  "attempts": 8,
+  "balanced_accuracy": 0.666667,
+  "isolation": "bindproc",
+  "labels": "PPPPPFFF",
+  "rejected_wrong": "1/3",
+  "reward": 0.333333,
+  "seconds": 4.1,
+  "task": "tw-178",
+  "timeouts": 0,
+  "tnr": 0.333333,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPPF"
+ }
+}

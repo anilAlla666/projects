@@ -1,0 +1,95 @@
+This test file is written without seeing `fdbk/data_tools/_utils.py`, so I haven't run it and its assumptions about the API may be wrong. It assumes the public data-tool functions in `fdbk.data_tools.functions` can be called as `fn(topic_d, data)`. If that signature is wrong, every call is skipped and `test_some_function_reports_unit` fails, rather than passing silently.
+
+On the current code, a unit that sits next to the value rather than inside it should make `test_unit_only_inside_value_payload` fail. The check is that any dict holding a `unit` key must also hold a `value` key.
+
+```diff
+diff --git a/tests/test_data_tools_unit_payload.py b/tests/test_data_tools_unit_payload.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_data_tools_unit_payload.py
+@@ -0,0 +1,87 @@
++from unittest import TestCase
++
++from fdbk import data_tools
++
++
++TOPIC_D = {
++    "name": "Unit topic",
++    "type": "basic",
++    "data_tools": [],
++    "field_names": ["temperature", "humidity"],
++    "units": ["C", "%"],
++}
++
++DATA = [
++    {"timestamp": "2020-01-01T10:00:00Z", "temperature": 20.0, "humidity": 40.0},
++    {"timestamp": "2020-01-01T11:00:00Z", "temperature": 22.0, "humidity": 45.0},
++    {"timestamp": "2020-01-01T12:00:00Z", "temperature": 24.0, "humidity": 50.0},
++]
++
++
++def _public_functions():
++    container = getattr(data_tools, "functions", data_tools)
++    for name in dir(container):
++        if name.startswith("_"):
++            continue
++        fn = getattr(container, name)
++        if callable(fn) and not isinstance(fn, type):
++            yield name, fn
++
++
++def _results():
++    results = []
++    for name, fn in _public_functions():
++        for args in ((TOPIC_D, DATA),):
++            try:
++                res = fn(*args)
++            except Exception:
++                continue
++            if isinstance(res, (dict, list)):
++                results.append((name, res))
++                break
++    return results
++
++
++def _walk(obj):
++    """Yield every dict found recursively."""
++    if isinstance(obj, dict):
++        yield obj
++        for v in obj.values():
++            for d in _walk(v):
++                yield d
++    elif isinstance(obj, (list, tuple)):
++        for v in obj:
++            for d in _walk(v):
++                yield d
++
++
++class DataToolsUnitPayloadTest(TestCase):
++    def test_some_function_reports_unit(self):
++        found = False
++        for _, res in _results():
++            for d in _walk(res):
++                if "unit" in d:
++                    found = True
++        self.assertTrue(found, "No data tool output contained a unit")
++
++    def test_unit_only_inside_value_payload(self):
++        results = _results()
++        self.assertTrue(results)
++        for name, res in results:
++            for d in _walk(res):
++                if "unit" in d:
++                    self.assertIn(
++                        "value",
++                        d,
++                        "{}: unit found outside value payload: {}".format(
++                            name, d),
++                    )
++
++    def test_unit_values_are_known_units(self):
++        for name, res in _results():
++            for d in _walk(res):
++                if "unit" in d and d["unit"] is not None:
++                    self.assertIn(d["unit"], TOPIC_D["units"], name)
+```

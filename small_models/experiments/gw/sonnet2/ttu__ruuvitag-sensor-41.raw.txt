@@ -1,0 +1,59 @@
+I wrote these tests without access to the repository, so the code under test is reconstructed from memory. Nothing was run, and I'm not certain they fail on the current code.
+
+The tests assume the method is `RuuviTagSensor.convert_data(raw)`, returning `(format, data)`. They also assume the URL-format payload is found by searching for `ruu.vi/#` in the raw hex.
+
+The tests build a raw Eddystone URL advertisement and check that `convert_data` still returns `(2, 'AjwYAMFc')` in each case:
+
+- **Trailing NULLs trimmed (the FW 1.2.8 case):** the payload ends right after the data, with no padding.
+- **Trailing NULLs present (the old format):** a control case.
+- **Trailing NULLs plus a trailing byte:** a control case.
+- **Longer payload:** a longer, Format 4-style payload that is also truncated.
+
+The truncated cases should fail on current code if the type check depends on the trailing bytes. If `convert_data` has a different name or return shape in this version, these tests need adjusting.
+
+```diff
+--- /dev/null
++++ b/tests/test_fw_128_trimmed_nulls.py
+@@ -0,0 +1,53 @@
++from unittest import TestCase
++
++from ruuvitag_sensor.ruuvi import RuuviTagSensor
++
++
++def _hex(text):
++    return ''.join('{:02X}'.format(ord(c)) for c in text)
++
++
++HEADER = '1E0201060303AAFE1616AAFE10EE03'
++
++
++class TestFirmware128TrimmedNulls(TestCase):
++    """
++    Ruuvi firmware 1.2.8 trims trailing NULLs from the advertisement.
++    Data format detection must still work.
++    """
++
++    def test_url_format_without_trailing_nulls(self):
++        raw = HEADER + _hex('ruu.vi/#AjwYAMFc')
++        fmt, data = RuuviTagSensor.convert_data(raw)
++        self.assertEqual(2, fmt)
++        self.assertEqual('AjwYAMFc', data)
++
++    def test_url_format_with_trailing_nulls(self):
++        raw = HEADER + _hex('ruu.vi/#AjwYAMFc') + '0000000000'
++        fmt, data = RuuviTagSensor.convert_data(raw)
++        self.assertEqual(2, fmt)
++        self.assertEqual('AjwYAMFc', data)
++
++    def test_url_format_with_trailing_nulls_and_rssi(self):
++        raw = HEADER + _hex('ruu.vi/#AjwYAMFc') + '000000' + 'C6'
++        fmt, data = RuuviTagSensor.convert_data(raw)
++        self.assertEqual(2, fmt)
++        self.assertEqual('AjwYAMFc', data)
++
++    def test_url_format_4_style_without_trailing_nulls(self):
++        raw = HEADER + _hex('ruu.vi/#BAAAAAAAAAAA')
++        fmt, data = RuuviTagSensor.convert_data(raw)
++        self.assertIsNotNone(fmt)
++        self.assertEqual('BAAAAAAAAAAA', data)
+```

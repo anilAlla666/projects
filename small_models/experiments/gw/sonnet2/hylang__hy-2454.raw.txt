@@ -1,0 +1,34 @@
+This test file adds checks that `hy.models.Symbol` rejects strings starting with `#`. I haven't run it. It assumes `Symbol` raises `ValueError` for invalid names, as I recall it doing for `"5"`, but I haven't confirmed that in the repo.
+
+```diff
+--- /dev/null
++++ b/tests/test_symbol_reader_macro_name.py
+@@ -0,0 +1,27 @@
++import pytest
++
++import hy
++from hy.models import Symbol
++
++
++@pytest.mark.parametrize("name", ["#foo", "#a", "#foo-bar"])
++def test_hash_prefixed_symbol_is_error(name):
++    # These parse as reader-macro calls, not symbols.
++    with pytest.raises(ValueError):
++        Symbol(name)
++
++
++def test_number_symbol_still_error():
++    with pytest.raises(ValueError):
++        Symbol("5")
++
++
++@pytest.mark.parametrize("name", ["foo", "foo-bar", "a#b", "+", "foo?"])
++def test_valid_symbols_still_ok(name):
++    assert Symbol(name) == name
++
++
++def test_hash_symbol_roundtrip_via_read():
++    # A symbol that the reader produces must be constructible.
++    for name in ["foo", "bar-baz"]:
++        assert hy.read(name) == Symbol(name)
+```

@@ -1,0 +1,102 @@
+diff --git a/tests/test_partial_frames.py b/tests/test_partial_frames.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_partial_frames.py
+@@ -0,0 +1,95 @@
++import unittest
++from unittest.mock import Mock
++
++from aiostomp.protocol import StompReader
++
++
++FRAME = (
++    b"MESSAGE\n"
++    b"subscription:1\n"
++    b"message-id:abc\n"
++    b"destination:/queue/test\n"
++    b"\n"
++    b"hello-body\x00"
++)
++
++
++def _flatten(obj):
++    if isinstance(obj, (bytes, str, int, float, type(None))):
++        return [str(obj)]
++    out = []
++    if isinstance(obj, dict):
++        for k, v in obj.items():
++            out.extend(_flatten(k))
++            out.extend(_flatten(v))
++        return out
++    if isinstance(obj, (list, tuple)):
++        for v in obj:
++            out.extend(_flatten(v))
++        out.append(repr(obj))
++        return out
++    if hasattr(obj, "__dict__"):
++        for v in vars(obj).values():
++            out.extend(_flatten(v))
++    out.append(repr(obj))
++    return out
++
++
++def _frames_seen(handler):
++    """Count handler calls whose arguments mention a MESSAGE frame."""
++    count = 0
++    for c in handler.mock_calls:
++        name, args, kwargs = c
++        if name.startswith("__"):
++            continue
++        text = []
++        for a in list(args) + list(kwargs.values()):
++            text.extend(_flatten(a))
++        joined = " ".join(text)
++        if "MESSAGE" in joined and "hello-body" in joined:
++            count += 1
++    return count
++
++
++def _make_reader():
++    handler = Mock()
++    reader = StompReader(handler)
++    return reader, handler
++
++
++class TestPartialFrames(unittest.TestCase):
++    def test_whole_frame(self):
++        reader, handler = _make_reader()
++        reader.feed_data(FRAME)
++        self.assertEqual(_frames_seen(handler), 1)
++
++    def test_command_split_in_chunks(self):
++        reader, handler = _make_reader()
++        reader.feed_data(b"ME")
++        reader.feed_data(b"SSAG")
++        reader.feed_data(FRAME[6:])
++        self.assertEqual(_frames_seen(handler), 1)
++
++    def test_partial_command_only(self):
++        reader, handler = _make_reader()
++        reader.feed_data(b"MESSAGE")
++        self.assertEqual(_frames_seen(handler), 0)
++        reader.feed_data(FRAME[len(b"MESSAGE"):])
++        self.assertEqual(_frames_seen(handler), 1)
++
++    def test_byte_by_byte(self):
++        reader, handler = _make_reader()
++        for i in range(len(FRAME)):
++            reader.feed_data(FRAME[i:i + 1])
++        self.assertEqual(_frames_seen(handler), 1)
++
++    def test_two_frames_byte_by_byte(self):
++        reader, handler = _make_reader()
++        data = FRAME + FRAME
++        for i in range(len(data)):
++            reader.feed_data(data[i:i + 1])
++        self.assertEqual(_frames_seen(handler), 2)
++
++    def test_split_mid_headers(self):
++        reader, handler = _make_reader()
++        reader.feed_data(FRAME[:20])
++        reader.feed_data(FRAME[20:])
++        self.assertEqual(_frames_seen(handler), 1)

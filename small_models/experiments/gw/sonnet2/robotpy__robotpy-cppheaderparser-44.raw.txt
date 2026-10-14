@@ -1,0 +1,63 @@
+The diff below adds a regression test file, `test/test_typedef_resolve.py`. I have not run it. It reproduces the `KeyError: 'typedefs'` crash from the issue, so it should fail on the current code and pass once the fix is in.
+
+I added the missing `;` after the class body in the issue's example. I assumed it doesn't change the code path that raises the `KeyError`, but I haven't checked that. The assertions only check that parsing doesn't raise and that the method name and return type come back. They don't assume how the typedef is resolved in `rtnType`.
+
+```diff
+diff --git a/test/test_typedef_resolve.py b/test/test_typedef_resolve.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_typedef_resolve.py
+@@ -0,0 +1,57 @@
++import unittest
++
++import CppHeaderParser
++
++
++class TypedefResolveRegression(unittest.TestCase):
++    def test_typedef_return_type_in_method(self):
++        # Regression: KeyError: 'typedefs' in resolve_type (4.0.0)
++        h = """
++typedef C A;
++
++class B
++{
++public:
++   A aMethod();
++};
++"""
++        cpp = CppHeaderParser.CppHeader(h, "string")
++        self.assertIn("B", cpp.classes)
++        methods = cpp.classes["B"]["methods"]["public"]
++        self.assertEqual(len(methods), 1)
++        self.assertEqual(methods[0]["name"], "aMethod")
++        self.assertIn("A", methods[0]["rtnType"].split())
++
++    def test_typedef_return_type_in_method_with_args(self):
++        h = """
++typedef int MyInt;
++
++class D
++{
++public:
++   MyInt compute(MyInt x);
++   MyInt *ptr();
++};
++"""
++        cpp = CppHeaderParser.CppHeader(h, "string")
++        methods = cpp.classes["D"]["methods"]["public"]
++        self.assertEqual([m["name"] for m in methods], ["compute", "ptr"])
++
++    def test_typedef_free_function(self):
++        h = """
++typedef C A;
++
++A func();
++"""
++        cpp = CppHeaderParser.CppHeader(h, "string")
++        self.assertEqual(len(cpp.functions), 1)
++        self.assertEqual(cpp.functions[0]["name"], "func")
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

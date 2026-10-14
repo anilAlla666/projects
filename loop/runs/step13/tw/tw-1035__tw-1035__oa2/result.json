@@ -1,0 +1,108 @@
+{
+ "loop": "tw-1035__tw-1035__oa2",
+ "task": "tw-1035",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 15,
+   "usd": 0.8068,
+   "seconds": 261,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "B"
+    ],
+    "wrong_candidates": [
+     "A"
+    ],
+    "near_misses": [
+     "nm1_depth4_only",
+     "nm2_manifest_wrong_size",
+     "nm3_unconverted_css_link",
+     "nm4_manifest_format_bytes",
+     "nm5_admin_downloaded",
+     "nm6_corrupt_css",
+     "nm7_shortcut_placeholders",
+     "nm8_manifest_missing_entry"
+    ],
+    "checks": [
+     {
+      "check": "all 28 files reachable within depth 5 (excluding admin/zip) exist; assets byte-identical to source; HTML identical modulo link rewriting",
+      "requirement": "Download all necessary assets (HTML, CSS, JS, images) for offline viewing / Set a maximum recursion depth of 5 levels / All HTML, CSS, JS, and image files are downloaded correctly",
+      "basis": "recomputed",
+      "note": "set recomputed by running wget -r -l 5 -p -k on the served site"
+     },
+     {
+      "check": "links to mirrored files are relative; every relative link resolves to an existing local file",
+      "requirement": "Convert all links in downloaded documents to work locally (relative links)",
+      "basis": "task-text",
+      "note": "rejects A, whose HTML is the raw source with broken relative links to admin/zip/level6"
+     },
+     {
+      "check": "no admin/, *.zip or level6 path on disk",
+      "requirement": "Exclude the /admin/ directory ... Exclude .zip files ... only download up to 5",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "manifest lines match 'filepath: size'; every mirrored file listed with its exact byte size; no excluded paths listed",
+      "requirement": "generate a manifest file called mirror_manifest.txt ... in the format: \"filepath: size_in_bytes\" (one file per line)",
+      "basis": "recomputed",
+      "note": "sizes computed with stat; path prefix ./, bare or absolute accepted; self-entry optional"
+     },
+     {
+      "check": "wait/user-agent/server port",
+      "requirement": "--wait=0.5, user-agent, port 8080",
+      "basis": "unverified",
+      "note": "not observable from carried outputs; no check"
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "PPF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "nop"
+   ],
+   "guard": {
+    "kept": true,
+    "old_agree": 3,
+    "new_agree": 11,
+    "items": 11
+   }
+  }
+ ],
+ "usd": 0.807,
+ "before": {
+  "accepted_correct": "1/1",
+  "attempts": 3,
+  "balanced_accuracy": 0.75,
+  "isolation": "bindproc",
+  "labels": "PFF",
+  "rejected_wrong": "1/2",
+  "reward": 0.5,
+  "seconds": 1.4,
+  "task": "tw-1035",
+  "timeouts": 0,
+  "tnr": 0.5,
+  "tpr": 1.0,
+  "verdicts": "PPF"
+ },
+ "after": {
+  "accepted_correct": "1/1",
+  "attempts": 3,
+  "balanced_accuracy": 1.0,
+  "isolation": "bindproc",
+  "labels": "PFF",
+  "rejected_wrong": "2/2",
+  "reward": 1.0,
+  "seconds": 0.3,
+  "task": "tw-1035",
+  "timeouts": 0,
+  "tnr": 1.0,
+  "tpr": 1.0,
+  "verdicts": "PFF"
+ }
+}

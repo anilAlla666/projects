@@ -1,0 +1,58 @@
+This adds a new test file that runs `ng.peakpick.pick` with both the `thres` and `thres-fast` algorithms on a 2D spectrum with parameter estimation turned on. That is the code path where `data[seg_slice]` is indexed with a list of slices. I have not run these tests, and I wrote the `pick` call from memory of its signature. I used `table=False` and `cluster=False` and take the first returned item as the locations, so the tests do not depend on how the output table is laid out. They check that both peaks are found and that both algorithms agree.
+
+```diff
+diff --git a/nmrglue/analysis/tests/test_peakpick.py b/nmrglue/analysis/tests/test_peakpick.py
+new file mode 100644
+--- /dev/null
++++ b/nmrglue/analysis/tests/test_peakpick.py
+@@ -0,0 +1,56 @@
++import numpy as np
++import pytest
++
++import nmrglue as ng
++
++
++def _make_2d_data():
++    y, x = np.mgrid[0:64, 0:64]
++    data = np.zeros((64, 64))
++    for (cy, cx, amp) in [(20, 30, 100.0), (45, 10, 80.0)]:
++        data += amp * np.exp(-((y - cy) ** 2 + (x - cx) ** 2) / (2 * 2.0 ** 2))
++    return data
++
++
++def _pick(algorithm):
++    data = _make_2d_data()
++    return ng.peakpick.pick(
++        data, 10.0, msep=(3, 3), algorithm=algorithm, est_params=True,
++        lineshapes=['g', 'g'], cluster=False, table=False)
++
++
++@pytest.mark.parametrize("algorithm", ["thres", "thres-fast"])
++def test_pick_thres_est_params_2d(algorithm):
++    """pick with thres algorithms and parameter estimation works in 2D"""
++    result = _pick(algorithm)
++    locations = [tuple(int(round(float(v))) for v in loc)
++                 for loc in result[0]]
++    assert len(locations) == 2
++    assert sorted(locations) == [(20, 30), (45, 10)]
++
++
++def test_pick_thres_and_thres_fast_agree():
++    loc_slow = sorted(tuple(int(round(float(v))) for v in l)
++                      for l in _pick("thres")[0])
++    loc_fast = sorted(tuple(int(round(float(v))) for v in l)
++                      for l in _pick("thres-fast")[0])
++    assert loc_slow == loc_fast
++
++
++def test_find_all_thres_fast_segments_usable_as_index():
++    """segment slices returned can be used to index the data"""
++    data = _make_2d_data()
++    locations, segs = ng.peakpick.find_all_thres_fast(
++        data, 10.0, (3, 3), True)
++    assert len(locations) == 2
++    for loc, seg in zip(locations, segs):
++        region = data[tuple(seg)]
++        assert region.ndim == 2
++        assert region.max() == data[tuple(loc)]
+```

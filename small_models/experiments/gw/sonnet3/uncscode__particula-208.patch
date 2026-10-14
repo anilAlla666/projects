@@ -1,0 +1,58 @@
+--- /dev/null
++++ b/particula/tests/multi_mode_test.py
+@@ -0,0 +1,56 @@
++""" tests for multi-mode particle distributions
++"""
++
++import numpy as np
++from particula import particle
++
++
++def _multi_kwargs(**over):
++    kw = {
++        "mode": [5000e-9, 50e-9, 300e-9],  # coarse, nano, fine mode
++        "nbins": 1000,
++        "nparticles": [1e6, 1e9, 1e7],
++        "volume": 1e-6,
++        "gsigma": [1.5, 1.2, 1.5],
++        "spacing": "logspace",
++    }
++    kw.update(over)
++    return kw
++
++
++def test_multi_mode_particle_radius():
++    """ multi-mode kwargs are accepted and give a sensible radius axis
++    """
++    mm = particle.Particle(**_multi_kwargs())
++    rad = np.asarray(mm.particle_radius.m)
++
++    assert rad.shape == (1000,)
++    assert np.all(np.isfinite(rad))
++    assert np.all(rad > 0)
++    assert np.all(np.diff(rad) > 0)
++    # radius axis must span all modes
++    assert rad.min() <= 50e-9
++    assert rad.max() >= 5000e-9
++
++
++def test_multi_mode_wider_than_single():
++    """ radius range with several modes covers each single mode's range
++    """
++    mm = particle.Particle(**_multi_kwargs())
++    single = particle.Particle(
++        mode=50e-9, nbins=1000, nparticles=1e9, volume=1e-6,
++        gsigma=1.2, spacing="logspace",
++    )
++    rad_m = np.asarray(mm.particle_radius.m)
++    rad_s = np.asarray(single.particle_radius.m)
++
++    assert rad_m.min() <= rad_s.min() * (1 + 1e-9)
++    assert rad_m.max() > rad_s.max()
++
++
++def test_multi_mode_linspace():
++    """ multi-mode also works with linspace spacing
++    """
++    mm = particle.Particle(**_multi_kwargs(spacing="linspace", nbins=500))
++    assert np.asarray(mm.particle_radius.m).shape == (500,)

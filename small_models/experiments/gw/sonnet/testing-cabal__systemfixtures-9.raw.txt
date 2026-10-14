@@ -1,0 +1,48 @@
+I couldn't see the existing test files, so I put the tests in a new file, `systemfixtures/tests/test_filesystem_direntry.py`. I haven't run them. They assume `FakeFilesystem().add(path)` can be called after `useFixture` with a path that doesn't exist yet, as I recall the repo's own tests doing.
+
+- **`test_open_direntry`:** opens a real file by passing an `os.DirEntry` to `open`. This reaches `_is_fake_path` with a `DirEntry` argument.
+- **`test_copytree_to_overlay`:** runs `shutil.copytree` from a real directory into an overlaid directory, which is the case in the issue. It checks that the copied file and its contents show up in the overlay.
+
+Both should fail on the current code with the `AttributeError` from the issue and pass once `_is_fake_path` handles `DirEntry`.
+
+```diff
+diff --git a/systemfixtures/tests/test_filesystem_direntry.py b/systemfixtures/tests/test_filesystem_direntry.py
+new file mode 100644
+--- /dev/null
++++ b/systemfixtures/tests/test_filesystem_direntry.py
+@@ -0,0 +1,40 @@
++import os
++import shutil
++
++from testtools import TestCase
++from fixtures import TempDir
++
++from systemfixtures import FakeFilesystem
++
++
++class FakeFilesystemDirEntryTest(TestCase):
++
++    def setUp(self):
++        super().setUp()
++        self.fs = self.useFixture(FakeFilesystem())
++        self.src = self.useFixture(TempDir()).path
++        with open(os.path.join(self.src, "a.txt"), "w") as fd:
++            fd.write("hello")
++
++    def test_open_direntry(self):
++        """open() accepts os.DirEntry objects even with the fixture active."""
++        self.fs.add("/foo")
++        with os.scandir(self.src) as it:
++            entries = list(it)
++        self.assertEqual(1, len(entries))
++        with open(entries[0], "rb") as fd:
++            self.assertEqual(b"hello", fd.read())
++
++    def test_copytree_to_overlay(self):
++        """shutil.copytree can copy a real tree into an overlayed dir."""
++        self.fs.add("/foo")
++        shutil.copytree(self.src, "/foo/dest")
++        self.assertTrue(os.path.exists("/foo/dest/a.txt"))
++        with open("/foo/dest/a.txt") as fd:
++            self.assertEqual("hello", fd.read())
+```

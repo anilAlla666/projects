@@ -1,0 +1,76 @@
+--- /dev/null
++++ b/tests/test_bom.py
+@@ -0,0 +1,75 @@
++"""
++Tests for CSV databases that begin with a Byte Order Mark (BOM).
++"""
++import os
++import shutil
++import tempfile
++import unittest
++
++import click.testing
++
++from mailmerge.__main__ import main
++
++
++TEMPLATE = (
++    "TO: {{email}}\n"
++    "FROM: My Self <myself@mydomain.com>\n"
++    "\n"
++    "Hello {{name}}\n"
++)
++
++CONFIG = (
++    "[smtp_server]\n"
++    "host = open-smtp.example.com\n"
++    "port = 25\n"
++)
++
++
++class TestBOM(unittest.TestCase):
++    """CSV database with a UTF-8 BOM."""
++
++    def setUp(self):
++        self.tmpdir = tempfile.mkdtemp()
++
++    def tearDown(self):
++        shutil.rmtree(self.tmpdir, ignore_errors=True)
++
++    def _write(self, name, data):
++        path = os.path.join(self.tmpdir, name)
++        with open(path, "wb") as outfile:
++            outfile.write(data)
++        return path
++
++    def _run(self, database_bytes):
++        template = self._write("template.txt", TEMPLATE.encode("utf-8"))
++        database = self._write("database.csv", database_bytes)
++        config = self._write("server.conf", CONFIG.encode("utf-8"))
++        runner = click.testing.CliRunner()
++        return runner.invoke(main, [
++            "--template", template,
++            "--database", database,
++            "--config", config,
++            "--dry-run",
++        ])
++
++    def test_bom_first_header(self):
++        """The first header key must be found despite a leading BOM."""
++        data = b"\xef\xbb\xbfname,email\r\nMy Name,to@test.com\r\n"
++        result = self._run(data)
++        self.assertEqual(result.exit_code, 0, result.output)
++        self.assertIn("to@test.com", result.output)
++        self.assertIn("Hello My Name", result.output)
++
++    def test_bom_first_header_is_email(self):
++        """BOM before a header that the template uses first."""
++        data = b"\xef\xbb\xbfemail,name\r\nto@test.com,My Name\r\n"
++        result = self._run(data)
++        self.assertEqual(result.exit_code, 0, result.output)
++        self.assertIn("TO: to@test.com", result.output)
++        self.assertIn("Hello My Name", result.output)
++
++
++if __name__ == "__main__":
++    unittest.main()

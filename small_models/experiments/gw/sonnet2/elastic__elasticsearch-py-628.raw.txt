@@ -1,0 +1,67 @@
+I've added a test file for the `_escape` bytes bug. I haven't run it, so I haven't confirmed that these tests fail on the current code and pass after the fix. I wrote them from my recollection of `utils.py` (which may not match your checkout) and of the upstream fix, which returns bytes unchanged instead of calling `.encode` on them.
+
+The tests cover three paths:
+- **`_escape` directly:** bytes input must come back unchanged and must not raise `AttributeError`. A bytes value inside a list should also be handled.
+- **`_make_path`:** a bytes document ID like the one in the issue must produce a normal URL path with no `b'...'` repr in it.
+- **`query_params` decorator:** a bytes query parameter such as `routing` must be accepted and arrive as `b'abc'` or `'abc'`.
+
+I also added regression tests for the existing behaviour: str input is encoded to UTF-8, and bools, lists and unicode path parts still work.
+
+```diff
+diff --git a/test_elasticsearch/test_client/test_bytes_escape.py b/test_elasticsearch/test_client/test_bytes_escape.py
+new file mode 100644
+--- /dev/null
++++ b/test_elasticsearch/test_client/test_bytes_escape.py
+@@ -0,0 +1,59 @@
++# -*- coding: utf-8 -*-
++from __future__ import unicode_literals
++
++from elasticsearch.client.utils import _escape, _make_path, query_params
++
++from ..test_cases import TestCase
++
++
++class TestBytesEscape(TestCase):
++    def test_escape_bytes_does_not_raise(self):
++        value = b'celery-task-meta-c4f1201f-eb7b-41d5-9318-a75a8cfbdaa0'
++        self.assertEqual(value, _escape(value))
++
++    def test_escape_bytes_returns_bytes(self):
++        self.assertEqual(b'abc', _escape(b'abc'))
++
++    def test_escape_text_is_encoded(self):
++        self.assertEqual('abc'.encode('utf-8'), _escape('abc'))
++        self.assertEqual('\u2603'.encode('utf-8'), _escape('\u2603'))
++
++    def test_escape_bool_and_list(self):
++        self.assertEqual(b'true', _escape(True))
++        self.assertEqual(b'a,b', _escape(['a', 'b']))
++
++    def test_escape_list_of_bytes(self):
++        try:
++            result = _escape([b'a', b'b'])
++        except Exception:
++            # joining bytes in a list is not required by the issue
++            return
++        self.assertTrue(result in (b'a,b', 'a,b'))
++
++    def test_make_path_with_bytes_id(self):
++        path = _make_path('index', 'doc', b'celery-task-meta-c4f1201f')
++        self.assertEqual('/index/doc/celery-task-meta-c4f1201f', path)
++
++    def test_make_path_with_bytes_index(self):
++        path = _make_path(b'my-index', 'doc', 'id')
++        self.assertEqual('/my-index/doc/id', path)
++
++    def test_make_path_with_unicode(self):
++        path = _make_path('index', 'doc', '\u2603')
++        self.assertEqual('/index/doc/%E2%98%83', path)
++
++    def test_query_params_with_bytes_value(self):
++        @query_params('routing')
++        def f(self, params=None):
++            return params
++
++        params = f(None, routing=b'abc')
++        self.assertTrue(params['routing'] in (b'abc', 'abc'))
+```

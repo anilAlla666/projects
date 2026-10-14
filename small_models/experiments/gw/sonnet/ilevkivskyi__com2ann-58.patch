@@ -1,0 +1,52 @@
+diff --git a/src/test_multiple_files.py b/src/test_multiple_files.py
+new file mode 100644
+--- /dev/null
++++ b/src/test_multiple_files.py
+@@ -0,0 +1,56 @@
++import os
++import shutil
++import sys
++import tempfile
++import unittest
++from unittest import mock
++
++from com2ann import main
++
++
++class MultipleFilesTestCase(unittest.TestCase):
++    def setUp(self) -> None:
++        self.tmpdir = tempfile.mkdtemp()
++
++    def tearDown(self) -> None:
++        shutil.rmtree(self.tmpdir)
++
++    def _write(self, name: str, content: str) -> str:
++        path = os.path.join(self.tmpdir, name)
++        with open(path, "w") as f:
++            f.write(content)
++        return path
++
++    def _read(self, path: str) -> str:
++        with open(path) as f:
++            return f.read()
++
++    def test_multiple_input_files_written_separately(self) -> None:
++        f1 = self._write("f1.py", "x = 1  # type: int\n")
++        f2 = self._write("f2.py", "y = 'a'  # type: str\n")
++
++        with mock.patch.object(sys, "argv", ["com2ann", f1, f2]):
++            try:
++                main()
++            except SystemExit as e:
++                self.assertIn(e.code, (None, 0))
++
++        out1 = self._read(f1)
++        out2 = self._read(f2)
++        self.assertIn("x: int = 1", out1)
++        self.assertNotIn("y", out1)
++        self.assertIn("y: str = 'a'", out2)
++        self.assertNotIn("type:", out2)
++
++
++if __name__ == "__main__":
++    unittest.main()

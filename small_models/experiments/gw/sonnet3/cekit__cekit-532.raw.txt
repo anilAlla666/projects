@@ -1,0 +1,47 @@
+I've added a unit test for `tools.get_brew_url` that mocks the two Brew calls and checks the dot in the artifact name is kept in the generated URL. I haven't run it. I'm assuming the function is called `get_brew_url(md5)` and that it calls `subprocess.check_output` twice, first `listArchives`, then `getBuild`. The first part of the function wasn't visible, so check those against the real code.
+
+The test feeds in the `javax.json` archive from the issue. It expects the group id `org.glassfish` to become `org/glassfish` and the artifact id `javax.json` to stay unchanged. On the current code the artifact id is turned into `javax/json`, so the test fails there.
+
+```diff
+--- a/tests/test_unit_tools.py
++++ b/tests/test_unit_tools.py
+@@ -455,3 +455,47 @@
+         with pytest.raises(CekitError, match=r"^CEKit dependency: 'xyz' was not found, please provide the 'xyz-aaa' executable. To satisfy this requirement you can install the 'package-xyz' package.$"):
+             handler._check_for_executable('xyz', 'xyz-aaa', 'package-xyz')
++
++
++def test_get_brew_url_preserves_dots_in_artifact_id(mocker):
++    list_archives = b'''[
++  {
++    "build_id": 410568,
++    "version": "1.0.4",
++    "type_name": "jar",
++    "artifact_id": "javax.json",
++    "type_id": 1,
++    "checksum": "569870f975deeeb6691fcb9bc02a9555",
++    "extra": null,
++    "filename": "javax.json-1.0.4.jar",
++    "metadata_only": false,
++    "btype": "maven",
++    "checksum_type": 0,
++    "btype_id": 2,
++    "group_id": "org.glassfish",
++    "buildroot_id": null,
++    "id": 863130,
++    "size": 85147
++  }
++]'''
++    get_build = b'''{
++  "state": 1,
++  "package_name": "org.glassfish-javax.json",
++  "release": "1"
++}'''
++
++    mocker.patch('subprocess.check_output', side_effect=[list_archives, get_build])
++
++    url = tools.get_brew_url('569870f975deeeb6691fcb9bc02a9555')
++
++    assert url == ('http://download.devel.redhat.com/brewroot/packages/'
++                   'org.glassfish-javax.json/1.0.4/1/maven/'
++                   'org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar')
+```

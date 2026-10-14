@@ -1,0 +1,57 @@
+diff --git a/test/test_network_hostname.py b/test/test_network_hostname.py
+new file mode 100644
+index 0000000..1c0a5e3
+--- /dev/null
++++ b/test/test_network_hostname.py
+@@ -0,0 +1,50 @@
++# Copyright 2022 Canonical Ltd.
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++
++import ipaddress
++import unittest
++
++import ops.model
++
++HOSTNAME = 'acb396cf5563d429f9ebc8aa23ae47ed-1516332866.us-east-1.elb.amazonaws.com'
++
++
++class TestNetworkHostnameIngress(unittest.TestCase):
++    def _info(self, ingress):
++        return {
++            'bind-addresses': [{
++                'interface-name': 'eth0',
++                'addresses': [{'hostname': '', 'value': '10.1.0.1', 'cidr': '10.1.0.0/24'}],
++            }],
++            'egress-subnets': ['10.1.0.1/32'],
++            'ingress-addresses': ingress,
++        }
++
++    def test_hostname_ingress_address(self):
++        network = ops.model.Network(self._info([HOSTNAME]))
++        self.assertEqual(network.ingress_addresses, [HOSTNAME])
++        self.assertEqual(network.ingress_address, HOSTNAME)
++        self.assertEqual(str(network.bind_address), '10.1.0.1')
++
++    def test_mixed_ingress_addresses(self):
++        network = ops.model.Network(self._info(['10.1.0.1', HOSTNAME, 'fe80::1']))
++        self.assertEqual(len(network.ingress_addresses), 3)
++        self.assertEqual(network.ingress_addresses[0], ipaddress.ip_address('10.1.0.1'))
++        self.assertIsInstance(network.ingress_addresses[0], ipaddress.IPv4Address)
++        self.assertEqual(network.ingress_addresses[1], HOSTNAME)
++        self.assertIsInstance(network.ingress_addresses[1], str)
++        self.assertIsInstance(network.ingress_addresses[2], ipaddress.IPv6Address)
++
++
++if __name__ == '__main__':
++    unittest.main()

@@ -1,0 +1,34 @@
+diff --git a/tests/test_clair_features.py b/tests/test_clair_features.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_clair_features.py
+@@ -0,0 +1,38 @@
++from unittest.mock import MagicMock
++
++from pierone.cli import get_clair_features
++
++
++def _response(payload):
++    resp = MagicMock()
++    resp.status_code = 200
++    resp.json.return_value = payload
++    return resp
++
++
++def test_get_clair_features_without_features_key(monkeypatch):
++    # Clair returns a layer without "Features" when the status is COULDNT_FIGURE_OUT
++    payload = {'Layer': {'Name': 'sha256:abc', 'NamespaceName': 'debian:8', 'IndexedByVersion': 2}}
++    monkeypatch.setattr('requests.get', MagicMock(return_value=_response(payload)))
++
++    features = get_clair_features('https://clair.example.org', 'abc', 'tok')
++
++    assert not features
++    assert list(features) == []
++
++
++def test_get_clair_features_with_features(monkeypatch):
++    feats = [{'Name': 'openssl', 'Version': '1.0'}]
++    payload = {'Layer': {'Name': 'sha256:abc', 'Features': feats}}
++    monkeypatch.setattr('requests.get', MagicMock(return_value=_response(payload)))
++
++    assert get_clair_features('https://clair.example.org', 'abc', 'tok') == feats

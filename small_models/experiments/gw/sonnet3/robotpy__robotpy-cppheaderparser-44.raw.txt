@@ -1,0 +1,50 @@
+I'm adding a regression test to `test/test_CppHeaderParser.py`, placed before the `if __name__` block. I have not run it against the current code or a fix.
+
+The header from the issue has no trailing semicolon after the class. The test uses the same header, since that is what triggers the `KeyError`. It only asserts things the issue clearly implies: parsing completes without raising, and the class `B` and its method `aMethod` exist. It does not assert what `rtnType` resolves to, because the issue leaves that open (it could stay `A` or become `C`).
+
+For the second test, I added a variant with a trailing semicolon after the class. It guards against a fix that only handles the exact input from the issue.
+
+```diff
+--- a/test/test_CppHeaderParser.py
++++ b/test/test_CppHeaderParser.py
+@@ -3868,5 +3868,48 @@
+         self.assertEqual(c["type"], "C")
+ 
+ 
++class TypedefReturnTypeRegression(unittest.TestCase):
++    def test_typedef_return_type_no_keyerror(self):
++        h = """
++typedef C A;
++
++class B
++{
++public:
++   A aMethod();
++}
++"""
++        cppHeader = CppHeaderParser.CppHeader(h, "string")
++        self.assertIn("B", cppHeader.classes)
++        methods = cppHeader.classes["B"]["methods"]["public"]
++        self.assertEqual(1, len(methods))
++        self.assertEqual("aMethod", methods[0]["name"])
++
++    def test_typedef_return_type_with_semicolon(self):
++        h = """
++typedef C A;
++
++class B
++{
++public:
++   A aMethod();
++};
++"""
++        cppHeader = CppHeaderParser.CppHeader(h, "string")
++        methods = cppHeader.classes["B"]["methods"]["public"]
++        self.assertEqual(1, len(methods))
++        self.assertEqual("aMethod", methods[0]["name"])
++        self.assertIn(methods[0]["rtnType"], ("A", "C"))
++
++
+ if __name__ == "__main__":
+     unittest.main()
+```

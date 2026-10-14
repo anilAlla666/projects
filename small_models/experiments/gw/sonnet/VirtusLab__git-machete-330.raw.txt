@@ -1,0 +1,76 @@
+I couldn't confirm where this repo keeps its tests, so I put the regression test in a new self-contained file, `git_machete/tests/test_add_existing_branch.py`. I haven't run it against the current code or a fix. It runs the real `git machete add foo/bar --yes` (via `git_machete.cli.main`) in a temporary repository, so it exercises the `add` → `__infer_upstream` path from the traceback. The branch `foo/bar` exists but is not yet in `.git/machete`.
+
+On the current code it should fail: the process raises `AttributeError: 'str' object has no attribute 'full_name'` and exits non-zero. Once `cli.py` passes a properly typed branch name, the test should pass.
+
+I did not add a systematic guard against this class of error; the test only covers this one path.
+
+```diff
+diff --git a/git_machete/tests/test_add_existing_branch.py b/git_machete/tests/test_add_existing_branch.py
+new file mode 100644
+--- /dev/null
++++ b/git_machete/tests/test_add_existing_branch.py
+@@ -0,0 +1,80 @@
++import os
++import subprocess
++import sys
++import tempfile
++import unittest
++
++import git_machete
++
++
++class TestAddExistingBranch(unittest.TestCase):
++
++    def setUp(self) -> None:
++        self.tmp = tempfile.TemporaryDirectory()
++        self.repo = os.path.realpath(self.tmp.name)
++        self.env = dict(os.environ)
++        self.env.update({
++            "GIT_AUTHOR_NAME": "Test",
++            "GIT_AUTHOR_EMAIL": "test@example.com",
++            "GIT_COMMITTER_NAME": "Test",
++            "GIT_COMMITTER_EMAIL": "test@example.com",
++            "GIT_CONFIG_NOSYSTEM": "1",
++        })
++        root = os.path.dirname(os.path.dirname(os.path.abspath(git_machete.__file__)))
++        self.env["PYTHONPATH"] = root + os.pathsep + self.env.get("PYTHONPATH", "")
++
++    def tearDown(self) -> None:
++        self.tmp.cleanup()
++
++    def git(self, *args: str) -> None:
++        subprocess.check_call(["git"] + list(args), cwd=self.repo, env=self.env,
++                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
++
++    def machete(self, *args: str) -> "subprocess.CompletedProcess[str]":
++        code = "import sys; from git_machete.cli import main; main()"
++        return subprocess.run([sys.executable, "-c", code, *args], cwd=self.repo, env=self.env,
++                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
++                              universal_newlines=True)
++
++    def test_add_existing_unmanaged_branch(self) -> None:
++        self.git("init")
++        self.git("checkout", "-b", "master")
++        self.git("commit", "--allow-empty", "-m", "initial")
++        self.git("commit", "--allow-empty", "-m", "second")
++        self.git("checkout", "-b", "foo/bar")
++        self.git("commit", "--allow-empty", "-m", "foo bar commit")
++        self.git("checkout", "master")
++
++        machete_path = os.path.join(self.repo, ".git", "machete")
++        with open(machete_path, "w") as f:
++            f.write("master\n")
++
++        result = self.machete("add", "foo/bar", "--yes")
++        self.assertNotIn("AttributeError", result.stderr)
++        self.assertEqual(result.returncode, 0, msg=result.stderr)
++
++        with open(machete_path) as f:
++            content = f.read()
++        self.assertIn("foo/bar", content)
++        self.assertEqual(content.splitlines()[0], "master")
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

@@ -1,0 +1,82 @@
+diff --git a/particula/tests/multi_mode_test.py b/particula/tests/multi_mode_test.py
+new file mode 100644
+--- /dev/null
++++ b/particula/tests/multi_mode_test.py
+@@ -0,0 +1,75 @@
++""" tests for multi-mode distributions
++"""
++
++import numpy as np
++
++from particula.particle import Particle
++from particula.util.distribution_discretization import discretize
++
++MULTI_MODE = {
++    "mode": [5000e-9, 50e-9, 300e-9],  # coarse, nano, fine
++    "nbins": 1000,
++    "nparticles": [1e6, 1e9, 1e7],
++    "volume": 1e-6,
++    "gsigma": [1.5, 1.2, 1.5],
++    "spacing": "logspace",
++}
++
++
++def _local_maxima(arr):
++    """ indices of strict local maxima """
++    arr = np.asarray(arr, dtype=float)
++    return np.where((arr[1:-1] > arr[:-2]) & (arr[1:-1] > arr[2:]))[0] + 1
++
++
++def test_multi_mode_particle_shapes():
++    """ multi-mode kwargs build and give consistent shapes """
++    part = Particle(**MULTI_MODE)
++    rad = np.asarray(part.radius())
++    pdf = np.asarray(part.pdf())
++
++    assert rad.ndim == 1
++    assert pdf.ndim == 1
++    assert rad.shape == pdf.shape
++    assert rad.size == 1000
++    assert np.all(pdf >= 0)
++    assert np.all(np.isfinite(pdf))
++
++
++def test_multi_mode_particle_peaks():
++    """ one peak near each mode """
++    part = Particle(**MULTI_MODE)
++    rad = np.asarray(part.radius())
++    pdf = np.asarray(part.pdf())
++
++    # radius should span all modes
++    assert rad.min() < 50e-9
++    assert rad.max() > 5000e-9
++
++    peaks = _local_maxima(pdf)
++    assert len(peaks) == 3
++    peak_rads = np.sort(rad[peaks])
++    for found, expected in zip(peak_rads, [50e-9, 300e-9, 5000e-9]):
++        assert abs(np.log(found / expected)) < 0.3
++
++
++def test_single_mode_still_works():
++    """ scalar kwargs unchanged """
++    part = Particle(mode=100e-9, nbins=500, nparticles=1e6,
++                    gsigma=1.3, spacing="logspace")
++    pdf = np.asarray(part.pdf())
++    assert pdf.ndim == 1
++    assert pdf.size == 500
++    assert len(_local_maxima(pdf)) == 1
++
++
++def test_discretize_multi_mode():
++    """ discretize accepts array-like mode/gsigma/nparticles """
++    rad = np.logspace(-8.5, -5, 1000)
++    dist = np.asarray(discretize(
++        interval=rad,
++        disttype="lognormal",
++        gsigma=[1.5, 1.2, 1.5],
++        mode=[5000e-9, 50e-9, 300e-9],
++        nparticles=[1e6, 1e9, 1e7],
++    ))
++    assert dist.shape == rad.shape
++    assert len(_local_maxima(dist)) == 3

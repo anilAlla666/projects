@@ -1,0 +1,44 @@
+I haven't run this, and I wrote it from memory of the repo, so a few details may be off. I assumed the mistune 0.8.x signature `link(link, title, text)`, a `ConfluenceRenderer()` constructor that takes no arguments, and a `relative_links` list on the renderer. The test file path is also my choice.
+
+The tests check that fragment-only links like `#frequently-asked-questions-osep` are not recorded as relative links. They also check that a real relative link such as `other.md#section` still is.
+
+```diff
+diff --git a/tests/unit/test_anchor_links.py b/tests/unit/test_anchor_links.py
+new file mode 100644
+--- /dev/null
++++ b/tests/unit/test_anchor_links.py
+@@ -0,0 +1,31 @@
++import md2cf.confluence_renderer as confluence_renderer
++
++
++def test_renderer_anchor_only_link_is_not_relative_link():
++    renderer = confluence_renderer.ConfluenceRenderer()
++    renderer.link(
++        "#frequently-asked-questions-osep", None, "Frequently Asked Questions"
++    )
++
++    assert len(renderer.relative_links) == 0
++
++
++def test_renderer_multiple_anchor_links_are_ignored():
++    renderer = confluence_renderer.ConfluenceRenderer()
++    renderer.link("#first", None, "First")
++    renderer.link("#second", "title", "Second")
++
++    assert len(renderer.relative_links) == 0
++
++
++def test_renderer_relative_link_still_detected_alongside_anchor():
++    renderer = confluence_renderer.ConfluenceRenderer()
++    renderer.link("#anchor", None, "Anchor")
++    renderer.link("other.md", None, "Other")
++
++    assert len(renderer.relative_links) == 1
++
++
++def test_renderer_relative_link_with_fragment_still_detected():
++    renderer = confluence_renderer.ConfluenceRenderer()
++    renderer.link("other.md#section", None, "Other")
++
++    assert len(renderer.relative_links) == 1
+```

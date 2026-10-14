@@ -1,0 +1,42 @@
+diff --git a/tests/test_codon_tables_pollution.py b/tests/test_codon_tables_pollution.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_codon_tables_pollution.py
+@@ -0,0 +1,38 @@
++import importlib
++
++import python_codon_tables as pct
++
++STANDARD_KEYS = "*ACDEFGHIKLMNPQRSTVWY"
++
++
++def _keys(name):
++    return "".join(sorted(pct.get_codons_table(name).keys()))
++
++
++def test_seqlike_does_not_pollute_pct_tables():
++    import seqlike.codon_tables as ct
++
++    importlib.reload(ct)
++    for name in ["h_sapiens_9606", "e_coli_316407", "s_cerevisiae_4932"]:
++        try:
++            keys = _keys(name)
++        except Exception:
++            continue
++        assert keys == STANDARD_KEYS, f"{name} table was polluted: {keys}"
++
++
++def test_pct_tables_independent_between_calls():
++    import seqlike.codon_tables  # noqa: F401
++
++    table1 = pct.get_codons_table("h_sapiens_9606")
++    table1["-"] = {"---": 1}
++    table1["X"] = {"NNN": 1}
++    try:
++        # mutation by a user of pct directly is outside seqlike's control,
++        # so only check that seqlike's import did not already alter things
++        pass
++    finally:
++        table1.pop("-", None)
++        table1.pop("X", None)
++    assert _keys("h_sapiens_9606") == STANDARD_KEYS

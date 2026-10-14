@@ -1,0 +1,117 @@
+--- /dev/null
++++ b/tests/test_inject_none_override.py
+@@ -0,0 +1,89 @@
++from ioccontainer.inject import inject_decorator
++
++
++class ServiceA(object):
++    pass
++
++
++class ServiceB(object):
++    pass
++
++
++class FakeContainer(object):
++    def __init__(self):
++        self.instances = {}
++
++    def get(self, cls):
++        if cls not in self.instances:
++            self.instances[cls] = cls()
++        return self.instances[cls]
++
++
++def _make():
++    container = FakeContainer()
++    return container, inject_decorator(container)
++
++
++def test_positional_none_is_overridden():
++    container, inject = _make()
++
++    @inject('a')
++    def f(a: ServiceA):
++        return a
++
++    result = f(None)
++    assert result is container.get(ServiceA)
++
++
++def test_keyword_none_is_overridden():
++    container, inject = _make()
++
++    @inject('a')
++    def f(a: ServiceA):
++        return a
++
++    result = f(a=None)
++    assert result is container.get(ServiceA)
++
++
++def test_positional_non_none_is_kept():
++    container, inject = _make()
+
++    @inject('a')
++    def f(a: ServiceA):
++        return a
++
++    given = ServiceA()
++    assert f(given) is given
++
++
++def test_keyword_non_none_is_kept():
++    container, inject = _make()
++
++    @inject('a')
++    def f(a: ServiceA):
++        return a
++
++    given = ServiceA()
++    assert f(a=given) is given
++
++
++def test_none_in_middle_position_overridden_and_others_kept():
++    container, inject = _make()
++
++    @inject('a', 'b')
++    def f(a: ServiceA, b: ServiceB):
++        return a, b
++
++    given = ServiceA()
++    a, b = f(given, None)
++    assert a is given
++    assert b is container.get(ServiceB)
++
++
++def test_none_override_with_inject_kwargs_class():
++    container, inject = _make()
++
++    @inject(a=ServiceA)
++    def f(a):
++        return a
++
++    assert f(None) is container.get(ServiceA)
++    assert f(a=None) is container.get(ServiceA)
++
++
++def test_keyword_only_none_overridden():
++    container, inject = _make()
++
++    @inject('a')
++    def f(*, a: ServiceA):
++        return a
++
++    assert f(a=None) is container.get(ServiceA)
++
++
++def test_default_none_parameter_with_explicit_none():
++    container, inject = _make()
++
++    @inject('a')
++    def f(a: ServiceA = None):
++        return a
++
++    assert f(None) is container.get(ServiceA)
++    assert f(a=None) is container.get(ServiceA)
++    assert f() is container.get(ServiceA)

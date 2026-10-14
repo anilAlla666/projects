@@ -1,0 +1,51 @@
+--- /dev/null
++++ b/tests/test_network_grid_remove_agent.py
+@@ -0,0 +1,49 @@
++import unittest
++
++import networkx as nx
++
++from mesa.space import NetworkGrid
++
++
++class _Agent:
++    def __init__(self, unique_id):
++        self.unique_id = unique_id
++        self.pos = None
++
++
++class TestNetworkGridRemoveAgent(unittest.TestCase):
++    def setUp(self):
++        self.space = NetworkGrid(nx.complete_graph(5))
++        self.agents = []
++        for i, node in enumerate([0, 0, 1, 2]):
++            a = _Agent(i)
++            self.agents.append(a)
++            self.space.place_agent(a, node)
++
++    def test_remove_agent_public(self):
++        agent = self.agents[2]
++        assert agent.pos == 1
++        self.space.remove_agent(agent)
++        assert agent.pos is None
++        assert agent not in self.space.G.nodes[1]["agent"]
++        assert agent not in self.space.get_cell_list_contents([1])
++
++    def test_remove_agent_keeps_others(self):
++        agent = self.agents[0]
++        self.space.remove_agent(agent)
++        assert agent.pos is None
++        assert self.agents[1] in self.space.G.nodes[0]["agent"]
++        assert agent not in self.space.G.nodes[0]["agent"]
++
++    def test_remove_then_replace(self):
++        agent = self.agents[3]
++        self.space.remove_agent(agent)
++        self.space.place_agent(agent, 4)
++        assert agent.pos == 4
++        assert agent in self.space.G.nodes[4]["agent"]
++        assert agent not in self.space.G.nodes[2]["agent"]
++
++
++if __name__ == "__main__":
++    unittest.main()

@@ -1,0 +1,116 @@
+{
+ "loop": "tw-1035__tw-1035__ob",
+ "task": "tw-1035",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 14,
+   "usd": 0.8254,
+   "seconds": 269,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "B"
+    ],
+    "wrong_candidates": [
+     "A"
+    ],
+    "near_misses": [
+     "nm_depth6_link",
+     "nm_admin_downloaded",
+     "nm_zip_downloaded",
+     "nm_depth4_only",
+     "nm_unconverted_css",
+     "nm_manifest_wrong_size",
+     "nm_manifest_format",
+     "nm_manifest_incomplete",
+     "nm_fabricated_page",
+     "nm_shortcut_copy"
+    ],
+    "checks": [
+     {
+      "check": "all 28 files of the wget -l 5 mirror exist (incl. depth-5 deep/index.html)",
+      "requirement": "Download all necessary assets (HTML, CSS, JS, images) for offline viewing; Set a maximum recursion depth of 5 levels",
+      "basis": "recomputed",
+      "note": "wget run on this machine"
+     },
+     {
+      "check": "css/js/png byte-identical to source; HTML identical to source modulo link rewriting",
+      "requirement": "All HTML, CSS, JS, and image files are downloaded correctly",
+      "basis": "recomputed",
+      "note": "source available at /var/www/html in grader image"
+     },
+     {
+      "check": "no absolute link to mirrored content; every relative link resolves to a file in the mirror",
+      "requirement": "Convert all links in downloaded documents to work locally (relative links)",
+      "basis": "recomputed",
+      "note": "wget -k makes links to non-downloaded files absolute; catches no-conversion and download-then-delete of admin/zip/level6"
+     },
+     {
+      "check": "no admin dir, no .zip file; manifest lists no admin/zip/level6 path",
+      "requirement": "Exclude the /admin/ directory; Exclude .zip files",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "manifest lines match 'filepath: size' and list all 28 files with actual sizes",
+      "requirement": "generate a manifest file ... lists all downloaded files with their sizes in the format \"filepath: size_in_bytes\" (one file per line)",
+      "basis": "format",
+      "note": "relative, ./ or absolute paths accepted"
+     },
+     {
+      "check": "wait=0.5 and user-agent not checked",
+      "requirement": "Respect a reasonable download rate ...; Set an appropriate user-agent string",
+      "basis": "unverified",
+      "note": "no logs are carried to the grader"
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "PPF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "nop"
+   ],
+   "guard": {
+    "kept": true,
+    "old_agree": 2,
+    "new_agree": 13,
+    "items": 13
+   }
+  }
+ ],
+ "usd": 0.825,
+ "before": {
+  "accepted_correct": "1/1",
+  "attempts": 3,
+  "balanced_accuracy": 0.75,
+  "isolation": "bindproc",
+  "labels": "PFF",
+  "rejected_wrong": "1/2",
+  "reward": 0.5,
+  "seconds": 1.4,
+  "task": "tw-1035",
+  "timeouts": 0,
+  "tnr": 0.5,
+  "tpr": 1.0,
+  "verdicts": "PPF"
+ },
+ "after": {
+  "accepted_correct": "1/1",
+  "attempts": 3,
+  "balanced_accuracy": 1.0,
+  "isolation": "bindproc",
+  "labels": "PFF",
+  "rejected_wrong": "2/2",
+  "reward": 1.0,
+  "seconds": 0.3,
+  "task": "tw-1035",
+  "timeouts": 0,
+  "tnr": 1.0,
+  "tpr": 1.0,
+  "verdicts": "PFF"
+ }
+}

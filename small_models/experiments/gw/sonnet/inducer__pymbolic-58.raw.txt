@@ -1,0 +1,46 @@
+I couldn't see the existing test files, so this diff adds a new test file rather than editing one. I haven't run the tests. On the current code, the `or`, `and` and `not` cases should fail with the `ParseError` from the issue. The comparison case should already pass and is there as a guard.
+
+```diff
+diff --git a/test/test_parser_if_precedence.py b/test/test_parser_if_precedence.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_parser_if_precedence.py
+@@ -0,0 +1,38 @@
++from pymbolic.parser import parse
++from pymbolic.primitives import If
++
++
++def _check(cond_str, then=10, else_=20):
++    expr = parse(f"{then} if {cond_str} else {else_}")
++    assert isinstance(expr, If)
++    assert expr.condition == parse(cond_str)
++    assert expr.then == then
++    assert expr.else_ == else_
++
++
++def test_if_else_with_logical_or_condition():
++    _check("x or y")
++
++
++def test_if_else_with_logical_and_condition():
++    _check("x and y")
++
++
++def test_if_else_with_not_condition():
++    _check("not x")
++
++
++def test_if_else_with_comparison_condition():
++    _check("x < y")
++
++
++def test_if_else_with_mixed_logical_condition():
++    _check("x or y and z")
++
++
++def test_if_else_with_logical_branches():
++    expr = parse("a if b else c or d")
++    assert isinstance(expr, If)
++    assert expr.condition == parse("b")
++    assert expr.else_ == parse("c or d")
+```

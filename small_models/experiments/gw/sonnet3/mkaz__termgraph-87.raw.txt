@@ -1,0 +1,59 @@
+The diff below adds three tests. Each should fail on the current code with `ZeroDivisionError` and pass once all-zero data is handled. I haven't run them. They only check that nothing raises and that normalized values are zero, so they don't depend on exactly what the empty chart looks like.
+
+The `chart` test passes an args dict covering the issue's keys plus a few extras. If `chart` reads any key I didn't include, the test would fail with `KeyError` instead of exercising the fix.
+
+```diff
+--- a/tests/test_termgraph.py
++++ b/tests/test_termgraph.py
+@@ -31,6 +31,50 @@
+     assert length == 14
+ 
+ 
++def test_normalize_all_zeros_does_not_raise():
++    result = tg.normalize([[0], [0]], 50)
++    assert len(result) == 2
++    assert all(v == 0 for row in result for v in row)
++
++
++def test_normalize_all_zeros_multiple_columns():
++    result = tg.normalize([[0, 0], [0, 0], [0, 0]], 100)
++    assert len(result) == 3
++    assert all(len(row) == 2 for row in result)
++    assert all(v == 0 for row in result for v in row)
++
++
++def test_chart_with_all_zero_data_does_not_raise():
++    args = {
++        "width": 100,
++        "format": "{:,}",
++        "suffix": "",
++        "no_labels": False,
++        "no_values": False,
++        "vertical": False,
++        "stacked": False,
++        "histogram": False,
++        "different_scale": False,
++        "custom_tick": "",
++        "title": None,
++        "color": None,
++        "label_before": False,
++        "percentage": False,
++        "calendar": False,
++        "verbose": False,
++        "version": False,
++        "delim": "",
++        "start_dt": None,
++    }
++    with patch("sys.stdout", new=StringIO()):
++        tg.chart(
++            colors=[],
++            data=[[0], [0]],
++            args=args,
++            labels=["iOS", "Android"],
++        )
++
++
+ def test_normalize_returns_correct_results():
+     expected = [
+         [18.00891997563707],
+```

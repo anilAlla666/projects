@@ -1,0 +1,55 @@
+I haven't run these tests against the repo. They assume `Batch` takes a list of jobs as its only constructor argument, and I used `Mock(spec=Job)` objects so the tests don't depend on `Job`'s constructor signature. On the current code, each iteration test should fail with `TypeError: 'Batch' object is not iterable`.
+
+```diff
+--- /dev/null
++++ b/tests/test_batch_iteration.py
+@@ -0,0 +1,45 @@
++from unittest.mock import Mock
++
++from hyp3_sdk.jobs import Batch, Job
++
++
++def _make_jobs(n):
++    return [Mock(spec=Job) for _ in range(n)]
++
++
++def test_batch_is_iterable():
++    jobs = _make_jobs(3)
++    batch = Batch(jobs)
++
++    iterated = [job for job in batch]
++
++    assert len(iterated) == 3
++    for expected, actual in zip(jobs, iterated):
++        assert expected is actual
++
++
++def test_batch_iter_builtin():
++    jobs = _make_jobs(2)
++    batch = Batch(jobs)
++
++    it = iter(batch)
++    assert next(it) is jobs[0]
++    assert next(it) is jobs[1]
++    try:
++        next(it)
++    except StopIteration:
++        pass
++    else:
++        raise AssertionError('iterator should be exhausted')
++
++
++def test_batch_list_conversion():
++    jobs = _make_jobs(4)
++    assert list(Batch(jobs)) == jobs
++
++
++def test_empty_batch_iteration():
++    assert list(Batch([])) == []
++
++
++def test_batch_can_be_iterated_multiple_times():
++    jobs = _make_jobs(3)
++    batch = Batch(jobs)
++    assert list(batch) == list(batch) == jobs
+```

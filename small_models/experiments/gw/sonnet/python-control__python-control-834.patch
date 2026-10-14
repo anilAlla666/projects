@@ -1,0 +1,32 @@
+diff --git a/control/tests/sisotool_test.py b/control/tests/sisotool_test.py
+--- a/control/tests/sisotool_test.py
++++ b/control/tests/sisotool_test.py
+@@ -1,3 +1,36 @@
++import warnings
++
++import matplotlib
++import matplotlib.pyplot as plt
++
++
++def test_sisotool_no_matplotlib_deprecation_warning():
++    """sisotool must not use deprecated Matplotlib API (e.g., Grouper.join)."""
++    from control import tf
++    from control.sisotool import sisotool
++
++    plt.close('all')
++    sys = tf([1000], [1, 25, 100, 0])
++    with warnings.catch_warnings():
++        warnings.simplefilter(
++            "error", category=matplotlib.MatplotlibDeprecationWarning)
++        sisotool(sys)
++
++    # magnitude and phase axes should still share the x axis
++    fig = plt.gcf()
++    mag = [ax for ax in fig.axes if ax.get_ylabel().startswith('Magnitude')]
++    phase = [ax for ax in fig.axes if ax.get_ylabel().startswith('Phase')]
++    assert mag and phase
++    assert phase[0].get_shared_x_axes().joined(phase[0], mag[0])
++    plt.close('all')
++
++
+ """sisotool_test.py"""

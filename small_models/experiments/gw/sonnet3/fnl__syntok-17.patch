@@ -1,0 +1,52 @@
+--- a/syntok/tokenizer_test.py
++++ b/syntok/tokenizer_test.py
+@@ -92,3 +92,49 @@
+         self.assertListEqual([t.offset for t in result], [0, 1, 2])  # requires Py3.3+
+ 
+ 
++class TestNotContractionOffsets(TestCase):
++
++    def test_bare_contraction_no_replace(self):
++        tok = Tokenizer(replace_not_contraction=False)
++        result = tok.split("n't")
++        self.assertListEqual(s(result), ["n't"])
++        self.assertListEqual([t.offset for t in result], [0])
++
++    def test_bare_contraction_replace(self):
++        tok = Tokenizer(replace_not_contraction=True)
++        result = tok.split("n't")
++        self.assertListEqual(s(result), ["not"])
++        self.assertListEqual([t.offset for t in result], [0])
++
++    def test_dont_no_replace(self):
++        tok = Tokenizer(replace_not_contraction=False)
++        result = tok.split("don't")
++        self.assertListEqual(s(result), ["do", "n't"])
++        self.assertListEqual([t.offset for t in result], [0, 2])
++
++    def test_dont_replace(self):
++        tok = Tokenizer(replace_not_contraction=True)
++        result = tok.split("don't")
++        self.assertListEqual(s(result), ["do", "not"])
++        self.assertListEqual([t.offset for t in result], [0, 2])
++
++    def test_cant_no_replace(self):
++        tok = Tokenizer(replace_not_contraction=False)
++        result = tok.split("I can't go")
++        self.assertListEqual(s(result), ["I", "ca", "n't", "go"])
++        self.assertListEqual([t.offset for t in result], [0, 2, 4, 8])
++
++    def test_separated_contraction_no_replace(self):
++        tok = Tokenizer(replace_not_contraction=False)
++        result = tok.split("do n't hurt")
++        self.assertListEqual(s(result), ["do", "n't", "hurt"])
++        self.assertListEqual([t.offset for t in result], [0, 3, 7])
++
++    def test_offsets_match_text(self):
++        text = '" Falling share prices in New York do n\'t hurt Mexico, and we don\'t care.'
++        tok = Tokenizer(replace_not_contraction=False)
++        for t in tok.split(text):
++            self.assertEqual(t.value, text[t.offset:t.offset + len(t.value)])
++
++
+ class TestToText(TestCase):

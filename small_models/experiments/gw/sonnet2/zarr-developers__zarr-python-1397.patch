@@ -1,0 +1,49 @@
+--- /dev/null
++++ b/zarr/tests/test_fill_value_warning.py
+@@ -0,0 +1,45 @@
++import warnings
++
++import numpy as np
++
++import zarr
++from zarr.util import normalize_fill_value
++
++
++DTYPE = np.dtype([('a', int), ('b', int)])
++
++
++def test_normalize_fill_value_structured_no_warning():
++    fill_value = np.zeros((), dtype=DTYPE)[()]
++    with warnings.catch_warnings():
++        warnings.simplefilter('error')
++        result = normalize_fill_value(fill_value, DTYPE)
++    assert result == fill_value
++    assert result['a'] == 0
++    assert result['b'] == 0
++
++
++def test_normalize_fill_value_structured_nonzero_no_warning():
++    fill_value = np.array((1, 2), dtype=DTYPE)[()]
++    with warnings.catch_warnings():
++        warnings.simplefilter('error')
++        result = normalize_fill_value(fill_value, DTYPE)
++    assert result['a'] == 1
++    assert result['b'] == 2
++
++
++def test_create_structured_with_fill_value_no_warning():
++    fill_value = np.zeros((), dtype=DTYPE)[()]
++    with warnings.catch_warnings():
++        warnings.simplefilter('error')
++        group = zarr.open()
++        arr = group.create('foo', dtype=DTYPE, fill_value=fill_value,
++                           shape=(10, 10))
++    assert arr.dtype == DTYPE
++    assert arr.fill_value == fill_value
++
++
++def test_create_structured_with_zero_fill_value_no_warning():
++    with warnings.catch_warnings():
++        warnings.simplefilter('error')
++        arr = zarr.zeros((5, 5), dtype=DTYPE)
++    assert arr.fill_value == np.zeros((), dtype=DTYPE)[()]

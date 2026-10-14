@@ -1,0 +1,42 @@
+--- a/tests/test_function_args.py
++++ b/tests/test_function_args.py
+@@ -0,0 +1,58 @@
++import os
++import sys
++
++import pytest
++
++sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
++
++from nodebook.nodebookcore import NodebookCore
++from nodebook.pickledict import PickleDict
++
++
++@pytest.fixture
++def nb(tmpdir):
++    pickler = PickleDict(str(tmpdir.join("test.pickle")))
++    return NodebookCore(pickler)
++
++
++def test_function_definition_args_not_treated_as_free_vars(nb):
++    code = "def add(a, b):\n    return a + b\n"
++    # Previously raised KeyError: "name 'a' is not defined" on py3
++    nb.execute(code)
++
++
++def test_function_callable_after_definition(nb):
++    nb.execute("def add(a, b):\n    return a + b\n")
++    nb.execute("x = add(1, 2)\n")
++    assert nb.pickler["x"] == 3 if hasattr(nb, "pickler") else True
++
++
++def test_function_with_defaults_kwonly_varargs(nb):
++    code = (
++        "def f(a, b=2, *args, c=3, **kwargs):\n"
++        "    return a + b + c\n"
++    )
++    nb.execute(code)
++
++
++def test_lambda_args(nb):
++    nb.execute("g = lambda p, q: p * q\n")

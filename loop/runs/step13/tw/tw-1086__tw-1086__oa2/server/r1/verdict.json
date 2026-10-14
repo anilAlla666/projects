@@ -1,0 +1,18 @@
+{"changed": true,
+ "correct_candidates": ["A","B"],
+ "wrong_candidates": ["C","D","E"],
+ "near_misses": ["nm_ifs_leak","nm_dir_leak","nm_var_subshell","nm_array_subshell","nm_hardcoded_list","nm_list_missing_config"],
+ "checks": [
+  {"check":".deploy_state contains lines DEPLOY_VERSION=2.0 and DEPLOY_ENV=production (solver output, fresh run, extra-component run)","requirement":"/app/.deploy_state should contain DEPLOY_VERSION=2.0 and DEPLOY_ENV=production","basis":"task-text","note":""},
+  {"check":"frontend/.built and backend/.built exist","requirement":"/app/frontend/.built and /app/backend/.built should exist","basis":"task-text","note":""},
+  {"check":"components.list has lines frontend, backend, config; no commas","requirement":"/app/config/components.list should contain all three components","basis":"task-text","note":"config was previously not checked"},
+  {"check":"script sourced from /app ends with pwd /app and default IFS","requirement":"Script should end in /app directory; Isolate IFS changes","basis":"task-text","note":""},
+  {"check":"set_deploy_config sets DEPLOY_VERSION/DEPLOY_ENV in caller","requirement":"Variable Persistence Bug / Set and preserve deployment configuration variables","basis":"task-text","note":""},
+  {"check":"build_component leaves caller cwd unchanged and creates .built in component dir","requirement":"Directory Isolation Bug","basis":"task-text","note":""},
+  {"check":"load_components leaves COMPONENTS=(frontend backend config) in caller","requirement":"Array Scope Bug / Preserve array modifications made inside functions","basis":"task-text","note":"values from components.conf"},
+  {"check":"parse_deploy_info leaves IFS unchanged and still prints 'Parsed 3 parts'","requirement":"IFS Isolation Bug","basis":"task-text","note":"behavioural; local IFS also accepted"},
+  {"check":"the four functions exist in deploy.sh","requirement":"Fix each bug by correctly choosing between () and {}","basis":"format","note":"rejects rewrite-to-hardcoded shortcuts"},
+  {"check":"deploy.sh parses, exits 0, regenerates outputs, no 'IFS is corrupted'/fallback warning","requirement":"After fixing the script, run it with /app/deploy.sh","basis":"format","note":""},
+  {"check":"with an extra component line in components.conf, components.list includes it","requirement":"components.conf - Configuration file listing components to deploy; Preserve array modifications","basis":"format","note":"anti-fabrication check"}
+ ],
+ "contested": []}

@@ -1,0 +1,57 @@
+This test adds a new file that checks the `srun` launcher passes the CPUs-per-task setting explicitly. It builds a stand-in job object and calls the launcher's `command()` and `run_command()` directly, so it needs no scheduler. I haven't run it, and it assumes `SrunLauncher.command(job)` and `run_command(job)` behave as I remember them.
+
+The upstream fix may emit `--cpus-per-task=<n>` from `job.num_cpus_per_task`, but I wasn't sure of that. The check therefore also accepts `--cpus-per-task=$SLURM_CPUS_PER_TASK` or an `SRUN_CPUS_PER_TASK` setting. On the current code `command()` returns just `['srun']`, so the test fails there. I left out a test for the unset case, since a fix could legitimately always emit the `$SLURM_CPUS_PER_TASK` form.
+
+```diff
+--- /dev/null
++++ b/unittests/test_srun_cpus_per_task.py
+@@ -0,0 +1,47 @@
++# Tests for Slurm >= 22.05 srun behaviour: srun no longer reads
++# SLURM_CPUS_PER_TASK, so the launcher must pass the option explicitly.
++
++import types
++
++import reframe.core.backends as backends
++
++
++def _make_job(**kwargs):
++    attrs = {
++        'num_tasks': 1,
++        'num_tasks_per_node': None,
++        'num_tasks_per_core': None,
++        'num_tasks_per_socket': None,
++        'num_cpus_per_task': None,
++        'use_smt': None,
++        'time_limit': None,
++        'options': [],
++        'launcher': None,
++    }
++    attrs.update(kwargs)
++    return types.SimpleNamespace(**attrs)
++
++
++def _explicit_cpus_per_task(cmd_tokens, value):
++    joined = ' '.join(cmd_tokens)
++    return (
++        f'--cpus-per-task={value}' in joined or
++        '--cpus-per-task=$SLURM_CPUS_PER_TASK' in joined or
++        '--cpus-per-task=${SLURM_CPUS_PER_TASK}' in joined or
++        'SRUN_CPUS_PER_TASK' in joined
++    )
++
++
++def test_srun_passes_cpus_per_task():
++    launcher = backends.getlauncher('srun')()
++    job = _make_job(num_cpus_per_task=4)
++    cmd = launcher.command(job)
++    assert cmd[0] == 'srun'
++    assert _explicit_cpus_per_task(cmd, 4)
++
++
++def test_srun_run_command_has_cpus_per_task():
++    launcher = backends.getlauncher('srun')()
++    job = _make_job(num_cpus_per_task=8)
++    cmdline = launcher.run_command(job)
++    assert cmdline.startswith('srun')
++    assert _explicit_cpus_per_task([cmdline], 8)
+```

@@ -1,0 +1,63 @@
+I've added a new test file covering the hyphen case from the issue, nested keys, other non-variable characters, and the existing behaviour. I haven't run it against the repo, so I'm relying on `traverse` setting values in place, as the issue's example does.
+
+```diff
+--- /dev/null
++++ b/tests/test_update_from_env_chars.py
+@@ -0,0 +1,56 @@
++import os
++
++import mock
++
++import yamlsettings
++from yamlsettings.yamldict import YAMLDict
++
++
++def test_hyphen_replaced_with_underscore():
++    with mock.patch.dict(os.environ, {'FOO_BAR': 'barbaz'}):
++        settings = YAMLDict({'foo-bar': None})
++        yamlsettings.update_from_env(settings)
++
++    assert settings['foo-bar'] == 'barbaz'
++
++
++def test_hyphen_in_nested_keys():
++    with mock.patch.dict(os.environ, {'FOO_BAR_BAZ_QUX': 'val'}):
++        settings = YAMLDict({'foo-bar': {'baz-qux': None}})
++        yamlsettings.update_from_env(settings)
++
++    assert settings['foo-bar']['baz-qux'] == 'val'
++
++
++def test_other_non_variable_chars_replaced():
++    with mock.patch.dict(os.environ, {'A_B_C': '5'}):
++        settings = YAMLDict({'a.b': {'c': None}})
++        yamlsettings.update_from_env(settings)
++
++    assert settings['a.b']['c'] == 5
++
++
++def test_space_in_key_replaced():
++    with mock.patch.dict(os.environ, {'MY_KEY': 'x'}):
++        settings = YAMLDict({'my key': None})
++        yamlsettings.update_from_env(settings)
++
++    assert settings['my key'] == 'x'
++
++
++def test_plain_keys_still_work():
++    with mock.patch.dict(os.environ, {'CONFIG_DB_HOST': 'localhost'}):
++        settings = YAMLDict({'config': {'db': {'host': None}}})
++        yamlsettings.update_from_env(settings)
++
++    assert settings['config']['db']['host'] == 'localhost'
++
++
++def test_unset_env_leaves_value():
++    env = dict(os.environ)
++    env.pop('FOO_BAR', None)
++    with mock.patch.dict(os.environ, env, clear=True):
++        settings = YAMLDict({'foo-bar': 'orig'})
++        yamlsettings.update_from_env(settings)
++
++    assert settings['foo-bar'] == 'orig'
+```

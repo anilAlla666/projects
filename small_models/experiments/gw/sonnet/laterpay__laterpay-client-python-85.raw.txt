@@ -1,0 +1,55 @@
+I wrote a new test file, `tests/test_signing_bytes.py`, rather than editing an existing one. I haven't run it, and it assumes `laterpay.signing.sign(secret, params, url, method)` takes those four positional arguments.
+
+The tests sign the same request twice, once with byte-string values and once with `str` values, and require identical signatures. On Python 3 the current code turns `b'foo'` into `"b'foo'"`, so the signatures differ and the tests fail. They should pass once byte strings are decoded before signing. On Python 2 `b'foo'` is already a `str`, so they pass there regardless.
+
+```diff
+diff --git a/tests/test_signing_bytes.py b/tests/test_signing_bytes.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_signing_bytes.py
+@@ -0,0 +1,45 @@
++# -*- coding: utf-8 -*-
++from __future__ import absolute_import, unicode_literals
++
++import unittest
++
++from laterpay import signing
++
++
++class TestSigningByteStrings(unittest.TestCase):
++
++    secret = 'secret'
++    url = 'https://example.com/api'
++
++    def test_bytes_value_signs_like_text_value(self):
++        sig_bytes = signing.sign(
++            self.secret, {'param': b'foo'}, self.url, 'POST')
++        sig_text = signing.sign(
++            self.secret, {'param': 'foo'}, self.url, 'POST')
++        self.assertEqual(sig_bytes, sig_text)
++
++    def test_bytes_values_in_list_sign_like_text_values(self):
++        sig_bytes = signing.sign(
++            self.secret, {'param': [b'foo', b'bar']}, self.url, 'POST')
++        sig_text = signing.sign(
++            self.secret, {'param': ['foo', 'bar']}, self.url, 'POST')
++        self.assertEqual(sig_bytes, sig_text)
++
++    def test_bytes_value_among_other_params(self):
++        sig_bytes = signing.sign(
++            self.secret,
++            {'a': b'foo', 'b': 'bar', 'c': ['x', b'y']},
++            self.url, 'GET')
++        sig_text = signing.sign(
++            self.secret,
++            {'a': 'foo', 'b': 'bar', 'c': ['x', 'y']},
++            self.url, 'GET')
++        self.assertEqual(sig_bytes, sig_text)
++
++    def test_non_ascii_bytes_value(self):
++        sig_bytes = signing.sign(
++            self.secret, {'param': 'füü'.encode('utf-8')}, self.url, 'POST')
++        sig_text = signing.sign(
++            self.secret, {'param': 'füü'}, self.url, 'POST')
++        self.assertEqual(sig_bytes, sig_text)
+```

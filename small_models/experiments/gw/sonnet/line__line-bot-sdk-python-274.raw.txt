@@ -1,0 +1,71 @@
+I've added a new test file that reproduces the issue. I haven't run it. The tests assume the fix makes a bubble's `hero` pick `BoxComponent` or `ImageComponent` from the JSON `type`, as `body` already does for boxes.
+
+```diff
+diff --git a/tests/models/test_flex_message_hero.py b/tests/models/test_flex_message_hero.py
+new file mode 100644
+--- /dev/null
++++ b/tests/models/test_flex_message_hero.py
+@@ -0,0 +1,66 @@
++# -*- coding: utf-8 -*-
++
++import unittest
++
++from linebot.models import (
++    BubbleContainer,
++    BoxComponent,
++    ImageComponent,
++    TextComponent,
++    FlexSendMessage,
++)
++
++
++class TestBubbleHero(unittest.TestCase):
++    def test_hero_box_from_json(self):
++        data = {
++            'type': 'bubble',
++            'hero': {
++                'type': 'box',
++                'layout': 'vertical',
++                'contents': [
++                    {'type': 'text', 'text': 'Brown Cafe'}
++                ]
++            }
++        }
++        bubble = BubbleContainer.new_from_json_dict(data)
++        self.assertIsInstance(bubble.hero, BoxComponent)
++        self.assertEqual(bubble.hero.layout, 'vertical')
++        self.assertIsInstance(bubble.hero.contents[0], TextComponent)
++        self.assertEqual(bubble.as_json_dict(), data)
++
++    def test_hero_image_from_json(self):
++        data = {
++            'type': 'bubble',
++            'hero': {
++                'type': 'image',
++                'url': 'https://example.com/image.png'
++            }
++        }
++        bubble = BubbleContainer.new_from_json_dict(data)
++        self.assertIsInstance(bubble.hero, ImageComponent)
++        self.assertEqual(bubble.as_json_dict(), data)
++
++    def test_hero_box_in_flex_send_message(self):
++        contents = {
++            'type': 'bubble',
++            'hero': {
++                'type': 'box',
++                'layout': 'vertical',
++                'contents': [
++                    {'type': 'text', 'text': 'Brown Cafe'}
++                ]
++            }
++        }
++        message = FlexSendMessage(alt_text='altText', contents=contents)
++        self.assertIsInstance(message.contents, BubbleContainer)
++        self.assertIsInstance(message.contents.hero, BoxComponent)
++        self.assertEqual(message.as_json_dict()['contents'], contents)
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

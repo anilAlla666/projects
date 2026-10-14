@@ -1,0 +1,42 @@
+--- /dev/null
++++ b/tests/test_unk_dtype.py
+@@ -0,0 +1,45 @@
++import unittest
++
++import numpy as np
++
++from reach import Reach
++
++
++class TestUnkDtype(unittest.TestCase):
++    def _make(self, dtype, unk_token="<UNK>"):
++        vectors = np.random.RandomState(0).rand(3, 4).astype(dtype)
++        items = ["a", "b", "c"]
++        return vectors, Reach(vectors, items, unk_token=unk_token)
++
++    def test_float32_preserved_with_unk(self):
++        vectors, r = self._make(np.float32)
++        self.assertEqual(r.vectors.dtype, np.float32)
++        self.assertEqual(r.vectors.shape, (4, 4))
++
++    def test_float16_preserved_with_unk(self):
++        _, r = self._make(np.float16)
++        self.assertEqual(r.vectors.dtype, np.float16)
++
++    def test_float64_preserved_with_unk(self):
++        _, r = self._make(np.float64)
++        self.assertEqual(r.vectors.dtype, np.float64)
++
++    def test_no_unk_preserves_dtype(self):
++        vectors = np.ones((3, 4), dtype=np.float32)
++        r = Reach(vectors, ["a", "b", "c"])
++        self.assertEqual(r.vectors.dtype, np.float32)
++
++    def test_unk_vector_is_zero_and_original_kept(self):
++        vectors, r = self._make(np.float32)
++        self.assertTrue(np.all(r.vectors[r.unk_index] == 0))
++        self.assertTrue(np.allclose(r.vectors[1:], vectors))
++
++
++if __name__ == "__main__":
++    unittest.main()

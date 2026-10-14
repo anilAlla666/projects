@@ -1,0 +1,38 @@
+diff --git a/tests/unit/test_anchor_links.py b/tests/unit/test_anchor_links.py
+new file mode 100644
+--- /dev/null
++++ b/tests/unit/test_anchor_links.py
+@@ -0,0 +1,31 @@
++import md2cf.confluence_renderer as confluence_renderer
++
++
++def test_renderer_anchor_only_link_is_not_relative_link():
++    renderer = confluence_renderer.ConfluenceRenderer()
++    renderer.link(
++        "#frequently-asked-questions-osep", None, "Frequently Asked Questions"
++    )
++
++    assert len(renderer.relative_links) == 0
++
++
++def test_renderer_multiple_anchor_links_are_ignored():
++    renderer = confluence_renderer.ConfluenceRenderer()
++    renderer.link("#first", None, "First")
++    renderer.link("#second", "title", "Second")
++
++    assert len(renderer.relative_links) == 0
++
++
++def test_renderer_relative_link_still_detected_alongside_anchor():
++    renderer = confluence_renderer.ConfluenceRenderer()
++    renderer.link("#anchor", None, "Anchor")
++    renderer.link("other.md", None, "Other")
++
++    assert len(renderer.relative_links) == 1
++
++
++def test_renderer_relative_link_with_fragment_still_detected():
++    renderer = confluence_renderer.ConfluenceRenderer()
++    renderer.link("other.md#section", None, "Other")
++
++    assert len(renderer.relative_links) == 1

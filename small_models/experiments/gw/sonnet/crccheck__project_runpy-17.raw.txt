@@ -1,0 +1,42 @@
+I could not inspect the repository, so this test file rests on assumptions about its layout. It assumes `project_runpy/heidi.py` defines `ReadableSqlFilter`, that its `filter()` unpacks `duration, sql, *rest` from `record.args`, and that a root-level `tests/` directory is acceptable. I did not run the tests.
+
+The first test reproduces the issue: a record whose `sql` argument is `None` should pass through the filter unchanged instead of raising `TypeError`. It fails on the current code and should pass once the fix handles `None`. The second test is a regression guard that a normal `SELECT` is still shortened to `SELECT...FROM`.
+
+```diff
+--- /dev/null
++++ b/tests/test_readable_sql_filter.py
+@@ -0,0 +1,38 @@
++import logging
++import unittest
++
++from project_runpy.heidi import ReadableSqlFilter
++
++
++def make_record(args, msg='(%.3f) %s; args=%s'):
++    return logging.LogRecord(
++        'django.db.backends', logging.DEBUG, __file__, 1, msg, args, None)
++
++
++class ReadableSqlFilterNoneTests(unittest.TestCase):
++    def test_none_sql_does_not_raise(self):
++        record = make_record((0.001, None, None))
++        result = ReadableSqlFilter().filter(record)
++        self.assertTrue(result)
++        self.assertEqual(record.args, (0.001, None, None))
++
++    def test_none_sql_two_args(self):
++        record = make_record((0.001, None), msg='(%.3f) %s')
++        self.assertTrue(ReadableSqlFilter().filter(record))
++
++    def test_select_still_shortened(self):
++        record = make_record(
++            (0.001, 'SELECT a, b, c FROM table WHERE x = 1', ()))
++        self.assertTrue(ReadableSqlFilter().filter(record))
++        self.assertEqual(record.args[0], 0.001)
++        self.assertIn('SELECT...FROM', record.args[1].replace(' ', ''))
++        self.assertNotIn('a, b, c', record.args[1])
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

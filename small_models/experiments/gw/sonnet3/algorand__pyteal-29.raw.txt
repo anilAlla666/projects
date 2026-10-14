@@ -1,0 +1,72 @@
+This test file adds checks that `from pyteal import *` and `from pyteal.ast import *` no longer export submodules or shadow builtins. I have not run it against the current code or a fix.
+
+```diff
+diff --git a/tests/test_star_import.py b/tests/test_star_import.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_star_import.py
+@@ -0,0 +1,57 @@
++import builtins
++import pkgutil
++import types
++
++import pyteal.ast
++
++
++def _star_namespace(module_name):
++    ns = {}
++    exec("from {} import *".format(module_name), ns)
++    return ns
++
++
++def test_star_import_does_not_shadow_int():
++    ns = _star_namespace("pyteal")
++    assert ns.get("int", int) is int
++    assert eval("int(5)", ns) == 5
++
++
++def test_star_import_does_not_shadow_builtins():
++    for modname in ("pyteal", "pyteal.ast", "pyteal.ir"):
++        ns = _star_namespace(modname)
++        for name, value in ns.items():
++            if name.startswith("__"):
++                continue
++            if hasattr(builtins, name):
++                assert value is getattr(builtins, name), (modname, name)
++
++
++def test_star_import_does_not_export_ast_submodules():
++    submodules = [m.name for m in pkgutil.iter_modules(pyteal.ast.__path__)]
++    assert "int" in submodules
++    for modname in ("pyteal", "pyteal.ast"):
++        ns = _star_namespace(modname)
++        for sub in submodules:
++            assert not isinstance(ns.get(sub), types.ModuleType), (modname, sub)
++
++
++def test_star_import_still_exports_public_api():
++    ns = _star_namespace("pyteal")
++    for name in [
++        "Int",
++        "Bytes",
++        "Addr",
++        "Expr",
++        "Txn",
++        "Gtxn",
++        "Global",
++        "If",
++        "Seq",
++        "Cond",
++        "And",
++        "Or",
++        "Concat",
++        "Op",
++        "Mode",
++        "TealType",
++        "compileTeal",
++        "MAX_GROUP_SIZE",
++        "TealInputError",
++    ]:
++        assert name in ns, name
++    assert ns["Int"](5).value == 5
+```

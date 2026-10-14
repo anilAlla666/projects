@@ -1,0 +1,47 @@
+The test below checks that assigning to `entity.id` is rejected and leaves the crate's entity map and `dereference` unchanged. I haven't run it against the current code. It assumes `id` becomes a read-only property, so assignment raises `AttributeError`. I left out `d["@id"] = ...` because I don't know which exception a fix would raise there.
+
+```diff
+diff --git a/test/test_entity_id_immutable.py b/test/test_entity_id_immutable.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_entity_id_immutable.py
+@@ -0,0 +1,41 @@
++import pytest
++
++from rocrate.rocrate import ROCrate
++
++
++def test_entity_id_not_settable():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    old_id = d.id
++    with pytest.raises(AttributeError):
++        d.id = "foo"
++    assert d.id == old_id
++
++
++def test_dereference_consistent_after_failed_id_change():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    old_id = d.id
++    try:
++        d.id = "foo"
++    except AttributeError:
++        pass
++    assert crate.dereference("FOO") is d
++    assert crate.dereference(old_id) is d
++    assert crate.dereference("foo") is None
++
++
++def test_file_and_contextual_entity_id_not_settable():
++    crate = ROCrate()
++    person = crate.add(__import__("rocrate.model.person", fromlist=["Person"]).Person(
++        crate, "#alice", properties={"name": "Alice"}
++    ))
++    old_id = person.id
++    with pytest.raises(AttributeError):
++        person.id = "#bob"
++    assert person.id == old_id
++    assert crate.dereference("#alice") is person
++    assert crate.dereference("#bob") is None
+```

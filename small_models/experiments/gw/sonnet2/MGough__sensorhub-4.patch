@@ -1,0 +1,55 @@
+--- /dev/null
++++ b/tests/test_constructor_default_args.py
+@@ -0,0 +1,56 @@
++import importlib
++import inspect
++import sys
++import unittest
++from unittest import mock
++
++
++def _import_hub_with_fake_smbus():
++    """Import sensorhub.hub with fake smbus modules so no hardware is needed."""
++    fake_smbus2 = mock.MagicMock(name="smbus2")
++    fake_smbus = mock.MagicMock(name="smbus")
++    patcher = mock.patch.dict(
++        sys.modules,
++        {"smbus2": fake_smbus2, "smbus": fake_smbus},
++    )
++    patcher.start()
++    for name in [n for n in sys.modules if n == "sensorhub" or n.startswith("sensorhub.")]:
++        del sys.modules[name]
++    module = importlib.import_module("sensorhub.hub")
++    return patcher, module
++
++
++class TestConstructorArguments(unittest.TestCase):
++    def setUp(self):
++        patcher, self.hub_module = _import_hub_with_fake_smbus()
++        self.addCleanup(patcher.stop)
++        self.addCleanup(
++            lambda: [
++                sys.modules.pop(n)
++                for n in [m for m in sys.modules if m == "sensorhub" or m.startswith("sensorhub.")]
++            ]
++        )
++
++    def test_all_constructor_params_have_defaults(self):
++        sig = inspect.signature(self.hub_module.SensorHub.__init__)
++        params = [p for name, p in sig.parameters.items() if name != "self"]
++        for p in params:
++            if p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD):
++                continue
++            self.assertIsNot(
++                p.default,
++                inspect.Parameter.empty,
++                "constructor parameter %r should be optional" % p.name,
++            )
++
++    def test_can_construct_without_arguments(self):
++        hub = self.hub_module.SensorHub()
++        self.assertIsNotNone(hub)
++
++
++if __name__ == "__main__":
++    unittest.main()

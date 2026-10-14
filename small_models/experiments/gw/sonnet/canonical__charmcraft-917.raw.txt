@@ -1,0 +1,49 @@
+I couldn't see `charmcraft/main.py` or the existing tests, so this test is written against assumptions about how `main` logs. I haven't run it. I assumed the "System details" line is emitted either through `emit` in `charmcraft.main` or through the standard `logging` module, so the test collects output from both. The new test goes in `tests/test_main.py`.
+
+```diff
+diff --git a/tests/test_main.py b/tests/test_main.py
+--- a/tests/test_main.py
++++ b/tests/test_main.py
+@@ -1,3 +1,43 @@
++import logging
++from unittest.mock import patch
++
++from charmcraft import main as charmcraft_main
++
++
++def _run_main_and_collect_logs(caplog, monkeypatch, env):
++    for key, value in env.items():
++        monkeypatch.setenv(key, value)
++    caplog.set_level(logging.DEBUG)
++    with patch("charmcraft.main.emit", create=True) as mock_emit:
++        try:
++            charmcraft_main.main(["charmcraft", "version"])
++        except SystemExit:
++            pass
++    return str(mock_emit.mock_calls) + "\n" + caplog.text
++
++
++def test_charmcraft_auth_presence_logged_hidden(caplog, monkeypatch):
++    secret = "super-secret-credentials-value"
++    logged = _run_main_and_collect_logs(
++        caplog,
++        monkeypatch,
++        {"CHARMCRAFT_AUTH": secret, "CHARMCRAFT_OTHER": "visible-value"},
++    )
++    assert secret not in logged
++    assert "CHARMCRAFT_AUTH='<hidden>'" in logged
++    assert "CHARMCRAFT_OTHER='visible-value'" in logged
++
++
++def test_charmcraft_auth_absent_not_logged(caplog, monkeypatch):
++    monkeypatch.delenv("CHARMCRAFT_AUTH", raising=False)
++    logged = _run_main_and_collect_logs(
++        caplog, monkeypatch, {"CHARMCRAFT_OTHER": "visible-value"}
++    )
++    assert "CHARMCRAFT_AUTH" not in logged
++
++
+ # Copyright 2020-2021 Canonical Ltd.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+```

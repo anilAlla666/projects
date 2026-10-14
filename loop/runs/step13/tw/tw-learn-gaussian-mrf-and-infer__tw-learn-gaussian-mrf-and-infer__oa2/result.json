@@ -1,0 +1,143 @@
+{
+ "loop": "tw-learn-gaussian-mrf-and-infer__tw-learn-gaussian-mrf-and-infer__oa2",
+ "task": "tw-learn-gaussian-mrf-and-infer",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 14,
+   "usd": 0.8653,
+   "seconds": 270,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "B",
+     "C"
+    ],
+    "wrong_candidates": [
+     "A",
+     "D",
+     "E"
+    ],
+    "near_misses": [
+     "nm1_wrong_edge",
+     "nm2_evidence_swapped",
+     "nm3_bootstrap_samples",
+     "nm4_ignores_evidence",
+     "nm5_independent_samples",
+     "nm6_9999_samples",
+     "nm7_samples_wrong_graph"
+    ],
+    "checks": [
+     {
+      "check": "all three output files exist",
+      "requirement": "Three output files must be saved",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "learned_mrf.csv: 8 lines of node1,node2, valid capital names, no self-loops, no duplicates",
+      "requirement": "Exactly 8 edges ... each edge should appear only once; node names are case-sensitive",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "V degree strictly greater than any other node",
+      "requirement": "node V must have the highest degree",
+      "basis": "task-text",
+      "note": "old check depended on dict order for ties"
+     },
+     {
+      "check": "edge set equals top-8 |partial correlation| pairs of /app/mrf_sample_10k.csv (asserted only if 8th/9th gap >3x)",
+      "requirement": "Recover the underlying graphical structure of the MRF. The true graph has exactly 8 edges",
+      "basis": "recomputed",
+      "note": "partial correlation thresholding named by task; glasso alpha .02-.1 and GraphicalLassoCV give identical set; gap .198 vs .021"
+     },
+     {
+      "check": "inferred_marginals header w_value,probability, numeric, >=2 unique values, p>=0, sum in [0.95,1.05]",
+      "requirement": "CSV with header w_value,probability ... probabilities should sum to approximately 1.0",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "samples: 10000 rows, all 8 columns numeric finite",
+      "requirement": "Exactly 10,000 rows ... header row containing all 8 node names",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "<1% of sample rows are exact rows of the observed data",
+      "requirement": "Generate 10,000 samples from the learned MRF model",
+      "basis": "format",
+      "note": "shortcut detection (copy/permutation/bootstrap of data)"
+     },
+     {
+      "check": "in samples, |partial corr| < 0.08 for every pair not in learned_mrf.csv",
+      "requirement": "Generated samples should follow the learned distribution",
+      "basis": "format",
+      "note": "structural consistency, no expected value"
+     },
+     {
+      "check": "mean/sd of inferred_marginals within 0.06 / 20% of Gaussian conditional W|V=1,X=0.5 implied by the solver's own samples",
+      "requirement": "The conditional inference should properly account for the evidence V=1.0 and X=0.5; Generated samples should follow the learned distribution",
+      "basis": "format",
+      "note": "internal consistency between two outputs of the same learned model; not an expected value"
+     }
+    ],
+    "contested": [
+     {
+      "value": "conditional mean/sd of P(W|V=1,X=0.5)",
+      "verifier_expects": "no fixed value (only consistency with own samples)",
+      "candidates_give": "0.2015 (B, D), 0.198 (C), 0.0 (A)",
+      "why": "depends on parameter estimator / glasso regularisation (0.05-0.20 across alpha 0.1-0), which the task does not fix"
+     }
+    ]
+   },
+   "evidence": "PPPPF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "nop"
+   ],
+   "guard": {
+    "kept": true,
+    "old_agree": 4,
+    "new_agree": 12,
+    "items": 12
+   }
+  }
+ ],
+ "usd": 0.865,
+ "before": {
+  "accepted_correct": "6/6",
+  "attempts": 8,
+  "balanced_accuracy": 0.75,
+  "isolation": "bindproc",
+  "labels": "PPPPPPFF",
+  "rejected_wrong": "1/2",
+  "reward": 0.5,
+  "seconds": 9.1,
+  "task": "tw-learn-gaussian-mrf-and-infer",
+  "timeouts": 0,
+  "tnr": 0.5,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "6/6",
+  "attempts": 8,
+  "balanced_accuracy": 1.0,
+  "isolation": "bindproc",
+  "labels": "PPPPPPFF",
+  "rejected_wrong": "2/2",
+  "reward": 1.0,
+  "seconds": 9.3,
+  "task": "tw-learn-gaussian-mrf-and-infer",
+  "timeouts": 0,
+  "tnr": 1.0,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPFF"
+ }
+}

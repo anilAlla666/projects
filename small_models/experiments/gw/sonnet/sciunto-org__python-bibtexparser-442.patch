@@ -1,0 +1,53 @@
+diff --git a/tests/test_model_setitem.py b/tests/test_model_setitem.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_model_setitem.py
+@@ -0,0 +1,50 @@
++from bibtexparser.model import Entry, Field
++
++
++def _entry():
++    return Entry("article", "mykey", [Field("author", "Doe, John")])
++
++
++def test_setitem_creates_new_field():
++    entry = _entry()
++    entry["somekey"] = "somevalue"
++
++    assert "somekey" in entry.fields_dict
++    field = entry.fields_dict["somekey"]
++    assert isinstance(field, Field)
++    assert field.key == "somekey"
++    assert field.value == "somevalue"
++    assert any(f.key == "somekey" and f.value == "somevalue" for f in entry.fields)
++    assert len(entry.fields) == 2
+
+
++def test_setitem_overwrites_existing_field():
++    entry = _entry()
++    entry["author"] = "Smith, Jane"
++
++    assert entry.fields_dict["author"].value == "Smith, Jane"
++    assert len([f for f in entry.fields if f.key == "author"]) == 1
++    assert len(entry.fields) == 1
++
++
++def test_setitem_accepts_any_value_type():
++    entry = _entry()
++    entry["year"] = 2023
++    entry["other"] = ["a", "b"]
++
++    assert entry.fields_dict["year"].value == 2023
++    assert entry.fields_dict["other"].value == ["a", "b"]
++    assert entry.fields_dict["year"].key == "year"
++
++
++def test_setitem_equivalent_to_set_field():
++    e1 = _entry()
++    e2 = _entry()
++    e1["title"] = "A title"
++    e2.set_field(Field("title", "A title"))
++
++    assert e1.fields_dict["title"].key == e2.fields_dict["title"].key
++    assert e1.fields_dict["title"].value == e2.fields_dict["title"].value
++    assert [f.key for f in e1.fields] == [f.key for f in e2.fields]

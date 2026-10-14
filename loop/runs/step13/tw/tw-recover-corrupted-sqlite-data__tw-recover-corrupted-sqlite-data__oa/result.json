@@ -1,0 +1,105 @@
+{
+ "loop": "tw-recover-corrupted-sqlite-data__tw-recover-corrupted-sqlite-data__oa",
+ "task": "tw-recover-corrupted-sqlite-data",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 10,
+   "usd": 0.3368,
+   "seconds": 124,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "A",
+     "B",
+     "C"
+    ],
+    "wrong_candidates": [],
+    "near_misses": [
+     "nm_wrong_value",
+     "nm_only_14_records",
+     "nm_only_8_records",
+     "nm_unsorted",
+     "nm_name_case",
+     "nm_value_strings",
+     "nm_wrapped_object",
+     "nm_fabricated_extra",
+     "nm_extra_key"
+    ],
+    "checks": [
+     {
+      "check": "/data/recovered.json exists and parses as JSON",
+      "requirement": "export everything to /data/recovered.json",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "top level is a list; each record is an object with exactly keys id,name,value; id/value int (not bool), name str",
+      "requirement": "The output format should be: [{\"id\": 1, \"name\": \"record1\", \"value\": X}, ...]",
+      "basis": "format",
+      "note": "column types in the DB are INTEGER/TEXT/INTEGER"
+     },
+     {
+      "check": "ids in ascending order",
+      "requirement": "sorted by id",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "exactly 15 records equal to id 1..15, name record<id>, value id*10, in order",
+      "requirement": "recover all the missing data ... maybe 15 records total",
+      "basis": "recomputed",
+      "note": "read with sqlite3 from /data/database.db (with and without WAL) and by parsing the WAL by hand; all give the same 15 rows"
+     },
+     {
+      "check": "test.sh runs with python3 only (no network) and always writes 0/1",
+      "requirement": "grader: must write exactly 1 or 0 to /logs/verifier/reward.txt; no network",
+      "basis": "format",
+      "note": "the original installed uv/pytest from the network, which always gave 0"
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "",
+   "evidence_ids": [],
+   "guard": {
+    "kept": false,
+    "old_agree": null,
+    "new_agree": null,
+    "items": null
+   }
+  }
+ ],
+ "usd": 0.337,
+ "before": {
+  "accepted_correct": "5/5",
+  "attempts": 7,
+  "balanced_accuracy": 0.75,
+  "isolation": "bindproc",
+  "labels": "PPPPPFF",
+  "rejected_wrong": "1/2",
+  "reward": 0.5,
+  "seconds": 3.8,
+  "task": "tw-recover-corrupted-sqlite-data",
+  "timeouts": 0,
+  "tnr": 0.5,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "5/5",
+  "attempts": 7,
+  "balanced_accuracy": 0.75,
+  "isolation": "bindproc",
+  "labels": "PPPPPFF",
+  "rejected_wrong": "1/2",
+  "reward": 0.5,
+  "seconds": 3.6,
+  "task": "tw-recover-corrupted-sqlite-data",
+  "timeouts": 0,
+  "tnr": 0.5,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPF"
+ }
+}

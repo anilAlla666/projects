@@ -1,0 +1,41 @@
+--- a/tests/test_unit_tools.py
++++ b/tests/test_unit_tools.py
+@@ -455,3 +455,47 @@
+         with pytest.raises(CekitError, match=r"^CEKit dependency: 'xyz' was not found, please provide the 'xyz-aaa' executable. To satisfy this requirement you can install the 'package-xyz' package.$"):
+             handler._check_for_executable('xyz', 'xyz-aaa', 'package-xyz')
++
++
++def test_get_brew_url_preserves_dots_in_artifact_id(mocker):
++    list_archives = b'''[
++  {
++    "build_id": 410568,
++    "version": "1.0.4",
++    "type_name": "jar",
++    "artifact_id": "javax.json",
++    "type_id": 1,
++    "checksum": "569870f975deeeb6691fcb9bc02a9555",
++    "extra": null,
++    "filename": "javax.json-1.0.4.jar",
++    "metadata_only": false,
++    "btype": "maven",
++    "checksum_type": 0,
++    "btype_id": 2,
++    "group_id": "org.glassfish",
++    "buildroot_id": null,
++    "id": 863130,
++    "size": 85147
++  }
++]'''
++    get_build = b'''{
++  "state": 1,
++  "package_name": "org.glassfish-javax.json",
++  "release": "1"
++}'''
++
++    mocker.patch('subprocess.check_output', side_effect=[list_archives, get_build])
++
++    url = tools.get_brew_url('569870f975deeeb6691fcb9bc02a9555')
++
++    assert url == ('http://download.devel.redhat.com/brewroot/packages/'
++                   'org.glassfish-javax.json/1.0.4/1/maven/'
++                   'org/glassfish/javax.json/1.0.4/javax.json-1.0.4.jar')

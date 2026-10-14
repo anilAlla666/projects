@@ -1,0 +1,53 @@
+I've added a new test file that runs the issue's example and a two-user variant, both with string `user_id`s. I haven't run these tests. On the current code they should fail with the `NotImplementedError` from aggregating `user_id` with `mean`.
+
+```diff
+--- /dev/null
++++ b/tests/preprocessing/test_generate_triplegs_string_user.py
+@@ -0,0 +1,53 @@
++import geopandas as gpd
++import pandas as pd
++
++from trackintel.preprocessing.positionfixes import generate_staypoints, generate_triplegs
++
++
++def _make_pfs(user_ids):
++    n = 10
++    frames = []
++    for uid in user_ids:
++        frames.append(
++            gpd.GeoDataFrame(
++                {
++                    "user_id": uid,
++                    "tracked_at": pd.date_range("2023-01-01T00:00:00Z", freq="60s", periods=n),
++                },
++                geometry=gpd.points_from_xy([0] * 5 + [1] * 5, [0] * 5 + [1] * 5),
++                crs="EPSG:4326",
++            )
++        )
++    return pd.concat(frames, ignore_index=True)
++
++
++class TestGenerateTriplegsStringUserId:
++    """generate_triplegs must work if user_id is a string."""
++
++    def test_single_string_user(self):
++        pfs = _make_pfs(["test"])
++        pfs, _ = generate_staypoints(pfs)
++        pfs, tpls = generate_triplegs(pfs)
++
++        assert len(tpls) > 0
++        assert (tpls["user_id"] == "test").all()
++        assert (pfs["user_id"] == "test").all()
++        assert tpls["user_id"].dtype == pfs["user_id"].dtype
++
++    def test_multiple_string_users(self):
++        pfs = _make_pfs(["a", "b"])
++        pfs, _ = generate_staypoints(pfs)
++        pfs, tpls = generate_triplegs(pfs)
++
++        assert len(tpls) > 0
++        assert set(tpls["user_id"]).issubset({"a", "b"})
++        # each tripleg's user must match the user of its positionfixes
++        for tpl_id, user in tpls["user_id"].items():
++            assert (pfs.loc[pfs["tripleg_id"] == tpl_id, "user_id"] == user).all()
+```

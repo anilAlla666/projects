@@ -1,0 +1,123 @@
+I couldn't inspect the repository, so these tests rely on my recollection of the API. They assume `Particle(**kwargs)` exposes `radius` and `pdf` or `pmf`, either as methods or as attributes. They also assume the `Particle` constructor accepts `nbins`, `spacing` and `cutoff`. I haven't run them.
+
+The tests build a `Particle` from the three-mode kwargs in the issue and check that:
+- it constructs and returns arrays of length `nbins`;
+- the radius grid is increasing and covers the 5000 nm mode;
+- the pdf has three separate peaks near 50, 300 and 5000 nm;
+- the nano mode (1e9 particles) dominates the coarse mode (1e6 particles).
+
+A single-mode regression test with scalar kwargs is included as well.
+
+```diff
+diff --git a/particula/tests/multi_mode_test.py b/particula/tests/multi_mode_test.py
+new file mode 100644
+--- /dev/null
++++ b/particula/tests/multi_mode_test.py
+@@ -0,0 +1,100 @@
++""" tests for multi-mode distributions
++"""
++
++import numpy as np
++import pytest
++
++from particula.particle import Particle
++
++MULTI_MODE = {
++    "mode": [5000e-9, 50e-9, 300e-9],  # coarse, nano, fine
++    "nbins": 1000,
++    "nparticles": [1e6, 1e9, 1e7],
++    "volume": 1e-6,
++    "gsigma": [1.5, 1.2, 1.5],
++    "spacing": "logspace",
++}
++
++
++def _get(obj, name):
++    """ fetch attribute or call method, strip units """
++    val = getattr(obj, name)
++    if callable(val):
++        val = val()
++    if hasattr(val, "m"):
++        val = val.m
++    return np.squeeze(np.asarray(val, dtype=float))
++
++
++def _pdf(obj):
++    for name in ("pdf", "pmf"):
++        if hasattr(obj, name):
++            return _get(obj, name)
++    raise AssertionError("no pdf/pmf")
++
++
++def _peaks(y, rel=1e-8):
++    """ indices of local maxima above rel * max """
++    idx = np.where((y[1:-1] > y[:-2]) & (y[1:-1] >= y[2:]))[0] + 1
++    return [i for i in idx if y[i] > rel * y.max()]
++
++
++def test_multimode_constructs_and_shapes():
++    """ multi-mode kwargs are accepted and give consistent arrays """
++    particle = Particle(**MULTI_MODE)
++    radius = _get(particle, "radius")
++    pdf = _pdf(particle)
++    assert radius.shape == (1000,)
++    assert pdf.shape == (1000,)
++    assert np.all(np.isfinite(pdf))
++    assert np.all(pdf >= 0)
++    assert np.all(np.diff(radius) > 0)
++
++
++def test_multimode_radius_covers_all_modes():
++    """ radius grid must span smallest through largest mode """
++    particle = Particle(**MULTI_MODE)
++    radius = _get(particle, "radius")
++    assert radius.min() < 50e-9
++    assert radius.max() > 5000e-9
++
++
++def test_multimode_has_three_peaks_at_modes():
++    """ pdf shows one peak at each requested mode """
++    particle = Particle(**MULTI_MODE)
++    radius = _get(particle, "radius")
++    pdf = _pdf(particle)
++    peaks = _peaks(pdf)
++    assert len(peaks) == 3
++    peak_r = sorted(radius[peaks])
++    for found, expected in zip(peak_r, [50e-9, 300e-9, 5000e-9]):
++        assert found == pytest.approx(expected, rel=0.25)
++
++
++def test_multimode_weights_follow_nparticles():
++    """ nano mode (1e9) dominates the coarse mode (1e6) in number """
++    particle = Particle(**MULTI_MODE)
++    radius = _get(particle, "radius")
++    pdf = _pdf(particle)
++    total = np.trapz(pdf, radius)
++    assert total > 0
++    nano = np.trapz(pdf[radius < 120e-9], radius[radius < 120e-9])
++    coarse = np.trapz(pdf[radius > 2000e-9], radius[radius > 2000e-9])
++    assert nano > 10 * coarse
++
++
++def test_single_mode_still_works():
++    """ scalar kwargs keep working and give one peak """
++    particle = Particle(
++        mode=100e-9, nbins=500, nparticles=1e6, volume=1e-6,
++        gsigma=1.3, spacing="logspace",
++    )
++    pdf = _pdf(particle)
++    radius = _get(particle, "radius")
++    peaks = _peaks(pdf)
++    assert len(peaks) == 1
++    assert radius[peaks[0]] == pytest.approx(100e-9, rel=0.25)
++
++
++def test_multimode_differs_from_single_mode():
++    """ extra modes must change the distribution """
++    multi = _pdf(Particle(**MULTI_MODE))
++    single_kwargs = dict(MULTI_MODE, mode=50e-9, nparticles=1e9, gsigma=1.2)
++    single = _pdf(Particle(**single_kwargs))
++    assert multi.shape == single.shape or multi.size > 0
++    assert len(_peaks(single)) == 1
++    assert len(_peaks(multi)) == 3
+```

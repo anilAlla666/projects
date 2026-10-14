@@ -1,0 +1,72 @@
+diff --git a/test/test_lowercase_translation.py b/test/test_lowercase_translation.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_lowercase_translation.py
+@@ -0,0 +1,95 @@
++from unittest import TestCase
++
++from dark.reads import DNARead
++
++
++MIXED = 'atgaaaTTTggcCCCtagATGcccgggtaaAC'
++
++
++def _translations(sequence):
++    return [t.sequence for t in DNARead('id', sequence).translations()]
++
++
++class TestLowercaseTranslation(TestCase):
++    """
++    Translating sequences containing lowercase letters must give the
++    same result as translating the uppercased sequence.
++    """
++
++    def testAllLowercase(self):
++        self.assertEqual(_translations('atgaaatttggcccc'.upper()),
++                         _translations('atgaaatttggcccc'))
++
++    def testSimpleLowercaseCodon(self):
++        read = DNARead('id', 'atg')
++        self.assertEqual('M', list(read.translations())[0].sequence)
++
++    def testMixedCase(self):
++        self.assertEqual(_translations(MIXED.upper()), _translations(MIXED))
++
++    def testMixedCaseWithinCodon(self):
++        seq = 'AtGaAaTtTgGcCcC'
++        self.assertEqual(_translations(seq.upper()), _translations(seq))
++
++    def testMixedCaseLengthNeedingPadding(self):
++        for seq in ('atgaaaT', 'atgaaaTT', 'ATGAAAtttg'):
++            self.assertEqual(_translations(seq.upper()), _translations(seq))
++
++    def testReverseComplementLowercase(self):
++        read = DNARead('id', 'aaCCgGtT')
++        self.assertEqual('AACCGGTT',
++                         read.reverseComplement().sequence.upper())
++
++    def testReverseComplementTranslationsMixedCase(self):
++        upper = [(t.sequence, t.frame, t.reverseComplemented)
++                 for t in DNARead('id', MIXED.upper()).translations()]
++        mixed = [(t.sequence, t.frame, t.reverseComplemented)
++                 for t in DNARead('id', MIXED).translations()]
++        self.assertEqual(upper, mixed)
++
++    def testNoUnknownResiduesFromLowercase(self):
++        # Lowercase unambiguous nucleotides must never give 'X' or '?'.
++        seq = 'atgcatgcatgcatgcatgc'
++        for translation in _translations(seq):
++            self.assertNotIn('?', translation)
++            self.assertNotIn('X', translation)
++
++    def testORFsMixedCase(self):
++        def orfs(sequence):
++            result = []
++            for t in DNARead('id', sequence).translations():
++                for orf in t.ORFs():
++                    result.append((t.frame, t.reverseComplemented,
++                                   orf.sequence, orf.start, orf.stop,
++                                   orf.id))
++            return result
++
++        self.assertEqual(orfs(MIXED.upper()), orfs(MIXED))

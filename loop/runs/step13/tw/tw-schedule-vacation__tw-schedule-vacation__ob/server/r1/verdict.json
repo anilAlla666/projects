@@ -1,0 +1,14 @@
+{"changed": true,
+ "correct_candidates": ["B", "D"],
+ "wrong_candidates": ["A", "C"],
+ "near_misses": ["nm1_overlap_only_availability","nm2_end_off_by_one","nm3_charlie_board_meeting_free","nm4_overlap_handwritten","nm5_bob_schedule_truncated","nm6_unpadded_dates","nm7_two_lines"],
+ "checks": [
+  {"check": "each <friend>_schedule.txt equals get_schedule.py <friend> stdout (stripped)", "requirement": "Get each friend's schedule data using /app/get_schedule.py and save to alice_schedule.txt, ...", "basis": "recomputed", "note": "uses pristine copy of the tool in /tests"},
+  {"check": "all_availability.json has exactly keys alice,bob,charlie,dana; non-empty lists of {start,end} YYYY-MM-DD, start<=end", "requirement": "create a file called /app/all_availability.json with this exact schema", "basis": "format", "note": ""},
+  {"check": "availability contains every day the schedule clearly leaves free and no day it marks busy/working", "requirement": "Parse the different schedule formats ... Each friend should have a list of their available date ranges (when they're free for vacation).", "basis": "recomputed", "note": "days outside each schedule's covered span are not constrained; this rejects A and C, which list only the final overlap"},
+  {"check": "overlap_results.json has vacation_duration 7, total_windows_found == len(windows), includes the all-four window 2025-07-28..2025-08-03", "requirement": "Use /app/find_overlap.py to find overlapping 7-day periods to generate /app/overlap_results.json", "basis": "recomputed", "note": ""},
+  {"check": "overlap_results.json equals find_overlap.py 7 output on the submitted all_availability.json", "requirement": "Use /app/find_overlap.py to find overlapping 7-day periods to generate /app/overlap_results.json", "basis": "recomputed", "note": ""},
+  {"check": "vacation_dates.txt is exactly one line 'YYYY-MM-DD to YYYY-MM-DD'", "requirement": "The file must contain exactly one line (dates inclusive): `YYYY-MM-DD to YYYY-MM-DD`", "basis": "format", "note": "tightened from a loose regex"},
+  {"check": "vacation window is 2025-07-28 to 2025-08-03", "requirement": "plan a 7-day vacation with my four friends ... Save your final answer", "basis": "recomputed", "note": "the only 7-day window in which all four are free"}
+ ],
+ "contested": []}

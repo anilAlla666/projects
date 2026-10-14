@@ -1,0 +1,62 @@
+I wrote these tests from memory of the repo layout, without running them or checking the code, so a few names are assumptions. The assumed names are `lightstep.span_context.SpanContext`, its `sampled` keyword, the `Tracer` kwargs, and the `recorder._span_records` buffer. If any differ, the tests need adjusting.
+
+The first test starts a span from a parent context with `sampled=False`, finishes it, and asserts that nothing reaches the recorder's buffer. It fails on current code because the recorder never reads `sampled`. A second test checks that a sampled span is still recorded, as a regression guard. A third checks that a span flagged unsampled in the context never reaches the recorder's buffer even when it is finished alongside a sampled one.
+
+```diff
+diff --git a/tests/sampling_test.py b/tests/sampling_test.py
+new file mode 100644
+--- /dev/null
++++ b/tests/sampling_test.py
+@@ -0,0 +1,56 @@
++import unittest
++
++import lightstep
++from lightstep.span_context import SpanContext
++
++
++def _make_tracer():
++    return lightstep.Tracer(
++        component_name='sampling_test',
++        access_token='token',
++        collector_host='localhost',
++        collector_port=1,
++        collector_encryption='none',
++        periodic_flush_seconds=0,
++        verbosity=0,
++    )
++
++
++def _records(tracer):
++    return list(tracer.recorder._span_records)
++
++
++class SamplingTest(unittest.TestCase):
++    def test_unsampled_span_not_recorded(self):
++        tracer = _make_tracer()
++        ctx = SpanContext(trace_id=1, span_id=2, baggage={}, sampled=False)
++        span = tracer.start_span('unsampled', child_of=ctx)
++        span.finish()
++        self.assertEqual(len(_records(tracer)), 0)
++
++    def test_sampled_span_recorded(self):
++        tracer = _make_tracer()
++        ctx = SpanContext(trace_id=1, span_id=2, baggage={}, sampled=True)
++        span = tracer.start_span('sampled', child_of=ctx)
++        span.finish()
++        self.assertEqual(len(_records(tracer)), 1)
++
++    def test_only_sampled_spans_buffered(self):
++        tracer = _make_tracer()
++        unsampled = SpanContext(trace_id=1, span_id=2, baggage={},
++                                sampled=False)
++        sampled = SpanContext(trace_id=3, span_id=4, baggage={},
++                              sampled=True)
++        tracer.start_span('a', child_of=unsampled).finish()
++        tracer.start_span('b', child_of=sampled).finish()
++        tracer.start_span('c', child_of=unsampled).finish()
++        self.assertEqual(len(_records(tracer)), 1)
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

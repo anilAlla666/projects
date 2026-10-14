@@ -1,0 +1,60 @@
+I've added one new test file that reproduces the issue through the parse-then-export path. I haven't run it, so I haven't confirmed that it fails on the current code.
+
+I made some assumptions about the repository's API because I couldn't check it. These are the `FiltersSet.from_parser_result` method, the `filters[0]["name"]` structure, the `# rule:[name]` comment convention and the `sievelib/tests/` location. If any of them is wrong, the test could error for a reason unrelated to the bug.
+
+The test parses a script with `exists ["Subject"]` and a script with `exists ["Subject", "X-Spam"]`. It then calls `get_filter_conditions` on the loaded filter, which is the call that raises `AttributeError: 'list' object has no attribute 'startswith'` in the issue. It asserts that the export succeeds and that the header names appear in the result. I did not assert the exact tuple format, since I couldn't check what `get_filter_conditions` returns.
+
+```diff
+diff --git a/sievelib/tests/test_exists_export.py b/sievelib/tests/test_exists_export.py
+new file mode 100644
+--- /dev/null
++++ b/sievelib/tests/test_exists_export.py
+@@ -0,0 +1,45 @@
++# coding: utf-8
++"""Export of a parsed 'exists' test through the factory module."""
++import unittest
++
++from sievelib.factory import FiltersSet
++from sievelib.parser import Parser
++
++
++SCRIPT_SINGLE = """require ["fileinto"];
++
++# rule:[test]
++if anyof (exists ["Subject"]) {
++    fileinto "INBOX";
++}
++"""
++
++SCRIPT_MULTI = """require ["fileinto"];
++
++# rule:[test]
++if anyof (exists ["Subject", "X-Spam"]) {
++    fileinto "INBOX";
++}
++"""
++
++
++class ExistsExportTestCase(unittest.TestCase):
++    def _export(self, script):
++        parser = Parser()
++        self.assertTrue(parser.parse(script), parser.error)
++        fs = FiltersSet("test")
++        fs.from_parser_result(parser)
++        self.assertTrue(len(fs.filters) > 0)
++        name = fs.filters[0]["name"]
++        return fs.get_filter_conditions(name)
++
++    def test_export_exists_single(self):
++        conditions = self._export(SCRIPT_SINGLE)
++        self.assertIn("Subject", str(conditions))
++
++    def test_export_exists_multiple(self):
++        conditions = self._export(SCRIPT_MULTI)
++        self.assertIn("Subject", str(conditions))
++        self.assertIn("X-Spam", str(conditions))
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

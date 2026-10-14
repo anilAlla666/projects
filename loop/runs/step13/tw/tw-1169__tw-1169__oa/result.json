@@ -1,0 +1,145 @@
+{
+ "loop": "tw-1169__tw-1169__oa",
+ "task": "tw-1169",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 15,
+   "usd": 0.6773,
+   "seconds": 298,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "B",
+     "D"
+    ],
+    "wrong_candidates": [
+     "A",
+     "C",
+     "E"
+    ],
+    "near_misses": [
+     "nm_order",
+     "nm_upper",
+     "nm_exit",
+     "nm_noexec",
+     "nm_nowayland",
+     "nm_root",
+     "nm_nodocker",
+     "nm_extraline",
+     "shortcut_hardcoded"
+    ],
+    "checks": [
+     {
+      "check": "script exists at /app/system_profiler.sh",
+      "requirement": "Build a shell script called system_profiler.sh in the /app directory",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "script has exec bit",
+      "requirement": "The script should be executable",
+      "basis": "format",
+      "note": "new"
+     },
+     {
+      "check": "exit status 0 in every run",
+      "requirement": "The script must exit with status code 0 on successful completion",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "exactly 4 lines, exact order, allowed lowercase values",
+      "requirement": "The output must be in the following exact format (one line per detection, in this exact order); All values must be lowercase",
+      "basis": "format",
+      "note": "order check added; the original did not check order"
+     },
+     {
+      "check": "DISPLAY_SERVER=headless with display vars unset or empty",
+      "requirement": "Detect whether the system is using X11, Wayland, or running headless",
+      "basis": "task-text",
+      "note": "original check kept"
+     },
+     {
+      "check": "DISPLAY_SERVER=x11 with DISPLAY=:0, XDG_SESSION_TYPE=x11, Xorg/X processes and X0 socket",
+      "requirement": "Check $XDG_SESSION_TYPE, $DISPLAY, $WAYLAND_DISPLAY environment variables and validate by checking for running processes",
+      "basis": "task-text",
+      "note": "every signal the task names says x11; rejects hard-coded scripts"
+     },
+     {
+      "check": "DISPLAY_SERVER=wayland with WAYLAND_DISPLAY, XDG_SESSION_TYPE=wayland, compositor processes and socket",
+      "requirement": "Check $XDG_SESSION_TYPE, $DISPLAY, $WAYLAND_DISPLAY environment variables and validate by checking for running processes",
+      "basis": "task-text",
+      "note": "every signal the task names says wayland"
+     },
+     {
+      "check": "CONTAINER=docker",
+      "requirement": "Detect if the system is running inside a container and identify the type ... Check for /.dockerenv",
+      "basis": "recomputed",
+      "note": "original check kept; the grading image is docker-built and /.dockerenv is present"
+     },
+     {
+      "check": "runs as uid 65534 with rc 0 and valid format",
+      "requirement": "The script must work without requiring root privileges",
+      "basis": "format",
+      "note": "new"
+     }
+    ],
+    "contested": [
+     {
+      "value": "INIT_SYSTEM inside the container",
+      "verifier_expects": "any allowed value (no check)",
+      "candidates_give": "unknown (A,B,C,E), sysvinit (D)",
+      "why": "the task does not say whether /etc/init.d counts as a sysvinit indicator when PID 1 is not an init"
+     },
+     {
+      "value": "VIRTUALIZATION",
+      "verifier_expects": "any allowed value (no check)",
+      "candidates_give": "kvm (B,C,E), none (A), unknown (D)",
+      "why": "depends on the grader's host and on how a bare hypervisor flag is mapped"
+     }
+    ]
+   },
+   "evidence": "",
+   "evidence_ids": [],
+   "guard": {
+    "kept": false,
+    "old_agree": null,
+    "new_agree": null,
+    "items": null
+   }
+  }
+ ],
+ "usd": 0.677,
+ "before": {
+  "accepted_correct": "4/4",
+  "attempts": 10,
+  "balanced_accuracy": 0.583333,
+  "isolation": "bindproc",
+  "labels": "PPPPFFFFFF",
+  "rejected_wrong": "1/6",
+  "reward": 0.166667,
+  "seconds": 6.0,
+  "task": "tw-1169",
+  "timeouts": 0,
+  "tnr": 0.166667,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "4/4",
+  "attempts": 10,
+  "balanced_accuracy": 0.583333,
+  "isolation": "bindproc",
+  "labels": "PPPPFFFFFF",
+  "rejected_wrong": "1/6",
+  "reward": 0.166667,
+  "seconds": 5.8,
+  "task": "tw-1169",
+  "timeouts": 0,
+  "tnr": 0.166667,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPPPPF"
+ }
+}

@@ -1,0 +1,21 @@
+--- a/tests/test_reader.py
++++ b/tests/test_reader.py
+@@ -691,4 +691,18 @@
+         assert tokenize('#!/usr/bin/env hy\n5')
+     assert (tokenize('#!/usr/bin/env hy\n5', skip_shebang = True) ==
+         [Integer(5)])
++
++
++def test_symbol_model_rejects_reader_macro_syntax():
++    # `#foo` parses as a reader-macro call, not a symbol, so it can't
++    # be made into a `Symbol`, just like "5".
++    with pytest.raises(ValueError):
++        Symbol("5")
++    with pytest.raises(ValueError):
++        Symbol("#foo")
++    with pytest.raises(ValueError):
++        Symbol("#a")
++
++    # A `#` that isn't at the start is fine.
++    assert Symbol("foo#bar") == Symbol("foo#bar")
++    assert Symbol("foo") == Symbol("foo")

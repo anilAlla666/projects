@@ -1,0 +1,46 @@
+diff --git a/tests/preprocessing/test_positionfixes_string_user.py b/tests/preprocessing/test_positionfixes_string_user.py
+new file mode 100644
+--- /dev/null
++++ b/tests/preprocessing/test_positionfixes_string_user.py
+@@ -0,0 +1,50 @@
++import geopandas as gpd
++import pandas as pd
++
++from trackintel.preprocessing.positionfixes import generate_staypoints, generate_triplegs
++from trackintel.preprocessing.staypoints import generate_locations
++
++
++class TestGenerateTriplegsStringUserId:
++    """generate_triplegs must work if user_id is a string."""
++
++    def test_string_user_id(self):
++        pfs = gpd.GeoDataFrame(
++            {
++                "user_id": "test",
++                "tracked_at": pd.date_range("2023-01-01T00:00:00Z", freq="60s", periods=10),
++            },
++            geometry=gpd.points_from_xy([0] * 5 + [1] * 5, [0] * 5 + [1] * 5),
++            crs="EPSG:4326",
++        )
++        pfs, sp = generate_staypoints(pfs)
++        sp, _ = generate_locations(sp)
++        pfs, tpls = generate_triplegs(pfs)
++        assert (tpls["user_id"] == "test").all()
++        assert (pfs["user_id"] == "test").all()
++
++    def test_string_user_id_multiple_users(self):
++        n = 10
++        pfs = gpd.GeoDataFrame(
++            {
++                "user_id": ["a"] * n + ["b"] * n,
++                "tracked_at": list(pd.date_range("2023-01-01T00:00:00Z", freq="60s", periods=n)) * 2,
++            },
++            geometry=gpd.points_from_xy(
++                ([0] * 5 + [1] * 5) * 2,
++                ([0] * 5 + [1] * 5) * 2,
++            ),
++            crs="EPSG:4326",
++        )
++        pfs, sp = generate_staypoints(pfs)
++        pfs, tpls = generate_triplegs(pfs)
++        assert set(tpls["user_id"]).issubset({"a", "b"})

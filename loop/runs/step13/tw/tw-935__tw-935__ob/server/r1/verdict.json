@@ -1,0 +1,26 @@
+{"changed": true,
+ "correct_candidates": [],
+ "wrong_candidates": ["A","B","C","D","E"],
+ "near_misses": ["nm_features_no_avx2","nm_fixed_timestamp","nm_has_usb3_strict","nm_not_executable","nm_rota_inverted","nm_shortcut_hardcoded","nm_size_mb","nm_threads_doubled","nm_total_double","nm_usb_hardcoded"],
+ "checks": [
+  {"check":"script exists and is executable (no chmod by verifier)","requirement":"Be executable and placed in /app/hardware_audit.sh","basis":"format","note":"original test.sh chmod'ed first; removed"},
+  {"check":"script run fresh produces /tmp/hardware_audit.json, strict-valid JSON object","requirement":"Output a valid JSON file to /tmp/hardware_audit.json","basis":"format","note":"stale file removed before run"},
+  {"check":"top-level keys usb,cpu,storage,audit_timestamp","requirement":"The JSON output structure should follow this format","basis":"format","note":""},
+  {"check":"script contains a detection mechanism for USB, CPU and storage","requirement":"The script must detect and report on the following hardware capabilities","basis":"format","note":"anti-hardcoding; lists all common mechanisms"},
+  {"check":"root_hubs counts per version equal sysfs root hub bcdUSB counts; zero/missing keys allowed for absent versions","requirement":"Detect all USB root hubs and their versions / Count how many root hubs exist for each USB version","basis":"recomputed","note":"computed in grading container"},
+  {"check":"max_version equals highest root hub version; null/'unknown' when none","requirement":"Report the highest USB version supported by the system","basis":"recomputed","note":""},
+  {"check":"has_usb3 boolean equals max>=3.0","requirement":"Determine if the system has USB 3.0 or higher support","basis":"recomputed","note":""},
+  {"check":"cpu.model equals lscpu Model name or /proc/cpuinfo model name","requirement":"Report CPU model name","basis":"recomputed","note":""},
+  {"check":"cpu.cores is a physical core count (any standard derivation)","requirement":"Report number of CPU cores (example i7-1065G7 cores 4, threads 8)","basis":"task-text","note":""},
+  {"check":"cpu.threads equals a logical CPU count (lscpu/proc/nproc)","requirement":"Report number of threads","basis":"recomputed","note":""},
+  {"check":"features are real CPU flags; include aes/avx/avx2/sse4_1/sse4_2 when present","requirement":"Detect CPU feature flags (e.g., aes, avx, avx2, sse4_1, etc.)","basis":"recomputed","note":"full list not required"},
+  {"check":"every lsblk disk listed with type nvme/hdd/ssd by name/ROTA","requirement":"List all block devices with their type (HDD, SSD, NVMe)","basis":"recomputed","note":"extra real block devices allowed"},
+  {"check":"size_gb within 1 of bytes/1e9 or bytes/2^30","requirement":"Report total storage capacity in GB","basis":"contested","note":"weak property only"},
+  {"check":"total_capacity_gb equals sum of device size_gb","requirement":"Report total storage capacity in GB","basis":"task-text","note":""},
+  {"check":"type_summary ssd/hdd/nvme counts match device list","requirement":"Create a summary of storage device types","basis":"task-text","note":""},
+  {"check":"audit_timestamp ISO 8601 date-time within 15 min of run","requirement":"Include an ISO 8601 formatted timestamp in the output","basis":"format","note":"freshness rejects hard-coded timestamps"}
+ ],
+ "contested": [
+  {"value":"size_gb unit and rounding","verifier_expects":"within 1 of decimal GB or GiB","candidates_give":"228 (floor GiB), 229 (round GiB)","why":"task does not say GB vs GiB or rounding"},
+  {"value":"inclusion of non-disk block devices (rom, loop)","verifier_expects":"all disks required, extras allowed","candidates_give":"disks only","why":"'all block devices' vs types limited to HDD/SSD/NVMe"}
+ ]}

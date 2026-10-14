@@ -1,0 +1,149 @@
+{
+ "loop": "tw-1229__tw-1229__ob",
+ "task": "tw-1229",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 9,
+   "usd": 0.7086,
+   "seconds": 201,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "A",
+     "B",
+     "C",
+     "D"
+    ],
+    "wrong_candidates": [],
+    "near_misses": [
+     "nm_bitrate_bps",
+     "nm_not_recursive",
+     "nm_wrong_reason",
+     "nm_total_duration_off",
+     "nm_missing_video_codec",
+     "nm_frame_rate_wrong",
+     "nm_empty_summary_txt",
+     "nm_file_in_both_lists",
+     "nm_sample_rate_str_wrong",
+     "shortcut_paths_only"
+    ],
+    "checks": [
+     {
+      "check": "report exists, valid JSON, top-level keys and types",
+      "requirement": "Generate a JSON report at /workspace/media_report.json with this structure",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "valid_files and invalid_files paths equal the expected absolute path sets exactly, with no duplicates",
+      "requirement": "Scan the directory recursively ... Validate files against these criteria",
+      "basis": "recomputed",
+      "note": "the sets follow from the Dockerfile parameters and the stated thresholds"
+     },
+     {
+      "check": "valid entries: format matches the extension or the ffprobe format_name; type is video/audio",
+      "requirement": "Extract metadata ... File format/container type",
+      "basis": "task-text",
+      "note": "example: format 'mp4', type 'video'"
+     },
+     {
+      "check": "duration within 0.1 s of ffprobe",
+      "requirement": "Duration (in seconds)",
+      "basis": "recomputed",
+      "note": ""
+     },
+     {
+      "check": "bitrate within \u00b135% of the envelope of ffprobe format and stream bit_rate in kb/s",
+      "requirement": "Bitrate (in kb/s)",
+      "basis": "recomputed",
+      "note": "band because encodes differ between builds; both bitrate sources accepted"
+     },
+     {
+      "check": "video width/height exact, video_codec h264, frame_rate numeric within 0.05",
+      "requirement": "For video files: resolution (width x height), codec, frame rate",
+      "basis": "recomputed",
+      "note": ""
+     },
+     {
+      "check": "audio codec (audio_codec or codec), sample_rate exact, channels exact",
+      "requirement": "For audio files: codec, sample rate, channels",
+      "basis": "recomputed",
+      "note": ""
+     },
+     {
+      "check": "reasons non-empty; name the failed criterion only; resolution_too_low and duration_too_short exact",
+      "requirement": "invalid_files ... reasons [example]",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "summary counts 11/5/6 and consistent with the lists",
+      "requirement": "summary: total_files, valid_count, invalid_count",
+      "basis": "recomputed",
+      "note": ""
+     },
+     {
+      "check": "total_valid_duration = sum of valid durations within 0.15 (~52.04)",
+      "requirement": "total_valid_duration",
+      "basis": "recomputed",
+      "note": ""
+     },
+     {
+      "check": "summary.txt non-empty and contains 11, 5 and 6",
+      "requirement": "Create a summary file at /workspace/summary.txt containing human-readable statistics",
+      "basis": "format",
+      "note": ""
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "PPPPF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "nop"
+   ],
+   "guard": {
+    "kept": true,
+    "old_agree": 7,
+    "new_agree": 15,
+    "items": 15
+   }
+  }
+ ],
+ "usd": 0.709,
+ "before": {
+  "accepted_correct": "5/5",
+  "attempts": 7,
+  "balanced_accuracy": 0.75,
+  "isolation": "bindproc",
+  "labels": "PPPPPFF",
+  "rejected_wrong": "1/2",
+  "reward": 0.5,
+  "seconds": 3.5,
+  "task": "tw-1229",
+  "timeouts": 0,
+  "tnr": 0.5,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "2/5",
+  "attempts": 7,
+  "balanced_accuracy": 0.45,
+  "isolation": "bindproc",
+  "labels": "PPPPPFF",
+  "rejected_wrong": "1/2",
+  "reward": 0.0,
+  "seconds": 2.2,
+  "task": "tw-1229",
+  "timeouts": 0,
+  "tnr": 0.5,
+  "tpr": 0.4,
+  "verdicts": "PFFFPPF"
+ }
+}

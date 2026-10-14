@@ -1,0 +1,51 @@
+I couldn't open `project_runpy/heidi.py`, so this test assumes `ReadableSqlFilter` is importable from `project_runpy.heidi` and that its `filter` unpacks `record.args` as `(duration, sql, params)`. I have not run it. It should fail on the current code with the `TypeError` from the issue and pass once `None` SQL is handled.
+
+```diff
+--- /dev/null
++++ b/tests/test_heidi_sql_filter.py
+@@ -0,0 +1,50 @@
++import logging
++import unittest
++
++from project_runpy.heidi import ReadableSqlFilter
++
++
++def make_record(sql, params=()):
++    return logging.LogRecord(
++        name="django.db.backends",
++        level=logging.DEBUG,
++        pathname=__file__,
++        lineno=1,
++        msg="(%.3f) %s; args=%s",
++        args=(0.001, sql, params),
++        exc_info=None,
++    )
++
++
++class ReadableSqlFilterNoneTest(unittest.TestCase):
++    def test_none_sql_does_not_raise(self):
++        f = ReadableSqlFilter()
++        record = make_record(None)
++        result = f.filter(record)
++        self.assertTrue(result)
++
++    def test_empty_sql_does_not_raise(self):
++        f = ReadableSqlFilter()
++        record = make_record("")
++        result = f.filter(record)
++        self.assertTrue(result)
++
++    def test_non_select_sql_passes(self):
++        f = ReadableSqlFilter()
++        record = make_record("UPDATE foo SET a = 1")
++        self.assertTrue(f.filter(record))
++
++    def test_select_sql_still_works(self):
++        f = ReadableSqlFilter()
++        record = make_record('SELECT "a", "b" FROM "foo" WHERE "id" = 1')
++        self.assertTrue(f.filter(record))
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

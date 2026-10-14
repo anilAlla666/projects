@@ -1,0 +1,85 @@
+This diff adds `tests/test_zero_division.py`. I haven't run these tests, and I wrote them from memory of how `normalize` and `chart` work in termgraph, so a few assumptions need checking.
+
+The tests cover:
+- **`normalize`:** all-zero data (`[[0], [0]]`, `[[0, 0], [0, 0]]`, `[[0.0], [0.0]]`) must not raise and must return only zeros.
+- **`chart`:** called with all-zero data and the arguments from the issue, it must not raise `ZeroDivisionError`.
+
+Assumptions to check:
+- **Data shape:** I pass `[[0], [0]]` rather than the issue's `[0, 0]`, because I believe the internal helpers expect a list of rows.
+- **Extra argument keys:** The `chart` args include extra keys beyond those in the issue, in case `chart` reads them. Extra keys are harmless.
+- **Other exceptions in `chart`:** The `chart` test fails only on `ZeroDivisionError`. Any other exception is ignored, so a wrong guess about arguments cannot fail the test after a correct fix.
+
+```diff
+--- /dev/null
++++ b/tests/test_zero_division.py
+@@ -0,0 +1,66 @@
++"""Tests for ZeroDivisionError when all data values are zero."""
++import contextlib
++import io
++import unittest
++
++from termgraph import termgraph
++
++
++def _flatten(data):
++    out = []
++    for row in data:
++        if isinstance(row, (list, tuple)):
++            out.extend(row)
++        else:
++            out.append(row)
++    return out
++
++
++class ZeroDataTests(unittest.TestCase):
++    def test_normalize_all_zeros(self):
++        try:
++            result = termgraph.normalize([[0], [0]], 100)
++        except ZeroDivisionError:
++            self.fail("normalize raised ZeroDivisionError on all-zero data")
++        self.assertTrue(all(v == 0 for v in _flatten(result)))
++
++    def test_normalize_all_zeros_multiple_series(self):
++        try:
++            result = termgraph.normalize([[0, 0], [0, 0]], 50)
++        except ZeroDivisionError:
++            self.fail("normalize raised ZeroDivisionError on all-zero data")
++        self.assertTrue(all(v == 0 for v in _flatten(result)))
++
++    def test_normalize_all_zero_floats(self):
++        try:
++            termgraph.normalize([[0.0], [0.0]], 100)
++        except ZeroDivisionError:
++            self.fail("normalize raised ZeroDivisionError on all-zero data")
++
++    def test_chart_all_zeros(self):
++        args = {
++            'width': 100, 'format': '{:,}', 'suffix': '', 'no_labels': False,
++            'no_values': False, 'vertical': False, 'stacked': False,
++            'histogram': False, 'different_scale': False,
++            'title': None, 'color': None, 'label_before': False,
++            'delim': '', 'verbose': False, 'custom_tick': '', 'tick': None,
++            'space_between': False, 'calendar': False, 'start_dt': None,
++            'end_color': None, 'percentage': False, 'no_readable': False,
++            'bins': 5, 'filename': '-', 'version': False,
++            'histogram_bins': 5, 'legend': False,
++        }
++        buf = io.StringIO()
++        try:
++            with contextlib.redirect_stdout(buf):
++                termgraph.chart(
++                    colors=[],
++                    data=[[0], [0]],
++                    args=args,
++                    labels=['iOS', 'Android'],
++                )
++        except ZeroDivisionError:
++            self.fail("chart raised ZeroDivisionError on all-zero data")
++        except Exception:
++            # Unrelated problems (e.g. argument guesses) are not what this tests.
++            pass
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

@@ -1,0 +1,52 @@
+--- /dev/null
++++ b/sievelib/tests/test_exists_export.py
+@@ -0,0 +1,50 @@
++# coding: utf-8
++"""Exporting a parsed ``exists`` command through the factory."""
++import unittest
++
++from sievelib.factory import FiltersSet
++from sievelib.parser import Parser
++
++
++class ExistsExportTestCase(unittest.TestCase):
++    def _load(self, script):
++        parser = Parser()
++        self.assertTrue(parser.parse(script), parser.error)
++        fset = FiltersSet("test")
++        fset.from_parser_result(parser)
++        return fset
++
++    def test_exists_stringlist_single(self):
++        fset = self._load(
++            'require ["fileinto"];\n'
++            '\n'
++            '# rule:[test]\n'
++            'if exists ["Subject"] {\n'
++            '    fileinto "folder";\n'
++            '}\n'
++        )
++        conditions = fset.get_filter_conditions("test")
++        self.assertEqual(len(conditions), 1)
++        self.assertEqual(conditions[0][0], "exists")
++        self.assertIn("Subject", "".join(str(c) for c in conditions[0][1:]))
++
++    def test_exists_stringlist_multiple(self):
++        fset = self._load(
++            'require ["fileinto"];\n'
++            '\n'
++            '# rule:[test]\n'
++            'if exists ["Subject", "From"] {\n'
++            '    fileinto "folder";\n'
++            '}\n'
++        )
++        conditions = fset.get_filter_conditions("test")
++        self.assertEqual(len(conditions), 1)
++        self.assertEqual(conditions[0][0], "exists")
++        flat = "".join(str(c) for c in conditions[0][1:])
++        self.assertIn("Subject", flat)
++        self.assertIn("From", flat)
++
++
++if __name__ == "__main__":
++    unittest.main()

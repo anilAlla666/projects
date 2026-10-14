@@ -1,0 +1,51 @@
+I haven't run these tests, and I wrote them from memory of the khal source. They assume `guesstimedeltafstr(str)` and `eventinfofstr(info_string, locale, default_event_duration, default_dayevent_duration)`. They also assume `LOCALE_BERLIN` is exported from `tests/utils.py`. Check those names and signatures against the repo before relying on the tests.
+
+On the current code, `guesstimedeltafstr` should raise `ValueError` for a leading `+`. `eventinfofstr` should leave `+90m` in the summary, so the test asserting a clean summary should fail.
+
+```diff
+diff --git a/tests/parse_delta_plus_test.py b/tests/parse_delta_plus_test.py
+new file mode 100644
+--- /dev/null
++++ b/tests/parse_delta_plus_test.py
+@@ -0,0 +1,45 @@
++"""Tests for permissive parsing of DELTA values with a leading plus."""
++import datetime as dt
++
++import pytest
++
++from khal.parse_datetime import eventinfofstr, guesstimedeltafstr
++
++from .utils import LOCALE_BERLIN
++
++
++@pytest.mark.parametrize('string,expected', [
++    ('+90m', dt.timedelta(minutes=90)),
++    ('90m', dt.timedelta(minutes=90)),
++    ('+1d', dt.timedelta(days=1)),
++    ('+3h', dt.timedelta(hours=3)),
++    ('+1d 3h', dt.timedelta(days=1, hours=3)),
++    ('+1d +3h', dt.timedelta(days=1, hours=3)),
++    ('+1h 15m', dt.timedelta(hours=1, minutes=15)),
++    ('-1h', dt.timedelta(hours=-1)),
++    ('+2w', dt.timedelta(weeks=2)),
++])
++def test_guesstimedeltafstr_plus(string, expected):
++    assert guesstimedeltafstr(string) == expected
++
++
++def test_guesstimedeltafstr_plus_invalid_beginning():
++    with pytest.raises(ValueError):
++        guesstimedeltafstr('foo +90m')
++
++
++@pytest.mark.parametrize('delta', ['+90m', '90m'])
++def test_eventinfofstr_plus_delta(delta):
++    info = eventinfofstr(
++        'tomorrow 10:00 ' + delta + ' Test',
++        LOCALE_BERLIN,
++        default_event_duration=dt.timedelta(hours=1),
++        default_dayevent_duration=dt.timedelta(days=1),
++    )
++    assert info['summary'] == 'Test'
++    assert info['dtend'] - info['dtstart'] == dt.timedelta(minutes=90)
+```

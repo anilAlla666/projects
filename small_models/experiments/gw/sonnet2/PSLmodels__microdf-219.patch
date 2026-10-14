@@ -1,0 +1,72 @@
+diff --git a/microdf/tests/test_subset_weights.py b/microdf/tests/test_subset_weights.py
+new file mode 100644
+--- /dev/null
++++ b/microdf/tests/test_subset_weights.py
+@@ -0,0 +1,62 @@
++import numpy as np
++
++import microdf as mdf
++
++
++def _make():
++    return mdf.MicroDataFrame(
++        {"x": [1, 2, 3], "y": [1, 2, 2]}, weights=[4, 5, 6]
++    )
++
++
++def test_boolean_series_subset_weights_shape():
++    d = _make()
++    d2 = d[d.y > 1]
++    assert d2.shape == (2, 2)
++    assert np.array(d2.weights).shape == (2,)
++
++
++def test_boolean_series_subset_weights_values():
++    d = _make()
++    d2 = d[d.y > 1]
++    np.testing.assert_array_equal(np.array(d2.weights), [5, 6])
++
++
++def test_numpy_mask_subset_weights():
++    d = _make()
++    d2 = d[np.array([False, True, True])]
++    assert d2.shape == (2, 2)
++    np.testing.assert_array_equal(np.array(d2.weights), [5, 6])
++
++
++def test_loc_mask_subset_weights():
++    d = _make()
++    d2 = d.loc[d.y > 1]
++    np.testing.assert_array_equal(np.array(d2.weights), [5, 6])
++
++
++def test_subset_column_mean_uses_subset_weights():
++    d = _make()
++    d2 = d[d.y > 1]
++    np.testing.assert_allclose(d2.x.mean(), (2 * 5 + 3 * 6) / 11)
++
++
++def test_subset_dataframe_mean_does_not_raise():
++    d = _make()
++    m = d[d.y > 1].mean()
++    np.testing.assert_allclose(m["x"], (2 * 5 + 3 * 6) / 11)
++    np.testing.assert_allclose(m["y"], 2)
++
++
++def test_column_selection_keeps_all_weights():
++    d = _make()
++    d2 = d[["x"]]
++    np.testing.assert_array_equal(np.array(d2.weights), [4, 5, 6])
++
++
++def test_original_unchanged_after_subset():
++    d = _make()
++    d[d.y > 1]
++    np.testing.assert_array_equal(np.array(d.weights), [4, 5, 6])
++
++
++def test_series_subset_still_works():
++    s = mdf.MicroSeries([1, 2, 3], weights=[4, 5, 6])
++    s2 = s[s > 1]
++    assert s2.shape == (2,)
++    assert np.array(s2.weights).shape == (2,)

@@ -1,0 +1,69 @@
+I added a new test file, `tests/test_validation_error_hash.py`. I have not run it. It should fail on the current code and pass once `ValidationError` is hashable.
+
+The tests rely on `ValidationError` defining `__eq__` without `__hash__`. That makes it unhashable on every Python version, so `hash(error)` should raise `TypeError` today, not only on 3.6. The multi-message test also assumes `Message` is hashable. If the fix only hashes `ValidationError` and `Message` is not hashable, that test could still fail.
+
+```diff
+diff --git a/tests/test_validation_error_hash.py b/tests/test_validation_error_hash.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_validation_error_hash.py
+@@ -0,0 +1,57 @@
++import io
++import traceback
++
++import pytest
++
++import typesystem
++
++
++def _get_error(field, value):
++    with pytest.raises(typesystem.ValidationError) as exc_info:
++        field.validate(value)
++    return exc_info.value
++
++
++def test_validation_error_is_hashable():
++    error = _get_error(typesystem.Integer(), "hello")
++    assert isinstance(hash(error), int)
++    assert error in {error}
++
++
++def test_equal_validation_errors_have_equal_hashes():
++    error_a = _get_error(typesystem.Integer(), "hello")
++    error_b = _get_error(typesystem.Integer(), "hello")
++    assert error_a == error_b
++    assert hash(error_a) == hash(error_b)
++
++
++def test_multi_message_validation_error_is_hashable():
++    schema = typesystem.Schema(
++        fields={"a": typesystem.Integer(), "b": typesystem.Integer()}
++    )
++    error = _get_error(schema, {"a": "x", "b": "y"})
++    assert len(error.messages()) == 2
++    assert isinstance(hash(error), int)
++    error_again = _get_error(schema, {"a": "x", "b": "y"})
++    assert hash(error) == hash(error_again)
++
++
++def test_different_validation_errors_are_not_equal_in_set():
++    error_a = _get_error(typesystem.Integer(), "hello")
++    error_b = _get_error(typesystem.String(), 123)
++    assert len({error_a, error_b}) == 2
++
++
++def test_print_exc_with_validation_error():
++    try:
++        typesystem.Integer().validate("hello")
++    except typesystem.ValidationError:
++        buffer = io.StringIO()
++        traceback.print_exc(file=buffer)
++        output = buffer.getvalue()
++    assert "ValidationError" in output
++
++
++def test_validation_error_hash_in_traceback_exception():
++    error = _get_error(typesystem.Integer(), "hello")
++    hash(error)
++    traceback.format_exception(type(error), error, error.__traceback__)
+```

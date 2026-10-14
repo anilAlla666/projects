@@ -1,0 +1,53 @@
+I haven't run this against the repository; it assumes the `mistune.Markdown(renderer=ConfluenceRenderer())` setup and a `relative_links` list on the renderer, which I recalled from memory rather than checked. The test file below checks that anchor-only links like `#frequently-asked-questions-osep` are not collected as relative links to upload. It also checks that links to other `.md` files are still collected.
+
+```diff
+--- /dev/null
++++ b/tests/test_anchor_links.py
+@@ -0,0 +1,45 @@
++import mistune
++
++from md2cf.confluence_renderer import ConfluenceRenderer
++
++
++def render(text):
++    renderer = ConfluenceRenderer()
++    markdown = mistune.Markdown(renderer=renderer)
++    output = markdown(text)
++    return renderer, output
++
++
++def test_anchor_only_link_is_not_a_relative_link():
++    renderer, _ = render(
++        "[Frequently Asked Questions](#frequently-asked-questions-osep)\n"
++    )
++    assert len(renderer.relative_links) == 0
++
++
++def test_anchor_only_link_is_preserved_in_output():
++    _, output = render(
++        "[Frequently Asked Questions](#frequently-asked-questions-osep)\n"
++    )
++    assert "#frequently-asked-questions-osep" in output
++    assert "Frequently Asked Questions" in output
++
++
++def test_multiple_anchor_links_are_not_relative_links():
++    renderer, _ = render("[A](#a)\n\n[B](#b)\n\n[C](#c)\n")
++    assert renderer.relative_links == []
++
++
++def test_real_relative_link_is_still_tracked():
++    renderer, _ = render("[Other](other.md)\n")
++    assert len(renderer.relative_links) == 1
++
++
++def test_anchor_link_does_not_affect_real_relative_link():
++    renderer, _ = render("[TOC](#toc)\n\n[Other](other.md)\n")
++    assert len(renderer.relative_links) == 1
++
++
++def test_external_link_is_not_a_relative_link():
++    renderer, output = render("[Example](https://example.com/page)\n")
++    assert renderer.relative_links == []
++    assert "https://example.com/page" in output
+```

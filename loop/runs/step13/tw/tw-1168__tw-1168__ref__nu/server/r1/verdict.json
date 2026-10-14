@@ -1,0 +1,45 @@
+{
+  "changed": true,
+  "correct_candidates": ["B", "D"],
+  "wrong_candidates": ["A", "C", "E"],
+  "near_misses": ["nm1_exec_wrong_script", "nm2_trap_sigkill", "nm3_trap_no_wait", "nm4_wrapper_script"],
+  "checks": [
+    {
+      "check": "test_entrypoint_exists",
+      "requirement": "Implicit: entrypoint.sh must exist and be executable",
+      "basis": "format",
+      "note": "Basic structural check"
+    },
+    {
+      "check": "test_shebang_and_basic_structure",
+      "requirement": "Implicit: entrypoint.sh should have proper shebang",
+      "basis": "format",
+      "note": "Basic structural check"
+    },
+    {
+      "check": "test_uses_exec_or_proper_trap_forward",
+      "requirement": "Fix the entrypoint script so that the Python application receives and handles SIGTERM correctly; The Python app receives SIGTERM and performs its cleanup; The container exits within a few seconds; Shell scripts don't automatically forward signals to child processes",
+      "basis": "task-text",
+      "note": "Core functional check: requires either 'exec python3 /app/app.py' OR trap that catches SIGTERM, forwards with 'kill -TERM $child', and waits for child"
+    },
+    {
+      "check": "test_no_broken_background_wait_pattern",
+      "requirement": "Shell scripts don't automatically forward signals to child processes (root cause identified in task)",
+      "basis": "task-text",
+      "note": "Rejects background + bare wait without trap"
+    },
+    {
+      "check": "test_trap_does_not_do_cleanup_in_shell",
+      "requirement": "The Python app receives SIGTERM and performs its cleanup (writes shutdown marker); Only modify /app/entrypoint.sh - do not change app.py",
+      "basis": "task-text",
+      "note": "Rejects trap handlers that duplicate app.py's cleanup logic (writing shutdown_complete or END OF DATA)"
+    },
+    {
+      "check": "test_no_full_reimplementation",
+      "requirement": "Only modify /app/entrypoint.sh - do not change app.py as it already has proper signal handlers",
+      "basis": "task-text",
+      "note": "Rejects bash reimplementation of the data processing loop"
+    }
+  ],
+  "contested": []
+}

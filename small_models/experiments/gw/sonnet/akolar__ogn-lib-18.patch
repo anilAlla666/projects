@@ -1,0 +1,66 @@
+diff --git a/tests/test_capturs_callsign.py b/tests/test_capturs_callsign.py
+new file mode 100644
+index 0000000..3b1c7a2
+--- /dev/null
++++ b/tests/test_capturs_callsign.py
+@@ -0,0 +1,57 @@
++import ogn_lib.parser as parser
++
++
++def _find_capturs():
++    for name, obj in vars(parser).items():
++        if isinstance(obj, type) and name.lower() == 'capturs':
++            return obj
++    raise AssertionError('Capturs parser class not found')
++
++
++def _strings(value):
++    if isinstance(value, str):
++        return [value]
++    if isinstance(value, (list, tuple, set, frozenset)):
++        out = []
++        for v in value:
++            out.extend(_strings(v))
++        return out
++    return []
++
++
++def _class_level_strings(cls):
++    out = []
++    for key, value in vars(cls).items():
++        if callable(value) or isinstance(value, (staticmethod, classmethod)):
++            continue
++        out.extend(_strings(value))
++    return out
++
++
++def test_capturs_uses_ogcapt_callsign():
++    values = _class_level_strings(_find_capturs())
++    assert 'OGCAPT' in values
++    assert 'OGLT24' not in values
++
++
++def test_capturs_registered_under_ogcapt():
++    cls = _find_capturs()
++    registries = []
++    for holder in (parser.ParserBase, getattr(parser, 'Parser', None)):
++        if holder is None:
++            continue
++        for key, value in vars(holder).items():
++            if isinstance(value, dict):
++                registries.append(value)
++
++    found = False
++    for reg in registries:
++        for key, value in reg.items():
++            if value is cls:
++                found = True
++                assert key != 'OGLT24'
++                assert key == 'OGCAPT'
++            elif key == 'OGCAPT':
++                assert value is cls
++                found = True
++        assert 'OGLT24' not in reg or reg['OGLT24'] is not cls
++    # If a registry exists holding parsers, Capturs must be in it.
++    if registries and any(cls in r.values() for r in registries):
++        assert found

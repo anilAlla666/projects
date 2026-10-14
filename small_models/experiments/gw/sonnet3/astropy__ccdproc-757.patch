@@ -1,0 +1,76 @@
+--- /dev/null
++++ b/ccdproc/tests/test_combiner_generator.py
+@@ -0,0 +1,67 @@
++# Licensed under a 3-clause BSD style license - see LICENSE.rst
++
++import numpy as np
++import pytest
++
++from astropy.nddata import CCDData
++
++from ccdproc.combiner import Combiner, combine
++
++
++def _make_ccds():
++    ccds = []
++    for i in range(4):
++        data = np.ones((5, 6)) * (i + 1.0)
++        data[i, i] = 100.0
++        ccd = CCDData(data, unit='adu')
++        mask = np.zeros((5, 6), dtype=bool)
++        mask[0, 5] = (i == 2)
++        ccd.mask = mask
++        ccds.append(ccd)
++    return ccds
++
++
++def _gen(ccds):
++    for c in ccds:
++        yield c
++
++
++def test_combiner_accepts_generator_expression():
++    ccds = _make_ccds()
++    expected = Combiner(list(ccds))
++    comb = Combiner(c for c in ccds)
++    assert comb.data_arr.shape == expected.data_arr.shape
++    np.testing.assert_array_equal(comb.data_arr.data, expected.data_arr.data)
++    np.testing.assert_array_equal(ma_mask(comb), ma_mask(expected))
++    np.testing.assert_array_equal(comb.average_combine().data,
++                                  expected.average_combine().data)
++    np.testing.assert_array_equal(comb.median_combine().data,
++                                  expected.median_combine().data)
++
++
++def test_combiner_accepts_generator_function():
++    ccds = _make_ccds()
++    comb = Combiner(_gen(ccds))
++    expected = Combiner(list(ccds))
++    np.testing.assert_array_equal(comb.sum_combine().data,
++                                  expected.sum_combine().data)
++    # scaling/weights machinery relies on the number of images
++    comb.scaling = np.array([1.0, 1.0, 1.0, 1.0])
++    comb.weights = np.ones((4, 5, 6))
++    comb.average_combine()
++
++
++def test_combiner_generator_with_non_ccddata_raises():
++    ccds = _make_ccds()
++    with pytest.raises(TypeError):
++        Combiner(c for c in ccds + [None])
++
++
++def test_combine_accepts_generator():
++    ccds = _make_ccds()
++    expected = combine(list(ccds), method='average')
++    result = combine(_gen(ccds), method='average')
++    np.testing.assert_array_equal(result.data, expected.data)
++    assert result.unit == expected.unit
++
++    result = combine((c for c in ccds), method='median')
++    expected = combine(list(ccds), method='median')
++    np.testing.assert_array_equal(result.data, expected.data)
++
++
++def ma_mask(comb):
++    return np.ma.getmaskarray(comb.data_arr)

@@ -1,0 +1,37 @@
+diff --git a/tests/test_entity_id.py b/tests/test_entity_id.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_entity_id.py
+@@ -0,0 +1,33 @@
++import pytest
++
++from rocrate.rocrate import ROCrate
++
++
++def test_entity_id_not_modifiable():
++    crate = ROCrate()
++    d = crate.add_dataset("FOO")
++    old_id = d.id
++    assert crate.dereference("FOO") is d
++    with pytest.raises(AttributeError):
++        d.id = "foo"
++    assert d.id == old_id
++    assert crate.dereference("FOO") is d
++    assert crate.dereference("foo") is None
++
++
++def test_entity_id_not_modifiable_via_root():
++    crate = ROCrate()
++    with pytest.raises(AttributeError):
++        crate.root_dataset.id = "bar"
++    assert crate.root_dataset.id == "./"
++
++
++def test_entity_id_not_modifiable_contextual():
++    crate = ROCrate()
++    e = crate.add_dataset("BAR")
++    with pytest.raises(AttributeError):
++        e.id = "baz"
++    ids = [x.id for x in crate.get_entities()]
++    assert "baz" not in ids
++    assert e.id in ids

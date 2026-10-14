@@ -1,0 +1,62 @@
+diff --git a/test/test_network_hostname.py b/test/test_network_hostname.py
+new file mode 100644
+--- /dev/null
++++ b/test/test_network_hostname.py
+@@ -0,0 +1,63 @@
++import ipaddress
++import unittest
++
++import ops.model
++
++
++HOSTNAME = 'acb396cf5563d429f9ebc8aa23ae47ed-1516332866.us-east-1.elb.amazonaws.com'
++
++
++def _info(ingress):
++    return {
++        'bind-addresses': [
++            {
++                'interface-name': 'eth0',
++                'addresses': [{'hostname': '', 'value': '10.1.0.5', 'cidr': '10.1.0.0/16'}],
++            }
++        ],
++        'egress-subnets': ['10.1.0.5/32'],
++        'ingress-addresses': ingress,
++    }
++
++
++class TestNetworkHostnameIngress(unittest.TestCase):
++    def test_hostname_ingress_address(self):
++        net = ops.model.Network(_info([HOSTNAME]))
++        self.assertEqual(len(net.ingress_addresses), 1)
++        self.assertEqual(str(net.ingress_addresses[0]), HOSTNAME)
++        self.assertEqual(str(net.ingress_address), HOSTNAME)
++
++    def test_hostname_is_string(self):
++        net = ops.model.Network(_info([HOSTNAME]))
++        self.assertIsInstance(net.ingress_addresses[0], str)
++
++    def test_mixed_addresses(self):
++        net = ops.model.Network(_info(['10.1.0.5', HOSTNAME, 'fd00::1']))
++        self.assertEqual(net.ingress_addresses[0], ipaddress.ip_address('10.1.0.5'))
++        self.assertEqual(net.ingress_addresses[1], HOSTNAME)
++        self.assertEqual(net.ingress_addresses[2], ipaddress.ip_address('fd00::1'))
++
++    def test_ip_addresses_still_parsed(self):
++        net = ops.model.Network(_info(['10.1.0.5']))
++        self.assertIsInstance(net.ingress_addresses[0], ipaddress.IPv4Address)
++        self.assertEqual(net.bind_address, ipaddress.ip_address('10.1.0.5'))
++
++    def test_binding_network_with_hostname(self):
++        class Backend:
++            def network_get(self, name, relation_id=None):
++                return _info([HOSTNAME])
++
++        binding = ops.model.Binding('metrics-endpoint', 1, Backend())
++        self.assertEqual(str(binding.network.ingress_address), HOSTNAME)
++        self.assertEqual(
++            binding.network.bind_address, ipaddress.ip_address('10.1.0.5'))
++
++
++if __name__ == '__main__':
++    unittest.main()

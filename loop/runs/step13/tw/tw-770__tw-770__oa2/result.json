@@ -1,0 +1,143 @@
+{
+ "loop": "tw-770__tw-770__oa2",
+ "task": "tw-770",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 22,
+   "usd": 1.4064,
+   "seconds": 412,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "B"
+    ],
+    "wrong_candidates": [
+     "A",
+     "C",
+     "D",
+     "E"
+    ],
+    "near_misses": [
+     "nm1_wrong_nginx_common_version",
+     "nm2_manpage_miscategorised",
+     "nm3_missing_dependency",
+     "nm4_partial_conffiles",
+     "nm5_no_script_summary",
+     "nm6_broad_list_missing_one_file",
+     "nm7_service_missing"
+    ],
+    "checks": [
+     {
+      "check": "report file exists and is non-empty",
+      "requirement": "The report file must exist at exactly: /home/user/package_audit_report.txt",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "five section headers present",
+      "requirement": "clearly organized with section headers (sections 1-5)",
+      "basis": "format",
+      "note": "keyword at line start, any decoration"
+     },
+     {
+      "check": "all non-directory files of dpkg -L nginx listed; file set equals nginx or nginx+nginx-common; no foreign paths",
+      "requirement": "A categorized list of all files installed by the nginx package",
+      "basis": "recomputed",
+      "note": "live dpkg -L on grader; both readings of 'nginx package' accepted; symlinks optional"
+     },
+     {
+      "check": "nginx binary under Binaries, doc/man under Documentation",
+      "requirement": "grouped by type: Binaries (/usr/sbin...), Documentation (/usr/share/doc/, /usr/share/man/)",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "every direct dependency with its exact version requirement",
+      "requirement": "All direct dependencies of the nginx package; Version requirements for each dependency",
+      "basis": "recomputed",
+      "note": "dpkg-query ${Pre-Depends}, ${Depends} of nginx"
+     },
+     {
+      "check": "postinst listed",
+      "requirement": "List any postinst (post-installation) scripts associated with nginx",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "summary keyword in scripts section",
+      "requirement": "Provide a brief summary of what these scripts do",
+      "basis": "format",
+      "note": "lenient keyword check"
+     },
+     {
+      "check": "conffiles set equals dpkg conffiles of nginx (empty) or of nginx+nginx-common",
+      "requirement": "A list of configuration files managed by dpkg ... marked as conffiles",
+      "basis": "recomputed",
+      "note": "dpkg-query ${Conffiles}"
+     },
+     {
+      "check": "nginx.service mentioned in services section",
+      "requirement": "List any systemd service units associated with nginx",
+      "basis": "recomputed",
+      "note": "shipped in nginx-common"
+     },
+     {
+      "check": "services section addresses status",
+      "requirement": "Include the service status if possible",
+      "basis": "format",
+      "note": "lenient; 'not available' statements accepted when they contain 'status'"
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "PPPPPF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "nop"
+   ],
+   "guard": {
+    "kept": true,
+    "old_agree": 2,
+    "new_agree": 13,
+    "items": 13
+   }
+  }
+ ],
+ "usd": 1.406,
+ "before": {
+  "accepted_correct": "4/4",
+  "attempts": 7,
+  "balanced_accuracy": 0.666667,
+  "isolation": "bindproc",
+  "labels": "PPPPFFF",
+  "rejected_wrong": "1/3",
+  "reward": 0.333333,
+  "seconds": 3.7,
+  "task": "tw-770",
+  "timeouts": 0,
+  "tnr": 0.333333,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "0/4",
+  "attempts": 7,
+  "balanced_accuracy": 0.5,
+  "isolation": "bindproc",
+  "labels": "PPPPFFF",
+  "rejected_wrong": "3/3",
+  "reward": 0.0,
+  "seconds": 2.5,
+  "task": "tw-770",
+  "timeouts": 0,
+  "tnr": 1.0,
+  "tpr": 0.0,
+  "verdicts": "FFFFFFF"
+ }
+}

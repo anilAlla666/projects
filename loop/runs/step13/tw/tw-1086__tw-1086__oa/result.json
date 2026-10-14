@@ -1,0 +1,130 @@
+{
+ "loop": "tw-1086__tw-1086__oa",
+ "task": "tw-1086",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 9,
+   "usd": 0.6352,
+   "seconds": 190,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "A",
+     "B"
+    ],
+    "wrong_candidates": [
+     "C",
+     "D",
+     "E"
+    ],
+    "near_misses": [
+     "nm_dir_cd_back",
+     "nm_ifs_reset_global",
+     "nm_vars_subshell_stale",
+     "nm_array_hardcoded",
+     "nm_no_comma_split",
+     "nm_wrong_version",
+     "nm_shortcut_hardcoded"
+    ],
+    "checks": [
+     {
+      "check": ".deploy_state has exact lines DEPLOY_VERSION=2.0 and DEPLOY_ENV=production (carried-over, fresh run, after main)",
+      "requirement": "/app/.deploy_state should contain DEPLOY_VERSION=2.0 and DEPLOY_ENV=production",
+      "basis": "task-text",
+      "note": "tightened from substring match"
+     },
+     {
+      "check": "frontend/.built and backend/.built exist",
+      "requirement": "/app/frontend/.built and /app/backend/.built should exist",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "components.list non-blank lines are exactly frontend, backend, config",
+      "requirement": "/app/config/components.list should contain all three components",
+      "basis": "task-text",
+      "note": "original only required >=2"
+     },
+     {
+      "check": "fresh bash /app/deploy.sh exits 0",
+      "requirement": "After fixing the script, run it with /app/deploy.sh",
+      "basis": "format",
+      "note": ""
+     },
+     {
+      "check": "set_deploy_config sets DEPLOY_VERSION/DEPLOY_ENV in caller",
+      "requirement": "Set and preserve deployment configuration variables (DEPLOY_VERSION and DEPLOY_ENV)",
+      "basis": "task-text",
+      "note": "behavioural"
+     },
+     {
+      "check": "build_component leaves cwd unchanged and creates .built in target",
+      "requirement": "Temporarily change directories for component builds without affecting the main script's working directory",
+      "basis": "task-text",
+      "note": "behavioural"
+     },
+     {
+      "check": "load_components appends parsed component names to COMPONENTS in caller",
+      "requirement": "Preserve array modifications made inside functions",
+      "basis": "task-text",
+      "note": "behavioural, includes a 4-line test file"
+     },
+     {
+      "check": "IFS default after parse_deploy_info; parse still yields 3 parts",
+      "requirement": "Isolate IFS changes to only the parsing section that needs them",
+      "basis": "task-text",
+      "note": "behavioural"
+     },
+     {
+      "check": "after main in the current shell: pwd=/app, IFS default, vars and array set",
+      "requirement": "Script should end in /app directory",
+      "basis": "task-text",
+      "note": ""
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "",
+   "evidence_ids": [],
+   "guard": {
+    "kept": false,
+    "old_agree": null,
+    "new_agree": null,
+    "items": null
+   }
+  }
+ ],
+ "usd": 0.635,
+ "before": {
+  "accepted_correct": "2/2",
+  "attempts": 7,
+  "balanced_accuracy": 0.6,
+  "isolation": "bindproc",
+  "labels": "PPFFFFF",
+  "rejected_wrong": "1/5",
+  "reward": 0.2,
+  "seconds": 3.8,
+  "task": "tw-1086",
+  "timeouts": 0,
+  "tnr": 0.2,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "2/2",
+  "attempts": 7,
+  "balanced_accuracy": 0.6,
+  "isolation": "bindproc",
+  "labels": "PPFFFFF",
+  "rejected_wrong": "1/5",
+  "reward": 0.2,
+  "seconds": 3.6,
+  "task": "tw-1086",
+  "timeouts": 0,
+  "tnr": 0.2,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPF"
+ }
+}

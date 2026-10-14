@@ -1,0 +1,71 @@
+I could not see the repository, so this test is written against my recollection of `redpocket/api.py` and has not been run. I assumed `RedPocket` exposes `get_line_details(...)` and that it sends the `/account/get-details` request through a `requests.Session` stored as `self.session`. If either assumption is wrong, the test needs adjusting.
+
+To avoid depending on the constructor's login flow, the test builds the client with `__new__` and attaches a plain `requests.Session`. It patches `HTTPAdapter.send`, so it does not matter which `Session` method the code calls. It records the outgoing request and asserts that the query string contains `type=api` alongside the line id. The current code does not send `type=api`, so the test fails there and should pass once the fix adds it.
+
+```diff
+diff --git a/tests/test_get_details_type_api.py b/tests/test_get_details_type_api.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_get_details_type_api.py
+@@ -0,0 +1,64 @@
++from urllib.parse import urlparse, parse_qs
++from unittest import mock
++
++import requests
++from requests.adapters import HTTPAdapter
++
++from redpocket.api import RedPocket
++
++
++class _FakeLine:
++    """Line stand-in usable whether the API wants an id or a line object."""
++
++    account_id = "AAA1BBB2"
++    id = "AAA1BBB2"
++    line_id = "AAA1BBB2"
++
++    def __str__(self):
++        return "AAA1BBB2"
++
++
++def test_get_details_includes_type_api():
++    captured = []
++
++    def fake_send(self, request, **kwargs):
++        captured.append(request)
++        resp = requests.Response()
++        resp.status_code = 200
++        resp._content = b'{"success": true, "return_code": 1, "body": {}}'
++        resp.url = request.url
++        resp.request = request
++        resp.headers["Content-Type"] = "application/json"
++        return resp
++
++    api = RedPocket.__new__(RedPocket)
++    api.session = requests.Session()
++    for name, value in (("username", "u"), ("password", "p")):
++        try:
++            setattr(api, name, value)
++        except Exception:
++            pass
++
++    with mock.patch.object(HTTPAdapter, "send", fake_send):
++        for arg in ("AAA1BBB2", _FakeLine()):
++            captured.clear()
++            try:
++                api.get_line_details(arg)
++            except Exception:
++                # Response parsing may fail on the fake payload; only the
++                # outgoing request matters here.
++                pass
++            if captured:
++                break
++
++    detail_requests = [
++        r for r in captured if "get-details" in urlparse(r.url).path
++    ]
++    assert detail_requests, "no request made to /account/get-details"
++    query = parse_qs(urlparse(detail_requests[0].url).query)
++    assert query.get("type") == ["api"]
++    assert query.get("id") == ["AAA1BBB2"]
+```

@@ -1,0 +1,37 @@
+The patch below adds one test that fails on the current code (the `ParseError` from the issue) and should pass once the condition of `if`/`else` accepts logical operators. I haven't run it against the repo.
+
+The test compares each parsed result with `If(parse(<condition>), <then>, <else>)`. It uses `parse` on the condition rather than building `LogicalOr`/`LogicalAnd` by hand, so it doesn't depend on how those nodes are constructed. It covers conditions using `or`, `and`, `not` and a comparison. It also checks that a plain `if x else` still parses.
+
+I left out chained conditionals (`1 if x else 2 if y else 3`) and `a or b if c else d`, since the issue doesn't say how those should behave.
+
+```diff
+--- a/test/test_pymbolic.py
++++ b/test/test_pymbolic.py
+@@ -664,6 +664,25 @@
+     assert evaluate(expr) is True
+ 
+ 
++def test_if_else_condition_precedence():
++    x = prim.Variable("x")
++
++    # the issue's example
++    result = parse("10 if x or y else 20")
++    assert isinstance(result, prim.If)
++    assert result == prim.If(parse("x or y"), 10, 20)
++    assert result.condition == parse("x or y")
++
++    assert parse("10 if x and y else 20") == prim.If(parse("x and y"), 10, 20)
++    assert parse("10 if not x else 20") == prim.If(parse("not x"), 10, 20)
++    assert parse("1 if x < 2 or y > 3 else 0") == prim.If(
++            parse("x < 2 or y > 3"), 1, 0)
++    assert parse("1 if x and y or z else 0") == prim.If(
++            parse("x and y or z"), 1, 0)
++
++    # simple case still works
++    assert parse("1 if x else 2") == prim.If(x, 1, 2)
++
++
+ if __name__ == "__main__":
+     import sys
+     if len(sys.argv) > 1:
+```

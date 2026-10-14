@@ -1,0 +1,88 @@
+The new test file below covers `scan` and `scan_iter` with `_type`, including the issue's reproduction. I have not run it, so I have not confirmed it fails on the current code. On current code, every `_type` call should raise `AttributeError: 'FakeSocket' object has no attribute '_type'`.
+
+It checks:
+- **Reproduction:** the issue's example returns `key`.
+- **Case-insensitivity:** `ZSET`, `zset` and `ZSet` all match.
+- **Filtering:** `_type="string"` excludes a zset key.
+- **Several types:** string, list, set, hash and zset keys are each matched only by their own type.
+- **Cursor `scan`:** `scan(_type=...)` works with `match` and with `count`.
+- **No `_type`:** `scan_iter` without `_type` still returns all keys.
+
+Each test uses its own `FakeServer`, so keys do not leak between tests.
+
+```diff
+--- /dev/null
++++ b/test/test_scan_type_filter.py
+@@ -0,0 +1,88 @@
++import pytest
++
++import fakeredis
++
++
++@pytest.fixture
++def client():
++    server = fakeredis.FakeServer()
++    r = fakeredis.FakeRedis(server=server)
++    yield r
++    r.flushall()
++    r.close()
++
++
++def _populate(r):
++    r.set("str_key", "value")
++    r.rpush("list_key", "a", "b")
++    r.sadd("set_key", "a", "b")
++    r.hset("hash_key", "f", "v")
++    r.zadd("zset_key", {"a": 2})
++
++
++def test_scan_iter_type_issue_example(client):
++    client.zadd("key", {"a": 2})
++    result = list(client.scan_iter(match="key", _type="ZSET"))
++    assert result == [b"key"]
++
++
++def test_scan_iter_type_case_insensitive(client):
++    client.zadd("key", {"a": 2})
++    assert list(client.scan_iter(_type="zset")) == [b"key"]
++    assert list(client.scan_iter(_type="ZSET")) == [b"key"]
++    assert list(client.scan_iter(_type="ZSet")) == [b"key"]
++
++
++def test_scan_iter_type_no_match(client):
++    client.zadd("key", {"a": 2})
++    assert list(client.scan_iter(match="key", _type="string")) == []
++
++
++def test_scan_iter_type_filters_each_type(client):
++    _populate(client)
++    assert set(client.scan_iter(_type="string")) == {b"str_key"}
++    assert set(client.scan_iter(_type="list")) == {b"list_key"}
++    assert set(client.scan_iter(_type="set")) == {b"set_key"}
++    assert set(client.scan_iter(_type="hash")) == {b"hash_key"}
++    assert set(client.scan_iter(_type="zset")) == {b"zset_key"}
++
++
++def test_scan_type_with_match_and_count(client):
++    _populate(client)
++    client.zadd("other_zset", {"a": 1})
++    cursor, keys = client.scan(0, match="*zset*", count=100, _type="zset")
++    assert cursor == 0
++    assert set(keys) == {b"zset_key", b"other_zset"}
++
++    cursor, keys = client.scan(0, match="*", count=100, _type="string")
++    assert set(keys) == {b"str_key"}
++
++
++def test_scan_type_only(client):
++    _populate(client)
++    cursor, keys = client.scan(0, _type="hash")
++    assert cursor == 0
++    assert keys == [b"hash_key"]
++
++
++def test_scan_iter_without_type_returns_all(client):
++    _populate(client)
++    assert set(client.scan_iter()) == {
++        b"str_key", b"list_key", b"set_key", b"hash_key", b"zset_key"}
+```

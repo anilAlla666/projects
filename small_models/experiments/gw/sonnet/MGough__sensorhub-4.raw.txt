@@ -1,0 +1,44 @@
+I couldn't see the repository, so these tests are written without knowing how `sensorhub/hub.py` is laid out. I've assumed the bus library is imported as `smbus2` or `smbus` and replaced both with mocks, so the tests need no I/O hardware. I haven't run them.
+
+The first test fails on the current code because `SensorHub()` raises a `TypeError` when the bus argument is missing. It should pass once that argument has a default. The second test checks that passing an explicit bus still works.
+
+```diff
+diff --git a/tests/test_constructor.py b/tests/test_constructor.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_constructor.py
+@@ -0,0 +1,43 @@
++import importlib
++import sys
++from unittest import mock
++
++import pytest
++
++
++@pytest.fixture
++def hub_module():
++    """Import sensorhub.hub with the I2C libraries mocked out."""
++    fake_modules = {
++        "smbus2": mock.MagicMock(),
++        "smbus": mock.MagicMock(),
++    }
++    with mock.patch.dict(sys.modules, fake_modules):
++        for name in [m for m in sys.modules if m == "sensorhub" or m.startswith("sensorhub.")]:
++            del sys.modules[name]
++        module = importlib.import_module("sensorhub.hub")
++        yield module
++    for name in [m for m in sys.modules if m == "sensorhub" or m.startswith("sensorhub.")]:
++        del sys.modules[name]
++
++
++def test_constructor_without_arguments(hub_module):
++    # Previously raised TypeError: missing required positional argument
++    hub = hub_module.SensorHub()
++    assert hub is not None
++
++
++def test_constructor_with_explicit_bus(hub_module):
++    bus = mock.MagicMock()
++    hub = hub_module.SensorHub(bus)
++    assert hub is not None
+```

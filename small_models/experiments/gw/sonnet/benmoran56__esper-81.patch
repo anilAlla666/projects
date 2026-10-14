@@ -1,0 +1,55 @@
+--- /dev/null
++++ b/tests/test_create_empty_entity.py
+@@ -0,0 +1,52 @@
++import esper
++
++
++class Position:
++    def __init__(self, x=0, y=0):
++        self.x = x
++        self.y = y
++
++
++def test_create_entity_without_components_exists():
++    world = esper.World()
++    entity = world.create_entity()
++    assert world.entity_exists(entity)
++
++
++def test_create_entity_without_components_counter():
++    world = esper.World()
++    entity_1 = world.create_entity()
++    entity_2 = world.create_entity()
++    assert entity_1 == 1
++    assert entity_2 == 2
++    assert world.entity_exists(entity_1)
++    assert world.entity_exists(entity_2)
++
++
++def test_create_entity_with_components_exists():
++    world = esper.World()
++    entity = world.create_entity(Position(1, 2))
++    assert world.entity_exists(entity)
++    assert world.has_component(entity, Position)
++
++
++def test_empty_entity_can_receive_components_later():
++    world = esper.World()
++    entity = world.create_entity()
++    world.add_component(entity, Position(3, 4))
++    assert world.entity_exists(entity)
++    assert world.component_for_entity(entity, Position).x == 3
++
++
++def test_empty_entity_can_be_deleted():
++    world = esper.World()
++    entity = world.create_entity()
++    assert world.entity_exists(entity)
++    world.delete_entity(entity, immediate=True)
++    assert not world.entity_exists(entity)
++
++
++def test_nonexistent_entity_does_not_exist():
++    world = esper.World()
++    world.create_entity()
++    assert not world.entity_exists(999)

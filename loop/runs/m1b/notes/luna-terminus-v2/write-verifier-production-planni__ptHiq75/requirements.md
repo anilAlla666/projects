@@ -1,0 +1,36 @@
+# Task requirements
+
+- **R1** — “Use the documentation in `/app/data/README_DBGW.md`”
+- **R2** — “and the configuration in `/app/data/config/connections.yaml`”
+- **R3** — “together with the provided gateway tool `/app/data/dbgw.py` to inspect the available databases”
+- **R4** — “produce a valid 5-day rolling production plan from 2025-06-17 to 2025-06-22.”
+- **R5** — “For a valid production plan with the same run_id, you should insert one record into ERP system under the planning_runs table”
+- **R6** — “covering run_id, created_at, horizon_start, horizon_end, and freeze_hours.”
+- **R7** — “insert the planned work orders under the planned_work_orders table”
+- **R8** — “covering wo_id, run_id, sku, qty, due_dt, planned_start_dt, planned_end_dt, line_id, status, and parent_wo_id.”
+- **R9** — “In the MES system, you should insert a dispatch under the dispatch_queue table”
+- **R10** — “covering run_id, line_id, seq, wo_id, op_seq, qty, planned_start_dt, planned_end_dt, and status.”
+- **R11** — “For each line, sequence numbers must start at 1 and increase by 1 without gaps.”
+- **R12** — “In the WMS system, you should insert material reservation commands under the inventory_reservations table”
+- **R13** — “covering resv_id, run_id, wo_id, component_sku, lot_id, qty, and status.”
+- **R14** — “Write the ERP, MES, and WMS writebacks as standalone SQL files at `/app/output/erp_writeback.sql`, `/app/output/mes_writeback.sql`, and `/app/output/wms_writeback.sql`”
+- **R15** — “then apply them through the approved gateway so `/app/output/audit.log` records the writeback.”
+- **R16** — “The freeze window covers the first 24 hours of the planning horizon.”
+- **R17** — “The plan must include at least 10 non-WIP sales orders due before the horizon end”
+- **R18** — “use only engineering-released SKUs on qualified lines”
+- **R19** — “use routing durations with setup”
+- **R20** — “keep every dispatch including WIP_CONT outside the freeze window”
+- **R21** — “avoid downtime”
+- **R22** — “fit inside shift-calendar intervals with `available_minutes > 0`”
+- **R23** — “leave the required wall-clock changeover gap between consecutive dispatches on the same line.”
+- **R24** — “Existing WIP must run first on its current line with status = 'WIP_CONT' in both ERP and MES.”
+- **R25** — “When PASS critical inventory or finite line capacity cannot cover all eligible demand, maximize feasible fulfilled demand by business priority, then earlier due date, then greater fulfilled quantity”
+- **R26** — “an order is feasible only if it can be fully reserved and completed by its due date”
+- **R27** — “and feasible priority 1 and priority 2 demand must be represented.”
+- **R28** — “Each non-WIP work order must use status = 'PLANNED'”
+- **R29** — “use its sales order ID as `parent_wo_id`”
+- **R30** — “and not split or duplicate a sales order.”
+- **R31** — “Create exactly one MES dispatch row per planned work order”
+- **R32** — “keep ERP/MES/WMS rows consistent”
+- **R33** — “reserve only IQC-passed lots that remain unexpired through the work order's planned end time”
+- **R34** — “while honoring lot quantities, substitute groups, and unique reservation IDs.”

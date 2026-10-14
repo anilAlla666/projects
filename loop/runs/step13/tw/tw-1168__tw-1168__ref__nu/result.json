@@ -1,0 +1,116 @@
+{
+ "loop": "tw-1168__tw-1168__ref__nu",
+ "task": "tw-1168",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "stop",
+   "turns": 80,
+   "usd": 0.0,
+   "seconds": 2235,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "B",
+     "D"
+    ],
+    "wrong_candidates": [
+     "A",
+     "C",
+     "E"
+    ],
+    "near_misses": [
+     "nm1_exec_wrong_script",
+     "nm2_trap_sigkill",
+     "nm3_trap_no_wait",
+     "nm4_wrapper_script"
+    ],
+    "checks": [
+     {
+      "check": "test_entrypoint_exists",
+      "requirement": "Implicit: entrypoint.sh must exist and be executable",
+      "basis": "format",
+      "note": "Basic structural check"
+     },
+     {
+      "check": "test_shebang_and_basic_structure",
+      "requirement": "Implicit: entrypoint.sh should have proper shebang",
+      "basis": "format",
+      "note": "Basic structural check"
+     },
+     {
+      "check": "test_uses_exec_or_proper_trap_forward",
+      "requirement": "Fix the entrypoint script so that the Python application receives and handles SIGTERM correctly; The Python app receives SIGTERM and performs its cleanup; The container exits within a few seconds; Shell scripts don't automatically forward signals to child processes",
+      "basis": "task-text",
+      "note": "Core functional check: requires either 'exec python3 /app/app.py' OR trap that catches SIGTERM, forwards with 'kill -TERM $child', and waits for child"
+     },
+     {
+      "check": "test_no_broken_background_wait_pattern",
+      "requirement": "Shell scripts don't automatically forward signals to child processes (root cause identified in task)",
+      "basis": "task-text",
+      "note": "Rejects background + bare wait without trap"
+     },
+     {
+      "check": "test_trap_does_not_do_cleanup_in_shell",
+      "requirement": "The Python app receives SIGTERM and performs its cleanup (writes shutdown marker); Only modify /app/entrypoint.sh - do not change app.py",
+      "basis": "task-text",
+      "note": "Rejects trap handlers that duplicate app.py's cleanup logic (writing shutdown_complete or END OF DATA)"
+     },
+     {
+      "check": "test_no_full_reimplementation",
+      "requirement": "Only modify /app/entrypoint.sh - do not change app.py as it already has proper signal handlers",
+      "basis": "task-text",
+      "note": "Rejects bash reimplementation of the data processing loop"
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "FPFFFF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "nop"
+   ],
+   "guard": {
+    "kept": true,
+    "old_agree": 9,
+    "new_agree": 10,
+    "items": 10
+   }
+  }
+ ],
+ "usd": 0.0,
+ "before": {
+  "accepted_correct": "1/5",
+  "attempts": 8,
+  "balanced_accuracy": 0.6,
+  "isolation": "bindproc",
+  "labels": "PPPPPFFF",
+  "rejected_wrong": "3/3",
+  "reward": 0.2,
+  "seconds": 0.3,
+  "task": "tw-1168",
+  "timeouts": 0,
+  "tnr": 1.0,
+  "tpr": 0.2,
+  "verdicts": "FFFPFFFF"
+ },
+ "after": {
+  "accepted_correct": "5/5",
+  "attempts": 8,
+  "balanced_accuracy": 1.0,
+  "isolation": "bindproc",
+  "labels": "PPPPPFFF",
+  "rejected_wrong": "3/3",
+  "reward": 1.0,
+  "seconds": 0.8,
+  "task": "tw-1168",
+  "timeouts": 0,
+  "tnr": 1.0,
+  "tpr": 1.0,
+  "verdicts": "PPPPPFFF"
+ }
+}

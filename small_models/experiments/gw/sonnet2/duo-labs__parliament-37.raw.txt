@@ -1,0 +1,83 @@
+This test file adds a regression test for the `redshift:GetClusterCredentials` case from the issue. I haven't run it against the current code, so I'm assuming it fails there. The assumption rests on the issue's report, since I couldn't reproduce the glob mismatch myself.
+
+The file covers both the direct `is_arn_match` call and the full policy analysis. It also includes a few guard cases (S3 bucket vs. object, and a different resource type) that should pass both before and after the fix.
+
+```diff
+diff --git a/tests/unit/test_redshift_arn_match.py b/tests/unit/test_redshift_arn_match.py
+new file mode 100644
+--- /dev/null
++++ b/tests/unit/test_redshift_arn_match.py
+@@ -0,0 +1,62 @@
++import pytest
++
++from parliament import analyze_policy_string, is_arn_match
++
++
++DBUSER_FORMAT = "arn:*:redshift:*:*:dbuser:*/*"
++DBUSER_RESOURCE = (
++    "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/the_user"
++)
++
++
++def _issues(policy_str):
++    policy = analyze_policy_string(policy_str)
++    return [f.issue for f in policy.findings]
++
++
++class TestRedshiftArnMatch:
++    def test_dbuser_arn_matches(self):
++        assert is_arn_match("dbuser", DBUSER_FORMAT, DBUSER_RESOURCE)
++
++    def test_dbuser_arn_matches_wildcards(self):
++        assert is_arn_match(
++            "dbuser",
++            DBUSER_FORMAT,
++            "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/*",
++        )
++        assert is_arn_match(
++            "dbuser",
++            DBUSER_FORMAT,
++            "arn:aws:redshift:*:*:dbuser:*/the_user",
++        )
++
++    def test_other_resource_type_does_not_match(self):
++        assert not is_arn_match(
++            "dbuser",
++            DBUSER_FORMAT,
++            "arn:aws:redshift:us-west-2:123456789012:cluster:the_cluster",
++        )
++
++    def test_s3_cases_still_work(self):
++        assert is_arn_match("object", "arn:*:s3:::*/*", "arn:aws:s3:::*personalize*")
++        assert not is_arn_match("bucket", "arn:*:s3:::*", "arn:aws:s3:::bucket/object")
++
++    def test_get_cluster_credentials_no_resource_mismatch(self):
++        policy = """
++{
++    "Version": "2012-10-17",
++    "Statement": [
++        {
++            "Action": "redshift:GetClusterCredentials",
++            "Effect": "Allow",
++            "Resource": "arn:aws:redshift:us-west-2:123456789012:dbuser:the_cluster/the_user"
++        }
++    ]
++}
++"""
++        assert "RESOURCE_MISMATCH" not in _issues(policy)
++
++    def test_get_cluster_credentials_wrong_resource_still_mismatches(self):
++        policy = """
++{
++    "Version": "2012-10-17",
++    "Statement": [
++        {
++            "Action": "redshift:GetClusterCredentials",
++            "Effect": "Allow",
++            "Resource": "arn:aws:s3:::mybucket"
++        }
++    ]
++}
++"""
++        assert "RESOURCE_MISMATCH" in _issues(policy)
+```

@@ -1,0 +1,61 @@
+--- a/test/test_reads_lowercase.py
++++ b/test/test_reads_lowercase.py
+@@ -0,0 +1,62 @@
++from unittest import TestCase
++
++from dark.reads import DNARead
++
++
++class TestLowercaseTranslations(TestCase):
++    """
++    Test that lower case and mixed case nucleotides are translated and
++    have ORFs extracted the same way as upper case ones.
++    """
++
++    SEQ = 'ATGAAACCCGGGTTTTAGATGCCCAAATGA'
++
++    def _mixed(self):
++        return ''.join(c.lower() if i % 2 else c
++                       for i, c in enumerate(self.SEQ))
++
++    def testLowercaseForwardTranslation(self):
++        read = DNARead('id', 'atgaaatag')
++        translations = list(read.translations())
++        self.assertEqual('MK*', translations[0].sequence)
++
++    def testMixedCaseForwardTranslation(self):
++        read = DNARead('id', 'ATGaaaTAG')
++        translations = list(read.translations())
++        self.assertEqual('MK*', translations[0].sequence)
++
++    def testAllSixTranslationsCaseInsensitive(self):
++        upper = [t.sequence for t in
++                 DNARead('id', self.SEQ).translations()]
++        lower = [t.sequence for t in
++                 DNARead('id', self.SEQ.lower()).translations()]
++        mixed = [t.sequence for t in
++                 DNARead('id', self._mixed()).translations()]
++        self.assertEqual(upper, lower)
++        self.assertEqual(upper, mixed)
++        for seq in lower:
++            self.assertEqual(seq, seq.upper())
++
++    def testORFsCaseInsensitive(self):
++        def orfs(sequence):
++            result = []
++            for translation in DNARead('id', sequence).translations():
++                for orf in translation.ORFs():
++                    result.append((orf.sequence, orf.start, orf.stop))
++            return result
++
++        upper = orfs(self.SEQ)
++        self.assertTrue(len(upper) > 0)
++        self.assertEqual(upper, orfs(self.SEQ.lower()))
++        self.assertEqual(upper, orfs(self._mixed()))
++
++    def testLowercaseReverseComplementTranslation(self):
++        read = DNARead('id', 'ctatttcat')
++        upper = DNARead('id', 'CTATTTCAT')
++        self.assertEqual(
++            [t.sequence for t in upper.translations()],
++            [t.sequence for t in read.translations()])

@@ -1,0 +1,13 @@
+{"changed": true,
+ "correct_candidates": ["B","D"],
+ "wrong_candidates": ["A","C","E"],
+ "near_misses": ["nm1_forwards_sigint","nm2_trap_delays_past_timeout","nm3_never_exits","nm4_fake_marker_shortcut"],
+ "checks": [
+  {"check": "entrypoint runs app.py, which writes data entries, and does not exit on its own", "requirement": "Fix the entrypoint script (/app/entrypoint.sh) so that the Python application receives and handles SIGTERM correctly", "basis": "task-text", "note": "behavioural emulation of docker run"},
+  {"check": "app.py's own SIGTERM handler runs to completion (random nonce written by instrumented copy of original app.py, signal SIGTERM)", "requirement": "The Python app receives SIGTERM and performs its cleanup (writes shutdown marker)", "basis": "task-text", "note": "rejects shell-faked cleanup (A, C, E)"},
+  {"check": "/app/data/shutdown_complete exists with content shutdown_complete:SIGTERM", "requirement": "The file /app/data/shutdown_complete is created to indicate clean shutdown", "basis": "task-text", "note": "content is what unmodified app.py writes on SIGTERM"},
+  {"check": "output.txt ends with '--- END OF DATA (clean shutdown) ---'", "requirement": "The Python app receives SIGTERM and performs its cleanup", "basis": "task-text", "note": "written by app.py handler"},
+  {"check": "init exits before the 10 s docker-stop timeout after SIGTERM delivered with PID-1 semantics", "requirement": "The container exits within a few seconds, not hitting the default 10-second timeout", "basis": "task-text", "note": "bar = 10 s from task text; no tighter number added"},
+  {"check": "self-contained test.sh writing 0/1 to /logs/verifier/reward.txt, no network", "requirement": "grader runs bash /tests/test.sh", "basis": "format", "note": "old one depended on network install"}
+ ],
+ "contested": []}

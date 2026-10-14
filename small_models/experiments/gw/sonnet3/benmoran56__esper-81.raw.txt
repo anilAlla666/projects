@@ -1,0 +1,64 @@
+I've added a new test file covering the empty-entity case from the issue. I have not run it against the current code or a fix. The tests deliberately say nothing about whether `add_component()` should keep creating missing entities, since the issue leaves that open.
+
+```diff
+--- /dev/null
++++ b/tests/test_empty_entity.py
+@@ -0,0 +1,57 @@
++import unittest
++
++import esper
++
++
++class Position:
++    def __init__(self, x=0, y=0):
++        self.x = x
++        self.y = y
++
++
++class TestEmptyEntity(unittest.TestCase):
++
++    def test_create_entity_without_components_exists(self):
++        world = esper.World()
++        entity = world.create_entity()
++        self.assertTrue(world.entity_exists(entity))
++
++    def test_multiple_empty_entities_exist(self):
++        world = esper.World()
++        e1 = world.create_entity()
++        e2 = world.create_entity()
++        self.assertNotEqual(e1, e2)
++        self.assertTrue(world.entity_exists(e1))
++        self.assertTrue(world.entity_exists(e2))
++
++    def test_empty_entity_has_no_components(self):
++        world = esper.World()
++        entity = world.create_entity()
++        self.assertEqual(world.components_for_entity(entity), ())
++        self.assertFalse(world.has_component(entity, Position))
++
++    def test_add_component_to_empty_entity_later(self):
++        world = esper.World()
++        entity = world.create_entity()
++        pos = Position(1, 2)
++        world.add_component(entity, pos)
++        self.assertTrue(world.entity_exists(entity))
++        self.assertIs(world.component_for_entity(entity, Position), pos)
++        self.assertEqual(list(world.get_component(Position)), [(entity, pos)])
++
++    def test_delete_empty_entity_immediate(self):
++        world = esper.World()
++        entity = world.create_entity()
++        world.delete_entity(entity, immediate=True)
++        self.assertFalse(world.entity_exists(entity))
++
++    def test_delete_empty_entity_delayed(self):
++        world = esper.World()
++        entity = world.create_entity()
++        world.delete_entity(entity)
++        world.process()
++        self.assertFalse(world.entity_exists(entity))
++
++
++if __name__ == "__main__":
++    unittest.main()
+```

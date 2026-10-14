@@ -1,0 +1,56 @@
+I haven't run these tests. I'm assuming `update_from_env` is exported from `yamlsettings` and changes the `YAMLDict` in place, as in the issue's example. The new file is `tests/test_update_from_env.py`, and the diff below adds it.
+
+```diff
+diff --git a/tests/test_update_from_env.py b/tests/test_update_from_env.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_update_from_env.py
+@@ -0,0 +1,50 @@
++import os
++import unittest
++
++import yamlsettings
++from yamlsettings.yamldict import YAMLDict
++
++
++class UpdateFromEnvNonVariableCharsTest(unittest.TestCase):
++
++    def setUp(self):
++        self._added = []
++
++    def tearDown(self):
++        for key in self._added:
++            os.environ.pop(key, None)
++
++    def _setenv(self, key, value):
++        os.environ[key] = value
++        self._added.append(key)
++
++    def test_hyphen_key(self):
++        self._setenv('FOO_BAR', 'barbaz')
++        settings = YAMLDict({'foo-bar': None})
++        yamlsettings.update_from_env(settings)
++        self.assertEqual(settings['foo-bar'], 'barbaz')
++
++    def test_dot_key(self):
++        self._setenv('FOO_BAR_BAZ', 'qux')
++        settings = YAMLDict({'foo.bar': {'baz': None}})
++        yamlsettings.update_from_env(settings)
++        self.assertEqual(settings['foo.bar']['baz'], 'qux')
++
++    def test_nested_hyphen_keys(self):
++        self._setenv('OUTER_KEY_INNER_KEY', 'value')
++        settings = YAMLDict({'outer-key': {'inner-key': None}})
++        yamlsettings.update_from_env(settings)
++        self.assertEqual(settings['outer-key']['inner-key'], 'value')
++
++    def test_plain_key_still_works(self):
++        self._setenv('PLAIN_KEY', 'ok')
++        settings = YAMLDict({'plain_key': None})
++        yamlsettings.update_from_env(settings)
++        self.assertEqual(settings['plain_key'], 'ok')
++
++
++if __name__ == '__main__':
++    unittest.main()
+```

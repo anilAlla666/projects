@@ -1,0 +1,156 @@
+{
+ "loop": "tw-1169__tw-1169__oa2",
+ "task": "tw-1169",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "end_turn",
+   "turns": 13,
+   "usd": 0.8552,
+   "seconds": 309,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "B",
+     "D"
+    ],
+    "wrong_candidates": [
+     "A",
+     "C",
+     "E"
+    ],
+    "near_misses": [
+     "nm_order",
+     "nm_no_wayland",
+     "nm_virtualbox_unmapped",
+     "nm_exit1",
+     "nm_needs_root",
+     "nm_not_executable",
+     "nm_shortcut_env_only"
+    ],
+    "checks": [
+     {
+      "check": "/app/system_profiler.sh exists and is executable",
+      "requirement": "Build a shell script called system_profiler.sh in the /app directory; The script should be executable",
+      "basis": "format",
+      "note": "executable bit is new"
+     },
+     {
+      "check": "exit status 0 in every scenario",
+      "requirement": "The script must exit with status code 0 on successful completion",
+      "basis": "task-text",
+      "note": ""
+     },
+     {
+      "check": "exactly 4 lines in the order DISPLAY_SERVER, INIT_SYSTEM, CONTAINER, VIRTUALIZATION with allowed lowercase values",
+      "requirement": "The output must be in the following exact format (one line per detection, in this exact order); All values must be lowercase",
+      "basis": "format",
+      "note": "order is newly enforced"
+     },
+     {
+      "check": "display vars unset or empty -> DISPLAY_SERVER=headless",
+      "requirement": "Detect whether the system is using X11, Wayland, or running headless",
+      "basis": "task-text",
+      "note": "original kept"
+     },
+     {
+      "check": "XDG_SESSION_TYPE=x11, DISPLAY=:0, running Xorg process -> x11",
+      "requirement": "Check $XDG_SESSION_TYPE, $DISPLAY, $WAYLAND_DISPLAY ... and validate by checking for running processes",
+      "basis": "task-text",
+      "note": "new"
+     },
+     {
+      "check": "XDG_SESSION_TYPE=wayland, WAYLAND_DISPLAY=wayland-0, running weston process -> wayland",
+      "requirement": "same as above",
+      "basis": "task-text",
+      "note": "new"
+     },
+     {
+      "check": "CONTAINER=docker in the grading container",
+      "requirement": "Detect if the system is running inside a container and identify the type (Docker...). Check for /.dockerenv",
+      "basis": "task-text",
+      "note": "original kept; grading env is a Docker container"
+     },
+     {
+      "check": "fake systemd-detect-virt kvm/vmware/oracle/microsoft -> kvm/vmware/virtualbox/hyperv",
+      "requirement": "Use systemd-detect-virt if available",
+      "basis": "recomputed",
+      "note": "ids are defined by systemd-detect-virt(1), the tool the task names"
+     },
+     {
+      "check": "script run as uid 65534 exits 0 with valid output, headless, docker",
+      "requirement": "The script must work without requiring root privileges",
+      "basis": "task-text",
+      "note": "skipped if the verifier itself is not root"
+     },
+     {
+      "check": "INIT_SYSTEM within enum only",
+      "requirement": "INIT_SYSTEM=<systemd|sysvinit|openrc|unknown>",
+      "basis": "format",
+      "note": "value in container is contested"
+     }
+    ],
+    "contested": [
+     {
+      "value": "INIT_SYSTEM inside the grading container (PID 1 not an init)",
+      "verifier_expects": "any allowed value",
+      "candidates_give": "B: unknown, D: sysvinit",
+      "why": "task gives no rule for containers whose PID 1 is an arbitrary process"
+     },
+     {
+      "value": "DISPLAY_SERVER when DISPLAY is set but no X process runs",
+      "verifier_expects": "not tested",
+      "candidates_give": "B and D: x11",
+      "why": "task says validate by processes but not what to report when validation fails"
+     }
+    ]
+   },
+   "evidence": "PPPPPF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "nop"
+   ],
+   "guard": {
+    "kept": false,
+    "old_agree": 5,
+    "new_agree": 11,
+    "items": 13
+   }
+  }
+ ],
+ "usd": 0.855,
+ "before": {
+  "accepted_correct": "4/4",
+  "attempts": 10,
+  "balanced_accuracy": 0.583333,
+  "isolation": "bindproc",
+  "labels": "PPPPFFFFFF",
+  "rejected_wrong": "1/6",
+  "reward": 0.166667,
+  "seconds": 5.5,
+  "task": "tw-1169",
+  "timeouts": 0,
+  "tnr": 0.166667,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "4/4",
+  "attempts": 10,
+  "balanced_accuracy": 0.583333,
+  "isolation": "bindproc",
+  "labels": "PPPPFFFFFF",
+  "rejected_wrong": "1/6",
+  "reward": 0.166667,
+  "seconds": 5.8,
+  "task": "tw-1169",
+  "timeouts": 0,
+  "tnr": 0.166667,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPPPPF"
+ }
+}

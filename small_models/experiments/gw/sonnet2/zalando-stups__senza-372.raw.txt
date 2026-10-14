@@ -1,0 +1,92 @@
+I couldn't run these tests. They assume `resolve_security_groups(security_groups, region)` in `senza/aws.py` calls `boto3.resource('ec2', region)` and then `ec2.security_groups.filter(Filters=...)`. I wrote that from memory of senza's code, not from the repository, so check it before relying on the tests.
+
+The tests use a fake EC2 resource whose `filter` returns different groups depending on whether the filter is a tag `Name` lookup or a `group-name` lookup. A tag lookup is recognised either as `tag:Name` or as `tag-key=Name` plus `tag-value`.
+
+- **Tag lookup:** a group matched only by its `Name` tag must resolve to its ID. This fails on the current code, which only filters by `group-name`.
+- **Tag preferred:** when the tag and the generated group name point to different groups, the tag match wins. This also fails on the current code.
+- **Fallback:** a name that matches only by `group-name` still resolves. This should already pass today and guards against regressions.
+- **Not found:** a name that matches nothing raises `ValueError`. This should also pass today.
+- **Passthrough:** `sg-…` IDs and dict entries are returned as they are, without any lookup.
+
+```diff
+diff --git a/tests/test_security_group_name_tag.py b/tests/test_security_group_name_tag.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_security_group_name_tag.py
+@@ -0,0 +1,95 @@
++from unittest.mock import MagicMock
++
++import pytest
++from senza.aws import resolve_security_groups
++
++
++def _is_tag_name_filter(filters):
++    for f in filters:
++        if f['Name'] == 'tag:Name':
++            return f['Values']
++    names = {f['Name']: f['Values'] for f in filters}
++    if 'tag-key' in names and 'tag-value' in names and 'Name' in names['tag-key']:
++        return names['tag-value']
++    return None
++
++
++def _group_name_filter(filters):
++    for f in filters:
++        if f['Name'] == 'group-name':
++            return f['Values']
++    return None
++
++
++def _setup(monkeypatch, by_tag=None, by_group_name=None):
++    by_tag = by_tag or {}
++    by_group_name = by_group_name or {}
++    ec2 = MagicMock()
++
++    def fake_filter(Filters=None, **kwargs):
++        tag_values = _is_tag_name_filter(Filters)
++        if tag_values is not None:
++            return [MagicMock(id=by_tag[v]) for v in tag_values if v in by_tag]
++        gn_values = _group_name_filter(Filters)
++        if gn_values is not None:
++            return [MagicMock(id=by_group_name[v]) for v in gn_values if v in by_group_name]
++        return []
++
++    ec2.security_groups.filter.side_effect = fake_filter
++
++    def fake_resource(rtype, *args, **kwargs):
++        assert rtype == 'ec2'
++        return ec2
++
++    monkeypatch.setattr('boto3.resource', fake_resource)
++    return ec2
++
++
++def test_resolve_security_group_by_name_tag(monkeypatch):
++    _setup(monkeypatch, by_tag={'my-sg': 'sg-tagged'})
++    assert resolve_security_groups(['my-sg'], 'eu-west-1') == ['sg-tagged']
++
++
++def test_name_tag_preferred_over_group_name(monkeypatch):
++    _setup(monkeypatch,
++           by_tag={'my-sg': 'sg-tagged'},
++           by_group_name={'my-sg': 'sg-groupname'})
++    assert resolve_security_groups(['my-sg'], 'eu-west-1') == ['sg-tagged']
++
++
++def test_fallback_to_group_name(monkeypatch):
++    _setup(monkeypatch, by_group_name={'default': 'sg-default'})
++    assert resolve_security_groups(['default'], 'eu-west-1') == ['sg-default']
++
++
++def test_security_group_not_found(monkeypatch):
++    _setup(monkeypatch)
++    with pytest.raises(ValueError):
++        resolve_security_groups(['does-not-exist'], 'eu-west-1')
++
++
++def test_ids_and_dicts_passthrough(monkeypatch):
++    ec2 = _setup(monkeypatch)
++    ref = {'Ref': 'SomeSG'}
++    assert resolve_security_groups(['sg-123456', ref], 'eu-west-1') == ['sg-123456', ref]
++    assert not ec2.security_groups.filter.called
+```

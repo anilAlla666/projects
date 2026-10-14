@@ -1,0 +1,14 @@
+{"changed": true,
+ "correct_candidates": ["A","B","C","E"],
+ "wrong_candidates": ["D"],
+ "near_misses": ["nm1_missing_one_shell","nm2_no_current_shell","nm3_no_verification","nm4_wrong_verification","nm5_names_only_shortcut","nm6_relative_paths"],
+ "checks": [
+  {"check": "test.sh runs offline (no apt/curl/uv) and writes 1/0 to /logs/verifier/reward.txt", "requirement": "grader runs bash /tests/test.sh; no network", "basis": "format", "note": "the original needed network, so it would always give 0"},
+  {"check": "/app/shell_report.txt exists and is non-empty", "requirement": "Your report should be saved as shell_report.txt in the /app directory", "basis": "task-text", "note": ""},
+  {"check": "a current-shell/$0 line names a real shell (token basename is a shell name)", "requirement": "The current shell being used (identified by $0 or similar methods)", "basis": "task-text", "note": "any real shell is accepted; a script name like /replay.sh is rejected"},
+  {"check": "every unique /etc/shells entry (excluding harness-added tmux/screen) appears as a standalone absolute path", "requirement": "A list of all installed shells found on the system (from /etc/shells); The absolute path to each shell executable", "basis": "recomputed", "note": "read from the grading container's /etc/shells; extra entries allowed because the solver's /etc/shells may contain tmux"},
+  {"check": "the report states existence/executability and does not call an existing executable shell missing", "requirement": "Verification that these shells actually exist as executable files", "basis": "task-text", "note": ""}
+ ],
+ "contested": [
+  {"value": "which shell is the current shell", "verifier_expects": "any real shell name (old: any 'sh' substring)", "candidates_give": "bash (A,B,C,E), /replay.sh (D)", "why": "depends on how the solver's harness runs commands; the task fixes no value"}
+ ]}

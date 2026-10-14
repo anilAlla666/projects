@@ -1,0 +1,49 @@
+The new tests cover the issue's case, `del sl[3:3]` on `SparseList(xrange(5), None)`, plus other empty slices. The tests were not run. Each one checks that the length and the contents are unchanged after deleting an empty slice.
+
+```diff
+--- a/test_sparse_list.py
++++ b/test_sparse_list.py
+@@ -356,5 +356,43 @@
+         sl[::2] = [1, 2, 3]
+         self.assertEqual([1, None, 2, None, 3, None], sl)
+ 
++    def test_del_empty_slice_leaves_list_untouched(self):
++        sl = sparse_list.SparseList(xrange(5), None)
++        del sl[3:3]
++        self.assertEqual(5, len(sl))
++        self.assertEqual([0, 1, 2, 3, 4], list(sl))
++
++    def test_del_empty_slice_at_start(self):
++        sl = sparse_list.SparseList(xrange(5), None)
++        del sl[0:0]
++        self.assertEqual(5, len(sl))
++        self.assertEqual([0, 1, 2, 3, 4], list(sl))
++
++    def test_del_empty_slice_at_end(self):
++        sl = sparse_list.SparseList(xrange(5), None)
++        del sl[5:5]
++        self.assertEqual(5, len(sl))
++        self.assertEqual([0, 1, 2, 3, 4], list(sl))
++
++    def test_del_empty_reversed_bounds_slice(self):
++        sl = sparse_list.SparseList(xrange(5), None)
++        del sl[3:2]
++        self.assertEqual(5, len(sl))
++        self.assertEqual([0, 1, 2, 3, 4], list(sl))
++
++    def test_del_empty_slice_sparse_list(self):
++        sl = sparse_list.SparseList(6, None)
++        sl[4] = 'x'
++        del sl[2:2]
++        self.assertEqual(6, len(sl))
++        self.assertEqual([None, None, None, None, 'x', None], list(sl))
++
++    def test_del_empty_slice_on_empty_list(self):
++        sl = sparse_list.SparseList(0, None)
++        del sl[0:0]
++        self.assertEqual(0, len(sl))
++        self.assertEqual([], list(sl))
++
+ if __name__ == '__main__':
+     unittest.main()
+```

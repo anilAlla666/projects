@@ -1,0 +1,55 @@
+diff --git a/ccdproc/tests/test_combiner_generator.py b/ccdproc/tests/test_combiner_generator.py
+new file mode 100644
+--- /dev/null
++++ b/ccdproc/tests/test_combiner_generator.py
+@@ -0,0 +1,50 @@
++# Licensed under a 3-clause BSD style license - see LICENSE.rst
++import numpy as np
++
++from ccdproc import CCDData, Combiner, combine
++
++
++def _make_ccds(n=3, shape=(10, 10)):
++    return [CCDData(np.full(shape, i + 1, dtype=float), unit='adu')
++            for i in range(n)]
++
++
++def _gen(n=3, shape=(10, 10)):
++    for ccd in _make_ccds(n, shape):
++        yield ccd
++
++
++def test_combiner_accepts_generator():
++    comb = Combiner(_gen())
++    result = comb.average_combine()
++    assert result.shape == (10, 10)
++    np.testing.assert_allclose(result.data, 2.0)
++
++
++def test_combiner_generator_matches_list():
++    res_gen = Combiner(_gen(4)).median_combine()
++    res_list = Combiner(_make_ccds(4)).median_combine()
++    np.testing.assert_allclose(res_gen.data, res_list.data)
++
++
++def test_combiner_generator_expression():
++    comb = Combiner(ccd for ccd in _make_ccds(3))
++    assert len(comb.ccd_list) == 3
++    np.testing.assert_allclose(comb.sum_combine().data, 6.0)
++
++
++def test_combine_accepts_generator():
++    result = combine(_gen(), method='average')
++    assert result.shape == (10, 10)
++    np.testing.assert_allclose(result.data, 2.0)
++
++
++def test_combine_generator_matches_list():
++    res_gen = combine(_gen(5), method='median')
++    res_list = combine(_make_ccds(5), method='median')
++    np.testing.assert_allclose(res_gen.data, res_list.data)
++
++
++def test_combine_generator_with_mem_limit():
++    result = combine(_gen(), method='average', mem_limit=1e6)
++    np.testing.assert_allclose(result.data, 2.0)

@@ -1,0 +1,51 @@
+--- /dev/null
++++ b/tests/test_linebreak.py
+@@ -0,0 +1,45 @@
++import unittest
++
++from qrbill import QRBill
++
++ACCOUNT = "CH 53 8000 5000 0102 83664"
++
++
++class AdditionalInformationLineBreakTests(unittest.TestCase):
++    def _lines(self, info):
++        bill = QRBill(account=ACCOUNT, additional_information=info)
++        return bill.qr_data().split("\r\n")
++
++    def test_newline_does_not_break_payload(self):
++        reference = self._lines("Hello Line break")
++        lines = self._lines("Hello \n Line break")
++        # Same number of payload fields: no extra line split introduced
++        self.assertEqual(len(lines), len(reference))
++        for line in lines:
++            self.assertNotIn("\n", line)
++            self.assertNotIn("\r", line)
++        data = "\r\n".join(lines)
++        self.assertIn("Hello", data)
++        self.assertIn("Line break", data)
++
++    def test_crlf_does_not_break_payload(self):
++        reference = self._lines("Hello Line break")
++        lines = self._lines("Hello\r\nLine break")
++        self.assertEqual(len(lines), len(reference))
++        for line in lines:
++            self.assertNotIn("\n", line)
++            self.assertNotIn("\r", line)
++        data = "\r\n".join(lines)
++        self.assertIn("Hello", data)
++        self.assertIn("Line break", data)
++
++    def test_lone_cr_does_not_break_payload(self):
++        lines = self._lines("Hello\rLine break")
++        for line in lines:
++            self.assertNotIn("\r", line)
++            self.assertNotIn("\n", line)
++
++    def test_svg_has_no_newline_in_info(self):
++        import io
++        bill = QRBill(account=ACCOUNT, additional_information="Hello\nLine break")
++        buff = io.StringIO()
++        bill.as_svg(buff)
++        content = buff.getvalue()
++        self.assertNotIn("Hello\nLine", content)

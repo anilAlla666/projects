@@ -1,0 +1,60 @@
+--- /dev/null
++++ b/tests/test_bom.py
+@@ -0,0 +1,57 @@
++"""
++Tests for databases saved with a UTF-8 byte order mark (BOM).
++"""
++import click.testing
++from mailmerge.__main__ import main
++
++
++def _write_files(tmp_path, database_bytes):
++    template = tmp_path / "mailmerge_template.txt"
++    template.write_text(
++        "TO: {{email}}\n"
++        "FROM: My Self <myself@mydomain.com>\n"
++        "\n"
++        "Hello {{name}}\n"
++    )
++    database = tmp_path / "mailmerge_database.csv"
++    database.write_bytes(database_bytes)
++    config = tmp_path / "mailmerge_server.conf"
++    config.write_text(
++        "[smtp_server]\n"
++        "host = open-smtp.example.com\n"
++        "port = 25\n"
++    )
++    return template, database, config
++
++
++def _run(template, database, config):
++    runner = click.testing.CliRunner()
++    return runner.invoke(
++        main,
++        [
++            "--template", str(template),
++            "--database", str(database),
++            "--config", str(config),
++            "--dry-run",
++        ],
++    )
++
++
++def test_database_with_bom(tmp_path):
++    """First header key must be found when the CSV starts with a BOM."""
++    data = b"\xef\xbb\xbfname,email\r\nMy Name,to@test.com\r\n"
++    template, database, config = _write_files(tmp_path, data)
++    result = _run(template, database, config)
++    assert result.exception is None, result.output
++    assert result.exit_code == 0, result.output
++    assert "Hello My Name" in result.output
++    assert "to@test.com" in result.output
++
++
++def test_database_without_bom(tmp_path):
++    """Plain CSV keeps working."""
++    data = b"name,email\r\nMy Name,to@test.com\r\n"
++    template, database, config = _write_files(tmp_path, data)
++    result = _run(template, database, config)
++    assert result.exit_code == 0, result.output
++    assert "Hello My Name" in result.output

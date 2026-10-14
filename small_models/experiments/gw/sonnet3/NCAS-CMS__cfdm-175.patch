@@ -1,0 +1,37 @@
+--- a/cfdm/test/test_Domain.py
++++ b/cfdm/test/test_Domain.py
+@@ -36,6 +36,28 @@
+ 
+         d.nc_set_variable("domain1")
+         for title in (None, "title"):
+             d.dump(display=False, _title=title)
+ 
++    def test_Domain__str__no_coordinate_data(self):
++        """Test string representation when a coordinate has no data."""
++        f = cfdm.example_field(2)
++        t = f.construct("time")
++        t.del_data()
++        self.assertFalse(t.has_data())
++
++        # Domain
++        s = str(f.domain)
++        self.assertIsInstance(s, str)
++        self.assertIn("time", s)
++
++        # Field
++        s = str(f)
++        self.assertIsInstance(s, str)
++        self.assertIn("time", s)
++
++        repr(f.domain)
++        repr(f)
++
++        # Remove data from all dimension coordinates
++        g = cfdm.example_field(1)
++        for c in g.dimension_coordinates(todict=True).values():
++            c.del_data()
++
++        self.assertIsInstance(str(g), str)
++        self.assertIsInstance(str(g.domain), str)
++
+ 

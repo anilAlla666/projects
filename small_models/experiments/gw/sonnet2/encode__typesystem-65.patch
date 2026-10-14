@@ -1,0 +1,68 @@
+diff --git a/tests/test_validation_error_hash.py b/tests/test_validation_error_hash.py
+new file mode 100644
+--- /dev/null
++++ b/tests/test_validation_error_hash.py
+@@ -0,0 +1,59 @@
++import traceback
++
++import typesystem
++
++
++def get_error():
++    try:
++        typesystem.Integer().validate("hello")
++    except typesystem.ValidationError as exc:
++        return exc
++    raise AssertionError("ValidationError not raised")  # pragma: no cover
++
++
++def test_validation_error_is_hashable():
++    error = get_error()
++    assert isinstance(hash(error), int)
++
++
++def test_validation_error_hash_consistent_with_eq():
++    a = get_error()
++    b = get_error()
++    assert a == b
++    assert hash(a) == hash(b)
++
++
++def test_validation_error_in_set_and_dict():
++    a = get_error()
++    b = get_error()
++    assert len({a, b}) == 1
++    assert {a: 1}[b] == 1
++
++
++def test_validation_error_with_text_hashable():
++    a = typesystem.ValidationError(text="Some message", code="some_code")
++    b = typesystem.ValidationError(text="Some message", code="some_code")
++    assert hash(a) == hash(b)
++
++
++def test_validation_error_with_key_hashable():
++    a = typesystem.ValidationError(text="Some message", code="c", key="field")
++    b = typesystem.ValidationError(text="Some message", code="c", key="field")
++    assert hash(a) == hash(b)
++
++
++def test_validation_error_traceback_print():
++    try:
++        typesystem.Integer().validate("hello")
++    except typesystem.ValidationError:
++        output = traceback.format_exc()
++    assert "ValidationError" in output
++
++
++def test_validation_error_chained_traceback():
++    try:
++        try:
++            typesystem.Integer().validate("hello")
++        except typesystem.ValidationError as exc:
++            hash(exc)
++            raise RuntimeError("boom") from exc
++    except RuntimeError:
++        output = traceback.format_exc()
++    assert "ValidationError" in output
++    assert "RuntimeError" in output

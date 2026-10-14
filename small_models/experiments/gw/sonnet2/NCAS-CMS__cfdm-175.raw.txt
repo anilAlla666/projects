@@ -1,0 +1,64 @@
+The diff below adds one test file. It deletes the data from each dimension coordinate in turn and checks that `str()` of both the field and its domain still works. I haven't run it. I limited it to dimension coordinates, since that is the case in the issue, and the fix only touches `cfdm/domain.py`. Auxiliary coordinates and other constructs may be handled elsewhere, so I left them out to avoid false failures.
+
+```diff
+diff --git a/cfdm/test/test_print_no_data.py b/cfdm/test/test_print_no_data.py
+new file mode 100644
+--- /dev/null
++++ b/cfdm/test/test_print_no_data.py
+@@ -0,0 +1,66 @@
++import datetime
++import faulthandler
++import unittest
++
++faulthandler.enable()  # to debug seg faults and timeouts
++
++import cfdm
++
++
++class PrintNoDataTest(unittest.TestCase):
++    """Printing fields/domains whose coordinates have no data."""
++
++    def test_print_dimension_coordinate_no_data(self):
++        f = cfdm.example_field(2)
++        t = f.construct("time")
++        t.del_data()
++        self.assertFalse(t.has_data())
++
++        # Must not raise
++        s = str(f)
++        self.assertIsInstance(s, str)
++        self.assertIn("time", s)
++
++        d = f.domain
++        s = str(d)
++        self.assertIsInstance(s, str)
++        self.assertIn("time", s)
++
++        # Also the dump
++        f.dump(display=False)
++
++    def test_print_all_dimension_coordinates_no_data(self):
++        for n in (0, 1, 2):
++            f = cfdm.example_field(n)
++            for key, dim in f.dimension_coordinates().items():
++                dim.del_data()
++
++            self.assertIsInstance(str(f), str)
++            self.assertIsInstance(str(f.domain), str)
++
++    def test_print_domain_no_data(self):
++        f = cfdm.example_field(0)
++        d = f.domain.copy()
++        for key, dim in d.dimension_coordinates().items():
++            dim.del_data()
++
++        self.assertIsInstance(str(d), str)
++        self.assertIsInstance(repr(d), str)
++
++
++if __name__ == "__main__":
++    print("Run date:", datetime.datetime.now())
++    cfdm.environment()
++    print()
++    unittest.main(verbosity=2)
+```

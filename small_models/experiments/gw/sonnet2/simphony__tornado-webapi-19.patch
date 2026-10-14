@@ -1,0 +1,33 @@
+--- /dev/null
++++ b/tornadowebapi/tests/test_bad_representation.py
+@@ -0,0 +1,33 @@
++import unittest
++
++from tornadowebapi import exceptions
++
++
++class TestBadRepresentation(unittest.TestCase):
++    def test_bad_representation_exists(self):
++        self.assertTrue(hasattr(exceptions, "BadRepresentation"))
++
++    def test_bad_request_removed(self):
++        self.assertFalse(hasattr(exceptions, "BadRequest"))
++
++    def test_is_exception(self):
++        self.assertTrue(
++            issubclass(exceptions.BadRepresentation, Exception))
++
++    def test_same_base_as_other_webapi_exceptions(self):
++        base = exceptions.NotFound.__mro__[1]
++        self.assertTrue(issubclass(exceptions.BadRepresentation, base))
++
++    def test_http_code_is_400(self):
++        self.assertEqual(exceptions.BadRepresentation.http_code, 400)
++
++    def test_can_be_raised(self):
++        with self.assertRaises(exceptions.BadRepresentation):
++            raise exceptions.BadRepresentation()
++
++
++if __name__ == '__main__':
++    unittest.main()

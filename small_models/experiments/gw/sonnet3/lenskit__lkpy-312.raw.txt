@@ -1,0 +1,62 @@
+I'm adding a new test file instead of editing `tests/test_topn_ndcg.py`, since that file wasn't shown to me. The expected values use the rank discount `max(log2(rank), 1)`, so ranks 1 and 2 are undiscounted. I haven't run these tests against the current code.
+
+The tests cover both faults from the issue:
+
+- **No `k`, recs shorter than truth:** the ideal DCG must be truncated to the length of the rec list. For recs `[1, 2]` against truth ratings 3, 5, 4, the result is 8/9, matching `k=2`.
+- **`k` smaller than the rec list:** the recommendation DCG must only use the first `k` recs.
+
+I left out two cases because the issue doesn't pin down the expected result. One is truth with no `rating` column. The other is `k` larger than the rec list.
+
+```diff
+--- /dev/null
++++ b/tests/test_topn_ndcg_truncation.py
+@@ -0,0 +1,56 @@
++import pandas as pd
++
++from pytest import approx
++
++from lenskit.metrics.topn import ndcg
++
++
++def _truth():
++    return pd.DataFrame({'item': [1, 2, 3], 'rating': [3.0, 5.0, 4.0]}).set_index('item')
++
++
++def test_ndcg_short_recs_no_k():
++    "ideal list is truncated to the recommendation list length when k is not given"
++    recs = pd.DataFrame({'item': [1, 2]})
++    assert ndcg(recs, _truth()) == approx(8.0 / 9.0)
++
++
++def test_ndcg_short_recs_matches_k():
++    recs = pd.DataFrame({'item': [1, 2]})
++    assert ndcg(recs, _truth()) == approx(ndcg(recs, _truth(), k=2))
++    assert ndcg(recs, _truth(), k=2) == approx(8.0 / 9.0)
++
++
++def test_ndcg_perfect_no_k():
++    recs = pd.DataFrame({'item': [2, 3, 1]})
++    assert ndcg(recs, _truth()) == approx(1.0)
++
++
++def test_ndcg_perfect_k_truncates_recs():
++    "recs longer than k must be truncated before computing DCG"
++    recs = pd.DataFrame({'item': [2, 3, 1]})
++    assert ndcg(recs, _truth(), k=2) == approx(1.0)
++    assert ndcg(recs[:2], _truth(), k=2) == approx(1.0)
++
++
++def test_ndcg_k_one():
++    recs = pd.DataFrame({'item': [2, 3, 1]})
++    assert ndcg(recs, _truth(), k=1) == approx(1.0)
++
++
++def test_ndcg_k_truncates_imperfect():
++    recs = pd.DataFrame({'item': [1, 2, 3]})
++    assert ndcg(recs, _truth(), k=2) == approx(8.0 / 9.0)
++
++
++def test_ndcg_k_truncates_with_unrated():
++    recs = pd.DataFrame({'item': [2, 9, 3]})
++    assert ndcg(recs, _truth(), k=2) == approx(5.0 / 9.0)
+```

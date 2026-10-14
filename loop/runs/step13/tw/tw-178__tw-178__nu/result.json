@@ -1,0 +1,120 @@
+{
+ "loop": "tw-178__tw-178__nu",
+ "task": "tw-178",
+ "rounds": [
+  {
+   "round": 0,
+   "stop": "stop",
+   "turns": 61,
+   "usd": 0.0,
+   "seconds": 1712,
+   "verdict": {
+    "changed": true,
+    "correct_candidates": [
+     "A",
+     "B"
+    ],
+    "wrong_candidates": [
+     "C",
+     "D"
+    ],
+    "near_misses": [
+     "nm1_mismatched_delimiter",
+     "nm2_pipe_instead_of_proc_sub",
+     "nm3_here_doc_instead_of_here_string",
+     "nm4_shortcut_hardcoded"
+    ],
+    "checks": [
+     {
+      "check": "Script uses #!/bin/bash shebang",
+      "requirement": "The script must use #!/bin/bash shebang (not sh) for process substitution support",
+      "basis": "task-text",
+      "note": "Explicitly required by task: 'The script must use #!/bin/bash shebang (not sh)'"
+     },
+     {
+      "check": "Script executes without error (exit code 0)",
+      "requirement": "The fixed script should run without errors",
+      "basis": "task-text",
+      "note": "Implied by 'ensure it runs without errors'"
+     },
+     {
+      "check": "Output file /app/output.txt matches /app/expected_output.txt exactly",
+      "requirement": "The fixed script should produce output to /app/output.txt that matches /app/expected_output.txt",
+      "basis": "task-text",
+      "note": "Explicitly required by task"
+     },
+     {
+      "check": "Config summary file /app/config_summary.txt exists with correct parsed configuration values",
+      "requirement": "The script should also generate /app/config_summary.txt with parsed configuration values",
+      "basis": "task-text",
+      "note": "Explicitly required by task; content derived from config here-document in task"
+     },
+     {
+      "check": "Script uses here-document (<< DELIMITER) with matching delimiter for configuration",
+      "requirement": "Read configuration from a here-document",
+      "basis": "task-text",
+      "note": "Explicitly required: 'Read configuration from a here-document'; bug 2 is 'Here-document syntax (mismatched delimiters)'"
+     },
+     {
+      "check": "Script uses here-string (<<<) with bc for single-value transformation",
+      "requirement": "Process input data using here-strings for single-value transformations",
+      "basis": "task-text",
+      "note": "Explicitly required: 'Process input data using here-strings for single-value transformations'; bug 4 is 'Incorrect here-string usage - missing the <<< operator'"
+     },
+     {
+      "check": "Script uses process substitution (<()) with diff for data comparison",
+      "requirement": "Compare outputs from multiple data sources using process substitution",
+      "basis": "task-text",
+      "note": "Explicitly required: 'Compare outputs from multiple data sources using process substitution'; bug 5 is 'Using pipe instead of process substitution for diff'"
+     }
+    ],
+    "contested": []
+   },
+   "evidence": "PPPPF",
+   "evidence_ids": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "nop"
+   ],
+   "guard": {
+    "kept": true,
+    "old_agree": 4,
+    "new_agree": 9,
+    "items": 9
+   }
+  }
+ ],
+ "usd": 0.0,
+ "before": {
+  "accepted_correct": "5/5",
+  "attempts": 8,
+  "balanced_accuracy": 0.666667,
+  "isolation": "bindproc",
+  "labels": "PPPPPFFF",
+  "rejected_wrong": "1/3",
+  "reward": 0.333333,
+  "seconds": 2.6,
+  "task": "tw-178",
+  "timeouts": 0,
+  "tnr": 0.333333,
+  "tpr": 1.0,
+  "verdicts": "PPPPPPPF"
+ },
+ "after": {
+  "accepted_correct": "2/5",
+  "attempts": 8,
+  "balanced_accuracy": 0.7,
+  "isolation": "bindproc",
+  "labels": "PPPPPFFF",
+  "rejected_wrong": "3/3",
+  "reward": 0.4,
+  "seconds": 3.2,
+  "task": "tw-178",
+  "timeouts": 0,
+  "tnr": 1.0,
+  "tpr": 0.4,
+  "verdicts": "PFFPFFFF"
+ }
+}

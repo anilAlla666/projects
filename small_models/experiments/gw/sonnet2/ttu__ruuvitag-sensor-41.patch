@@ -1,0 +1,44 @@
+--- /dev/null
++++ b/tests/test_fw_128_trimmed_nulls.py
+@@ -0,0 +1,53 @@
++from unittest import TestCase
++
++from ruuvitag_sensor.ruuvi import RuuviTagSensor
++
++
++def _hex(text):
++    return ''.join('{:02X}'.format(ord(c)) for c in text)
++
++
++HEADER = '1E0201060303AAFE1616AAFE10EE03'
++
++
++class TestFirmware128TrimmedNulls(TestCase):
++    """
++    Ruuvi firmware 1.2.8 trims trailing NULLs from the advertisement.
++    Data format detection must still work.
++    """
++
++    def test_url_format_without_trailing_nulls(self):
++        raw = HEADER + _hex('ruu.vi/#AjwYAMFc')
++        fmt, data = RuuviTagSensor.convert_data(raw)
++        self.assertEqual(2, fmt)
++        self.assertEqual('AjwYAMFc', data)
++
++    def test_url_format_with_trailing_nulls(self):
++        raw = HEADER + _hex('ruu.vi/#AjwYAMFc') + '0000000000'
++        fmt, data = RuuviTagSensor.convert_data(raw)
++        self.assertEqual(2, fmt)
++        self.assertEqual('AjwYAMFc', data)
++
++    def test_url_format_with_trailing_nulls_and_rssi(self):
++        raw = HEADER + _hex('ruu.vi/#AjwYAMFc') + '000000' + 'C6'
++        fmt, data = RuuviTagSensor.convert_data(raw)
++        self.assertEqual(2, fmt)
++        self.assertEqual('AjwYAMFc', data)
++
++    def test_url_format_4_style_without_trailing_nulls(self):
++        raw = HEADER + _hex('ruu.vi/#BAAAAAAAAAAA')
++        fmt, data = RuuviTagSensor.convert_data(raw)
++        self.assertIsNotNone(fmt)
++        self.assertEqual('BAAAAAAAAAAA', data)

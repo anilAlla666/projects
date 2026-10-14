@@ -1,0 +1,49 @@
+--- a/tests/test_nodebookcore.py
++++ b/tests/test_nodebookcore.py
+@@ -43,6 +43,41 @@
+         assert rf.imports == {'pandas'}
+ 
+ 
++    def test_function_args(self, rf):
++        code_tree = ast.parse(
++            "def add(a, b):\n"
++            "    return a + b\n"
++        )
++        rf.visit(code_tree)
++        assert rf.inputs == set()
++        assert rf.imports == set()
++        assert 'add' in rf.locals
++
++    def test_function_varargs_and_defaults(self, rf):
++        code_tree = ast.parse(
++            "def f(a, b=c, *args, **kwargs):\n"
++            "    return a + b + len(args) + len(kwargs)\n"
++        )
++        rf.visit(code_tree)
++        assert rf.inputs == {'c', 'len'}
++        assert 'f' in rf.locals
++
++    def test_lambda_args(self, rf):
++        code_tree = ast.parse("f = lambda x: x + 1")
++        rf.visit(code_tree)
++        assert rf.inputs == set()
++        assert 'f' in rf.locals
++
++
+ class TestNodebook(object):
+     @pytest.fixture()
+     def nb(self):
+         var_store = PickleDict()
+         return Nodebook(var_store)
+ 
++    def test_function_node(self, nb):
++        node_id = '111'
++        nb.insert_node_after(node_id, None)
++        nb.update_code(node_id, "def add(a, b):\n    return a + b\nadd(1, 2)")
++        res, objs = nb.run_node(node_id)
++        assert res == 3
++        assert 'add' in objs
++
+     def test_single_node(self, nb):
+         node_id = '111'
+         nb.insert_node_after(node_id, None)
