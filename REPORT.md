@@ -95,9 +95,14 @@ flowchart LR
   L -- value the task leaves open --> A[One question to the author]
   A --> L
   R --> V[Verified grader and per-check report]
+  V -. on tasks with known answers .-> PM[Post-mortem: every mistake and the check that caused it]
+  PM -.-> RB[New general rule for the judge]
+  RB -. adopted only if it improves other tasks .-> L
+  PM -.-> TD[Scored rounds become training data]
+  TD -. retrained model becomes the judge .-> L
 ```
 
-The judge's instructions went through five tested versions, each closing a failure we had measured: v1 forbids changing an expected value the task does not settle; v2 settles a contested value only by an out-of-sample test on the task's own data, and adds the guard; v3 admits exactly one cited field-standard model; v4 adds author questions and the task's own examples as test cases.
+The dotted path is the recursive part: after a run on a task with known answers, the loop finds its own mistakes, turns them into rules and training data, and feeds both back into the next run (section 8). The judge's instructions went through five tested versions, each closing a failure we had measured: v1 forbids changing an expected value the task does not settle; v2 settles a contested value only by an out-of-sample test on the task's own data, and adds the guard; v3 admits exactly one cited field-standard model; v4 adds author questions and the task's own examples as test cases.
 
 ## 4. What the loop has done
 
