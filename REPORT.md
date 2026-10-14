@@ -370,7 +370,7 @@ The frontier judge makes the loop work today. The owned model makes it cheap eno
 | SWE-smith (32B agent) | 5,000 trajectories from 52,000 task instances | full fine-tune |
 | DeepSWE (32B agent, RL) | online RL on real environments | 64 H100 for 6 days |
 | UTRL (test generation) | adversarial RL between test writer and coder | a 4B model that beats GPT-4.1 at discriminating tests |
-| **This program so far** | **26 to 103 trajectories from about 15 tasks, free data only** | 1 to 4 GPUs |
+| **This program so far** | **26 to 103 trajectories from about 15 tasks, free data only** | 5 H100s and 1 A100 |
 
 > **Everything so far ran on free data**
 >
@@ -394,4 +394,4 @@ The frontier judge makes the loop work today. The owned model makes it cheap eno
 - **The recipe has worked at this scale.** DeepSWE trained a 32B agent with RL on 64 H100s in 6 days; UTRL trained a 4B model with RL to beat GPT-4.1 at writing tests that separate right code from wrong. Our free-data runs used 26 to 103 trajectories; the plan uses thousands, from the distribution the model will actually face.
 - **Everything else is already built and tested.** The harness, the loop, the guard, the self-evolving step, the 262k-context serving stack and the multi-GPU training stack all exist and have run. What remains is the data and the compute to train the model properly.
 
-Spend to date: about $300 of model API across all studies, and rented GPU time on 1 to 5 H100-class GPUs. Measurements are balanced accuracy on hidden labelled attempts; every study was pre-registered with its pass bar. Frontier comparison figures come from recorded runs, some with an earlier judge prompt; the final evaluation reruns them under the identical harness.
+Spend to date: about $600 of model API across all studies, and rented GPU time on 5 H100 GPUs and 1 A100. Measurements are balanced accuracy on hidden labelled attempts; every study was pre-registered with its pass bar. Frontier comparison figures come from recorded runs, some with an earlier judge prompt; the final evaluation reruns them under the identical harness.
